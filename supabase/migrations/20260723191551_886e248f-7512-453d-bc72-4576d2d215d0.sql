@@ -1,0 +1,1 @@
+UPDATE public.app_settings SET value = jsonb_set(jsonb_set(value, '{template_name}', '"sdr_hot_lead_alert"'), '{template_language}', '"pt_BR"') WHERE key='sdr_hot_lead_alert';
