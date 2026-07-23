@@ -146,7 +146,7 @@ async function sendWhatsApp(cfg: HotAlertConfig, phone: string, text: string) {
 export async function maybeAlertHotLead(leadId: string) {
   const { data: lead } = await supabaseAdmin
     .from("leads")
-    .select("id, name, company_name, lead_type, priority, score, assigned_to")
+    .select("id, name, company_name, lead_type, priority, score, assigned_to, phone, position")
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) return;
@@ -171,7 +171,18 @@ export async function maybeAlertHotLead(leadId: string) {
   const company = lead.company_name?.trim() || "—";
   const url = `${APP_URL}/lead/${lead.id}`;
   const icon = priority === "high" ? "🔥" : "⚡";
-  const waText = `${icon} Lead ${priority === "high" ? "ALTA" : "MÉDIA"} prioridade\n${lead.name} — ${company}\nScore ${lead.score ?? 0}\n${url}`;
+  const label = priority === "high" ? "ALTA" : "MÉDIA";
+  const role = lead.position || "—";
+  const phoneLead = lead.phone || "—";
+  // String rica que cabe em uma única variável {{1}} do template HSM,
+  // e também renderiza bem como mensagem livre quando a janela de 24h está aberta.
+  const waText =
+    `${icon} Lead ${label} prioridade | ` +
+    `${lead.name} — ${company} | ` +
+    `${role} | ` +
+    `Tel: ${phoneLead} | ` +
+    `Score ${lead.score ?? 0} | ` +
+    url;
 
   const results: Record<string, unknown> = {
     lead_id: lead.id,
