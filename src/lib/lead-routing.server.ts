@@ -224,6 +224,11 @@ export async function ensureLeadRouted({
         },
       });
 
+      try {
+        const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
+        await maybeAlertHotLead(leadId);
+      } catch { /* alerts must never break routing */ }
+
       return managedAssignee;
     }
   }
@@ -252,6 +257,11 @@ export async function ensureLeadRouted({
     content: "Lead roteado automaticamente para SDR por tipo de lead.",
     metadata: { assignee_user_id: String(assignee), mode: "fixed", criterion: "lead_type" },
   });
+
+  try {
+    const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
+    await maybeAlertHotLead(leadId);
+  } catch { /* alerts must never break routing */ }
 
   return assignee;
 }
