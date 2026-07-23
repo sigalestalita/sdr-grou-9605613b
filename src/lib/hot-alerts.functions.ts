@@ -5,7 +5,9 @@ export type HotAlertRow = {
   id: string;
   created_at: string;
   status: string;
-  detail: Record<string, unknown>;
+  // JSON payload from integration_logs.detail; typed as any so it stays serializable
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  detail: any;
 };
 
 export const listHotLeadAlerts = createServerFn({ method: "GET" })
