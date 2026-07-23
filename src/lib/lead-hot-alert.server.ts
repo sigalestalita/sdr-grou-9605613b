@@ -300,3 +300,44 @@ export async function maybeAlertHotLead(leadId: string, opts?: { force?: boolean
     (results.whatsapp as { ok?: boolean } | undefined)?.ok;
   await log(anyOk ? "ok" : "error", results);
 }
+
+/**
+ * Envia SOMENTE para um telefone de monitoramento (sem tocar SDR/e-mail).
+ * Usado para reenvio pontual a um número extra.
+ */
+export async function sendMonitoringHotAlert(leadId: string, phone: string) {
+  const { data: lead } = await supabaseAdmin
+    .from("leads")
+    .select("id, name, company_name, lead_type, priority, score, phone, position")
+    .eq("id", leadId)
+    .maybeSingle();
+  if (!lead) {
+    await log("skipped", { lead_id: leadId, reason: "lead_not_found", monitoring_phone: phone });
+    return { ok: false, error: "lead_not_found" };
+  }
+  if (!isHotPriority(lead.priority)) {
+    await log("skipped", { lead_id: leadId, reason: "not_hot_priority", monitoring_phone: phone });
+    return { ok: false, error: "not_hot_priority" };
+  }
+  const cfg = await readConfig();
+  if (!cfg) return { ok: false, error: "no_config" };
+  const priority = lead.priority as HotLeadPriority;
+  const company = lead.company_name?.trim() || "—";
+  const url = `${APP_URL}/lead/${lead.id}`;
+  const icon = priority === "alta" ? "🔥" : "⚡";
+  const label = priority === "alta" ? "ALTA" : "MÉDIA";
+  const role = lead.position || "—";
+  const phoneLead = lead.phone || "—";
+  const waText =
+    `${phoneLead} | ${icon} ${label} prioridade | ${lead.name} — ${company} | ${role} | Score ${lead.score ?? 0} | ${url}`;
+  const r = await sendWhatsApp(cfg, phone, waText);
+  await log(r.ok ? "ok" : "error", {
+    lead_id: lead.id,
+    lead_name: lead.name,
+    lead_type: lead.lead_type,
+    priority,
+    monitoring_only: true,
+    whatsapp: { ...r, phone },
+  });
+  return r;
+}
