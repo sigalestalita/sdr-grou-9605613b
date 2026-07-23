@@ -3,7 +3,7 @@ import { LEAD_TYPE_LABEL, type LeadType } from "./lead-type";
 import { getProvider } from "./whatsapp/provider-registry.server";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/resend/emails";
-const FROM = "Grou SDR <onboarding@resend.dev>";
+const FROM = "Grou SDR <sdr@grougp.com.br>";
 const APP_URL = process.env.APP_PUBLIC_URL || "https://sdr-grou.lovable.app";
 
 export const HOT_ALERT_SETTINGS_KEY = "sdr_hot_lead_alert";
