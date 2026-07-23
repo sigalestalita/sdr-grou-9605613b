@@ -20,10 +20,10 @@ type HotAlertConfig = {
   cc_emails?: string[];
 };
 
-export type HotLeadPriority = "high" | "medium";
+export type HotLeadPriority = "alta" | "media";
 
 function isHotPriority(p: unknown): p is HotLeadPriority {
-  return p === "high" || p === "medium";
+  return p === "alta" || p === "media";
 }
 
 async function readConfig(): Promise<HotAlertConfig | null> {
@@ -81,9 +81,9 @@ async function sendEmail(params: {
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!LOVABLE_API_KEY || !RESEND_API_KEY) return { ok: false, error: "missing_keys" };
 
-  const icon = params.priority === "high" ? "🔥" : "⚡";
-  const bar = params.priority === "high" ? "#dc2626" : "#f59e0b";
-  const label = params.priority === "high" ? "ALTA PRIORIDADE" : "MÉDIA PRIORIDADE";
+  const icon = params.priority === "alta" ? "🔥" : "⚡";
+  const bar = params.priority === "alta" ? "#dc2626" : "#f59e0b";
+  const label = params.priority === "alta" ? "ALTA PRIORIDADE" : "MÉDIA PRIORIDADE";
   const url = `${APP_URL}/lead/${params.leadId}`;
 
   const html = `
@@ -170,8 +170,8 @@ export async function maybeAlertHotLead(leadId: string) {
   const priority = lead.priority as HotLeadPriority;
   const company = lead.company_name?.trim() || "—";
   const url = `${APP_URL}/lead/${lead.id}`;
-  const icon = priority === "high" ? "🔥" : "⚡";
-  const label = priority === "high" ? "ALTA" : "MÉDIA";
+  const icon = priority === "alta" ? "🔥" : "⚡";
+  const label = priority === "alta" ? "ALTA" : "MÉDIA";
   const role = lead.position || "—";
   const phoneLead = lead.phone || "—";
   // String rica que cabe em uma única variável {{1}} do template HSM,
