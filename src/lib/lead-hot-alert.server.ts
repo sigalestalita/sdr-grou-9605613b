@@ -8,6 +8,10 @@ const APP_URL = process.env.APP_PUBLIC_URL || "https://sdr-grou.lovable.app";
 
 export const HOT_ALERT_SETTINGS_KEY = "sdr_hot_lead_alert";
 
+// Mariana Borges atende exclusivamente CONSULTORIA.
+// As demais SDRs (Camila, Lisiane) recebem apenas EMPRESA/PESSOA_FISICA.
+const MARIANA_USER_ID = "81068193-826f-42e8-8670-df87fcdfecf5";
+
 type HotAlertConfig = {
   /** Mapa userId → telefone E.164 (só dígitos). */
   phones: Record<string, string>;
@@ -84,17 +88,18 @@ async function sendEmail(params: {
   const icon = params.priority === "alta" ? "🔥" : "⚡";
   const bar = params.priority === "alta" ? "#dc2626" : "#f59e0b";
   const label = params.priority === "alta" ? "ALTA PRIORIDADE" : "MÉDIA PRIORIDADE";
+  const typeLabel = LEAD_TYPE_LABEL[params.leadType];
   const url = `${APP_URL}/lead/${params.leadId}`;
 
   const html = `
     <div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f5f6f8;padding:24px;">
       <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;border:1px solid #e5e7eb;overflow:hidden;">
         <div style="background:${bar};color:#fff;padding:14px 24px;font-weight:700;font-size:15px;">
-          ${icon} ${label} — Empresa
+          ${icon} ${label} — ${typeLabel}
         </div>
         <div style="padding:24px;">
           <h2 style="margin:0 0 4px 0;font-size:18px;color:#111827;">${escapeHtml(params.name)}</h2>
-          <p style="margin:0 0 16px 0;color:#6b7280;">${escapeHtml(params.company)} · ${LEAD_TYPE_LABEL[params.leadType]} · Score ${params.score}</p>
+          <p style="margin:0 0 16px 0;color:#6b7280;">${escapeHtml(params.company)} · ${typeLabel} · Score ${params.score}</p>
           <a href="${url}" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;">Abrir lead agora</a>
         </div>
       </div>
@@ -150,9 +155,17 @@ export async function maybeAlertHotLead(leadId: string) {
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) return;
-  if (lead.lead_type !== "empresa") return;
   if (!isHotPriority(lead.priority)) return;
   if (!lead.assigned_to) return;
+
+  // Regra de escopo por SDR/tipo:
+  // - Mariana Borges: SOMENTE leads de consultoria.
+  // - Demais SDRs: SOMENTE leads de empresa/pessoa_fisica (não consultoria).
+  const isMariana = lead.assigned_to === MARIANA_USER_ID;
+  const isConsultoria = lead.lead_type === "consultoria";
+  if (isMariana && !isConsultoria) return;
+  if (!isMariana && isConsultoria) return;
+  if (!isMariana && lead.lead_type !== "empresa" && lead.lead_type !== "pessoa_fisica") return;
   if (await alreadyAlerted(lead.id)) return;
 
   const cfg = await readConfig();
@@ -197,7 +210,7 @@ export async function maybeAlertHotLead(leadId: string) {
       leadId: lead.id,
       name: lead.name,
       company,
-      leadType: "empresa",
+      leadType: lead.lead_type as LeadType,
       score: lead.score ?? 0,
       priority,
     });
