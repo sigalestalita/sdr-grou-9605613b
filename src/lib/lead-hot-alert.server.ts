@@ -177,10 +177,10 @@ export async function maybeAlertHotLead(leadId: string) {
   // String rica que cabe em uma única variável {{1}} do template HSM,
   // e também renderiza bem como mensagem livre quando a janela de 24h está aberta.
   const waText =
-    `${icon} Lead ${label} prioridade | ` +
+    `${phoneLead} | ` +
+    `${icon} ${label} prioridade | ` +
     `${lead.name} — ${company} | ` +
     `${role} | ` +
-    `Tel: ${phoneLead} | ` +
     `Score ${lead.score ?? 0} | ` +
     url;
 
