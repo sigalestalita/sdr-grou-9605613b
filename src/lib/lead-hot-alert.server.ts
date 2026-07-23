@@ -58,7 +58,7 @@ async function alreadyAlerted(leadId: string) {
   return (data?.length ?? 0) > 0;
 }
 
-async function log(status: "ok" | "error", detail: Record<string, unknown>) {
+async function log(status: "ok" | "error" | "skipped", detail: Record<string, unknown>) {
   try {
     await supabaseAdmin
       .from("integration_logs")
@@ -81,9 +81,12 @@ async function sendEmail(params: {
   score: number;
   priority: HotLeadPriority;
 }) {
+  const started = Date.now();
   const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (!LOVABLE_API_KEY || !RESEND_API_KEY) return { ok: false, error: "missing_keys" };
+  if (!LOVABLE_API_KEY || !RESEND_API_KEY) {
+    return { ok: false, error: "missing_keys", to: params.to, ms: 0 };
+  }
 
   const icon = params.priority === "alta" ? "🔥" : "⚡";
   const bar = params.priority === "alta" ? "#dc2626" : "#f59e0b";
@@ -119,18 +122,27 @@ async function sendEmail(params: {
       html,
     }),
   });
-  if (!res.ok) return { ok: false, error: `HTTP ${res.status}: ${(await res.text()).slice(0, 300)}` };
-  return { ok: true };
+  const ms = Date.now() - started;
+  if (!res.ok) {
+    return { ok: false, error: `HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`, to: params.to, ms };
+  }
+  let messageId: string | undefined;
+  try {
+    const body = (await res.json()) as { id?: string };
+    messageId = body?.id;
+  } catch { /* ignore */ }
+  return { ok: true, to: params.to, ms, message_id: messageId };
 }
 
 async function sendWhatsApp(cfg: HotAlertConfig, phone: string, text: string) {
-  if (!cfg.whatsapp_account_id) return { ok: false, error: "whatsapp_account_id_missing" };
+  const started = Date.now();
+  if (!cfg.whatsapp_account_id) return { ok: false, error: "whatsapp_account_id_missing", phone, ms: 0 };
   const { data: acc } = await supabaseAdmin
     .from("whatsapp_accounts")
     .select("id, phone_number, provider, provider_instance_id, provider_base_url, access_token, webhook_secret")
     .eq("id", cfg.whatsapp_account_id)
     .maybeSingle();
-  if (!acc) return { ok: false, error: "whatsapp_account_not_found" };
+  if (!acc) return { ok: false, error: "whatsapp_account_not_found", phone, ms: Date.now() - started };
 
   const provider = getProvider(acc.provider);
   const useTemplate = !!cfg.template_name;
@@ -143,9 +155,12 @@ async function sendWhatsApp(cfg: HotAlertConfig, phone: string, text: string) {
     templateLanguage: cfg.template_language ?? "pt_BR",
     templateParams: useTemplate ? [text] : undefined,
   });
-  return result.status === "failed"
-    ? { ok: false, error: result.error ?? "provider_failed" }
-    : { ok: true };
+  const ms = Date.now() - started;
+  const mode = useTemplate ? `template:${cfg.template_name}` : "free_text";
+  if (result.status === "failed") {
+    return { ok: false, error: result.error ?? "provider_failed", phone, mode, ms };
+  }
+  return { ok: true, phone, mode, ms, provider_message_id: (result as { providerMessageId?: string }).providerMessageId };
 }
 
 export async function maybeAlertHotLead(leadId: string) {
@@ -154,19 +169,48 @@ export async function maybeAlertHotLead(leadId: string) {
     .select("id, name, company_name, lead_type, priority, score, assigned_to, phone, position")
     .eq("id", leadId)
     .maybeSingle();
-  if (!lead) return;
-  if (!isHotPriority(lead.priority)) return;
-  if (!lead.assigned_to) return;
+  if (!lead) {
+    await log("skipped", { lead_id: leadId, reason: "lead_not_found" });
+    return;
+  }
+  const baseDetail = {
+    lead_id: lead.id,
+    lead_name: lead.name,
+    lead_type: lead.lead_type,
+    priority: lead.priority,
+    score: lead.score ?? 0,
+    assigned_to: lead.assigned_to,
+  };
+  if (!isHotPriority(lead.priority)) {
+    await log("skipped", { ...baseDetail, reason: "not_hot_priority" });
+    return;
+  }
+  if (!lead.assigned_to) {
+    await log("skipped", { ...baseDetail, reason: "no_assigned_sdr" });
+    return;
+  }
 
   // Regra de escopo por SDR/tipo:
   // - Mariana Borges: SOMENTE leads de consultoria.
   // - Demais SDRs: SOMENTE leads de empresa/pessoa_fisica (não consultoria).
   const isMariana = lead.assigned_to === MARIANA_USER_ID;
   const isConsultoria = lead.lead_type === "consultoria";
-  if (isMariana && !isConsultoria) return;
-  if (!isMariana && isConsultoria) return;
-  if (!isMariana && lead.lead_type !== "empresa" && lead.lead_type !== "pessoa_fisica") return;
-  if (await alreadyAlerted(lead.id)) return;
+  if (isMariana && !isConsultoria) {
+    await log("skipped", { ...baseDetail, reason: "mariana_only_consultoria" });
+    return;
+  }
+  if (!isMariana && isConsultoria) {
+    await log("skipped", { ...baseDetail, reason: "consultoria_only_mariana" });
+    return;
+  }
+  if (!isMariana && lead.lead_type !== "empresa" && lead.lead_type !== "pessoa_fisica") {
+    await log("skipped", { ...baseDetail, reason: "lead_type_out_of_scope" });
+    return;
+  }
+  if (await alreadyAlerted(lead.id)) {
+    await log("skipped", { ...baseDetail, reason: "already_alerted" });
+    return;
+  }
 
   const cfg = await readConfig();
 
@@ -198,9 +242,11 @@ export async function maybeAlertHotLead(leadId: string) {
     url;
 
   const results: Record<string, unknown> = {
-    lead_id: lead.id,
+    ...baseDetail,
     priority,
-    assigned_to: lead.assigned_to,
+    assigned_to_email: profile?.email ?? null,
+    assigned_to_name: profile?.full_name ?? null,
+    cc_emails: cfg?.cc_emails ?? [],
   };
 
   // Email
@@ -216,7 +262,7 @@ export async function maybeAlertHotLead(leadId: string) {
     });
     results.email = r;
   } else {
-    results.email = { skipped: "no_recipient" };
+    results.email = { ok: false, skipped: "no_recipient", reason: "SDR sem e-mail em profiles e sem cc_emails configurado" };
   }
 
   // WhatsApp para o SDR responsável
@@ -224,7 +270,13 @@ export async function maybeAlertHotLead(leadId: string) {
   if (phone && cfg) {
     results.whatsapp = await sendWhatsApp(cfg, phone, waText);
   } else {
-    results.whatsapp = { skipped: cfg ? "no_phone_for_user" : "no_config" };
+    results.whatsapp = {
+      ok: false,
+      skipped: cfg ? "no_phone_for_user" : "no_config",
+      reason: cfg
+        ? `Nenhum telefone cadastrado em app_settings.${HOT_ALERT_SETTINGS_KEY}.phones para o SDR ${lead.assigned_to}`
+        : `Chave ${HOT_ALERT_SETTINGS_KEY} não encontrada em app_settings`,
+    };
   }
 
   const anyOk =
