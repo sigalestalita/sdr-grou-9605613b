@@ -346,6 +346,10 @@ export const recalcLeadScore = createServerFn({ method: "POST" })
       .from("leads")
       .update({ score, priority, icp_signals: signals as never })
       .eq("id", data.id);
+    try {
+      const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
+      await maybeAlertHotLead(data.id);
+    } catch { /* alerts must never break score recalc */ }
     return { score, priority };
   });
 
