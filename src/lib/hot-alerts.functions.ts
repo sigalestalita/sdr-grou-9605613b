@@ -43,3 +43,20 @@ export const triggerHotLeadAlert = createServerFn({ method: "POST" })
     }
     return results;
   });
+
+export const sendMonitoringAlert = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { leadIds: string[]; phone: string }) => data)
+  .handler(async ({ data }) => {
+    const { sendMonitoringHotAlert } = await import("./lead-hot-alert.server");
+    const results: Array<{ leadId: string; ok: boolean; error?: string }> = [];
+    for (const id of data.leadIds) {
+      try {
+        const r = await sendMonitoringHotAlert(id, data.phone);
+        results.push({ leadId: id, ok: !!r.ok, error: r.ok ? undefined : (r.error ?? "unknown") });
+      } catch (e) {
+        results.push({ leadId: id, ok: false, error: e instanceof Error ? e.message : String(e) });
+      }
+    }
+    return results;
+  });
