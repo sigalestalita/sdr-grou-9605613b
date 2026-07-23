@@ -28,7 +28,6 @@ export const listHotLeadAlerts = createServerFn({ method: "GET" })
   });
 
 export const triggerHotLeadAlert = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((data: { leadIds: string[] }) => data)
   .handler(async ({ data }) => {
     const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
