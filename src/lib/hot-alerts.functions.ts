@@ -29,13 +29,13 @@ export const listHotLeadAlerts = createServerFn({ method: "GET" })
 
 export const triggerHotLeadAlert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { leadIds: string[] }) => data)
+  .inputValidator((data: { leadIds: string[]; force?: boolean }) => data)
   .handler(async ({ data }) => {
     const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
     const results: { leadId: string; ok: boolean; error?: string }[] = [];
     for (const id of data.leadIds) {
       try {
-        await maybeAlertHotLead(id);
+        await maybeAlertHotLead(id, { force: data.force });
         results.push({ leadId: id, ok: true });
       } catch (e) {
         results.push({ leadId: id, ok: false, error: e instanceof Error ? e.message : String(e) });
