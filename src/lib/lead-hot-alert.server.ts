@@ -163,7 +163,7 @@ async function sendWhatsApp(cfg: HotAlertConfig, phone: string, text: string) {
   return { ok: true, phone, mode, ms, provider_message_id: (result as { providerMessageId?: string }).providerMessageId };
 }
 
-export async function maybeAlertHotLead(leadId: string) {
+export async function maybeAlertHotLead(leadId: string, opts?: { force?: boolean }) {
   const { data: lead } = await supabaseAdmin
     .from("leads")
     .select("id, name, company_name, lead_type, priority, score, assigned_to, phone, position")
@@ -207,7 +207,7 @@ export async function maybeAlertHotLead(leadId: string) {
     await log("skipped", { ...baseDetail, reason: "lead_type_out_of_scope" });
     return;
   }
-  if (await alreadyAlerted(lead.id)) {
+  if (!opts?.force && (await alreadyAlerted(lead.id))) {
     await log("skipped", { ...baseDetail, reason: "already_alerted" });
     return;
   }
