@@ -288,7 +288,8 @@ export async function maybeAlertHotLead(leadId: string, opts?: { force?: boolean
     if (extras.length > 0) {
       const extraResults: Array<Record<string, unknown>> = [];
       for (const p of extras) {
-        extraResults.push({ phone: p, ...(await sendWhatsApp(cfg, p, waText)) });
+        const r = await sendWhatsApp(cfg, p, waText);
+        extraResults.push({ ...r, phone: p });
       }
       results.whatsapp_cc = extraResults;
     }
