@@ -22,6 +22,8 @@ type HotAlertConfig = {
   template_language?: string | null;
   /** E-mails que devem receber o alerta HOT (além do responsável). */
   cc_emails?: string[];
+  /** Telefones (E.164 só dígitos) que também recebem alerta WhatsApp para leads empresa/pessoa_fisica. */
+  empresa_cc_phones?: string[];
 };
 
 export type HotLeadPriority = "alta" | "media";
@@ -44,6 +46,7 @@ async function readConfig(): Promise<HotAlertConfig | null> {
     template_name: raw.template_name ?? null,
     template_language: raw.template_language ?? "pt_BR",
     cc_emails: Array.isArray(raw.cc_emails) ? raw.cc_emails : [],
+    empresa_cc_phones: Array.isArray(raw.empresa_cc_phones) ? raw.empresa_cc_phones : [],
   };
 }
 
@@ -277,6 +280,19 @@ export async function maybeAlertHotLead(leadId: string, opts?: { force?: boolean
         ? `Nenhum telefone cadastrado em app_settings.${HOT_ALERT_SETTINGS_KEY}.phones para o SDR ${lead.assigned_to}`
         : `Chave ${HOT_ALERT_SETTINGS_KEY} não encontrada em app_settings`,
     };
+  }
+
+  // Cópia extra de WhatsApp para leads empresa/pessoa_fisica (monitoramento gerencial)
+  if (cfg && !isMariana && (lead.lead_type === "empresa" || lead.lead_type === "pessoa_fisica")) {
+    const extras = (cfg.empresa_cc_phones ?? []).filter((p) => !!p && p !== phone);
+    if (extras.length > 0) {
+      const extraResults: Array<Record<string, unknown>> = [];
+      for (const p of extras) {
+        const r = await sendWhatsApp(cfg, p, waText);
+        extraResults.push({ ...r, phone: p });
+      }
+      results.whatsapp_cc = extraResults;
+    }
   }
 
   const anyOk =
