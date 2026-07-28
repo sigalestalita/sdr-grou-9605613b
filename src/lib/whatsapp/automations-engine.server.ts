@@ -115,8 +115,12 @@ async function executeRuleForLead(rule: RuleRow, lead: LeadLite): Promise<{ ok: 
     .maybeSingle();
   if (!tmpl) return { ok: false, error: "Template inexistente" };
 
-  const account = await getDefaultAccount();
+  const account =
+    (await getAccountById(rule.account_id)) ?? (await getDefaultAccount());
   if (!account) return { ok: false, error: "Sem conta WhatsApp padrão" };
+  if (!accountAllowsLead(account, lead.lead_type)) {
+    return { ok: false, error: "Lead fora do escopo da conta WhatsApp da regra" };
+  }
 
   const body = renderTemplate(tmpl.body, {
     nome: lead.name ?? "",
