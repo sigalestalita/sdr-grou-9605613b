@@ -339,6 +339,22 @@ function AutomationsPage() {
                   </div>
                 </div>
 
+                <div>
+                  <label className="text-xs text-muted-foreground">Conta de WhatsApp</label>
+                  <Select value={accountId} onValueChange={setAccountId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default">Conta padrão</SelectItem>
+                      {(accs?.accounts ?? []).map((a: { id: string; label: string | null; phone_number: string }) => (
+                        <SelectItem key={a.id} value={a.id}>{a.label || a.phone_number}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    A regra só dispara para leads dentro do escopo (tipo de lead) definido na conta.
+                  </p>
+                </div>
+
                 {trigger === "new_lead" && (
                   <div>
                     <label className="text-xs text-muted-foreground">Atraso após criação (minutos)</label>
