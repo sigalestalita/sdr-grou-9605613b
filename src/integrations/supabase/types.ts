@@ -530,6 +530,7 @@ export type Database = {
           id: string
           is_default: boolean
           label: string | null
+          lead_type_scope: string[] | null
           metadata: Json
           owner_user_id: string | null
           phone_number: string
@@ -538,6 +539,7 @@ export type Database = {
           provider_instance_id: string | null
           status: string
           updated_at: string
+          visible_to_user_ids: string[] | null
           webhook_secret: string
         }
         Insert: {
@@ -546,6 +548,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           label?: string | null
+          lead_type_scope?: string[] | null
           metadata?: Json
           owner_user_id?: string | null
           phone_number: string
@@ -554,6 +557,7 @@ export type Database = {
           provider_instance_id?: string | null
           status?: string
           updated_at?: string
+          visible_to_user_ids?: string[] | null
           webhook_secret?: string
         }
         Update: {
@@ -562,6 +566,7 @@ export type Database = {
           id?: string
           is_default?: boolean
           label?: string | null
+          lead_type_scope?: string[] | null
           metadata?: Json
           owner_user_id?: string | null
           phone_number?: string
@@ -570,6 +575,7 @@ export type Database = {
           provider_instance_id?: string | null
           status?: string
           updated_at?: string
+          visible_to_user_ids?: string[] | null
           webhook_secret?: string
         }
         Relationships: []
@@ -631,6 +637,7 @@ export type Database = {
       }
       whatsapp_automation_rules: {
         Row: {
+          account_id: string | null
           active: boolean
           created_at: string
           created_by: string | null
@@ -643,6 +650,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_id?: string | null
           active?: boolean
           created_at?: string
           created_by?: string | null
@@ -655,6 +663,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_id?: string | null
           active?: boolean
           created_at?: string
           created_by?: string | null
@@ -667,6 +676,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "whatsapp_automation_rules_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "whatsapp_automation_rules_template_id_fkey"
             columns: ["template_id"]
@@ -973,6 +989,7 @@ export type Database = {
       }
       whatsapp_fup_sequences: {
         Row: {
+          account_id: string | null
           active: boolean
           audience_filters: Json
           created_at: string
@@ -987,6 +1004,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_id?: string | null
           active?: boolean
           audience_filters?: Json
           created_at?: string
@@ -1001,6 +1019,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_id?: string | null
           active?: boolean
           audience_filters?: Json
           created_at?: string
@@ -1014,7 +1033,15 @@ export type Database = {
           trigger_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_fup_sequences_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_fup_steps: {
         Row: {
@@ -1202,6 +1229,7 @@ export type Database = {
     }
     Functions: {
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
+      can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

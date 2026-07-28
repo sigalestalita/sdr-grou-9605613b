@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getAiAgentSettings, triggerManualAiTest, updateAiAgentSettings } from "@/lib/whatsapp-ai.functions";
 import { listTemplates } from "@/lib/whatsapp-templates.functions";
+import { listAccounts } from "@/lib/whatsapp-accounts.functions";
 import { getCampaignFilterMeta } from "@/lib/whatsapp-campaigns.functions";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,13 @@ function WhatsAppAiPage() {
   const saveFn = useServerFn(updateAiAgentSettings);
   const testFn = useServerFn(triggerManualAiTest);
   const templatesFn = useServerFn(listTemplates);
+  const accountsFn = useServerFn(listAccounts);
   const metaFn = useServerFn(getCampaignFilterMeta);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({ queryKey: ["wa-ai-settings"], queryFn: () => getFn() });
   const { data: tmpls } = useQuery({ queryKey: ["wa-templates-mini"], queryFn: () => templatesFn() });
+  const { data: accs } = useQuery({ queryKey: ["wa-accounts-mini"], queryFn: () => accountsFn() });
   const { data: meta } = useQuery({ queryKey: ["wa-camp-meta"], queryFn: () => metaFn() });
 
   const settings = data?.settings;
@@ -70,6 +73,7 @@ function WhatsAppAiPage() {
 
   const stages = meta?.stages ?? [];
   const templates = (tmpls?.templates ?? []).filter((t) => !!t.provider_template_name);
+  const accounts = (accs?.accounts ?? []) as Array<{ id: string; label: string | null; phone_number: string }>;
   const missingPrerequisites = [
     !form.enabled ? "Ative a IA de atendimento" : null,
     !form.initialOutreachEnabled ? "Ative o disparo inicial proativo" : null,
@@ -170,6 +174,67 @@ function WhatsAppAiPage() {
               <label className="text-xs text-muted-foreground">Máximo de respostas automáticas por conversa</label>
               <Input type="number" min={1} max={50} value={form.responseMaxPerConversation} onChange={(e) => patch({ responseMaxPerConversation: Number(e.target.value) })} />
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Roteamento por conta de WhatsApp</CardTitle>
+          <CardDescription>
+            Escolha qual conta a IA usa por padrão e qual conta específica atende leads de <strong>Consultoria</strong> (com template HSM próprio, se quiser).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-muted-foreground">Conta padrão (Empresa / Pessoa física)</label>
+              <Select
+                value={form.defaultAccountId ?? "__auto"}
+                onValueChange={(v) => patch({ defaultAccountId: v === "__auto" ? null : v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__auto">Conta marcada como padrão</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.label || a.phone_number}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Conta para Consultoria</label>
+              <Select
+                value={form.consultoriaAccountId ?? "__none"}
+                onValueChange={(v) => patch({ consultoriaAccountId: v === "__none" ? null : v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Usar a padrão</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.label || a.phone_number}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Template HSM inicial para Consultoria (opcional)</label>
+            <Select
+              value={form.consultoriaInitialTemplateId ?? "__none"}
+              onValueChange={(v) => patch({ consultoriaInitialTemplateId: v === "__none" ? null : v })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Usar o template inicial padrão</SelectItem>
+                {templates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Recomendado quando a mensagem inicial de consultoria for diferente da comercial.
+            </p>
           </div>
         </CardContent>
       </Card>

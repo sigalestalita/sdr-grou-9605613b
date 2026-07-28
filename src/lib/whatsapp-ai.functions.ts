@@ -24,6 +24,9 @@ type AiAgentSettings = {
   firstMessagePrompt: string;
   replyPrompt: string;
   handoffPrompt: string;
+  defaultAccountId: string | null;
+  consultoriaAccountId: string | null;
+  consultoriaInitialTemplateId: string | null;
 };
 
 export type AiHandoffDecision = {
@@ -78,6 +81,9 @@ const AiAgentSettingsSchema = z.object({
   firstMessagePrompt: z.string().max(5000).default("Na primeira interação útil, descubra o motivo da conversão e conecte a abordagem ao contexto da origem, campanha, formulário ou criativo quando esses dados existirem. Priorize perguntas curtas para entender dor, momento e interesse. Deixe claro que, se preferir, o lead pode falar com um especialista humano desde já."),
   replyPrompt: z.string().max(5000).default("Responda a última mensagem do lead de forma curta e consultiva. Priorize: 1) entender o motivo da conversão e a dor principal, 2) qualificar perfil, contexto e timing, 3) avançar para atendimento comercial. Se o lead pedir humano, reconheça isso e conduza imediatamente para handoff."),
   handoffPrompt: z.string().max(2000).default("Faça handoff para humano imediatamente quando o lead pedir falar com uma pessoa, demonstrar intenção comercial clara, pedir proposta/demonstração/agendamento, trouxer negociação sensível ou quando a conversa estiver madura para um SDR assumir e marcar agenda."),
+  defaultAccountId: z.string().uuid().nullable().default(null),
+  consultoriaAccountId: z.string().uuid().nullable().default(null),
+  consultoriaInitialTemplateId: z.string().uuid().nullable().default(null),
 });
 
 const UpdateAiAgentSettingsSchema = AiAgentSettingsSchema.partial();
@@ -842,13 +848,19 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
 
     const { data: conv, error: convErr } = await supabaseAdmin
       .from("whatsapp_conversations")
-      .select("id, lead_id, account_id, leads:lead_id(id,name,company_name,phone)")
+      .select("id, lead_id, account_id, leads:lead_id(id,name,company_name,phone,lead_type)")
       .eq("id", conversationId)
       .maybeSingle();
     if (convErr) throw new Error(convErr.message);
     if (!conv) throw new Error("Conversa de teste não encontrada");
 
-    const lead = conv.leads as { id: string; name: string | null; company_name: string | null; phone: string | null } | null;
+    const lead = conv.leads as {
+      id: string;
+      name: string | null;
+      company_name: string | null;
+      phone: string | null;
+      lead_type: string | null;
+    } | null;
     if (!lead?.phone) {
       return {
         ok: false,
@@ -857,7 +869,10 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
         conversationId: conv.id,
       };
     }
-    if (!settings.initialTemplateId) {
+    const isConsultoria = lead.lead_type === "consultoria";
+    const templateId =
+      (isConsultoria && settings.consultoriaInitialTemplateId) || settings.initialTemplateId;
+    if (!templateId) {
       return {
         ok: false,
         code: "INITIAL_TEMPLATE_MISSING",
@@ -870,7 +885,7 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
     const { data: tmpl } = await supabaseAdmin
       .from("whatsapp_templates")
       .select("provider_template_name, language, variables, meta_template_id, body")
-      .eq("id", settings.initialTemplateId)
+      .eq("id", templateId)
       .maybeSingle();
     if (!tmpl?.provider_template_name) {
       return {
@@ -881,8 +896,11 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
       };
     }
 
-    const accountQuery = conv.account_id
-      ? supabaseAdmin.from("whatsapp_accounts").select("*").eq("id", conv.account_id).maybeSingle()
+    const preferredAccountId = isConsultoria
+      ? settings.consultoriaAccountId
+      : settings.defaultAccountId ?? conv.account_id;
+    const accountQuery = preferredAccountId
+      ? supabaseAdmin.from("whatsapp_accounts").select("*").eq("id", preferredAccountId).maybeSingle()
       : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
     const { data: account } = await accountQuery;
     if (!account) {
@@ -923,10 +941,11 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
         body: renderedBody || null,
         metadata: {
           source: "manual_ai_test",
-          template_id: settings.initialTemplateId,
+          template_id: templateId,
           template_name: tmpl.provider_template_name,
           rendered_body: renderedBody || null,
           phone: data.phone,
+          account_id: account.id,
         },
         status: "sending",
       })

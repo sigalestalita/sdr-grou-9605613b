@@ -14,6 +14,7 @@ import {
 } from "@/lib/whatsapp-automations.functions";
 import { getLeadRoutingSettings, updateLeadRoutingSettings } from "@/lib/settings.functions";
 import { listTemplates } from "@/lib/whatsapp-templates.functions";
+import { listAccounts } from "@/lib/whatsapp-accounts.functions";
 import { getCampaignFilterMeta } from "@/lib/whatsapp-campaigns.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +54,7 @@ type RuleRow = {
   template_id: string | null;
   delay_minutes: number | null;
   active: boolean;
+  account_id: string | null;
   whatsapp_templates?: { name: string } | null;
 };
 
@@ -64,6 +66,7 @@ function AutomationsPage() {
   const logsFn = useServerFn(listAutomationLogs);
   const tickFn = useServerFn(runAutomationsNow);
   const tmplFn = useServerFn(listTemplates);
+  const accountsFn = useServerFn(listAccounts);
   const metaFn = useServerFn(getCampaignFilterMeta);
   const routingFn = useServerFn(getLeadRoutingSettings);
   const saveRoutingFn = useServerFn(updateLeadRoutingSettings);
@@ -83,6 +86,10 @@ function AutomationsPage() {
     queryKey: ["wa-templates-mini"],
     queryFn: () => tmplFn(),
   });
+  const { data: accs } = useQuery({
+    queryKey: ["wa-accounts-mini"],
+    queryFn: () => accountsFn(),
+  });
   const { data: meta } = useQuery({
     queryKey: ["wa-camp-meta"],
     queryFn: () => metaFn(),
@@ -97,6 +104,7 @@ function AutomationsPage() {
   const [name, setName] = useState("");
   const [trigger, setTrigger] = useState<AutomationTrigger>("new_lead");
   const [templateId, setTemplateId] = useState("");
+  const [accountId, setAccountId] = useState<string>("__default");
   const [delayMin, setDelayMin] = useState<number>(0);
   const [hoursWithoutReply, setHoursWithoutReply] = useState<number>(24);
   const [stageId, setStageId] = useState<string>("");
@@ -121,6 +129,7 @@ function AutomationsPage() {
     setName("");
     setTrigger("new_lead");
     setTemplateId("");
+    setAccountId("__default");
     setDelayMin(0);
     setHoursWithoutReply(24);
     setStageId("");
@@ -133,6 +142,7 @@ function AutomationsPage() {
     setName(r.name);
     setTrigger(r.trigger_type);
     setTemplateId(r.template_id ?? "");
+    setAccountId(r.account_id ?? "__default");
     setDelayMin(r.delay_minutes ?? 0);
     setActive(r.active);
     const cfg = r.trigger_config ?? {};
@@ -158,6 +168,7 @@ function AutomationsPage() {
         templateId,
         delayMinutes: delayMin,
         active,
+        accountId: accountId === "__default" ? null : accountId,
       };
       if (editing) return updateFn({ data: { id: editing.id, ...payload } });
       return createFn({ data: payload });
@@ -326,6 +337,22 @@ function AutomationsPage() {
                       </p>
                     )}
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-xs text-muted-foreground">Conta de WhatsApp</label>
+                  <Select value={accountId} onValueChange={setAccountId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default">Conta padrão</SelectItem>
+                      {(accs?.accounts ?? []).map((a: { id: string; label: string | null; phone_number: string }) => (
+                        <SelectItem key={a.id} value={a.id}>{a.label || a.phone_number}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    A regra só dispara para leads dentro do escopo (tipo de lead) definido na conta.
+                  </p>
                 </div>
 
                 {trigger === "new_lead" && (

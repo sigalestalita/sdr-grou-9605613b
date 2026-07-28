@@ -11,6 +11,7 @@ type Sequence = {
   stop_on_reply: boolean;
   stop_on_stage_ids: string[] | null;
   active: boolean;
+  account_id: string | null;
 };
 
 type Step = {
@@ -66,6 +67,26 @@ async function getDefaultAccount() {
     .eq("is_default", true)
     .maybeSingle();
   return data;
+}
+
+async function getAccountById(id: string | null | undefined) {
+  if (!id) return null;
+  const { data } = await supabaseAdmin
+    .from("whatsapp_accounts")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return data;
+}
+
+function accountAllowsLead(
+  account: { lead_type_scope: string[] | null } | null,
+  leadType: string | null,
+): boolean {
+  if (!account) return true;
+  const scope = account.lead_type_scope;
+  if (!scope || scope.length === 0) return true;
+  return !!leadType && scope.includes(leadType);
 }
 
 async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
@@ -152,7 +173,10 @@ async function getFirstStepDelayHours(sequenceId: string): Promise<number> {
 async function enrollEligible(seq: Sequence): Promise<number> {
   const candidates = await fetchTriggerCandidates(seq);
   if (!candidates.length) return 0;
-  const filtered = candidates.filter((l) => passesAudience(l, seq.audience_filters));
+  const seqAccount = await getAccountById(seq.account_id);
+  const filtered = candidates.filter(
+    (l) => passesAudience(l, seq.audience_filters) && accountAllowsLead(seqAccount, l.lead_type),
+  );
   if (!filtered.length) return 0;
 
   const { data: existing } = await supabaseAdmin
@@ -184,8 +208,11 @@ async function sendStep(seq: Sequence, step: Step, lead: LeadLite): Promise<{ ok
     .maybeSingle();
   if (!tmpl) return { ok: false, error: "Template inexistente" };
 
-  const account = await getDefaultAccount();
-  if (!account) return { ok: false, error: "Sem conta WhatsApp padrão" };
+  const account = (await getAccountById(seq.account_id)) ?? (await getDefaultAccount());
+  if (!account) return { ok: false, error: "Sem conta WhatsApp configurada" };
+  if (!accountAllowsLead(account, lead.lead_type)) {
+    return { ok: false, error: "Lead fora do escopo da conta WhatsApp do FUP" };
+  }
 
   const body = renderTemplate(tmpl.body, {
     nome: lead.name ?? "",
