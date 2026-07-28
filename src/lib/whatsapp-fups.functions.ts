@@ -74,6 +74,7 @@ export const upsertFupSequence = createServerFn({ method: "POST" })
         stopOnStageIds: z.array(z.string().uuid()).default([]),
         active: z.boolean().default(true),
         steps: z.array(StepInput).min(1).max(20),
+        accountId: z.string().uuid().nullable().optional(),
       })
       .parse(d),
   )
@@ -91,6 +92,7 @@ export const upsertFupSequence = createServerFn({ method: "POST" })
       stop_on_reply: data.stopOnReply,
       stop_on_stage_ids: data.stopOnStageIds,
       active: data.active,
+      account_id: data.accountId ?? null,
     };
 
     let seqId = data.id;
