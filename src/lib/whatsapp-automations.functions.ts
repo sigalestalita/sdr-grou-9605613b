@@ -46,6 +46,7 @@ export const createAutomationRule = createServerFn({ method: "POST" })
         templateId: z.string().uuid().optional(),
         delayMinutes: z.number().int().min(0).max(10080).default(0),
         active: z.boolean().default(true),
+        accountId: z.string().uuid().nullable().optional(),
       })
       .parse(d),
   )
@@ -61,6 +62,7 @@ export const createAutomationRule = createServerFn({ method: "POST" })
         delay_minutes: data.delayMinutes,
         active: data.active,
         created_by: userId,
+        account_id: data.accountId ?? null,
       })
       .select("*")
       .single();
@@ -80,11 +82,12 @@ export const updateAutomationRule = createServerFn({ method: "POST" })
         templateId: z.string().uuid().optional(),
         delayMinutes: z.number().int().min(0).max(10080).optional(),
         active: z.boolean().optional(),
+        accountId: z.string().uuid().nullable().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { id, triggerType, triggerConfig, templateId, delayMinutes, ...rest } = data;
+    const { id, triggerType, triggerConfig, templateId, delayMinutes, accountId, ...rest } = data;
     const patch: {
       name?: string;
       active?: boolean;
@@ -92,11 +95,13 @@ export const updateAutomationRule = createServerFn({ method: "POST" })
       trigger_config?: z.infer<typeof TriggerConfig>;
       template_id?: string;
       delay_minutes?: number;
+      account_id?: string | null;
     } = { ...rest };
     if (triggerType !== undefined) patch.trigger_type = triggerType;
     if (triggerConfig !== undefined) patch.trigger_config = triggerConfig;
     if (templateId !== undefined) patch.template_id = templateId;
     if (delayMinutes !== undefined) patch.delay_minutes = delayMinutes;
+    if (accountId !== undefined) patch.account_id = accountId;
     const { error } = await context.supabase
       .from("whatsapp_automation_rules")
       .update(patch)
