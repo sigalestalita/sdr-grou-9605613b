@@ -173,7 +173,10 @@ async function getFirstStepDelayHours(sequenceId: string): Promise<number> {
 async function enrollEligible(seq: Sequence): Promise<number> {
   const candidates = await fetchTriggerCandidates(seq);
   if (!candidates.length) return 0;
-  const filtered = candidates.filter((l) => passesAudience(l, seq.audience_filters));
+  const seqAccount = await getAccountById(seq.account_id);
+  const filtered = candidates.filter(
+    (l) => passesAudience(l, seq.audience_filters) && accountAllowsLead(seqAccount, l.lead_type),
+  );
   if (!filtered.length) return 0;
 
   const { data: existing } = await supabaseAdmin
