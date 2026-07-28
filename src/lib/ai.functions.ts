@@ -407,6 +407,16 @@ async function runEnrichment(supabase: any, userId: string | null, id: string) {
       detail: { lead_id: id, confidence: args.confidence },
     });
 
+    // Garante que o lead esteja roteado e dispara alerta HOT se a priority resultante for alta/media.
+    try {
+      const { ensureLeadRouted } = await import("./lead-routing.server");
+      await ensureLeadRouted({ supabase, leadId: id, actorUserId: userId });
+    } catch { /* routing failure never blocks enrichment */ }
+    try {
+      const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
+      await maybeAlertHotLead(id);
+    } catch { /* alerts never break enrichment */ }
+
     return { ok: true, ...args };
 }
 
