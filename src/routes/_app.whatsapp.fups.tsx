@@ -12,6 +12,7 @@ import {
   type FupTrigger,
 } from "@/lib/whatsapp-fups.functions";
 import { listTemplates } from "@/lib/whatsapp-templates.functions";
+import { listAccounts } from "@/lib/whatsapp-accounts.functions";
 import { getCampaignFilterMeta } from "@/lib/whatsapp-campaigns.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +52,7 @@ type Seq = {
   stop_on_reply: boolean;
   stop_on_stage_ids: string[] | null;
   active: boolean;
+  account_id: string | null;
   whatsapp_fup_steps?: Array<{
     id: string;
     step_order: number;
@@ -67,11 +69,13 @@ function FupsPage() {
   const toggleFn = useServerFn(toggleFupSequence);
   const tickFn = useServerFn(runFupsNow);
   const tmplFn = useServerFn(listTemplates);
+  const accountsFn = useServerFn(listAccounts);
   const metaFn = useServerFn(getCampaignFilterMeta);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({ queryKey: ["wa-fups"], queryFn: () => listFn(), refetchInterval: 12000 });
   const { data: tmpls } = useQuery({ queryKey: ["wa-templates-mini"], queryFn: () => tmplFn() });
+  const { data: accs } = useQuery({ queryKey: ["wa-accounts-mini"], queryFn: () => accountsFn() });
   const { data: meta } = useQuery({ queryKey: ["wa-camp-meta"], queryFn: () => metaFn() });
 
   const [open, setOpen] = useState(false);
@@ -90,6 +94,7 @@ function FupsPage() {
   const [stopOnReply, setStopOnReply] = useState(true);
   const [stopOnStageIds, setStopOnStageIds] = useState<string[]>([]);
   const [active, setActive] = useState(true);
+  const [accountId, setAccountId] = useState<string>("__default");
   const [steps, setSteps] = useState<StepDraft[]>([{ templateId: "", delayHours: 0 }]);
 
   function reset() {
@@ -108,6 +113,7 @@ function FupsPage() {
     setStopOnReply(true);
     setStopOnStageIds([]);
     setActive(true);
+    setAccountId("__default");
     setSteps([{ templateId: "", delayHours: 0 }]);
   }
 
@@ -127,6 +133,7 @@ function FupsPage() {
     setStopOnReply(s.stop_on_reply);
     setStopOnStageIds(s.stop_on_stage_ids ?? []);
     setActive(s.active);
+    setAccountId(s.account_id ?? "__default");
     const ordered = (s.whatsapp_fup_steps ?? []).slice().sort((a, b) => a.step_order - b.step_order);
     setSteps(
       ordered.length
@@ -170,6 +177,7 @@ function FupsPage() {
           stopOnStageIds,
           active,
           steps: cleanSteps,
+          accountId: accountId === "__default" ? null : accountId,
         },
       });
     },
