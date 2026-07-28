@@ -180,6 +180,67 @@ function WhatsAppAiPage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Roteamento por conta de WhatsApp</CardTitle>
+          <CardDescription>
+            Escolha qual conta a IA usa por padrão e qual conta específica atende leads de <strong>Consultoria</strong> (com template HSM próprio, se quiser).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs text-muted-foreground">Conta padrão (Empresa / Pessoa física)</label>
+              <Select
+                value={form.defaultAccountId ?? "__auto"}
+                onValueChange={(v) => patch({ defaultAccountId: v === "__auto" ? null : v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__auto">Conta marcada como padrão</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.label || a.phone_number}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">Conta para Consultoria</label>
+              <Select
+                value={form.consultoriaAccountId ?? "__none"}
+                onValueChange={(v) => patch({ consultoriaAccountId: v === "__none" ? null : v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Usar a padrão</SelectItem>
+                  {accounts.map((a) => (
+                    <SelectItem key={a.id} value={a.id}>{a.label || a.phone_number}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground">Template HSM inicial para Consultoria (opcional)</label>
+            <Select
+              value={form.consultoriaInitialTemplateId ?? "__none"}
+              onValueChange={(v) => patch({ consultoriaInitialTemplateId: v === "__none" ? null : v })}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">Usar o template inicial padrão</SelectItem>
+                {templates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Recomendado quando a mensagem inicial de consultoria for diferente da comercial.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <CardTitle>Teste manual</CardTitle>
           <CardDescription>Dispara o template inicial da IA para validar o fluxo ponta a ponta no seu número.</CardDescription>
         </CardHeader>
