@@ -237,6 +237,21 @@ function FupsPage() {
                   <label className="text-xs text-muted-foreground">Descrição (opcional)</label>
                   <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} />
                 </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Conta de WhatsApp</label>
+                  <Select value={accountId} onValueChange={setAccountId}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default">Conta padrão</SelectItem>
+                      {(accs?.accounts ?? []).map((a: { id: string; label: string | null; phone_number: string }) => (
+                        <SelectItem key={a.id} value={a.id}>{a.label || a.phone_number}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Só entra em leads compatíveis com o escopo (tipo de lead) da conta escolhida.
+                  </p>
+                </div>
 
                 <div className="border border-white/5 rounded-lg p-3 space-y-3">
                   <p className="text-xs font-medium">Gatilho de entrada</p>
