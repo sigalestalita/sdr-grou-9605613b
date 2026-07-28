@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getAiAgentSettings, triggerManualAiTest, updateAiAgentSettings } from "@/lib/whatsapp-ai.functions";
 import { listTemplates } from "@/lib/whatsapp-templates.functions";
+import { listAccounts } from "@/lib/whatsapp-accounts.functions";
 import { getCampaignFilterMeta } from "@/lib/whatsapp-campaigns.functions";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,13 @@ function WhatsAppAiPage() {
   const saveFn = useServerFn(updateAiAgentSettings);
   const testFn = useServerFn(triggerManualAiTest);
   const templatesFn = useServerFn(listTemplates);
+  const accountsFn = useServerFn(listAccounts);
   const metaFn = useServerFn(getCampaignFilterMeta);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({ queryKey: ["wa-ai-settings"], queryFn: () => getFn() });
   const { data: tmpls } = useQuery({ queryKey: ["wa-templates-mini"], queryFn: () => templatesFn() });
+  const { data: accs } = useQuery({ queryKey: ["wa-accounts-mini"], queryFn: () => accountsFn() });
   const { data: meta } = useQuery({ queryKey: ["wa-camp-meta"], queryFn: () => metaFn() });
 
   const settings = data?.settings;
@@ -70,6 +73,7 @@ function WhatsAppAiPage() {
 
   const stages = meta?.stages ?? [];
   const templates = (tmpls?.templates ?? []).filter((t) => !!t.provider_template_name);
+  const accounts = (accs?.accounts ?? []) as Array<{ id: string; label: string | null; phone_number: string }>;
   const missingPrerequisites = [
     !form.enabled ? "Ative a IA de atendimento" : null,
     !form.initialOutreachEnabled ? "Ative o disparo inicial proativo" : null,
