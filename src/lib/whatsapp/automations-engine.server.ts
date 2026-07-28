@@ -7,6 +7,9 @@ type AiAgentSettings = {
   enabled: boolean;
   initialOutreachEnabled: boolean;
   initialTemplateId: string | null;
+  defaultAccountId: string | null;
+  consultoriaAccountId: string | null;
+  consultoriaInitialTemplateId: string | null;
 };
 
 type RuleRow = {
@@ -17,6 +20,7 @@ type RuleRow = {
   template_id: string | null;
   delay_minutes: number | null;
   active: boolean;
+  account_id: string | null;
 };
 
 type LeadLite = {
@@ -62,6 +66,26 @@ async function getDefaultAccount() {
   return data;
 }
 
+async function getAccountById(id: string | null | undefined) {
+  if (!id) return null;
+  const { data } = await supabaseAdmin
+    .from("whatsapp_accounts")
+    .select("*")
+    .eq("id", id)
+    .maybeSingle();
+  return data;
+}
+
+function accountAllowsLead(
+  account: { lead_type_scope: string[] | null } | null,
+  leadType: string | null,
+): boolean {
+  if (!account) return true;
+  const scope = account.lead_type_scope;
+  if (!scope || scope.length === 0) return true;
+  return !!leadType && scope.includes(leadType);
+}
+
 async function getAiAgentSettings(): Promise<AiAgentSettings> {
   const { data } = await supabaseAdmin
     .from("app_settings")
@@ -73,6 +97,10 @@ async function getAiAgentSettings(): Promise<AiAgentSettings> {
     enabled: value.enabled === true,
     initialOutreachEnabled: value.initialOutreachEnabled === true,
     initialTemplateId: typeof value.initialTemplateId === "string" ? value.initialTemplateId : null,
+    defaultAccountId: typeof value.defaultAccountId === "string" ? value.defaultAccountId : null,
+    consultoriaAccountId: typeof value.consultoriaAccountId === "string" ? value.consultoriaAccountId : null,
+    consultoriaInitialTemplateId:
+      typeof value.consultoriaInitialTemplateId === "string" ? value.consultoriaInitialTemplateId : null,
   };
 }
 
