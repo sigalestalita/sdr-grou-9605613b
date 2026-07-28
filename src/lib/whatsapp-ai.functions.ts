@@ -24,6 +24,9 @@ type AiAgentSettings = {
   firstMessagePrompt: string;
   replyPrompt: string;
   handoffPrompt: string;
+  defaultAccountId: string | null;
+  consultoriaAccountId: string | null;
+  consultoriaInitialTemplateId: string | null;
 };
 
 export type AiHandoffDecision = {
@@ -78,6 +81,9 @@ const AiAgentSettingsSchema = z.object({
   firstMessagePrompt: z.string().max(5000).default("Na primeira interação útil, descubra o motivo da conversão e conecte a abordagem ao contexto da origem, campanha, formulário ou criativo quando esses dados existirem. Priorize perguntas curtas para entender dor, momento e interesse. Deixe claro que, se preferir, o lead pode falar com um especialista humano desde já."),
   replyPrompt: z.string().max(5000).default("Responda a última mensagem do lead de forma curta e consultiva. Priorize: 1) entender o motivo da conversão e a dor principal, 2) qualificar perfil, contexto e timing, 3) avançar para atendimento comercial. Se o lead pedir humano, reconheça isso e conduza imediatamente para handoff."),
   handoffPrompt: z.string().max(2000).default("Faça handoff para humano imediatamente quando o lead pedir falar com uma pessoa, demonstrar intenção comercial clara, pedir proposta/demonstração/agendamento, trouxer negociação sensível ou quando a conversa estiver madura para um SDR assumir e marcar agenda."),
+  defaultAccountId: z.string().uuid().nullable().default(null),
+  consultoriaAccountId: z.string().uuid().nullable().default(null),
+  consultoriaInitialTemplateId: z.string().uuid().nullable().default(null),
 });
 
 const UpdateAiAgentSettingsSchema = AiAgentSettingsSchema.partial();
