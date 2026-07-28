@@ -229,14 +229,19 @@ async function executeRuleForLead(rule: RuleRow, lead: LeadLite): Promise<{ ok: 
 async function executeAiInitialOutreachForLead(lead: LeadLite): Promise<{ ok: boolean; error?: string }> {
   if (!lead.phone) return { ok: false, error: "Lead sem telefone" };
   const settings = await getAiAgentSettings();
-  if (!settings.enabled || !settings.initialOutreachEnabled || !settings.initialTemplateId) {
+  if (!settings.enabled || !settings.initialOutreachEnabled) {
     return { ok: false, error: "IA inicial desativada ou sem template HSM" };
   }
+
+  const isConsultoria = lead.lead_type === "consultoria";
+  const templateId =
+    (isConsultoria && settings.consultoriaInitialTemplateId) || settings.initialTemplateId;
+  if (!templateId) return { ok: false, error: "IA inicial sem template HSM configurado" };
 
   const { data: tmpl } = await supabaseAdmin
     .from("whatsapp_templates")
     .select("provider_template_name, language, variables, meta_template_id, body")
-    .eq("id", settings.initialTemplateId)
+    .eq("id", templateId)
     .maybeSingle();
   if (!tmpl?.provider_template_name) return { ok: false, error: "Template HSM inicial inválido" };
 
@@ -246,8 +251,15 @@ async function executeAiInitialOutreachForLead(lead: LeadLite): Promise<{ ok: bo
     empresa: lead.company_name ?? "",
   }).trim();
 
-  const account = await getDefaultAccount();
-  if (!account) return { ok: false, error: "Sem conta WhatsApp padrão" };
+  const preferredAccountId = isConsultoria
+    ? settings.consultoriaAccountId
+    : settings.defaultAccountId;
+  const account =
+    (await getAccountById(preferredAccountId)) ?? (await getDefaultAccount());
+  if (!account) return { ok: false, error: "Sem conta WhatsApp configurada" };
+  if (!accountAllowsLead(account, lead.lead_type)) {
+    return { ok: false, error: "Conta WhatsApp não permite este tipo de lead" };
+  }
 
   let convId: string | null = null;
   const { data: existing } = await supabaseAdmin
@@ -295,9 +307,10 @@ async function executeAiInitialOutreachForLead(lead: LeadLite): Promise<{ ok: bo
       body: renderedBody || null,
       metadata: {
         source: "ai_initial_outreach",
-        template_id: settings.initialTemplateId,
+        template_id: templateId,
         template_name: tmpl.provider_template_name,
         rendered_body: renderedBody || null,
+        account_id: account.id,
       },
       status: "sending",
     })
