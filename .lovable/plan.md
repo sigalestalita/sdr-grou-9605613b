@@ -1,52 +1,65 @@
-**Objetivo**
-Atualizar a importação da planilha usada no Kanban para manter `entrada_correta` como está e substituir `entrada_organico_e_outbound` por `entrada_correta_organico-outbound`, usando o novo layout de colunas informado por você.
+## Objetivo
 
-**Plano**
-1. **Trocar a guia monitorada**
-   - Substituir a aba antiga `entrada_organico_e_outbound` por `entrada_correta_organico-outbound` na rotina de leitura da planilha.
-   - Manter `entrada_correta` sem alteração.
+1. Marcar o número **5551926345331** como conta exclusiva de **consultoria**.
+2. Somente **Mariana Borges** enxerga o inbox desse número. Ela também continua vendo qualquer conversa em que seja `assigned_to`.
+3. Disparos proativos, FUPs, automações, campanhas e IA reativa nesse número: só para leads de consultoria.
+4. Adicionar seletor de "Conta WhatsApp" em Campanhas, Automações, FUPs e IA.
 
-2. **Separar o mapeamento por guia**
-   - Ajustar a rotina para que cada aba tenha seu próprio esquema de colunas.
-   - Preservar o layout atual de `entrada_correta`.
-   - Implementar o novo layout da aba `entrada_correta_organico-outbound` com este mapeamento:
-     - A = data de criação
-     - B = tipo de lead
-     - C = nome
-     - D = telefone
-     - E = email
-     - F = nome da empresa
-     - G = porte
-     - H = cargo
-     - I = área
-     - J = fonte
+---
 
-3. **Preencher os campos certos dos cards**
-   - Mapear corretamente os dados importados para os campos já exibidos no Kanban:
-     - `name`
-     - `phone`
-     - `email`
-     - `company_name`
-     - `company_size`
-     - `position`
-     - `company_segment`
-     - `source/channel`
-     - `lead_type`
-     - `created_at` / `submitted_at`
-   - Garantir que o tipo de lead continue normalizado para `empresa`, `consultoria` e `pessoa_fisica`.
+## 1. Migration (schema + RLS)
 
-4. **Ajustar a deduplicação da nova aba**
-   - Revisar a geração do identificador de lead para a nova guia, já que esse layout não traz sobrenome nem os IDs extras usados no layout anterior.
-   - Manter a proteção contra duplicidade por email e criar um fallback estável coerente com as novas colunas.
+- `whatsapp_accounts.metadata`: adicionar flag `lead_type_scope` (`"consultoria"` | `"non_consultoria"` | `null`) e `visible_to_user_ids uuid[]`.
+- Setar `lead_type_scope = 'consultoria'` e `visible_to_user_ids = [Mariana]` no registro do 5551926345331.
+- `whatsapp_automation_rules`: coluna `account_id uuid references whatsapp_accounts(id)`.
+- `whatsapp_fup_sequences`: coluna `account_id uuid references whatsapp_accounts(id)`.
+- (campanhas já tem `account_id`.)
+- Setting `app_settings.whatsapp_ai_reactive`: `{ default_account_id, consultoria_account_id }`.
 
-5. **Validar o impacto no Kanban**
-   - Confirmar que filtros e destaque visual dos leads continuam funcionando normalmente após a troca da origem.
-   - Verificar que os cards passam a exibir os dados da nova guia nas posições corretas.
+RLS — atualizar policies:
+- `whatsapp_conversations`, `whatsapp_messages`, `whatsapp_contacts`:
+  - Mariana (`user_id = MARIANA`): vê linhas cuja `account_id` = conta consultoria **OU** `assigned_user_id = Mariana` **OU** lead `assigned_to = Mariana`.
+  - Outros SDRs/gestão: veem tudo **exceto** `account_id` = conta consultoria.
+  - Super_admin: vê tudo.
 
-**Detalhes técnicos**
-- A mudança fica concentrada principalmente na lógica de importação em `src/lib/sheets.functions.ts`.
-- Hoje o código usa um único conjunto fixo de índices para ambas as guias; a implementação passará a usar mapeamento específico por aba.
-- A origem antiga `organico_outbound` pode ser preservada como valor lógico de canal/origem, mesmo com a troca do nome da aba, para não quebrar filtros já existentes — eu confirmarei isso durante a implementação para evitar regressão visual e analítica.
+## 2. Backend (respeitar escopo de conta)
 
-**Resultado esperado**
-Os novos contatos da guia `entrada_correta_organico-outbound` serão criados no Kanban com nome, telefone, email, empresa, porte, cargo, área, fonte, tipo e data nas áreas corretas dos cards, substituindo totalmente a leitura da guia antiga.
+Em `automations-engine.server.ts`, `fups-engine.server.ts`, `whatsapp-campaigns.functions.ts`, `whatsapp-ai.functions.ts`, `lead-hot-alert.server.ts`, `template-send.server.ts`:
+
+- Resolver conta: rule/sequence/campaign.`account_id` > default.
+- Antes de enviar/enrolar: se a conta é `lead_type_scope='consultoria'` e o lead **não** é consultoria → pular com log. Se conta é `non_consultoria` e lead **é** consultoria → pular com log.
+- Disparo proativo para novo lead consultoria: forçar conta consultoria (via `whatsapp_ai_reactive.consultoria_account_id`).
+- IA reativa (quando o lead escreve): usar a mesma conta pela qual a conversa chegou (`conversation.account_id`), mantendo a restrição de tipo.
+
+## 3. UI — seletor de conta
+
+Adicionar `<Select>` "Conta WhatsApp" (label + phone) em:
+- Form de **Campanha** (já tem campo, garantir que aparece).
+- Form de **Regra de Automação** (`_app.whatsapp.automacoes.tsx`).
+- Form de **Sequência FUP** (`_app.whatsapp.fups.tsx`).
+- Config da **IA** (`_app.whatsapp.ia.tsx`): dois campos — conta default e conta consultoria.
+
+Cada select mostra badge do escopo da conta (ex: "Consultoria only").
+
+## 4. Inbox
+
+Nada de código extra além da RLS: `_app.whatsapp.index.tsx` já lista via query que passa por RLS, então Mariana só vê consultoria + leads dela, e demais SDRs deixam de ver o número consultoria.
+
+Adicionar filtro "Conta" no topo do inbox (opcional, ajuda leitura).
+
+## 5. Validação
+
+- Login como Mariana → inbox só mostra consultoria + leads atribuídos.
+- Login como Camila → inbox não mostra nenhuma conversa do 5551926345331.
+- Criar automação com conta consultoria + audiência empresa → nenhum lead enrola (log `skipped_account_scope`).
+- Novo lead consultoria com routing → HSM proativo sai pela conta consultoria.
+
+---
+
+## Notas técnicas
+
+- `MARIANA_USER_ID` já constante em `lead-hot-alert.server.ts`; extrair para `src/lib/consultoria.ts` e reusar.
+- Escopo por conta é checado em ambos os motores (automations/FUPs) para não depender só de filtro de audiência.
+- RLS via helper SQL `public.wa_can_see_account(_account_id uuid)` (SECURITY DEFINER) para reuso.
+
+Impacta ~10 arquivos. Zero mudança visual para desktop; adiciona apenas campos de seleção nas 4 abas.
