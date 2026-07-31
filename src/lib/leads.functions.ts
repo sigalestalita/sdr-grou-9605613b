@@ -19,6 +19,7 @@ export const listKanbanData = createServerFn({ method: "GET" })
         const { data, error } = await supabase
           .from("leads")
           .select("*")
+          .or("source.is.null,source.neq.campaign_upload")
           .order("created_at", { ascending: false })
           .range(from, from + PAGE - 1);
         if (error) throw new Error(error.message);
