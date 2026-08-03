@@ -250,6 +250,10 @@ function KanbanPage() {
     if (demoFree === "nao" && l.demo_free !== false) return false;
     if (demoFree === "nd" && l.demo_free != null) return false;
     if (certificationFilter === "certificacao" && !isCertificationLead(l)) return false;
+    if (adFilter !== "all") {
+      const ad = (l.ad_name ?? "").trim();
+      if (adFilter === "nd" ? ad !== "" : ad !== adFilter) return false;
+    }
     if (leadTypeFilter !== "all") {
       const raw = (l.form_payload as { lead_type?: string } | null)?.lead_type ?? null;
       const t = (l.lead_type as LeadType | null) ?? normalizeLeadType(raw);
