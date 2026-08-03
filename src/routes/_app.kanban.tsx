@@ -436,10 +436,10 @@ function KanbanPage() {
             className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
             title="Anúncio"
           >
-            <option value="all">Anúncio: todos</option>
+            <option value="all">Anúncio: todos (melhor → pior)</option>
             <option value="nd">Sem anúncio</option>
-            {adOptions.map((a) => (
-              <option key={a} value={a}>{a}</option>
+            {adOptions.map(([ad, count]) => (
+              <option key={ad} value={ad}>{`${count} • ${ad}`}</option>
             ))}
           </select>
           <select
