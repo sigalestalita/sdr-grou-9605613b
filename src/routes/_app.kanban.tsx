@@ -17,6 +17,7 @@ import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, normalizeLeadType, type LeadType } fr
 import { evaluateIcpFit } from "@/lib/icp-fit";
 import { getTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
+import { TouchSequenceModal } from "@/components/leads/touch-sequence";
 import { toast } from "sonner";
 import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, Mail, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock } from "lucide-react";
 import {
@@ -636,6 +637,7 @@ function LeadCard({
 
   const [editingReason, setEditingReason] = useState(false);
   const [reasonDraft, setReasonDraft] = useState(lead.lost_reason ?? "");
+  const [showTouches, setShowTouches] = useState(false);
   const reasonOptions = ["Sem perfil", "Sem fit com soluções", "Sem contato"];
 
   const stopDrag = (e: React.SyntheticEvent) => {
@@ -866,10 +868,17 @@ function LeadCard({
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
-        <Badge variant="secondary" className="text-[10px] inline-flex items-center gap-1">
-          <Activity className="h-3 w-3" />
-          {lead.touch_count ?? 0} {(lead.touch_count ?? 0) === 1 ? "touch" : "touches"}
-        </Badge>
+        <button
+          type="button"
+          onPointerDown={stopDrag}
+          onClick={(e) => { stopDrag(e); setShowTouches(true); }}
+          title="Ver e registrar touches deste lead"
+        >
+          <Badge variant="secondary" className="text-[10px] inline-flex items-center gap-1 hover:bg-secondary/80">
+            <Activity className="h-3 w-3" />
+            {lead.touch_count ?? 0} {(lead.touch_count ?? 0) === 1 ? "touch" : "touches"}
+          </Badge>
+        </button>
         {lead.last_touch_channel && (
           <span className="text-muted-foreground">
             {channelLabel(lead.last_touch_channel)}
@@ -1012,6 +1021,9 @@ function LeadCard({
       </div>
       {/* unused but keep referenced to avoid lint */}
       <span className="hidden">{sinceConversion}</span>
+      {showTouches && (
+        <TouchSequenceModal leadId={lead.id} leadName={lead.name} onClose={() => setShowTouches(false)} />
+      )}
     </Card>
   );
   if (overlay) return content;
