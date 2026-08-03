@@ -19,7 +19,7 @@ import { getTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
 import { TouchSequenceModal } from "@/components/leads/touch-sequence";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, Mail, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock } from "lucide-react";
+import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -814,12 +814,7 @@ function LeadCard({
             )}
             {icpFit.bigCompany && (
               <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 gap-1">
-                <Building2 className="h-3 w-3" /> 100+ funcionários
-              </Badge>
-            )}
-            {icpFit.corporateEmail && (
-              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 gap-1">
-                <Mail className="h-3 w-3" /> E-mail corporativo
+                <Building2 className="h-3 w-3" /> 200+ funcionários
               </Badge>
             )}
             {icpFit.score === 0 && (

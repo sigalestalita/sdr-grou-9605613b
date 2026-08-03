@@ -55,8 +55,9 @@ const PERSONAL_DOMAINS = new Set([
 export type IcpFit = {
   seniorPosition: boolean;
   bigCompany: boolean;
+  /** Mantido apenas como informação — não conta na priorização. */
   corporateEmail: boolean;
-  score: number; // 0..3
+  score: number; // 0..2
 };
 
 function parseSize(size?: string | null): number | null {
@@ -75,14 +76,14 @@ export function evaluateIcpFit(lead: Lead): IcpFit {
     SENIOR_KEYWORDS.some((k) => positionRaw.includes(k)) || positionTokens.includes("bp");
 
   const sizeNum = parseSize(lead.company_size);
-  const bigCompany = sizeNum != null && sizeNum >= 100;
+  const bigCompany = sizeNum != null && sizeNum >= 200;
 
   const email = (lead.email ?? "").toLowerCase().trim();
   const domain = email.includes("@") ? email.split("@")[1] : "";
   const corporateEmail = !!domain && !PERSONAL_DOMAINS.has(domain);
 
-  const score =
-    (seniorPosition ? 1 : 0) + (bigCompany ? 1 : 0) + (corporateEmail ? 1 : 0);
+  // Domínio de e-mail não é mais critério de priorização.
+  const score = (seniorPosition ? 1 : 0) + (bigCompany ? 1 : 0);
 
   return { seniorPosition, bigCompany, corporateEmail, score };
 }
