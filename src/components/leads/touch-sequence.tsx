@@ -34,6 +34,8 @@ import {
   CalendarClock,
   Activity,
   AlertTriangle,
+  Pencil,
+  X,
 } from "lucide-react";
 
 function ChannelIcon({ channel }: { channel: string }) {
@@ -188,6 +190,14 @@ export function TouchSequence({ leadId }: { leadId: string }) {
                   </span>
                   <button
                     type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    title="Editar touch"
+                    onClick={() => { setEditing(t); setOpen(true); }}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    type="button"
                     className="text-muted-foreground hover:text-destructive"
                     title="Remover touch"
                     onClick={() => remove.mutate(t.id)}
@@ -242,6 +252,54 @@ export function TouchSequence({ leadId }: { leadId: string }) {
 }
 
 function Stat({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
+  return (
+    <div className={`rounded-lg border p-2 ${alert ? "border-amber-500/50 bg-amber-500/10" : "bg-muted/30"}`}>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-sm font-semibold">{value}</p>
+    </div>
+  );
+}
+
+/** Modal para ver/registrar touches direto do card do Kanban. */
+export function TouchSequenceModal({
+  leadId,
+  leadName,
+  onClose,
+}: {
+  leadId: string;
+  leadName?: string | null;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[9998] bg-background/90 backdrop-blur-md overflow-y-auto p-4"
+      onClick={onClose}
+    >
+      <div className="mx-auto w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-semibold">{leadName ?? "Lead"}</p>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+        <div className="bg-popover rounded-xl border shadow-2xl">
+          <TouchSequence leadId={leadId} />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+function StatUnused({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
     <div className={`rounded-lg border p-2 ${alert ? "border-amber-500/50 bg-amber-500/10" : "bg-muted/30"}`}>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
