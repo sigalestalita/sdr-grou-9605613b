@@ -14,6 +14,7 @@ import {
   LineChart,
   Bot,
   Activity,
+  CalendarDays,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 
