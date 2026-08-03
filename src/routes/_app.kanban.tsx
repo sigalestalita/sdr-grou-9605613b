@@ -865,6 +865,42 @@ function LeadCard({
         </div>
       )}
 
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+        <Badge variant="secondary" className="text-[10px] inline-flex items-center gap-1">
+          <Activity className="h-3 w-3" />
+          {lead.touch_count ?? 0} {(lead.touch_count ?? 0) === 1 ? "touch" : "touches"}
+        </Badge>
+        {lead.last_touch_channel && (
+          <span className="text-muted-foreground">
+            {channelLabel(lead.last_touch_channel)}
+            {lead.last_touch_outcome ? ` • ${outcomeLabel(lead.last_touch_outcome)}` : ""}
+          </span>
+        )}
+        {lead.last_touch_at && (
+          <span className="text-muted-foreground inline-flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {(() => {
+              const d = daysSince(lead.last_touch_at);
+              return d === 0 ? "hoje" : `há ${d}d`;
+            })()}
+          </span>
+        )}
+        {lead.next_follow_up_at && (
+          <span
+            className={`inline-flex items-center gap-1 ${
+              new Date(lead.next_follow_up_at).getTime() <= Date.now() ? "text-amber-600" : "text-muted-foreground"
+            }`}
+          >
+            {new Date(lead.next_follow_up_at).getTime() <= Date.now() ? (
+              <AlertTriangle className="h-3 w-3" />
+            ) : (
+              <CalendarClock className="h-3 w-3" />
+            )}
+            FUP {format(new Date(lead.next_follow_up_at), "dd/MM", { locale: ptBR })}
+          </span>
+        )}
+      </div>
+
       {stageSlug === "desqualificado" && (
         <div className="mt-2 text-[10px]">
           {editingReason ? (
