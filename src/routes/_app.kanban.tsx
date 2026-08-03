@@ -77,6 +77,7 @@ function KanbanPage() {
   const [leadTypeFilter, setLeadTypeFilter] = useState<string>("all");
   const [certificationFilter, setCertificationFilter] = useState<string>("all");
   const [touchAlert, setTouchAlert] = useState<string>("all");
+  const [adFilter, setAdFilter] = useState<string>("all");
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
@@ -249,6 +250,10 @@ function KanbanPage() {
     if (demoFree === "nao" && l.demo_free !== false) return false;
     if (demoFree === "nd" && l.demo_free != null) return false;
     if (certificationFilter === "certificacao" && !isCertificationLead(l)) return false;
+    if (adFilter !== "all") {
+      const ad = (l.ad_name ?? "").trim();
+      if (adFilter === "nd" ? ad !== "" : ad !== adFilter) return false;
+    }
     if (leadTypeFilter !== "all") {
       const raw = (l.form_payload as { lead_type?: string } | null)?.lead_type ?? null;
       const t = (l.lead_type as LeadType | null) ?? normalizeLeadType(raw);
@@ -305,6 +310,9 @@ function KanbanPage() {
   const assignedIds = new Set(
     data.leads.map((l) => l.assigned_to).filter((v): v is string => !!v)
   );
+  const adOptions = Array.from(
+    new Set(data.leads.map((l) => (l.ad_name ?? "").trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
   const assigneeOptions = data.profiles
     .filter((p) => assignedIds.has(p.id))
     .map((p) => ({ id: p.id, label: (p.full_name || p.email || "—").trim() }))
@@ -415,6 +423,18 @@ function KanbanPage() {
           >
             <option value="all">Interesse: todos</option>
             <option value="certificacao">Somente Certificação</option>
+          </select>
+          <select
+            value={adFilter}
+            onChange={(e) => setAdFilter(e.target.value)}
+            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
+            title="Anúncio"
+          >
+            <option value="all">Anúncio: todos</option>
+            <option value="nd">Sem anúncio</option>
+            {adOptions.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
           </select>
           <select
             value={touchAlert}
