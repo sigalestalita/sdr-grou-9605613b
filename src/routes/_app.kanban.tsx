@@ -77,6 +77,7 @@ function KanbanPage() {
   const [leadTypeFilter, setLeadTypeFilter] = useState<string>("all");
   const [certificationFilter, setCertificationFilter] = useState<string>("all");
   const [touchAlert, setTouchAlert] = useState<string>("all");
+  const [adFilter, setAdFilter] = useState<string>("all");
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
