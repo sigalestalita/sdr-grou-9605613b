@@ -31,13 +31,12 @@ export interface ScoreResult {
 }
 
 /**
- * Scoring simplificado — 3 sinais binários (compartilhados com `evaluateIcpFit`):
+ * Scoring simplificado — 2 sinais binários (compartilhados com `evaluateIcpFit`):
  *  1. Cargo decisor (gerente/coordenador/supervisor/diretor/CEO/HRBP/BP/etc.)
- *  2. Email corporativo (qualquer domínio não-pessoal)
- *  3. Empresa com >100 funcionários
+ *  2. Empresa com 200+ funcionários
  *
- * Cada sinal vale ~33pts. Prioridade pela quantidade de sinais batidos:
- *  3/3 → alta · 2/3 → média · 1/3 → baixa · 0/3 → fora_icp.
+ * Prioridade pela quantidade de sinais batidos:
+ *  2/2 → alta · 1/2 → média · 0/2 → baixa.
  *
  * Os parâmetros `rules`/`thresholds` são aceitos por compatibilidade mas ignorados.
  */
@@ -49,16 +48,13 @@ export function calculateScore(
   const fit = evaluateIcpFit(lead as Lead);
   const signals: ScoreResult["signals"] = [
     { key: "position", label: "Cargo decisor", matched: fit.seniorPosition },
-    { key: "b2b", label: "Email corporativo", matched: fit.corporateEmail },
-    { key: "size", label: "Empresa com mais de 100 funcionários", matched: fit.bigCompany },
+    { key: "size", label: "Empresa com mais de 200 funcionários", matched: fit.bigCompany },
   ];
   const matched = signals.filter((s) => s.matched).length;
-  // 1 sinal = 33, 2 = 66, 3 = 100
-  const score = matched === 3 ? 100 : matched * 33;
+  const score = matched === 2 ? 100 : matched === 1 ? 50 : 0;
   let priority: Priority;
-  if (matched === 3) priority = "alta";
-  else if (matched === 2) priority = "media";
-  else if (matched === 1) priority = "baixa";
-  else priority = "fora_icp";
+  if (matched === 2) priority = "alta";
+  else if (matched === 1) priority = "media";
+  else priority = "baixa";
   return { score, priority, signals };
 }
