@@ -14,6 +14,7 @@ import {
   LineChart,
   Bot,
   Activity,
+  CalendarDays,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 
@@ -63,6 +64,7 @@ function AppShell() {
     { to: "/kanban", label: "Kanban", icon: KanbanIcon },
     { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle },
     { to: "/cadencia", label: "Cadência", icon: Activity },
+    { to: "/agenda", label: "Agenda FUPs", icon: CalendarDays },
     { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
     { to: "/leads-analytics", label: "Analytics", icon: LineChart },
     { to: "/analytics-chat", label: "Chat Analytics", icon: Bot },
