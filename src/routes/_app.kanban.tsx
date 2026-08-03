@@ -17,6 +17,7 @@ import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, normalizeLeadType, type LeadType } fr
 import { evaluateIcpFit } from "@/lib/icp-fit";
 import { getTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
+import { TouchSequenceModal } from "@/components/leads/touch-sequence";
 import { toast } from "sonner";
 import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, Mail, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock } from "lucide-react";
 import {
