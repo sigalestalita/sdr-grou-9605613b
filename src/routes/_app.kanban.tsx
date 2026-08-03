@@ -78,6 +78,7 @@ function KanbanPage() {
   const [certificationFilter, setCertificationFilter] = useState<string>("all");
   const [touchAlert, setTouchAlert] = useState<string>("all");
   const [adFilter, setAdFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
@@ -254,6 +255,10 @@ function KanbanPage() {
       const ad = (l.ad_name ?? "").trim();
       if (adFilter === "nd" ? ad !== "" : ad !== adFilter) return false;
     }
+    if (sourceFilter !== "all") {
+      const src = (l.source ?? "").trim();
+      if (sourceFilter === "nd" ? src !== "" : src !== sourceFilter) return false;
+    }
     if (leadTypeFilter !== "all") {
       const raw = (l.form_payload as { lead_type?: string } | null)?.lead_type ?? null;
       const t = (l.lead_type as LeadType | null) ?? normalizeLeadType(raw);
@@ -317,6 +322,15 @@ function KanbanPage() {
     adCounts.set(ad, (adCounts.get(ad) ?? 0) + 1);
   }
   const adOptions = Array.from(adCounts.entries()).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+  );
+  const sourceCounts = new Map<string, number>();
+  for (const l of data.leads) {
+    const src = (l.source ?? "").trim();
+    if (!src) continue;
+    sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
+  }
+  const sourceOptions = Array.from(sourceCounts.entries()).sort(
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
   );
   const assigneeOptions = data.profiles
@@ -440,6 +454,18 @@ function KanbanPage() {
             <option value="nd">Sem anúncio</option>
             {adOptions.map(([ad, count]) => (
               <option key={ad} value={ad}>{`${count} • ${ad}`}</option>
+            ))}
+          </select>
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[240px]"
+            title="Origem"
+          >
+            <option value="all">Origem: todas (melhor → pior)</option>
+            <option value="nd">Sem origem</option>
+            {sourceOptions.map(([src, count]) => (
+              <option key={src} value={src}>{`${count} • ${src}`}</option>
             ))}
           </select>
           <select
