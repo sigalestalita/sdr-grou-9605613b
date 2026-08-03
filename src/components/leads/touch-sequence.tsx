@@ -299,15 +299,6 @@ export function TouchSequenceModal({
   );
 }
 
-function StatUnused({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
-  return (
-    <div className={`rounded-lg border p-2 ${alert ? "border-amber-500/50 bg-amber-500/10" : "bg-muted/30"}`}>
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
-      <p className="text-sm font-semibold">{value}</p>
-    </div>
-  );
-}
-
 function TouchDialog({
   initial,
   pending,
