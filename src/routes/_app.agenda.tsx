@@ -210,8 +210,8 @@ function AgendaItem({ item, compact, late }: { item: Item; compact?: boolean; la
           {item.touchCount} touches
         </Badge>
         <Link
-          to="/whatsapp"
-          search={{ lead: item.leadId } as never}
+          to="/lead/$id"
+          params={{ id: item.leadId }}
           className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
         >
           <MessageCircle className="h-3 w-3" /> Atender
