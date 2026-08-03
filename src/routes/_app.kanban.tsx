@@ -310,9 +310,15 @@ function KanbanPage() {
   const assignedIds = new Set(
     data.leads.map((l) => l.assigned_to).filter((v): v is string => !!v)
   );
-  const adOptions = Array.from(
-    new Set(data.leads.map((l) => (l.ad_name ?? "").trim()).filter(Boolean))
-  ).sort((a, b) => a.localeCompare(b));
+  const adCounts = new Map<string, number>();
+  for (const l of data.leads) {
+    const ad = (l.ad_name ?? "").trim();
+    if (!ad) continue;
+    adCounts.set(ad, (adCounts.get(ad) ?? 0) + 1);
+  }
+  const adOptions = Array.from(adCounts.entries()).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+  );
   const assigneeOptions = data.profiles
     .filter((p) => assignedIds.has(p.id))
     .map((p) => ({ id: p.id, label: (p.full_name || p.email || "—").trim() }))
@@ -430,10 +436,10 @@ function KanbanPage() {
             className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
             title="Anúncio"
           >
-            <option value="all">Anúncio: todos</option>
+            <option value="all">Anúncio: todos (melhor → pior)</option>
             <option value="nd">Sem anúncio</option>
-            {adOptions.map((a) => (
-              <option key={a} value={a}>{a}</option>
+            {adOptions.map(([ad, count]) => (
+              <option key={ad} value={ad}>{`${count} • ${ad}`}</option>
             ))}
           </select>
           <select
