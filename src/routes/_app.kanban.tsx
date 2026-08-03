@@ -425,6 +425,18 @@ function KanbanPage() {
             <option value="certificacao">Somente Certificação</option>
           </select>
           <select
+            value={adFilter}
+            onChange={(e) => setAdFilter(e.target.value)}
+            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
+            title="Anúncio"
+          >
+            <option value="all">Anúncio: todos</option>
+            <option value="nd">Sem anúncio</option>
+            {adOptions.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </select>
+          <select
             value={touchAlert}
             onChange={(e) => setTouchAlert(e.target.value)}
             className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
