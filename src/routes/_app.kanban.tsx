@@ -814,12 +814,7 @@ function LeadCard({
             )}
             {icpFit.bigCompany && (
               <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 gap-1">
-                <Building2 className="h-3 w-3" /> 100+ funcionários
-              </Badge>
-            )}
-            {icpFit.corporateEmail && (
-              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 gap-1">
-                <Mail className="h-3 w-3" /> E-mail corporativo
+                <Building2 className="h-3 w-3" /> 200+ funcionários
               </Badge>
             )}
             {icpFit.score === 0 && (
