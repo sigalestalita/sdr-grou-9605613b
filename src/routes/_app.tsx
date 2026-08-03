@@ -13,6 +13,7 @@ import {
   MessageCircle,
   LineChart,
   Bot,
+  Activity,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 
@@ -61,6 +62,7 @@ function AppShell() {
   const nav = [
     { to: "/kanban", label: "Kanban", icon: KanbanIcon },
     { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle },
+    { to: "/cadencia", label: "Cadência", icon: Activity },
     { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
     { to: "/leads-analytics", label: "Analytics", icon: LineChart },
     { to: "/analytics-chat", label: "Chat Analytics", icon: Bot },
