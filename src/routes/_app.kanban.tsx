@@ -637,6 +637,7 @@ function LeadCard({
 
   const [editingReason, setEditingReason] = useState(false);
   const [reasonDraft, setReasonDraft] = useState(lead.lost_reason ?? "");
+  const [showTouches, setShowTouches] = useState(false);
   const reasonOptions = ["Sem perfil", "Sem fit com soluções", "Sem contato"];
 
   const stopDrag = (e: React.SyntheticEvent) => {
