@@ -276,8 +276,14 @@ function TouchDialog({
   );
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onClose}>
-      <Card className="p-6 w-full max-w-md space-y-4" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <Card
+        className="relative z-[101] p-6 w-full max-w-md space-y-4 bg-card border shadow-2xl my-auto max-h-[90vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div>
           <h2 className="text-lg font-bold">{initial ? "Editar touch" : "Adicionar Touch"}</h2>
           <p className="text-xs text-muted-foreground">Data, hora e responsável são registrados automaticamente.</p>
