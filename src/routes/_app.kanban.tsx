@@ -289,7 +289,7 @@ function KanbanPage() {
       const targetStage = data.stages.find((s) => s.id === e.over!.id);
       const payload = { leadId: e.active.id as string, stageId: e.over.id as string };
       if (targetStage?.slug === "desqualificado") {
-        setLostFor(payload);
+        handleMoveTo(payload.leadId, payload.stageId);
       } else {
         move.mutate(payload);
       }
