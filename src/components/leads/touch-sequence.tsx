@@ -353,7 +353,8 @@ function TouchDialog({
           </Button>
         </div>
       </Card>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
