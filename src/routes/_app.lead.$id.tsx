@@ -15,6 +15,9 @@ import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type";
 import { ArrowLeft, MessageSquare, Linkedin, Globe, Sparkles, Wand2, Copy, Building2, ExternalLink, ArrowRight } from "lucide-react";
 import { LeadWhatsappTab } from "@/components/whatsapp/lead-whatsapp-tab";
+import { TouchSequence } from "@/components/leads/touch-sequence";
+import { getTouchRules } from "@/lib/touches.functions";
+import { DEFAULT_TOUCH_RULES, TOUCH_STAGE_SLUGS } from "@/lib/touch-types";
 
 export const Route = createFileRoute("/_app/lead/$id")({
   component: LeadDetailPage,
@@ -29,11 +32,17 @@ function LeadDetailPage() {
   const enrichFn = useServerFn(enrichLead);
   const suggestFn = useServerFn(suggestApproach);
   const registerCardOpenFn = useServerFn(registerLeadCardOpen);
+  const touchRulesFn = useServerFn(getTouchRules);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ["lead", id],
     queryFn: () => fetchFn({ data: { id } }),
+  });
+
+  const { data: touchRules } = useQuery({
+    queryKey: ["touch-rules"],
+    queryFn: () => touchRulesFn({}),
   });
 
   const [note, setNote] = useState("");
@@ -106,6 +115,14 @@ function LeadDetailPage() {
   const moveToStage = (stageId: string, slug: string) => {
     if (stageId === lead.stage_id) return;
     if (slug === "desqualificado") {
+      const min = (touchRules ?? DEFAULT_TOUCH_RULES).minTouchesBeforeDiscard;
+      const done = lead.touch_count ?? 0;
+      if (done < min) {
+        const ok = window.confirm(
+          `Este lead possui apenas ${done} ${done === 1 ? "tentativa" : "tentativas"} de contato (mínimo configurado: ${min}). Deseja realmente descartá-lo?`,
+        );
+        if (!ok) return;
+      }
       setLostFor(stageId);
       return;
     }
@@ -424,6 +441,10 @@ function LeadDetailPage() {
           <Info label="Conversão" value={lead.converted_at} />
         </div>
       </Card>
+
+      {(TOUCH_STAGE_SLUGS.includes(currentStage?.slug ?? "") || (lead.touch_count ?? 0) > 0) && (
+        <TouchSequence leadId={lead.id} />
+      )}
 
       <Card className="p-5 space-y-3">
         <div className="flex items-center justify-between">

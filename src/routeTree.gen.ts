@@ -19,6 +19,7 @@ import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analy
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
+import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
 import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
 import { Route as AppWhatsappIndexRouteImport } from './routes/_app.whatsapp.index'
 import { Route as AppWhatsappTemplatesRouteImport } from './routes/_app.whatsapp.templates'
@@ -86,6 +87,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCadenciaRoute = AppCadenciaRouteImport.update({
+  id: '/cadencia',
+  path: '/cadencia',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAnalyticsChatRoute = AppAnalyticsChatRouteImport.update({
@@ -192,6 +198,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
+  '/cadencia': typeof AppCadenciaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
@@ -222,6 +229,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
+  '/cadencia': typeof AppCadenciaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
+  '/_app/cadencia': typeof AppCadenciaRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/kanban': typeof AppKanbanRoute
@@ -285,6 +294,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/analytics-chat'
+    | '/cadencia'
     | '/configuracoes'
     | '/dashboard'
     | '/kanban'
@@ -315,6 +325,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/analytics-chat'
+    | '/cadencia'
     | '/configuracoes'
     | '/dashboard'
     | '/kanban'
@@ -345,6 +356,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/analytics-chat'
+    | '/_app/cadencia'
     | '/_app/configuracoes'
     | '/_app/dashboard'
     | '/_app/kanban'
@@ -454,6 +466,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cadencia': {
+      id: '/_app/cadencia'
+      path: '/cadencia'
+      fullPath: '/cadencia'
+      preLoaderRoute: typeof AppCadenciaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/analytics-chat': {
@@ -644,6 +663,7 @@ const AppWhatsappRouteWithChildren = AppWhatsappRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAnalyticsChatRoute: typeof AppAnalyticsChatRouteWithChildren
+  AppCadenciaRoute: typeof AppCadenciaRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppKanbanRoute: typeof AppKanbanRoute
@@ -656,6 +676,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAnalyticsChatRoute: AppAnalyticsChatRouteWithChildren,
+  AppCadenciaRoute: AppCadenciaRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppKanbanRoute: AppKanbanRoute,

@@ -15,8 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, normalizeLeadType, type LeadType } from "@/lib/lead-type";
 import { evaluateIcpFit } from "@/lib/icp-fit";
+import { getTouchRules } from "@/lib/touches.functions";
+import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, Mail, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap } from "lucide-react";
+import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, Mail, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -73,10 +75,17 @@ function KanbanPage() {
   const [demoFree, setDemoFree] = useState<string>("all");
   const [leadTypeFilter, setLeadTypeFilter] = useState<string>("all");
   const [certificationFilter, setCertificationFilter] = useState<string>("all");
+  const [touchAlert, setTouchAlert] = useState<string>("all");
+  const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
     queryKey: ["kanban"],
     queryFn: () => fetchData(),
+  });
+
+  const { data: touchRulesData } = useQuery({
+    queryKey: ["touch-rules"],
+    queryFn: () => touchRulesFn({}),
   });
 
   // Auto-enriquecimento + recálculo de score em background.
@@ -205,6 +214,32 @@ function KanbanPage() {
   if (!data) return null;
 
   const filtered = data.leads.filter((l) => {
+    if (touchAlert !== "all") {
+      const rules = touchRulesData ?? DEFAULT_TOUCH_RULES;
+      const stage = data.stages.find((s) => s.id === l.stage_id) ?? null;
+      const sinceTouch = daysSince(l.last_touch_at);
+      const sinceStage = daysSince(l.stage_entered_at);
+      if (touchAlert === "sem_touch" && !((l.touch_count ?? 0) === 0 && !stage?.is_terminal)) return false;
+      if (
+        touchAlert === "esquecido" &&
+        !(
+          !stage?.is_terminal &&
+          (l.touch_count ?? 0) > 0 &&
+          sinceTouch != null &&
+          sinceTouch >= rules.staleTouchDays
+        )
+      )
+        return false;
+      if (touchAlert === "parado" && !(!stage?.is_terminal && sinceStage != null && sinceStage >= rules.staleStageDays))
+        return false;
+      if (
+        touchAlert === "fup_vencido" &&
+        !(l.next_follow_up_at && new Date(l.next_follow_up_at).getTime() <= Date.now())
+      )
+        return false;
+      if (touchAlert === "abaixo_minimo" && !(stage?.is_terminal && (l.touch_count ?? 0) < rules.minTouchesBeforeDiscard))
+        return false;
+    }
     if (priority !== "all" && l.priority !== priority) return false;
     if (companySize !== "all" && (l.company_size ?? "") !== companySize) return false;
     if (assigned === "none" && l.assigned_to) return false;
@@ -254,7 +289,7 @@ function KanbanPage() {
       const targetStage = data.stages.find((s) => s.id === e.over!.id);
       const payload = { leadId: e.active.id as string, stageId: e.over.id as string };
       if (targetStage?.slug === "desqualificado") {
-        setLostFor(payload);
+        handleMoveTo(payload.leadId, payload.stageId);
       } else {
         move.mutate(payload);
       }
@@ -277,6 +312,14 @@ function KanbanPage() {
   const handleMoveTo = (leadId: string, stageId: string) => {
     const targetStage = data.stages.find((s) => s.id === stageId);
     if (targetStage?.slug === "desqualificado") {
+      const min = (touchRulesData ?? DEFAULT_TOUCH_RULES).minTouchesBeforeDiscard;
+      const done = data.leads.find((l) => l.id === leadId)?.touch_count ?? 0;
+      if (done < min) {
+        const ok = window.confirm(
+          `Este lead possui apenas ${done} ${done === 1 ? "tentativa" : "tentativas"} de contato (mínimo configurado: ${min}). Deseja realmente descartá-lo?`,
+        );
+        if (!ok) return;
+      }
       setLostFor({ leadId, stageId });
     } else {
       move.mutate({ leadId, stageId });
@@ -371,6 +414,19 @@ function KanbanPage() {
           >
             <option value="all">Interesse: todos</option>
             <option value="certificacao">Somente Certificação</option>
+          </select>
+          <select
+            value={touchAlert}
+            onChange={(e) => setTouchAlert(e.target.value)}
+            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
+            title="Alertas de cadência"
+          >
+            <option value="all">Alertas: todos</option>
+            <option value="sem_touch">Sem nenhum touch</option>
+            <option value="esquecido">Sem touch há X dias</option>
+            <option value="parado">Parado na etapa há X dias</option>
+            <option value="fup_vencido">Follow-up vencido</option>
+            <option value="abaixo_minimo">Descartado abaixo do mínimo</option>
           </select>
           <div className="flex items-center gap-1">
             <select
@@ -808,6 +864,42 @@ function LeadCard({
           )}
         </div>
       )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
+        <Badge variant="secondary" className="text-[10px] inline-flex items-center gap-1">
+          <Activity className="h-3 w-3" />
+          {lead.touch_count ?? 0} {(lead.touch_count ?? 0) === 1 ? "touch" : "touches"}
+        </Badge>
+        {lead.last_touch_channel && (
+          <span className="text-muted-foreground">
+            {channelLabel(lead.last_touch_channel)}
+            {lead.last_touch_outcome ? ` • ${outcomeLabel(lead.last_touch_outcome)}` : ""}
+          </span>
+        )}
+        {lead.last_touch_at && (
+          <span className="text-muted-foreground inline-flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {(() => {
+              const d = daysSince(lead.last_touch_at);
+              return d === 0 ? "hoje" : `há ${d}d`;
+            })()}
+          </span>
+        )}
+        {lead.next_follow_up_at && (
+          <span
+            className={`inline-flex items-center gap-1 ${
+              new Date(lead.next_follow_up_at).getTime() <= Date.now() ? "text-amber-600" : "text-muted-foreground"
+            }`}
+          >
+            {new Date(lead.next_follow_up_at).getTime() <= Date.now() ? (
+              <AlertTriangle className="h-3 w-3" />
+            ) : (
+              <CalendarClock className="h-3 w-3" />
+            )}
+            FUP {format(new Date(lead.next_follow_up_at), "dd/MM", { locale: ptBR })}
+          </span>
+        )}
+      </div>
 
       {stageSlug === "desqualificado" && (
         <div className="mt-2 text-[10px]">

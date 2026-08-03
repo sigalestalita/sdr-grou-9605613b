@@ -224,6 +224,62 @@ export type Database = {
           },
         ]
       }
+      lead_touches: {
+        Row: {
+          action_type: string
+          author_id: string | null
+          channel: string
+          created_at: string
+          id: string
+          lead_id: string
+          metadata: Json
+          next_follow_up_at: string | null
+          notes: string | null
+          occurred_at: string
+          outcome: string
+          touch_number: number
+          updated_at: string
+        }
+        Insert: {
+          action_type: string
+          author_id?: string | null
+          channel: string
+          created_at?: string
+          id?: string
+          lead_id: string
+          metadata?: Json
+          next_follow_up_at?: string | null
+          notes?: string | null
+          occurred_at?: string
+          outcome: string
+          touch_number?: number
+          updated_at?: string
+        }
+        Update: {
+          action_type?: string
+          author_id?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          lead_id?: string
+          metadata?: Json
+          next_follow_up_at?: string | null
+          notes?: string | null
+          occurred_at?: string
+          outcome?: string
+          touch_number?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_touches_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           ad_name: string | null
@@ -251,6 +307,9 @@ export type Database = {
           icp_signals: Json | null
           id: string
           last_action_at: string | null
+          last_touch_at: string | null
+          last_touch_channel: string | null
+          last_touch_outcome: string | null
           lead_type: string | null
           linkedin_company_size: string | null
           linkedin_url: string | null
@@ -258,6 +317,7 @@ export type Database = {
           meeting_at: string | null
           name: string
           next_action: string | null
+          next_follow_up_at: string | null
           original_company_name: string | null
           phone: string | null
           position: string | null
@@ -270,6 +330,7 @@ export type Database = {
           source: string | null
           stage_entered_at: string | null
           stage_id: string | null
+          touch_count: number
           updated_at: string
         }
         Insert: {
@@ -298,6 +359,9 @@ export type Database = {
           icp_signals?: Json | null
           id?: string
           last_action_at?: string | null
+          last_touch_at?: string | null
+          last_touch_channel?: string | null
+          last_touch_outcome?: string | null
           lead_type?: string | null
           linkedin_company_size?: string | null
           linkedin_url?: string | null
@@ -305,6 +369,7 @@ export type Database = {
           meeting_at?: string | null
           name: string
           next_action?: string | null
+          next_follow_up_at?: string | null
           original_company_name?: string | null
           phone?: string | null
           position?: string | null
@@ -317,6 +382,7 @@ export type Database = {
           source?: string | null
           stage_entered_at?: string | null
           stage_id?: string | null
+          touch_count?: number
           updated_at?: string
         }
         Update: {
@@ -345,6 +411,9 @@ export type Database = {
           icp_signals?: Json | null
           id?: string
           last_action_at?: string | null
+          last_touch_at?: string | null
+          last_touch_channel?: string | null
+          last_touch_outcome?: string | null
           lead_type?: string | null
           linkedin_company_size?: string | null
           linkedin_url?: string | null
@@ -352,6 +421,7 @@ export type Database = {
           meeting_at?: string | null
           name?: string
           next_action?: string | null
+          next_follow_up_at?: string | null
           original_company_name?: string | null
           phone?: string | null
           position?: string | null
@@ -364,6 +434,7 @@ export type Database = {
           source?: string | null
           stage_entered_at?: string | null
           stage_id?: string | null
+          touch_count?: number
           updated_at?: string
         }
         Relationships: [
