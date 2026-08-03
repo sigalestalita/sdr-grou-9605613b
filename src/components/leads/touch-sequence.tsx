@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format } from "date-fns";
@@ -275,13 +276,23 @@ function TouchDialog({
     initial?.next_follow_up_at ? initial.next_follow_up_at.slice(0, 16) : "",
   );
 
-  return (
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm grid place-items-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-[9999] bg-background/90 backdrop-blur-md grid place-items-center p-4 overflow-y-auto"
       onClick={onClose}
     >
       <Card
-        className="relative z-[101] p-6 w-full max-w-md space-y-4 bg-popover border shadow-2xl my-auto max-h-[90vh] overflow-y-auto"
+        className="relative z-[10000] p-6 w-full max-w-md space-y-4 bg-popover border shadow-2xl my-auto max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div>
