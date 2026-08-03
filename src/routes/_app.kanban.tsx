@@ -310,6 +310,9 @@ function KanbanPage() {
   const assignedIds = new Set(
     data.leads.map((l) => l.assigned_to).filter((v): v is string => !!v)
   );
+  const adOptions = Array.from(
+    new Set(data.leads.map((l) => (l.ad_name ?? "").trim()).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
   const assigneeOptions = data.profiles
     .filter((p) => assignedIds.has(p.id))
     .map((p) => ({ id: p.id, label: (p.full_name || p.email || "—").trim() }))
