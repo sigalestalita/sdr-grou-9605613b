@@ -99,7 +99,79 @@
 
 :root {
   --radius: 0.625rem;
-  /* === Aurora Glass dark theme (always on) === */
+  /* === Aurora Glass LIGHT theme === */
+  --brand: oklch(0.58 0.12 215);
+  --brand-dark: oklch(0.5 0.19 260);
+  --brand-soft: oklch(0.58 0.12 215 / 0.12);
+  --surface: oklch(0.98 0.008 250);
+
+  --background: oklch(0.98 0.008 250);
+  --foreground: oklch(0.24 0.03 265);
+  --card: oklch(1 0 0 / 0.75);
+  --card-foreground: oklch(0.24 0.03 265);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.24 0.03 265);
+  --primary: var(--brand);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.26 0.03 265 / 0.06);
+  --secondary-foreground: oklch(0.28 0.03 265);
+  --muted: oklch(0.26 0.03 265 / 0.04);
+  --muted-foreground: oklch(0.48 0.02 260);
+  --accent: oklch(0.5 0.19 260 / 0.1);
+  --accent-foreground: oklch(0.26 0.03 265);
+  --destructive: oklch(0.55 0.21 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.26 0.03 265 / 0.12);
+  --input: oklch(0.26 0.03 265 / 0.14);
+  --ring: var(--brand);
+  --chart-1: var(--brand);
+  --chart-2: oklch(0.5 0.19 260);
+  --chart-3: oklch(0.55 0.16 150);
+  --chart-4: oklch(0.66 0.16 70);
+  --chart-5: oklch(0.55 0.21 25);
+
+  --sidebar: oklch(1 0 0 / 0.7);
+  --sidebar-foreground: oklch(0.24 0.03 265);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.26 0.03 265 / 0.06);
+  --sidebar-accent-foreground: oklch(0.24 0.03 265);
+  --sidebar-border: oklch(0.26 0.03 265 / 0.1);
+  --sidebar-ring: var(--brand);
+
+  --priority-alta: oklch(0.55 0.2 25);
+  --priority-media: oklch(0.62 0.15 70);
+  --priority-baixa: oklch(0.55 0.12 215);
+  --priority-fora: oklch(0.55 0.01 260);
+
+  --lead-type-consultoria: oklch(0.52 0.17 295);
+  --lead-type-empresa: oklch(0.5 0.14 165);
+  --lead-type-pessoa-fisica: oklch(0.58 0.15 50);
+  --kanban-certification-bg: oklch(0.93 0.08 95 / 0.6);
+  --kanban-certification-border: oklch(0.7 0.14 85 / 0.6);
+  --kanban-certification-fg: oklch(0.42 0.09 85);
+  --kanban-certification-badge-bg: oklch(0.75 0.13 90 / 0.18);
+  --kanban-certification-icon-bg: oklch(0.8 0.15 87 / 0.3);
+  --kanban-certification-icon-fg: oklch(0.4 0.1 85);
+  --kanban-certification-icon-ring: oklch(0.7 0.14 88 / 0.6);
+  --kanban-certification-icon-shadow: 0 8px 18px -10px oklch(0.6 0.12 88 / 0.5);
+
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.06), 0 8px 24px -12px rgb(15 23 42 / 0.15);
+  --shadow-glow: 0 0 40px -12px oklch(0.58 0.12 215 / 0.35);
+  --aurora-1: oklch(0.58 0.12 215 / 0.16);
+  --aurora-2: oklch(0.5 0.19 260 / 0.14);
+  --tint-weak: oklch(0.26 0.03 265 / 0.035);
+  --tint-soft: oklch(0.26 0.03 265 / 0.06);
+  --tint-medium: oklch(0.26 0.03 265 / 0.09);
+  --tint-border: oklch(0.26 0.03 265 / 0.1);
+  --tint-border-strong: oklch(0.26 0.03 265 / 0.16);
+  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.dark {
+  /* === Aurora Glass dark theme === */
   --brand: oklch(0.78 0.13 215);
   --brand-dark: oklch(0.55 0.22 260);
   --brand-soft: oklch(0.78 0.13 215 / 0.18);
@@ -158,44 +230,13 @@
 
   --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -8px rgb(0 0 0 / 0.4);
   --shadow-glow: 0 0 40px -10px oklch(0.78 0.13 215 / 0.4);
-  --font-display: "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
-}
-
-.dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  --aurora-1: oklch(0.78 0.13 215 / 0.18);
+  --aurora-2: oklch(0.55 0.22 260 / 0.22);
+  --tint-weak: oklch(1 0 0 / 0.03);
+  --tint-soft: oklch(1 0 0 / 0.05);
+  --tint-medium: oklch(1 0 0 / 0.1);
+  --tint-border: oklch(1 0 0 / 0.05);
+  --tint-border-strong: oklch(1 0 0 / 0.1);
 }
 
 @layer base {
@@ -227,12 +268,12 @@
   body::before {
     top: -15%;
     left: -10%;
-    background: oklch(0.78 0.13 215 / 0.18);
+    background: var(--aurora-1);
   }
   body::after {
     bottom: -15%;
     right: -10%;
-    background: oklch(0.55 0.22 260 / 0.22);
+    background: var(--aurora-2);
   }
 
   /* Keep app content above the aurora glows */
