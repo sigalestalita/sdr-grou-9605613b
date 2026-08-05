@@ -1,11 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listUsers, updateUserRole, removeUser } from "@/lib/users.functions";
+import {
+  listUsers,
+  updateUserRole,
+  removeUser,
+  setUserPassword,
+  sendUserPasswordReset,
+} from "@/lib/users.functions";
 import { useCurrentRole } from "@/lib/use-role";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -14,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/_app/usuarios")({
   head: () => ({ meta: [{ title: "Usuários — Lidi" }] }),
@@ -33,7 +49,12 @@ function UsersPage() {
   const listFn = useServerFn(listUsers);
   const updateFn = useServerFn(updateUserRole);
   const removeFn = useServerFn(removeUser);
+  const setPasswordFn = useServerFn(setUserPassword);
+  const sendResetFn = useServerFn(sendUserPasswordReset);
   const qc = useQueryClient();
+  const [pwdTarget, setPwdTarget] = useState<{ id: string; email: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["users-list"],
@@ -57,6 +78,26 @@ function UsersPage() {
       toast.success("Usuário removido");
       qc.invalidateQueries({ queryKey: ["users-list"] });
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const savePassword = useMutation({
+    mutationFn: (v: { userId: string; password: string }) => setPasswordFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Senha atualizada");
+      setPwdTarget(null);
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const sendReset = useMutation({
+    mutationFn: (userId: string) =>
+      sendResetFn({
+        data: { userId, redirectTo: `${window.location.origin}/reset-password` },
+      }),
+    onSuccess: () => toast.success("Email de redefinição enviado"),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
@@ -150,6 +191,20 @@ function UsersPage() {
                       {new Date(u.created_at).toLocaleDateString("pt-BR")}
                     </td>
                     <td className="p-3 text-right">
+                      {data.canEdit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mr-2"
+                          onClick={() => {
+                            setNewPassword("");
+                            setConfirmPassword("");
+                            setPwdTarget({ id: u.id, email: u.email });
+                          }}
+                        >
+                          <KeyRound className="h-3 w-3 mr-1" /> Senha
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -170,6 +225,66 @@ function UsersPage() {
           </table>
         </Card>
       )}
+
+      <Dialog open={!!pwdTarget} onOpenChange={(o) => !o && setPwdTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerenciar senha</DialogTitle>
+            <DialogDescription>{pwdTarget?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-pwd">Nova senha</Label>
+              <Input
+                id="new-pwd"
+                type="password"
+                minLength={8}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-pwd">Confirmar senha</Label>
+              <Input
+                id="confirm-pwd"
+                type="password"
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            <Button
+              className="w-full"
+              disabled={
+                savePassword.isPending || newPassword.length < 8 || newPassword !== confirmPassword
+              }
+              onClick={() =>
+                pwdTarget &&
+                savePassword.mutate({ userId: pwdTarget.id, password: newPassword })
+              }
+            >
+              {savePassword.isPending ? "Salvando..." : "Definir nova senha"}
+            </Button>
+            {newPassword && newPassword !== confirmPassword && (
+              <p className="text-xs text-destructive">As senhas não coincidem.</p>
+            )}
+            <div className="border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground mb-2">
+                Ou envie um email para o usuário definir a própria senha.
+              </p>
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={sendReset.isPending}
+                onClick={() => pwdTarget && sendReset.mutate(pwdTarget.id)}
+              >
+                {sendReset.isPending ? "Enviando..." : "Enviar email de redefinição"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
