@@ -322,14 +322,15 @@ function KanbanPage() {
 
   const activeLead = activeId ? filtered.find((l) => l.id === activeId) : null;
   const stageById = new Map(data.stages.map((s) => [s.id, s] as const));
+  const funnelLeads = data.leads.filter((l) => leadInFunnel(l, funnel));
   const sizeOptions = Array.from(
-    new Set(data.leads.map((l) => (l.company_size ?? "").trim()).filter(Boolean))
+    new Set(funnelLeads.map((l) => (l.company_size ?? "").trim()).filter(Boolean))
   ).sort();
   const assignedIds = new Set(
-    data.leads.map((l) => l.assigned_to).filter((v): v is string => !!v)
+    funnelLeads.map((l) => l.assigned_to).filter((v): v is string => !!v)
   );
   const adCounts = new Map<string, number>();
-  for (const l of data.leads) {
+  for (const l of funnelLeads) {
     const ad = (l.ad_name ?? "").trim();
     if (!ad) continue;
     adCounts.set(ad, (adCounts.get(ad) ?? 0) + 1);
@@ -338,7 +339,7 @@ function KanbanPage() {
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
   );
   const sourceCounts = new Map<string, number>();
-  for (const l of data.leads) {
+  for (const l of funnelLeads) {
     const src = (l.source ?? "").trim();
     if (!src) continue;
     sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
