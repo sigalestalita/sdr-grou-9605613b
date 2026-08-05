@@ -17,6 +17,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
@@ -78,13 +79,13 @@ function AppShell() {
         className={`${collapsed ? "w-14" : "w-60"} shrink-0 border-r border-white/5 bg-white/[0.03] backdrop-blur-xl text-sidebar-foreground flex flex-col transition-[width] duration-200`}
       >
         <div className={`${collapsed ? "px-2" : "px-5"} py-5 border-b border-white/5 flex items-center justify-between gap-2`}>
-          <div className="flex items-center gap-2 min-w-0">
-            {collapsed ? (
-              <img src={lidiLogo} alt="Lidi" className="h-7 w-auto mx-auto" />
-            ) : (
-              <img src={lidiLogo} alt="Lidi" className="h-8 w-auto" />
-            )}
-          </div>
+          <span className="flex items-center gap-2 min-w-0 rounded-lg bg-foreground px-2 py-1 dark:bg-transparent dark:px-0 dark:py-0">
+            <img
+              src={lidiLogo}
+              alt="Lidi"
+              className={collapsed ? "h-7 w-auto mx-auto" : "h-8 w-auto"}
+            />
+          </span>
           <button
             onClick={() => setCollapsed((v) => !v)}
             title={collapsed ? "Expandir menu" : "Recolher menu"}
@@ -118,6 +119,9 @@ function AppShell() {
           {!collapsed && (
             <p className="px-3 text-xs text-muted-foreground truncate">{user.email}</p>
           )}
+          <div className={`mt-2 flex ${collapsed ? "justify-center" : "px-3"}`}>
+            <ThemeToggle showLabel={!collapsed} className={collapsed ? "px-1.5" : "w-full"} />
+          </div>
           <button
             onClick={signOut}
             title={collapsed ? "Sair" : undefined}

@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useTheme } from "@/lib/use-theme";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Entrar — SDR GROU" }] }),
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -61,7 +63,7 @@ function LoginPage() {
   }
 
   return (
-    <div className="relative min-h-screen grid place-items-center px-4 overflow-hidden bg-[oklch(0.11_0.03_265)]">
+    <div className="relative min-h-screen grid place-items-center px-4 overflow-hidden bg-background">
       {/* Video background */}
       <video
         aria-hidden
@@ -70,7 +72,7 @@ function LoginPage() {
         loop
         playsInline
         preload="auto"
-        className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-90"
+        className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-30 dark:opacity-90"
         src="/login-bg.mp4"
       />
       {/* Aurora background (fallback + extra depth) */}
@@ -80,10 +82,32 @@ function LoginPage() {
         <div className="absolute top-1/3 left-1/2 h-[35vw] w-[35vw] -translate-x-1/2 rounded-full blur-[120px] opacity-40 animate-[aurora3_22s_ease-in-out_infinite] bg-[oklch(0.65_0.22_310/0.35)]" />
       </div>
       {/* Darken overlay for form contrast */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-black/40" />
-      <Card className="relative w-full max-w-md p-8 border-white/10 bg-white/[0.06] backdrop-blur-2xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.6)] animate-[loginIn_700ms_cubic-bezier(0.22,1,0.36,1)_both]">
+      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-background/60 dark:bg-black/40" />
+      {/* Theme chooser */}
+      <div className="absolute top-4 right-4 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 backdrop-blur-xl">
+        {([
+          { v: "light" as const, label: "Claro" },
+          { v: "dark" as const, label: "Escuro" },
+        ]).map((opt) => (
+          <button
+            key={opt.v}
+            type="button"
+            onClick={() => setTheme(opt.v)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              theme === opt.v
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <Card className="relative w-full max-w-md p-8 border-border bg-card/90 backdrop-blur-2xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.35)] animate-[loginIn_700ms_cubic-bezier(0.22,1,0.36,1)_both]">
         <div className="flex flex-col items-center text-center gap-2 mb-8">
-          <img src={lidiLogo} alt="Lidi" className="h-12 w-auto" />
+          <span className="rounded-xl bg-foreground px-4 py-2 dark:bg-transparent dark:px-0 dark:py-0">
+            <img src={lidiLogo} alt="Lidi" className="h-12 w-auto" />
+          </span>
           <p className="text-xs text-muted-foreground">Plataforma de qualificação de leads · Grou</p>
         </div>
         <form onSubmit={submit} className="space-y-4">
@@ -124,7 +148,7 @@ function LoginPage() {
                     className={`flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer text-sm ${
                       role === opt.v
                         ? "border-primary bg-primary/10 text-foreground"
-                        : "border-white/10 text-muted-foreground hover:border-white/20"
+                        : "border-border text-muted-foreground hover:border-input"
                     }`}
                   >
                     <RadioGroupItem value={opt.v} id={`role-${opt.v}`} />
