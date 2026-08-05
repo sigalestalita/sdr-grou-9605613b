@@ -55,6 +55,18 @@ function isCertificationLead(lead: KanbanLead) {
   return values.some((value) => /certifica/i.test(value));
 }
 
+function resolveLeadType(lead: KanbanLead): LeadType | null {
+  const raw = (lead.form_payload as { lead_type?: string } | null)?.lead_type ?? null;
+  return (lead.lead_type as LeadType | null) ?? normalizeLeadType(raw);
+}
+
+type Funnel = "comercial" | "consultoria";
+
+function leadInFunnel(lead: KanbanLead, funnel: Funnel) {
+  const t = resolveLeadType(lead);
+  return funnel === "consultoria" ? t === "consultoria" : t !== "consultoria";
+}
+
 function KanbanPage() {
   const fetchData = useServerFn(listKanbanData);
   const moveFn = useServerFn(moveLeadStage);
@@ -75,6 +87,7 @@ function KanbanPage() {
   const [assigned, setAssigned] = useState<string>("all");
   const [demoFree, setDemoFree] = useState<string>("all");
   const [leadTypeFilter, setLeadTypeFilter] = useState<string>("all");
+  const [funnel, setFunnel] = useState<Funnel>("comercial");
   const [certificationFilter, setCertificationFilter] = useState<string>("all");
   const [touchAlert, setTouchAlert] = useState<string>("all");
   const [adFilter, setAdFilter] = useState<string>("all");
@@ -217,6 +230,7 @@ function KanbanPage() {
   if (!data) return null;
 
   const filtered = data.leads.filter((l) => {
+    if (!leadInFunnel(l, funnel)) return false;
     if (touchAlert !== "all") {
       const rules = touchRulesData ?? DEFAULT_TOUCH_RULES;
       const stage = data.stages.find((s) => s.id === l.stage_id) ?? null;
@@ -260,8 +274,7 @@ function KanbanPage() {
       if (sourceFilter === "nd" ? src !== "" : src !== sourceFilter) return false;
     }
     if (leadTypeFilter !== "all") {
-      const raw = (l.form_payload as { lead_type?: string } | null)?.lead_type ?? null;
-      const t = (l.lead_type as LeadType | null) ?? normalizeLeadType(raw);
+      const t = resolveLeadType(l);
       if (leadTypeFilter === "nd") {
         if (t) return false;
       } else if (t !== leadTypeFilter) {
@@ -309,14 +322,15 @@ function KanbanPage() {
 
   const activeLead = activeId ? filtered.find((l) => l.id === activeId) : null;
   const stageById = new Map(data.stages.map((s) => [s.id, s] as const));
+  const funnelLeads = data.leads.filter((l) => leadInFunnel(l, funnel));
   const sizeOptions = Array.from(
-    new Set(data.leads.map((l) => (l.company_size ?? "").trim()).filter(Boolean))
+    new Set(funnelLeads.map((l) => (l.company_size ?? "").trim()).filter(Boolean))
   ).sort();
   const assignedIds = new Set(
-    data.leads.map((l) => l.assigned_to).filter((v): v is string => !!v)
+    funnelLeads.map((l) => l.assigned_to).filter((v): v is string => !!v)
   );
   const adCounts = new Map<string, number>();
-  for (const l of data.leads) {
+  for (const l of funnelLeads) {
     const ad = (l.ad_name ?? "").trim();
     if (!ad) continue;
     adCounts.set(ad, (adCounts.get(ad) ?? 0) + 1);
@@ -325,7 +339,7 @@ function KanbanPage() {
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
   );
   const sourceCounts = new Map<string, number>();
-  for (const l of data.leads) {
+  for (const l of funnelLeads) {
     const src = (l.source ?? "").trim();
     if (!src) continue;
     sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
@@ -362,9 +376,38 @@ function KanbanPage() {
 
   return (
     <div className="p-6 space-y-4">
+      <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 w-fit">
+        {([
+          { id: "comercial" as Funnel, label: "Empresas & PF" },
+          { id: "consultoria" as Funnel, label: "Consultorias" },
+        ]).map((t) => {
+          const count = data.leads.filter((l) => leadInFunnel(l, t.id)).length;
+          const active = funnel === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setFunnel(t.id);
+                setLeadTypeFilter("all");
+              }}
+              className={`h-8 rounded-md px-3 text-sm font-medium transition-colors ${
+                active
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+              <span className="ml-2 text-xs text-muted-foreground">{count}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pipeline Inbound</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {funnel === "consultoria" ? "Pipeline Consultorias" : "Pipeline Empresas & PF"}
+          </h1>
           <p className="text-sm text-muted-foreground">{filtered.length} leads • arraste cards entre etapas</p>
         </div>
         <div className="flex gap-2 items-center">
@@ -423,18 +466,19 @@ function KanbanPage() {
             <option value="nao">Demo Free: não</option>
             <option value="nd">Demo Free: não informado</option>
           </select>
-          <select
-            value={leadTypeFilter}
-            onChange={(e) => setLeadTypeFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-            title="Tipo de lead"
-          >
-            <option value="all">Tipo: todos</option>
-            <option value="empresa">Empresa</option>
-            <option value="consultoria">Consultoria</option>
-            <option value="pessoa_fisica">Pessoa física</option>
-            <option value="nd">Não informado</option>
-          </select>
+          {funnel === "comercial" && (
+            <select
+              value={leadTypeFilter}
+              onChange={(e) => setLeadTypeFilter(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              title="Tipo de lead"
+            >
+              <option value="all">Tipo: todos</option>
+              <option value="empresa">Empresa</option>
+              <option value="pessoa_fisica">Pessoa física</option>
+              <option value="nd">Não informado</option>
+            </select>
+          )}
           <select
             value={certificationFilter}
             onChange={(e) => setCertificationFilter(e.target.value)}
