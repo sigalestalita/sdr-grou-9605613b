@@ -17,6 +17,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
@@ -118,6 +119,9 @@ function AppShell() {
           {!collapsed && (
             <p className="px-3 text-xs text-muted-foreground truncate">{user.email}</p>
           )}
+          <div className={`mt-2 flex ${collapsed ? "justify-center" : "px-3"}`}>
+            <ThemeToggle showLabel={!collapsed} className={collapsed ? "px-1.5" : "w-full"} />
+          </div>
           <button
             onClick={signOut}
             title={collapsed ? "Sair" : undefined}
