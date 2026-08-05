@@ -375,9 +375,38 @@ function KanbanPage() {
 
   return (
     <div className="p-6 space-y-4">
+      <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 w-fit">
+        {([
+          { id: "comercial" as Funnel, label: "Empresas & PF" },
+          { id: "consultoria" as Funnel, label: "Consultorias" },
+        ]).map((t) => {
+          const count = data.leads.filter((l) => leadInFunnel(l, t.id)).length;
+          const active = funnel === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setFunnel(t.id);
+                setLeadTypeFilter("all");
+              }}
+              className={`h-8 rounded-md px-3 text-sm font-medium transition-colors ${
+                active
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {t.label}
+              <span className="ml-2 text-xs text-muted-foreground">{count}</span>
+            </button>
+          );
+        })}
+      </div>
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pipeline Inbound</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {funnel === "consultoria" ? "Pipeline Consultorias" : "Pipeline Empresas & PF"}
+          </h1>
           <p className="text-sm text-muted-foreground">{filtered.length} leads • arraste cards entre etapas</p>
         </div>
         <div className="flex gap-2 items-center">
@@ -436,18 +465,19 @@ function KanbanPage() {
             <option value="nao">Demo Free: não</option>
             <option value="nd">Demo Free: não informado</option>
           </select>
-          <select
-            value={leadTypeFilter}
-            onChange={(e) => setLeadTypeFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-            title="Tipo de lead"
-          >
-            <option value="all">Tipo: todos</option>
-            <option value="empresa">Empresa</option>
-            <option value="consultoria">Consultoria</option>
-            <option value="pessoa_fisica">Pessoa física</option>
-            <option value="nd">Não informado</option>
-          </select>
+          {funnel === "comercial" && (
+            <select
+              value={leadTypeFilter}
+              onChange={(e) => setLeadTypeFilter(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              title="Tipo de lead"
+            >
+              <option value="all">Tipo: todos</option>
+              <option value="empresa">Empresa</option>
+              <option value="pessoa_fisica">Pessoa física</option>
+              <option value="nd">Não informado</option>
+            </select>
+          )}
           <select
             value={certificationFilter}
             onChange={(e) => setCertificationFilter(e.target.value)}
