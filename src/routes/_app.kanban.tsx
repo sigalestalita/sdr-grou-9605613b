@@ -18,6 +18,7 @@ import { evaluateIcpFit } from "@/lib/icp-fit";
 import { getTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
 import { TouchSequenceModal } from "@/components/leads/touch-sequence";
+import { useAuth } from "@/lib/use-auth";
 import { toast } from "sonner";
 import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock } from "lucide-react";
 import {
@@ -68,6 +69,7 @@ function leadInFunnel(lead: KanbanLead, funnel: Funnel) {
 }
 
 function KanbanPage() {
+  const { session } = useAuth();
   const fetchData = useServerFn(listKanbanData);
   const moveFn = useServerFn(moveLeadStage);
   const syncFn = useServerFn(syncRdLeads);
@@ -112,6 +114,7 @@ function KanbanPage() {
   const recalcRunRef = useRef(false);
   const sheetSyncRef = useRef(0);
   useEffect(() => {
+    if (!session) return;
     const leads = data?.leads ?? [];
     const pendingEnrich = leads.filter((l) => l.enrichment_status === "pending").length;
     const enrichedCount = leads.filter((l) => l.enrichment_status === "found").length;
@@ -156,7 +159,7 @@ function KanbanPage() {
       cancelled = true;
       clearInterval(t);
     };
-  }, [data?.leads, autoEnrichFn, recalcFn, sheetSyncFn, qc]);
+  }, [session, data?.leads, autoEnrichFn, recalcFn, sheetSyncFn, qc]);
 
   const move = useMutation({
     mutationFn: (vars: { leadId: string; stageId: string }) => moveFn({ data: vars }),
