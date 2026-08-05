@@ -1,11 +1,27 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listUsers, updateUserRole, removeUser } from "@/lib/users.functions";
+import {
+  listUsers,
+  updateUserRole,
+  removeUser,
+  setUserPassword,
+  sendUserPasswordReset,
+} from "@/lib/users.functions";
 import { useCurrentRole } from "@/lib/use-role";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useState } from "react";
 import {
   Select,
   SelectContent,
@@ -14,7 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/_app/usuarios")({
   head: () => ({ meta: [{ title: "Usuários — Lidi" }] }),
@@ -33,7 +49,12 @@ function UsersPage() {
   const listFn = useServerFn(listUsers);
   const updateFn = useServerFn(updateUserRole);
   const removeFn = useServerFn(removeUser);
+  const setPasswordFn = useServerFn(setUserPassword);
+  const sendResetFn = useServerFn(sendUserPasswordReset);
   const qc = useQueryClient();
+  const [pwdTarget, setPwdTarget] = useState<{ id: string; email: string } | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["users-list"],
@@ -57,6 +78,26 @@ function UsersPage() {
       toast.success("Usuário removido");
       qc.invalidateQueries({ queryKey: ["users-list"] });
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const savePassword = useMutation({
+    mutationFn: (v: { userId: string; password: string }) => setPasswordFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Senha atualizada");
+      setPwdTarget(null);
+      setNewPassword("");
+      setConfirmPassword("");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const sendReset = useMutation({
+    mutationFn: (userId: string) =>
+      sendResetFn({
+        data: { userId, redirectTo: `${window.location.origin}/reset-password` },
+      }),
+    onSuccess: () => toast.success("Email de redefinição enviado"),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
