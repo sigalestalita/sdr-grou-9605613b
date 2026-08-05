@@ -55,6 +55,18 @@ function isCertificationLead(lead: KanbanLead) {
   return values.some((value) => /certifica/i.test(value));
 }
 
+function resolveLeadType(lead: KanbanLead): LeadType | null {
+  const raw = (lead.form_payload as { lead_type?: string } | null)?.lead_type ?? null;
+  return (lead.lead_type as LeadType | null) ?? normalizeLeadType(raw);
+}
+
+type Funnel = "comercial" | "consultoria";
+
+function leadInFunnel(lead: KanbanLead, funnel: Funnel) {
+  const t = resolveLeadType(lead);
+  return funnel === "consultoria" ? t === "consultoria" : t !== "consultoria";
+}
+
 function KanbanPage() {
   const fetchData = useServerFn(listKanbanData);
   const moveFn = useServerFn(moveLeadStage);
@@ -75,6 +87,7 @@ function KanbanPage() {
   const [assigned, setAssigned] = useState<string>("all");
   const [demoFree, setDemoFree] = useState<string>("all");
   const [leadTypeFilter, setLeadTypeFilter] = useState<string>("all");
+  const [funnel, setFunnel] = useState<Funnel>("comercial");
   const [certificationFilter, setCertificationFilter] = useState<string>("all");
   const [touchAlert, setTouchAlert] = useState<string>("all");
   const [adFilter, setAdFilter] = useState<string>("all");
@@ -217,6 +230,7 @@ function KanbanPage() {
   if (!data) return null;
 
   const filtered = data.leads.filter((l) => {
+    if (!leadInFunnel(l, funnel)) return false;
     if (touchAlert !== "all") {
       const rules = touchRulesData ?? DEFAULT_TOUCH_RULES;
       const stage = data.stages.find((s) => s.id === l.stage_id) ?? null;
@@ -260,8 +274,7 @@ function KanbanPage() {
       if (sourceFilter === "nd" ? src !== "" : src !== sourceFilter) return false;
     }
     if (leadTypeFilter !== "all") {
-      const raw = (l.form_payload as { lead_type?: string } | null)?.lead_type ?? null;
-      const t = (l.lead_type as LeadType | null) ?? normalizeLeadType(raw);
+      const t = resolveLeadType(l);
       if (leadTypeFilter === "nd") {
         if (t) return false;
       } else if (t !== leadTypeFilter) {
