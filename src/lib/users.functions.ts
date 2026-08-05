@@ -127,3 +127,45 @@ export const getMyRole = createServerFn({ method: "GET" })
       isGestao: roles.includes("gestao"),
     };
   });
+
+export const setUserPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({ userId: z.string().uuid(), password: z.string().min(8).max(72) })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const caller = await getCallerRole(context.userId);
+    if (!caller.isSuperAdmin) throw new Error("Apenas super admin pode alterar senhas");
+
+    const { error } = await supabaseAdmin.auth.admin.updateUserById(data.userId, {
+      password: data.password,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const sendUserPasswordReset = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ userId: z.string().uuid(), redirectTo: z.string().url() }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const caller = await getCallerRole(context.userId);
+    if (!caller.isSuperAdmin) throw new Error("Apenas super admin pode enviar redefinição");
+
+    const { data: target } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", data.userId)
+      .maybeSingle();
+    const email = target?.email as string | undefined;
+    if (!email) throw new Error("Usuário sem email cadastrado");
+
+    const { error } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      redirectTo: data.redirectTo,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true, email };
+  });
