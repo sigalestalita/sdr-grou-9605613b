@@ -191,6 +191,20 @@ function UsersPage() {
                       {new Date(u.created_at).toLocaleDateString("pt-BR")}
                     </td>
                     <td className="p-3 text-right">
+                      {data.canEdit && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mr-2"
+                          onClick={() => {
+                            setNewPassword("");
+                            setConfirmPassword("");
+                            setPwdTarget({ id: u.id, email: u.email });
+                          }}
+                        >
+                          <KeyRound className="h-3 w-3 mr-1" /> Senha
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -211,6 +225,66 @@ function UsersPage() {
           </table>
         </Card>
       )}
+
+      <Dialog open={!!pwdTarget} onOpenChange={(o) => !o && setPwdTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerenciar senha</DialogTitle>
+            <DialogDescription>{pwdTarget?.email}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="new-pwd">Nova senha</Label>
+              <Input
+                id="new-pwd"
+                type="password"
+                minLength={8}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Mínimo 8 caracteres"
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirm-pwd">Confirmar senha</Label>
+              <Input
+                id="confirm-pwd"
+                type="password"
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
+            </div>
+            <Button
+              className="w-full"
+              disabled={
+                savePassword.isPending || newPassword.length < 8 || newPassword !== confirmPassword
+              }
+              onClick={() =>
+                pwdTarget &&
+                savePassword.mutate({ userId: pwdTarget.id, password: newPassword })
+              }
+            >
+              {savePassword.isPending ? "Salvando..." : "Definir nova senha"}
+            </Button>
+            {newPassword && newPassword !== confirmPassword && (
+              <p className="text-xs text-destructive">As senhas não coincidem.</p>
+            )}
+            <div className="border-t border-border pt-4">
+              <p className="text-xs text-muted-foreground mb-2">
+                Ou envie um email para o usuário definir a própria senha.
+              </p>
+              <Button
+                variant="outline"
+                className="w-full"
+                disabled={sendReset.isPending}
+                onClick={() => pwdTarget && sendReset.mutate(pwdTarget.id)}
+              >
+                {sendReset.isPending ? "Enviando..." : "Enviar email de redefinição"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
