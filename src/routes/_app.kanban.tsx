@@ -319,6 +319,7 @@ function KanbanPage() {
   });
 
   const onDragEnd = (e: DragEndEvent) => {
+    void 0;
     setActiveId(null);
     if (e.over && e.active.data.current && e.over.id !== e.active.data.current.stage_id) {
       const targetStage = data.stages.find((s) => s.id === e.over!.id);
