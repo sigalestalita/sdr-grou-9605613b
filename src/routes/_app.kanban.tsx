@@ -19,8 +19,9 @@ import { getTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
 import { TouchSequenceModal } from "@/components/leads/touch-sequence";
 import { useAuth } from "@/lib/use-auth";
+import { downloadCsv } from "@/lib/export-csv";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock } from "lucide-react";
+import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock, Download } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -316,6 +317,46 @@ function KanbanPage() {
     }
     return true;
   });
+
+  const exportFiltered = () => {
+    if (filtered.length === 0) {
+      toast.error("Nenhum lead na seleção atual");
+      return;
+    }
+    const stageName = (id: string | null) => data.stages.find((s) => s.id === id)?.name ?? "";
+    const ownerName = (id: string | null) => {
+      const p = data.profiles.find((pr) => pr.id === id);
+      return p?.full_name ?? p?.email ?? "";
+    };
+    const rows = filtered.map((l) => ({
+      Nome: l.name ?? "",
+      Email: l.email ?? "",
+      Telefone: l.phone ?? "",
+      Empresa: l.company_name ?? "",
+      Cargo: l.job_title ?? "",
+      Porte: l.company_size ?? "",
+      Segmento: l.company_segment ?? "",
+      Tipo: (() => { const t = resolveLeadType(l); return t ? LEAD_TYPE_LABEL[t] : "Não informado"; })(),
+      Prioridade: l.priority ? (PRIORITY_LABEL[l.priority] ?? l.priority) : "",
+      Etapa: stageName(l.stage_id),
+      Responsavel: ownerName(l.assigned_to),
+      Origem: l.source ?? "",
+      Campanha: l.campaign ?? "",
+      Anuncio: l.ad_name ?? "",
+      "Motivo de descarte": l.lost_reason ?? "",
+      Touches: l.touch_count ?? 0,
+      "Ultimo touch": l.last_touch_at ? format(new Date(l.last_touch_at), "dd/MM/yyyy HH:mm") : "",
+      "Proximo FUP": l.next_follow_up_at ? format(new Date(l.next_follow_up_at), "dd/MM/yyyy HH:mm") : "",
+      "Data de conversao": (() => {
+        const raw = (l.form_payload as { submitted_at?: string } | null)?.submitted_at ?? l.converted_at ?? l.created_at;
+        return raw ? format(new Date(raw), "dd/MM/yyyy HH:mm") : "";
+      })(),
+      LinkedIn: l.linkedin_url ?? "",
+      Website: l.company_website ?? "",
+    }));
+    downloadCsv(`leads-${funnel}-${format(new Date(), "yyyy-MM-dd-HHmm")}.csv`, rows);
+    toast.success(`${rows.length} leads exportados`);
+  };
 
   const onDragEnd = (e: DragEndEvent) => {
     setActiveId(null);
@@ -622,6 +663,10 @@ function KanbanPage() {
               </Button>
             )}
           </div>
+          <Button variant="outline" size="sm" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
+            <Download className="h-4 w-4 mr-1" />
+            Exportar ({filtered.length})
+          </Button>
           <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
             <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
             Sincronizar RD
