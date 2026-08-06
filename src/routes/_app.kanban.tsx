@@ -357,6 +357,21 @@ function KanbanPage() {
   const sourceOptions = Array.from(sourceCounts.entries()).sort(
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
   );
+  const disqualifiedStageId = data.stages.find((s) => s.slug === "desqualificado")?.id ?? null;
+  const lostReasonCounts = new Map<string, number>();
+  let lostWithoutReason = 0;
+  for (const l of funnelLeads) {
+    if (!disqualifiedStageId || l.stage_id !== disqualifiedStageId) continue;
+    const reason = (l.lost_reason ?? "").trim();
+    if (!reason) {
+      lostWithoutReason += 1;
+      continue;
+    }
+    lostReasonCounts.set(reason, (lostReasonCounts.get(reason) ?? 0) + 1);
+  }
+  const lostReasonOptions = Array.from(lostReasonCounts.entries()).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+  );
   const assigneeOptions = data.profiles
     .filter((p) => assignedIds.has(p.id))
     .map((p) => ({ id: p.id, label: (p.full_name || p.email || "—").trim() }))
