@@ -94,6 +94,7 @@ function KanbanPage() {
   const [touchAlert, setTouchAlert] = useState<string>("all");
   const [adFilter, setAdFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [lostReasonFilter, setLostReasonFilter] = useState<string>("all");
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
@@ -276,6 +277,12 @@ function KanbanPage() {
       const src = (l.source ?? "").trim();
       if (sourceFilter === "nd" ? src !== "" : src !== sourceFilter) return false;
     }
+    if (lostReasonFilter !== "all") {
+      const stage = data.stages.find((s) => s.id === l.stage_id) ?? null;
+      if (stage?.slug !== "desqualificado") return false;
+      const reason = (l.lost_reason ?? "").trim();
+      if (lostReasonFilter === "nd" ? reason !== "" : reason !== lostReasonFilter) return false;
+    }
     if (leadTypeFilter !== "all") {
       const t = resolveLeadType(l);
       if (leadTypeFilter === "nd") {
@@ -348,6 +355,21 @@ function KanbanPage() {
     sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
   }
   const sourceOptions = Array.from(sourceCounts.entries()).sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+  );
+  const disqualifiedStageId = data.stages.find((s) => s.slug === "desqualificado")?.id ?? null;
+  const lostReasonCounts = new Map<string, number>();
+  let lostWithoutReason = 0;
+  for (const l of funnelLeads) {
+    if (!disqualifiedStageId || l.stage_id !== disqualifiedStageId) continue;
+    const reason = (l.lost_reason ?? "").trim();
+    if (!reason) {
+      lostWithoutReason += 1;
+      continue;
+    }
+    lostReasonCounts.set(reason, (lostReasonCounts.get(reason) ?? 0) + 1);
+  }
+  const lostReasonOptions = Array.from(lostReasonCounts.entries()).sort(
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
   );
   const assigneeOptions = data.profiles
@@ -513,6 +535,18 @@ function KanbanPage() {
             <option value="nd">Sem origem</option>
             {sourceOptions.map(([src, count]) => (
               <option key={src} value={src}>{`${count} • ${src}`}</option>
+            ))}
+          </select>
+          <select
+            value={lostReasonFilter}
+            onChange={(e) => setLostReasonFilter(e.target.value)}
+            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[260px]"
+            title="Motivo de descarte (desqualificados)"
+          >
+            <option value="all">Motivo de descarte: todos</option>
+            <option value="nd">{`Sem motivo informado${lostWithoutReason ? ` (${lostWithoutReason})` : ""}`}</option>
+            {lostReasonOptions.map(([reason, count]) => (
+              <option key={reason} value={reason}>{`${count} • ${reason}`}</option>
             ))}
           </select>
           <select
