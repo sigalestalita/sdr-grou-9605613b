@@ -318,8 +318,47 @@ function KanbanPage() {
     return true;
   });
 
+  const exportFiltered = () => {
+    if (filtered.length === 0) {
+      toast.error("Nenhum lead na seleção atual");
+      return;
+    }
+    const stageName = (id: string | null) => data.stages.find((s) => s.id === id)?.name ?? "";
+    const ownerName = (id: string | null) => {
+      const p = data.profiles.find((pr) => pr.id === id);
+      return p?.full_name ?? p?.email ?? "";
+    };
+    const rows = filtered.map((l) => ({
+      Nome: l.name ?? "",
+      Email: l.email ?? "",
+      Telefone: l.phone ?? "",
+      Empresa: l.company_name ?? "",
+      Cargo: l.job_title ?? "",
+      Porte: l.company_size ?? "",
+      Segmento: l.company_segment ?? "",
+      Tipo: (() => { const t = resolveLeadType(l); return t ? LEAD_TYPE_LABEL[t] : "Não informado"; })(),
+      Prioridade: l.priority ? (PRIORITY_LABEL[l.priority] ?? l.priority) : "",
+      Etapa: stageName(l.stage_id),
+      Responsavel: ownerName(l.assigned_to),
+      Origem: l.source ?? "",
+      Campanha: l.campaign ?? "",
+      Anuncio: l.ad_name ?? "",
+      "Motivo de descarte": l.lost_reason ?? "",
+      Touches: l.touch_count ?? 0,
+      "Ultimo touch": l.last_touch_at ? format(new Date(l.last_touch_at), "dd/MM/yyyy HH:mm") : "",
+      "Proximo FUP": l.next_follow_up_at ? format(new Date(l.next_follow_up_at), "dd/MM/yyyy HH:mm") : "",
+      "Data de conversao": (() => {
+        const raw = (l.form_payload as { submitted_at?: string } | null)?.submitted_at ?? l.converted_at ?? l.created_at;
+        return raw ? format(new Date(raw), "dd/MM/yyyy HH:mm") : "";
+      })(),
+      LinkedIn: l.linkedin_url ?? "",
+      Website: l.company_website ?? "",
+    }));
+    downloadCsv(`leads-${funnel}-${format(new Date(), "yyyy-MM-dd-HHmm")}.csv`, rows);
+    toast.success(`${rows.length} leads exportados`);
+  };
+
   const onDragEnd = (e: DragEndEvent) => {
-    void 0;
     setActiveId(null);
     if (e.over && e.active.data.current && e.over.id !== e.active.data.current.stage_id) {
       const targetStage = data.stages.find((s) => s.id === e.over!.id);
