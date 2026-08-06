@@ -538,6 +538,18 @@ function KanbanPage() {
             ))}
           </select>
           <select
+            value={lostReasonFilter}
+            onChange={(e) => setLostReasonFilter(e.target.value)}
+            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[260px]"
+            title="Motivo de descarte (desqualificados)"
+          >
+            <option value="all">Motivo de descarte: todos</option>
+            <option value="nd">{`Sem motivo informado${lostWithoutReason ? ` (${lostWithoutReason})` : ""}`}</option>
+            {lostReasonOptions.map(([reason, count]) => (
+              <option key={reason} value={reason}>{`${count} • ${reason}`}</option>
+            ))}
+          </select>
+          <select
             value={touchAlert}
             onChange={(e) => setTouchAlert(e.target.value)}
             className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
