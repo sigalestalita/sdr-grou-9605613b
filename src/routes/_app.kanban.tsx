@@ -94,6 +94,7 @@ function KanbanPage() {
   const [touchAlert, setTouchAlert] = useState<string>("all");
   const [adFilter, setAdFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [lostReasonFilter, setLostReasonFilter] = useState<string>("all");
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
