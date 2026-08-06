@@ -277,6 +277,12 @@ function KanbanPage() {
       const src = (l.source ?? "").trim();
       if (sourceFilter === "nd" ? src !== "" : src !== sourceFilter) return false;
     }
+    if (lostReasonFilter !== "all") {
+      const stage = data.stages.find((s) => s.id === l.stage_id) ?? null;
+      if (stage?.slug !== "desqualificado") return false;
+      const reason = (l.lost_reason ?? "").trim();
+      if (lostReasonFilter === "nd" ? reason !== "" : reason !== lostReasonFilter) return false;
+    }
     if (leadTypeFilter !== "all") {
       const t = resolveLeadType(l);
       if (leadTypeFilter === "nd") {
