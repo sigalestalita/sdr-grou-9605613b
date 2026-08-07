@@ -651,7 +651,7 @@ function KanbanPage() {
             <option value="fup_vencido">Follow-up vencido</option>
             <option value="abaixo_minimo">Descartado abaixo do mínimo</option>
           </select>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1 sm:col-span-2">
             <select
               value=""
               onChange={(e) => {
