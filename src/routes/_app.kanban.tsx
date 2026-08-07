@@ -266,9 +266,10 @@ function KanbanPage() {
     if (companySize !== "all" && (l.company_size ?? "") !== companySize) return false;
     if (assigned === "none" && l.assigned_to) return false;
     if (assigned !== "all" && assigned !== "none" && l.assigned_to !== assigned) return false;
-    if (demoFree === "sim" && l.demo_free !== true) return false;
-    if (demoFree === "nao" && l.demo_free !== false) return false;
-    if (demoFree === "nd" && l.demo_free != null) return false;
+    if (demoFree !== "all") {
+      const df = resolveDemoFree(l);
+      if (demoFree === "nd" ? df != null : df !== demoFree) return false;
+    }
     if (certificationFilter === "certificacao" && !isCertificationLead(l)) return false;
     if (adFilter !== "all") {
       const ad = (l.ad_name ?? "").trim();
@@ -528,8 +529,9 @@ function KanbanPage() {
             title="Demo Free"
           >
             <option value="all">Demo Free: todos</option>
-            <option value="sim">Demo Free: sim</option>
-            <option value="nao">Demo Free: não</option>
+            {DEMO_FREE_OPTIONS.map((k) => (
+              <option key={k} value={k}>{DEMO_FREE_LABEL[k]}</option>
+            ))}
             <option value="nd">Demo Free: não informado</option>
           </select>
           {funnel === "comercial" && (
