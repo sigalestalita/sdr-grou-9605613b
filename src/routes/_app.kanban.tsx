@@ -97,6 +97,7 @@ function KanbanPage() {
   const [adFilter, setAdFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [lostReasonFilter, setLostReasonFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
