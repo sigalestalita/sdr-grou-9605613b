@@ -492,7 +492,7 @@ function KanbanPage() {
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
           >
             <option value="all">Todas prioridades</option>
             <option value="alta">Alta</option>
@@ -504,7 +504,7 @@ function KanbanPage() {
           <select
             value={companySize}
             onChange={(e) => setCompanySize(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[180px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Porte da empresa"
           >
             <option value="all">Todos os portes</option>
@@ -515,7 +515,7 @@ function KanbanPage() {
           <select
             value={assigned}
             onChange={(e) => setAssigned(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[200px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Responsável"
           >
             <option value="all">Todos responsáveis</option>
@@ -527,7 +527,7 @@ function KanbanPage() {
           <select
             value={demoFree}
             onChange={(e) => setDemoFree(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Demo Free"
           >
             <option value="all">Demo Free: todos</option>
@@ -540,7 +540,7 @@ function KanbanPage() {
             <select
               value={leadTypeFilter}
               onChange={(e) => setLeadTypeFilter(e.target.value)}
-              className="h-9 rounded-md border bg-background px-2 text-sm"
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
               title="Tipo de lead"
             >
               <option value="all">Tipo: todos</option>
@@ -552,7 +552,7 @@ function KanbanPage() {
           <select
             value={certificationFilter}
             onChange={(e) => setCertificationFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Interesse em Certificação"
           >
             <option value="all">Interesse: todos</option>
@@ -561,7 +561,7 @@ function KanbanPage() {
           <select
             value={adFilter}
             onChange={(e) => setAdFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Anúncio"
           >
             <option value="all">Anúncio: todos (melhor → pior)</option>
@@ -573,7 +573,7 @@ function KanbanPage() {
           <select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[240px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Origem"
           >
             <option value="all">Origem: todas (melhor → pior)</option>
@@ -585,7 +585,7 @@ function KanbanPage() {
           <select
             value={lostReasonFilter}
             onChange={(e) => setLostReasonFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[260px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Motivo de descarte (desqualificados)"
           >
             <option value="all">Motivo de descarte: todos</option>
@@ -597,7 +597,7 @@ function KanbanPage() {
           <select
             value={touchAlert}
             onChange={(e) => setTouchAlert(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Alertas de cadência"
           >
             <option value="all">Alertas: todos</option>
@@ -635,7 +635,7 @@ function KanbanPage() {
                 setDateFrom(fmt(from));
                 setDateTo(fmt(to));
               }}
-              className="h-9 rounded-md border bg-background px-2 text-sm"
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
               title="Período rápido"
             >
               <option value="">Período…</option>
