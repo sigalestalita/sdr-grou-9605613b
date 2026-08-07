@@ -14,6 +14,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, normalizeLeadType, type LeadType } from "@/lib/lead-type";
+import { DEMO_FREE_LABEL, DEMO_FREE_OPTIONS, DEMO_FREE_TONE, resolveDemoFree } from "@/lib/demo-free";
 import { evaluateIcpFit } from "@/lib/icp-fit";
 import { getTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
@@ -266,9 +267,10 @@ function KanbanPage() {
     if (companySize !== "all" && (l.company_size ?? "") !== companySize) return false;
     if (assigned === "none" && l.assigned_to) return false;
     if (assigned !== "all" && assigned !== "none" && l.assigned_to !== assigned) return false;
-    if (demoFree === "sim" && l.demo_free !== true) return false;
-    if (demoFree === "nao" && l.demo_free !== false) return false;
-    if (demoFree === "nd" && l.demo_free != null) return false;
+    if (demoFree !== "all") {
+      const df = resolveDemoFree(l);
+      if (demoFree === "nd" ? df != null : df !== demoFree) return false;
+    }
     if (certificationFilter === "certificacao" && !isCertificationLead(l)) return false;
     if (adFilter !== "all") {
       const ad = (l.ad_name ?? "").trim();
@@ -528,8 +530,9 @@ function KanbanPage() {
             title="Demo Free"
           >
             <option value="all">Demo Free: todos</option>
-            <option value="sim">Demo Free: sim</option>
-            <option value="nao">Demo Free: não</option>
+            {DEMO_FREE_OPTIONS.map((k) => (
+              <option key={k} value={k}>{DEMO_FREE_LABEL[k]}</option>
+            ))}
             <option value="nd">Demo Free: não informado</option>
           </select>
           {funnel === "comercial" && (
@@ -915,16 +918,17 @@ function LeadCard({
           </Badge>
         </div>
       )}
-      {lead.demo_free === true && (
-        <div className="mb-1">
-          <Badge
-            variant="outline"
-            className="text-[10px] border-emerald-500 text-emerald-600 dark:text-emerald-400"
-          >
-            Demo Free
-          </Badge>
-        </div>
-      )}
+      {(() => {
+        const df = resolveDemoFree(lead);
+        if (!df || df === "nao") return null;
+        return (
+          <div className="mb-1">
+            <Badge variant="outline" className={`text-[10px] ${DEMO_FREE_TONE[df]}`}>
+              {df === "sim" ? "Demo Free" : DEMO_FREE_LABEL[df]}
+            </Badge>
+          </div>
+        );
+      })()}
       {isCertification && (
         <div className="mb-1">
           <Badge
