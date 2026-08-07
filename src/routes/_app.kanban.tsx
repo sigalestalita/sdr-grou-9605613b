@@ -709,20 +709,9 @@ function KanbanPage() {
               </Button>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
-            <Download className="h-4 w-4 mr-1" />
-            Exportar ({filtered.length})
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
-            Sincronizar RD
-          </Button>
-          <Button size="sm" onClick={() => setShowNew(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Novo lead
-          </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       <DndContext
         sensors={sensors}
