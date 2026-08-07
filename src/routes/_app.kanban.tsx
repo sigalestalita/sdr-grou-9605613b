@@ -479,7 +479,7 @@ function KanbanPage() {
           </h1>
           <p className="text-sm text-muted-foreground">{filtered.length} leads • arraste cards entre etapas</p>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -489,6 +489,48 @@ function KanbanPage() {
               className="pl-8 w-64"
             />
           </div>
+          <Button
+            variant={showFilters ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowFilters((v) => !v)}
+            title="Mostrar/ocultar filtros"
+          >
+            <SlidersHorizontal className="h-4 w-4 mr-1" />
+            Filtros{activeFilterCount ? ` (${activeFilterCount})` : ""}
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
+            <Download className="h-4 w-4 mr-1" />
+            Exportar ({filtered.length})
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+            Sincronizar RD
+          </Button>
+          <Button size="sm" onClick={() => setShowNew(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Novo lead
+          </Button>
+        </div>
+      </div>
+
+      {showFilters && (
+        <div className="rounded-lg border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold">Filtros</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setPriority("all"); setCompanySize("all"); setAssigned("all"); setDemoFree("all");
+                setLeadTypeFilter("all"); setCertificationFilter("all"); setAdFilter("all");
+                setSourceFilter("all"); setLostReasonFilter("all"); setTouchAlert("all");
+                setDateFrom(""); setDateTo("");
+              }}
+            >
+              Limpar filtros
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
