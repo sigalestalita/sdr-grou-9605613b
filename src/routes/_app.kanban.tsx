@@ -22,7 +22,7 @@ import { TouchSequenceModal } from "@/components/leads/touch-sequence";
 import { useAuth } from "@/lib/use-auth";
 import { downloadCsv } from "@/lib/export-csv";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock, Download } from "lucide-react";
+import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock, Download, SlidersHorizontal } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -97,6 +97,9 @@ function KanbanPage() {
   const [adFilter, setAdFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [lostReasonFilter, setLostReasonFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount = [priority, companySize, assigned, demoFree, leadTypeFilter, certificationFilter, adFilter, sourceFilter, lostReasonFilter, touchAlert]
+    .filter((v) => v !== "all").length + (dateFrom || dateTo ? 1 : 0);
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
@@ -478,7 +481,7 @@ function KanbanPage() {
           </h1>
           <p className="text-sm text-muted-foreground">{filtered.length} leads • arraste cards entre etapas</p>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex flex-wrap gap-2 items-center">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -488,10 +491,52 @@ function KanbanPage() {
               className="pl-8 w-64"
             />
           </div>
+          <Button
+            variant={showFilters ? "default" : "outline"}
+            size="sm"
+            onClick={() => setShowFilters((v) => !v)}
+            title="Mostrar/ocultar filtros"
+          >
+            <SlidersHorizontal className="h-4 w-4 mr-1" />
+            Filtros{activeFilterCount ? ` (${activeFilterCount})` : ""}
+          </Button>
+          <Button variant="outline" size="sm" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
+            <Download className="h-4 w-4 mr-1" />
+            Exportar ({filtered.length})
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
+            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+            Sincronizar RD
+          </Button>
+          <Button size="sm" onClick={() => setShowNew(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            Novo lead
+          </Button>
+        </div>
+      </div>
+
+      {showFilters && (
+        <div className="rounded-lg border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <span className="text-sm font-semibold">Filtros</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setPriority("all"); setCompanySize("all"); setAssigned("all"); setDemoFree("all");
+                setLeadTypeFilter("all"); setCertificationFilter("all"); setAdFilter("all");
+                setSourceFilter("all"); setLostReasonFilter("all"); setTouchAlert("all");
+                setDateFrom(""); setDateTo("");
+              }}
+            >
+              Limpar filtros
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           <select
             value={priority}
             onChange={(e) => setPriority(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
           >
             <option value="all">Todas prioridades</option>
             <option value="alta">Alta</option>
@@ -503,7 +548,7 @@ function KanbanPage() {
           <select
             value={companySize}
             onChange={(e) => setCompanySize(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[180px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Porte da empresa"
           >
             <option value="all">Todos os portes</option>
@@ -514,7 +559,7 @@ function KanbanPage() {
           <select
             value={assigned}
             onChange={(e) => setAssigned(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[200px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Responsável"
           >
             <option value="all">Todos responsáveis</option>
@@ -526,7 +571,7 @@ function KanbanPage() {
           <select
             value={demoFree}
             onChange={(e) => setDemoFree(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Demo Free"
           >
             <option value="all">Demo Free: todos</option>
@@ -539,7 +584,7 @@ function KanbanPage() {
             <select
               value={leadTypeFilter}
               onChange={(e) => setLeadTypeFilter(e.target.value)}
-              className="h-9 rounded-md border bg-background px-2 text-sm"
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
               title="Tipo de lead"
             >
               <option value="all">Tipo: todos</option>
@@ -551,7 +596,7 @@ function KanbanPage() {
           <select
             value={certificationFilter}
             onChange={(e) => setCertificationFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Interesse em Certificação"
           >
             <option value="all">Interesse: todos</option>
@@ -560,7 +605,7 @@ function KanbanPage() {
           <select
             value={adFilter}
             onChange={(e) => setAdFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Anúncio"
           >
             <option value="all">Anúncio: todos (melhor → pior)</option>
@@ -572,7 +617,7 @@ function KanbanPage() {
           <select
             value={sourceFilter}
             onChange={(e) => setSourceFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[240px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Origem"
           >
             <option value="all">Origem: todas (melhor → pior)</option>
@@ -584,7 +629,7 @@ function KanbanPage() {
           <select
             value={lostReasonFilter}
             onChange={(e) => setLostReasonFilter(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[260px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Motivo de descarte (desqualificados)"
           >
             <option value="all">Motivo de descarte: todos</option>
@@ -596,7 +641,7 @@ function KanbanPage() {
           <select
             value={touchAlert}
             onChange={(e) => setTouchAlert(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm max-w-[220px]"
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
             title="Alertas de cadência"
           >
             <option value="all">Alertas: todos</option>
@@ -606,7 +651,7 @@ function KanbanPage() {
             <option value="fup_vencido">Follow-up vencido</option>
             <option value="abaixo_minimo">Descartado abaixo do mínimo</option>
           </select>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1 sm:col-span-2">
             <select
               value=""
               onChange={(e) => {
@@ -634,7 +679,7 @@ function KanbanPage() {
                 setDateFrom(fmt(from));
                 setDateTo(fmt(to));
               }}
-              className="h-9 rounded-md border bg-background px-2 text-sm"
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
               title="Período rápido"
             >
               <option value="">Período…</option>
@@ -666,20 +711,9 @@ function KanbanPage() {
               </Button>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
-            <Download className="h-4 w-4 mr-1" />
-            Exportar ({filtered.length})
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
-            Sincronizar RD
-          </Button>
-          <Button size="sm" onClick={() => setShowNew(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Novo lead
-          </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       <DndContext
         sensors={sensors}
