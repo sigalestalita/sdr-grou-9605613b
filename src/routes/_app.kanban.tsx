@@ -22,7 +22,7 @@ import { TouchSequenceModal } from "@/components/leads/touch-sequence";
 import { useAuth } from "@/lib/use-auth";
 import { downloadCsv } from "@/lib/export-csv";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock, Download } from "lucide-react";
+import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock, Download, SlidersHorizontal } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -98,6 +98,8 @@ function KanbanPage() {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [lostReasonFilter, setLostReasonFilter] = useState<string>("all");
   const [showFilters, setShowFilters] = useState(false);
+  const activeFilterCount = [priority, companySize, assigned, demoFree, leadTypeFilter, certificationFilter, adFilter, sourceFilter, lostReasonFilter, touchAlert]
+    .filter((v) => v !== "all").length + (dateFrom || dateTo ? 1 : 0);
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
