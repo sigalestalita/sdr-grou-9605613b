@@ -129,6 +129,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       items.push({
         key: `auto:${e.id}`,
         kind: "auto",
+        done: false,
         dueAt: e.next_run_at,
         leadId: l.id,
         leadName: l.name,
@@ -153,6 +154,9 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       outcome: string | null;
       occurred_at: string;
       touch_number: number | null;
+      next_follow_up_at: string | null;
+      follow_up_done_at: string | null;
+      follow_up_done_by: string | null;
       leads: Enr["leads"];
     };
     for (const t of (touchesRes.data ?? []) as unknown as TouchRow[]) {
@@ -160,11 +164,20 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       if (!l) continue;
       const stage = l.stage_id ? stageById.get(l.stage_id) : null;
       if (stage?.is_terminal) continue;
+      const done = !!t.follow_up_done_at;
+      // pendentes com data agendada já vêm pelo resumo do lead
+      if (!done && t.next_follow_up_at) continue;
+      const dueAt = t.next_follow_up_at ?? t.occurred_at;
+      if (dueAt > to) continue;
+      if (done && dueAt < from) continue; // realizados só dentro da semana visível
       items.push({
         key: `touch:${t.id}`,
         kind: "touch",
         touchId: t.id,
-        dueAt: t.occurred_at,
+        done,
+        doneAt: t.follow_up_done_at,
+        doneByName: t.follow_up_done_by ? (nameById.get(t.follow_up_done_by) ?? null) : null,
+        dueAt,
         leadId: l.id,
         leadName: l.name,
         company: l.company_name,
@@ -184,7 +197,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
 
     const filtered = data.assignedTo ? items.filter((i) => i.assignedTo === data.assignedTo) : items;
     const overdue = filtered
-      .filter((i) => i.dueAt < from)
+      .filter((i) => !i.done && i.dueAt < from)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
     const scheduled = filtered
       .filter((i) => i.dueAt >= from)
