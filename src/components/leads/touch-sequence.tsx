@@ -119,6 +119,12 @@ export function TouchSequence({ leadId }: { leadId: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
+  const doneAll = useMutation({
+    mutationFn: () => doneFn({ data: { leadId, done: true } }),
+    onSuccess: () => { toast.success("Follow-up marcado como feito"); invalidate(); },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
   const touches = (data?.touches ?? []) as TouchRow[];
   const profilesById = useMemo(
     () => new Map((data?.profiles ?? []).map((p) => [p.id, p.full_name || p.email || p.id])),
@@ -147,9 +153,21 @@ export function TouchSequence({ leadId }: { leadId: string }) {
             Histórico padronizado das tentativas de contato deste lead.
           </p>
         </div>
-        <Button size="sm" onClick={() => { setEditing(null); setOpen(true); }}>
-          <Plus className="h-4 w-4 mr-1" /> Adicionar Touch
-        </Button>
+        <div className="flex items-center gap-2">
+          {nextFollowUp && (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={doneAll.isPending}
+              onClick={() => doneAll.mutate()}
+            >
+              <Check className="h-4 w-4 mr-1" /> Follow-up feito
+            </Button>
+          )}
+          <Button size="sm" onClick={() => { setEditing(null); setOpen(true); }}>
+            <Plus className="h-4 w-4 mr-1" /> Adicionar Touch
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
