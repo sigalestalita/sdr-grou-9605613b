@@ -230,6 +230,8 @@ export type Database = {
           author_id: string | null
           channel: string
           created_at: string
+          follow_up_done_at: string | null
+          follow_up_done_by: string | null
           id: string
           lead_id: string
           metadata: Json
@@ -245,6 +247,8 @@ export type Database = {
           author_id?: string | null
           channel: string
           created_at?: string
+          follow_up_done_at?: string | null
+          follow_up_done_by?: string | null
           id?: string
           lead_id: string
           metadata?: Json
@@ -260,6 +264,8 @@ export type Database = {
           author_id?: string | null
           channel?: string
           created_at?: string
+          follow_up_done_at?: string | null
+          follow_up_done_by?: string | null
           id?: string
           lead_id?: string
           metadata?: Json

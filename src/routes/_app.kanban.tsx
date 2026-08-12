@@ -16,7 +16,7 @@ import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, normalizeLeadType, type LeadType } from "@/lib/lead-type";
 import { DEMO_FREE_LABEL, DEMO_FREE_OPTIONS, DEMO_FREE_TONE, resolveDemoFree } from "@/lib/demo-free";
 import { evaluateIcpFit } from "@/lib/icp-fit";
-import { getTouchRules } from "@/lib/touches.functions";
+import { getTouchRules, setFollowUpDone } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
 import { TouchSequenceModal } from "@/components/leads/touch-sequence";
 import { useAuth } from "@/lib/use-auth";
@@ -898,6 +898,19 @@ function LeadCard({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao abrir chat"),
   });
 
+  const qcCard = useQueryClient();
+  const fupDoneFn = useServerFn(setFollowUpDone);
+  const fupDone = useMutation({
+    mutationFn: () => fupDoneFn({ data: { leadId: lead.id, done: true } }),
+    onSuccess: () => {
+      toast.success("Follow-up concluído");
+      qcCard.invalidateQueries({ queryKey: ["kanban"] });
+      qcCard.invalidateQueries({ queryKey: ["lead-touches", lead.id] });
+      qcCard.invalidateQueries({ queryKey: ["fup-agenda"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
   const content = (
     <Card
       className={`relative p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${
@@ -1106,18 +1119,30 @@ function LeadCard({
           </span>
         )}
         {lead.next_follow_up_at && (
-          <span
-            className={`inline-flex items-center gap-1 ${
-              new Date(lead.next_follow_up_at).getTime() <= Date.now() ? "text-amber-600" : "text-muted-foreground"
-            }`}
-          >
-            {new Date(lead.next_follow_up_at).getTime() <= Date.now() ? (
-              <AlertTriangle className="h-3 w-3" />
-            ) : (
-              <CalendarClock className="h-3 w-3" />
-            )}
-            FUP {format(new Date(lead.next_follow_up_at), "dd/MM", { locale: ptBR })}
-          </span>
+          <>
+            <span
+              className={`inline-flex items-center gap-1 ${
+                new Date(lead.next_follow_up_at).getTime() <= Date.now() ? "text-amber-600" : "text-muted-foreground"
+              }`}
+            >
+              {new Date(lead.next_follow_up_at).getTime() <= Date.now() ? (
+                <AlertTriangle className="h-3 w-3" />
+              ) : (
+                <CalendarClock className="h-3 w-3" />
+              )}
+              FUP {format(new Date(lead.next_follow_up_at), "dd/MM", { locale: ptBR })}
+            </span>
+            <button
+              type="button"
+              disabled={fupDone.isPending}
+              onPointerDown={stopDrag}
+              onClick={(e) => { stopDrag(e); fupDone.mutate(); }}
+              title="Marcar follow-up como feito"
+              className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-600 hover:bg-emerald-500/20 disabled:opacity-50"
+            >
+              <Check className="h-3 w-3" /> Feito
+            </button>
+          </>
         )}
       </div>
 

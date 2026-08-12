@@ -149,3 +149,20 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       scheduled,
     };
   });
+
+/** Conclui manualmente um passo de FUP automático (encerra a inscrição na sequência). */
+export const completeAutoFup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ enrollmentId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase
+      .from("whatsapp_fup_enrollments")
+      .update({
+        status: "completed_manual",
+        completed_at: new Date().toISOString(),
+        next_run_at: null,
+      })
+      .eq("id", data.enrollmentId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

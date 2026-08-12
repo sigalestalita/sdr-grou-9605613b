@@ -132,6 +132,40 @@ export const deleteTouch = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/**
+ * Marca (ou desmarca) um follow-up como concluído.
+ * Passe `touchId` para um touch específico ou apenas `leadId` para concluir
+ * todos os follow-ups pendentes do lead (o que a agenda mostra como item).
+ */
+export const setFollowUpDone = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        leadId: z.string().uuid(),
+        touchId: z.string().uuid().optional(),
+        done: z.boolean().default(true),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const payload = {
+      follow_up_done_at: data.done ? new Date().toISOString() : null,
+      follow_up_done_by: data.done ? userId : null,
+    };
+    let q = supabase.from("lead_touches").update(payload as never).eq("lead_id", data.leadId);
+    if (data.touchId) {
+      q = q.eq("id", data.touchId);
+    } else {
+      q = q.not("next_follow_up_at", "is", null);
+      q = data.done ? q.is("follow_up_done_at", null) : q.not("follow_up_done_at", "is", null);
+    }
+    const { error } = await q;
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
 /** Métricas gerenciais de cadência (por SDR e por operação). */
 export const getTouchMetrics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

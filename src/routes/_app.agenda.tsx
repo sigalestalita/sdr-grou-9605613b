@@ -1,13 +1,24 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getFupAgenda } from "@/lib/fup-agenda.functions";
+import { completeAutoFup, getFupAgenda } from "@/lib/fup-agenda.functions";
+import { setFollowUpDone } from "@/lib/touches.functions";
 import { channelLabel } from "@/lib/touch-types";
-import { CalendarDays, ChevronLeft, ChevronRight, AlertTriangle, Bot, User, MessageCircle } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  Bot,
+  User,
+  MessageCircle,
+  Check,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_app/agenda")({
   component: AgendaPage,
@@ -48,6 +59,9 @@ const hhmm = (iso: string) =>
 
 function AgendaPage() {
   const agendaFn = useServerFn(getFupAgenda);
+  const doneFn = useServerFn(setFollowUpDone);
+  const autoDoneFn = useServerFn(completeAutoFup);
+  const qc = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [owner, setOwner] = useState<string>("me");
 
@@ -57,6 +71,23 @@ function AgendaPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["fup-agenda", from],
     queryFn: () => agendaFn({ data: { from, to } }),
+  });
+
+  const complete = useMutation({
+    mutationFn: async (item: Item) => {
+      if (item.kind === "auto") {
+        await autoDoneFn({ data: { enrollmentId: item.key.replace("auto:", "") } });
+      } else {
+        await doneFn({ data: { leadId: item.leadId, done: true } });
+      }
+    },
+    onSuccess: () => {
+      toast.success("Follow-up concluído");
+      qc.invalidateQueries({ queryKey: ["fup-agenda"] });
+      qc.invalidateQueries({ queryKey: ["lead-touches"] });
+      qc.invalidateQueries({ queryKey: ["kanban"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
   const assignedTo = owner === "all" ? null : owner === "me" ? (data?.currentUserId ?? null) : owner;
@@ -135,7 +166,7 @@ function AgendaPage() {
               </h2>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {overdue.slice(0, 60).map((it) => (
-                  <AgendaItem key={it.key} item={it} late />
+                  <AgendaItem key={it.key} item={it} late onDone={() => complete.mutate(it)} doing={complete.isPending} />
                 ))}
               </div>
             </Card>
@@ -164,7 +195,15 @@ function AgendaPage() {
                   {list.length === 0 ? (
                     <p className="text-[11px] text-muted-foreground">Sem follow-ups</p>
                   ) : (
-                    list.map((it) => <AgendaItem key={it.key} item={it} compact />)
+                    list.map((it) => (
+                      <AgendaItem
+                        key={it.key}
+                        item={it}
+                        compact
+                        onDone={() => complete.mutate(it)}
+                        doing={complete.isPending}
+                      />
+                    ))
                   )}
                 </Card>
               );
@@ -178,7 +217,19 @@ function AgendaPage() {
 
 type Item = NonNullable<Awaited<ReturnType<typeof getFupAgenda>>>["scheduled"][number];
 
-function AgendaItem({ item, compact, late }: { item: Item; compact?: boolean; late?: boolean }) {
+function AgendaItem({
+  item,
+  compact,
+  late,
+  onDone,
+  doing,
+}: {
+  item: Item;
+  compact?: boolean;
+  late?: boolean;
+  onDone?: () => void;
+  doing?: boolean;
+}) {
   return (
     <div
       className={`rounded-lg border p-2 space-y-1 ${
@@ -216,6 +267,17 @@ function AgendaItem({ item, compact, late }: { item: Item; compact?: boolean; la
         >
           <MessageCircle className="h-3 w-3" /> Atender
         </Link>
+        {onDone && (
+          <button
+            type="button"
+            disabled={doing}
+            onClick={onDone}
+            title="Marcar follow-up como feito"
+            className="ml-auto inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-600 hover:bg-emerald-500/20 disabled:opacity-50"
+          >
+            <Check className="h-3 w-3" /> Feito
+          </button>
+        )}
       </div>
     </div>
   );
