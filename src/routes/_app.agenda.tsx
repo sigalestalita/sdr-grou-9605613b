@@ -78,13 +78,13 @@ function AgendaPage() {
       if (item.kind === "auto") {
         await autoDoneFn({ data: { enrollmentId: item.key.replace("auto:", "") } });
       } else if (item.kind === "touch") {
-        await doneFn({ data: { leadId: item.leadId, touchId: item.touchId!, done: true } });
+        await doneFn({ data: { leadId: item.leadId, touchId: item.touchId!, done: !item.done } });
       } else {
         await doneFn({ data: { leadId: item.leadId, done: true } });
       }
     },
     onSuccess: () => {
-      toast.success("Follow-up concluído");
+      toast.success("Follow-up atualizado");
       qc.invalidateQueries({ queryKey: ["fup-agenda"] });
       qc.invalidateQueries({ queryKey: ["lead-touches"] });
       qc.invalidateQueries({ queryKey: ["kanban"] });
@@ -155,10 +155,11 @@ function AgendaPage() {
         <p className="text-sm text-muted-foreground">Carregando agenda…</p>
       ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-4">
             <Kpi label="Atrasados" value={String(overdue.length)} tone="danger" />
-            <Kpi label="Hoje" value={String((byDay.get(todayKey) ?? []).length)} />
-            <Kpi label="Na semana" value={String(scheduled.length)} />
+            <Kpi label="Hoje" value={String((byDay.get(todayKey) ?? []).filter((i) => !i.done).length)} />
+            <Kpi label="Pendentes na semana" value={String(scheduled.filter((i) => !i.done).length)} />
+            <Kpi label="Realizados na semana" value={String(scheduled.filter((i) => i.done).length)} />
           </div>
 
           {overdue.length > 0 && (
@@ -235,17 +236,32 @@ function AgendaItem({
   return (
     <div
       className={`rounded-lg border p-2 space-y-1 ${
-        late ? "border-destructive/40 bg-destructive/5" : "border-white/10 bg-white/[0.03]"
+        item.done
+          ? "border-emerald-500/40 bg-emerald-500/5 opacity-80"
+          : late
+            ? "border-destructive/40 bg-destructive/5"
+            : "border-white/10 bg-white/[0.03]"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium text-muted-foreground">{hhmm(item.dueAt)}</span>
-        <Badge variant="outline" className="text-[10px] gap-1">
-          {item.kind === "auto" ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
-          {item.kind === "auto" ? "IA" : "Manual"}
-        </Badge>
+        <div className="flex items-center gap-1">
+          {item.done && (
+            <Badge className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-600 border-emerald-500/40" variant="outline">
+              <Check className="h-3 w-3" /> Feito
+            </Badge>
+          )}
+          <Badge variant="outline" className="text-[10px] gap-1">
+            {item.kind === "auto" ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
+            {item.kind === "auto" ? "IA" : "Manual"}
+          </Badge>
+        </div>
       </div>
-      <Link to="/lead/$id" params={{ id: item.leadId }} className="block text-sm font-medium hover:underline truncate">
+      <Link
+        to="/lead/$id"
+        params={{ id: item.leadId }}
+        className={`block text-sm font-medium hover:underline truncate ${item.done ? "line-through text-muted-foreground" : ""}`}
+      >
         {item.leadName}
       </Link>
       {item.company && <p className="text-[11px] text-muted-foreground truncate">{item.company}</p>}
@@ -256,6 +272,12 @@ function AgendaItem({
           {item.assignedName}
           {item.stageName ? ` • ${item.stageName}` : ""}
           {item.lastTouchChannel ? ` • ${channelLabel(item.lastTouchChannel)}` : ""}
+        </p>
+      )}
+      {item.done && item.doneAt && (
+        <p className="text-[11px] text-emerald-600 truncate">
+          Concluído {hhmm(item.doneAt)}
+          {item.doneByName ? ` • ${item.doneByName}` : ""}
         </p>
       )}
       <div className="flex items-center gap-2 pt-1">
@@ -274,10 +296,14 @@ function AgendaItem({
             type="button"
             disabled={doing}
             onClick={onDone}
-            title="Marcar follow-up como feito"
-            className="ml-auto inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-600 hover:bg-emerald-500/20 disabled:opacity-50"
+            title={item.done ? "Desmarcar follow-up" : "Marcar follow-up como feito"}
+            className={`ml-auto inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] disabled:opacity-50 ${
+              item.done
+                ? "border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08]"
+                : "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+            }`}
           >
-            <Check className="h-3 w-3" /> Feito
+            <Check className="h-3 w-3" /> {item.done ? "Desfazer" : "Feito"}
           </button>
         )}
       </div>

@@ -40,12 +40,9 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       supabase
         .from("lead_touches")
         .select(
-          "id, lead_id, channel, outcome, occurred_at, touch_number, author_id, leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
+          "id, lead_id, channel, outcome, occurred_at, touch_number, author_id, next_follow_up_at, follow_up_done_at, follow_up_done_by, leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
         )
-        .eq("action_type", "follow_up")
-        .is("follow_up_done_at", null)
-        .is("next_follow_up_at", null)
-        .lte("occurred_at", to)
+        .or("action_type.eq.follow_up,follow_up_done_at.not.is.null")
         .limit(5000),
     ]);
     if (leadsRes.error) throw new Error(leadsRes.error.message);
@@ -59,6 +56,9 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       key: string;
       kind: "manual" | "auto" | "touch";
       touchId?: string;
+      done: boolean;
+      doneAt?: string | null;
+      doneByName?: string | null;
       dueAt: string;
       leadId: string;
       leadName: string;
@@ -84,6 +84,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       items.push({
         key: `manual:${l.id}`,
         kind: "manual",
+        done: false,
         dueAt: l.next_follow_up_at as string,
         leadId: l.id,
         leadName: l.name,
@@ -128,6 +129,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       items.push({
         key: `auto:${e.id}`,
         kind: "auto",
+        done: false,
         dueAt: e.next_run_at,
         leadId: l.id,
         leadName: l.name,
@@ -152,6 +154,9 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       outcome: string | null;
       occurred_at: string;
       touch_number: number | null;
+      next_follow_up_at: string | null;
+      follow_up_done_at: string | null;
+      follow_up_done_by: string | null;
       leads: Enr["leads"];
     };
     for (const t of (touchesRes.data ?? []) as unknown as TouchRow[]) {
@@ -159,11 +164,20 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       if (!l) continue;
       const stage = l.stage_id ? stageById.get(l.stage_id) : null;
       if (stage?.is_terminal) continue;
+      const done = !!t.follow_up_done_at;
+      // pendentes com data agendada já vêm pelo resumo do lead
+      if (!done && t.next_follow_up_at) continue;
+      const dueAt = t.next_follow_up_at ?? t.occurred_at;
+      if (dueAt > to) continue;
+      if (done && dueAt < from) continue; // realizados só dentro da semana visível
       items.push({
         key: `touch:${t.id}`,
         kind: "touch",
         touchId: t.id,
-        dueAt: t.occurred_at,
+        done,
+        doneAt: t.follow_up_done_at,
+        doneByName: t.follow_up_done_by ? (nameById.get(t.follow_up_done_by) ?? null) : null,
+        dueAt,
         leadId: l.id,
         leadName: l.name,
         company: l.company_name,
@@ -183,7 +197,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
 
     const filtered = data.assignedTo ? items.filter((i) => i.assignedTo === data.assignedTo) : items;
     const overdue = filtered
-      .filter((i) => i.dueAt < from)
+      .filter((i) => !i.done && i.dueAt < from)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
     const scheduled = filtered
       .filter((i) => i.dueAt >= from)
