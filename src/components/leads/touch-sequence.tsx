@@ -36,6 +36,7 @@ import {
   AlertTriangle,
   Pencil,
   X,
+  Check,
 } from "lucide-react";
 
 function ChannelIcon({ channel }: { channel: string }) {
