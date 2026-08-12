@@ -40,12 +40,9 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       supabase
         .from("lead_touches")
         .select(
-          "id, lead_id, channel, outcome, occurred_at, touch_number, author_id, leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
+          "id, lead_id, channel, outcome, occurred_at, touch_number, author_id, next_follow_up_at, follow_up_done_at, follow_up_done_by, leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
         )
-        .eq("action_type", "follow_up")
-        .is("follow_up_done_at", null)
-        .is("next_follow_up_at", null)
-        .lte("occurred_at", to)
+        .or("action_type.eq.follow_up,follow_up_done_at.not.is.null")
         .limit(5000),
     ]);
     if (leadsRes.error) throw new Error(leadsRes.error.message);
@@ -59,6 +56,9 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       key: string;
       kind: "manual" | "auto" | "touch";
       touchId?: string;
+      done: boolean;
+      doneAt?: string | null;
+      doneByName?: string | null;
       dueAt: string;
       leadId: string;
       leadName: string;
@@ -84,6 +84,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       items.push({
         key: `manual:${l.id}`,
         kind: "manual",
+        done: false,
         dueAt: l.next_follow_up_at as string,
         leadId: l.id,
         leadName: l.name,
