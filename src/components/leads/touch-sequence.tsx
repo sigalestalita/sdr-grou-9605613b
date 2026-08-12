@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { deleteTouch, listLeadTouches, saveTouch } from "@/lib/touches.functions";
+import { deleteTouch, listLeadTouches, saveTouch, setFollowUpDone } from "@/lib/touches.functions";
 import {
   TOUCH_ACTIONS,
   TOUCH_ACTION_LABEL,
@@ -58,6 +58,7 @@ type TouchRow = {
   notes: string | null;
   occurred_at: string;
   next_follow_up_at: string | null;
+  follow_up_done_at?: string | null;
 };
 
 type TouchInput = {
@@ -73,6 +74,7 @@ export function TouchSequence({ leadId }: { leadId: string }) {
   const listFn = useServerFn(listLeadTouches);
   const saveFn = useServerFn(saveTouch);
   const delFn = useServerFn(deleteTouch);
+  const doneFn = useServerFn(setFollowUpDone);
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TouchRow | null>(null);
@@ -86,6 +88,7 @@ export function TouchSequence({ leadId }: { leadId: string }) {
     qc.invalidateQueries({ queryKey: ["lead-touches", leadId] });
     qc.invalidateQueries({ queryKey: ["lead", leadId] });
     qc.invalidateQueries({ queryKey: ["kanban"] });
+    qc.invalidateQueries({ queryKey: ["fup-agenda"] });
   };
 
   const save = useMutation({
@@ -105,6 +108,16 @@ export function TouchSequence({ leadId }: { leadId: string }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
+  const toggleDone = useMutation({
+    mutationFn: (v: { touchId: string; done: boolean }) =>
+      doneFn({ data: { leadId, touchId: v.touchId, done: v.done } }),
+    onSuccess: (_r, v) => {
+      toast.success(v.done ? "Follow-up marcado como feito" : "Follow-up reaberto");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
   const touches = (data?.touches ?? []) as TouchRow[];
   const profilesById = useMemo(
     () => new Map((data?.profiles ?? []).map((p) => [p.id, p.full_name || p.email || p.id])),
@@ -114,6 +127,7 @@ export function TouchSequence({ leadId }: { leadId: string }) {
   const last = touches[touches.length - 1] ?? null;
   const sinceLast = daysSince(last?.occurred_at ?? null);
   const nextFollowUp = touches
+    .filter((t) => !t.follow_up_done_at)
     .map((t) => t.next_follow_up_at)
     .filter((v): v is string => !!v)
     .sort()
@@ -211,10 +225,26 @@ export function TouchSequence({ leadId }: { leadId: string }) {
               <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
                 <span>Responsável: {t.author_id ? profilesById.get(t.author_id) ?? "—" : "—"}</span>
                 {t.next_follow_up_at && (
-                  <span className="inline-flex items-center gap-1">
-                    <CalendarClock className="h-3 w-3" />
+                  <span className={`inline-flex items-center gap-1 ${t.follow_up_done_at ? "text-emerald-600" : ""}`}>
+                    {t.follow_up_done_at ? <Check className="h-3 w-3" /> : <CalendarClock className="h-3 w-3" />}
                     Follow-up {format(new Date(t.next_follow_up_at), "dd/MM HH:mm", { locale: ptBR })}
+                    {t.follow_up_done_at ? " • feito" : ""}
                   </span>
+                )}
+                {t.next_follow_up_at && (
+                  <button
+                    type="button"
+                    disabled={toggleDone.isPending}
+                    onClick={() => toggleDone.mutate({ touchId: t.id, done: !t.follow_up_done_at })}
+                    title={t.follow_up_done_at ? "Reabrir follow-up" : "Marcar follow-up como feito"}
+                    className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] disabled:opacity-50 ${
+                      t.follow_up_done_at
+                        ? "border-muted-foreground/30 text-muted-foreground hover:bg-muted"
+                        : "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
+                    }`}
+                  >
+                    <Check className="h-3 w-3" /> {t.follow_up_done_at ? "Reabrir" : "Feito"}
+                  </button>
                 )}
               </div>
             </div>
