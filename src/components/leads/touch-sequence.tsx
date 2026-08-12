@@ -232,6 +232,16 @@ export function TouchSequence({ leadId }: { leadId: string }) {
                     {t.follow_up_done_at ? " • feito" : ""}
                   </span>
                 )}
+                {!t.next_follow_up_at && (
+                  <button
+                    type="button"
+                    onClick={() => { setEditing(t); setOpen(true); }}
+                    title="Agendar follow-up para este touch"
+                    className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] hover:bg-muted"
+                  >
+                    <CalendarClock className="h-3 w-3" /> Agendar follow-up
+                  </button>
+                )}
                 {t.next_follow_up_at && (
                   <button
                     type="button"
