@@ -77,6 +77,8 @@ function AgendaPage() {
     mutationFn: async (item: Item) => {
       if (item.kind === "auto") {
         await autoDoneFn({ data: { enrollmentId: item.key.replace("auto:", "") } });
+      } else if (item.kind === "touch") {
+        await doneFn({ data: { leadId: item.leadId, touchId: item.touchId!, done: true } });
       } else {
         await doneFn({ data: { leadId: item.leadId, done: true } });
       }

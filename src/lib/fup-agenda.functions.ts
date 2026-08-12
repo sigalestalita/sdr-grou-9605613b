@@ -15,7 +15,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
     const from = new Date(data.from).toISOString();
     const to = new Date(data.to).toISOString();
 
-    const [profilesRes, stagesRes, leadsRes, enrollRes] = await Promise.all([
+    const [profilesRes, stagesRes, leadsRes, enrollRes, touchesRes] = await Promise.all([
       supabase.from("profiles").select("id, full_name, email"),
       supabase.from("stages").select("id, name, slug, color, is_terminal"),
       supabase
@@ -35,6 +35,18 @@ export const getFupAgenda = createServerFn({ method: "GET" })
         .not("next_run_at", "is", null)
         .lte("next_run_at", to)
         .limit(5000),
+      // Touches registrados como "Follow-up" com data/hora, mas sem próximo agendamento:
+      // eles também são compromissos da agenda até serem marcados como feitos.
+      supabase
+        .from("lead_touches")
+        .select(
+          "id, lead_id, channel, outcome, occurred_at, touch_number, author_id, leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
+        )
+        .eq("action_type", "follow_up")
+        .is("follow_up_done_at", null)
+        .is("next_follow_up_at", null)
+        .lte("occurred_at", to)
+        .limit(5000),
     ]);
     if (leadsRes.error) throw new Error(leadsRes.error.message);
 
@@ -45,7 +57,8 @@ export const getFupAgenda = createServerFn({ method: "GET" })
 
     type Item = {
       key: string;
-      kind: "manual" | "auto";
+      kind: "manual" | "auto" | "touch";
+      touchId?: string;
       dueAt: string;
       leadId: string;
       leadName: string;
@@ -130,6 +143,41 @@ export const getFupAgenda = createServerFn({ method: "GET" })
         lastTouchChannel: l.last_touch_channel,
         title: `FUP automático — passo ${(e.current_step ?? 0) + 1}`,
         subtitle: e.whatsapp_fup_sequences?.name ?? null,
+      });
+    }
+
+    type TouchRow = {
+      id: string;
+      channel: string;
+      outcome: string | null;
+      occurred_at: string;
+      touch_number: number | null;
+      leads: Enr["leads"];
+    };
+    for (const t of (touchesRes.data ?? []) as unknown as TouchRow[]) {
+      const l = t.leads;
+      if (!l) continue;
+      const stage = l.stage_id ? stageById.get(l.stage_id) : null;
+      if (stage?.is_terminal) continue;
+      items.push({
+        key: `touch:${t.id}`,
+        kind: "touch",
+        touchId: t.id,
+        dueAt: t.occurred_at,
+        leadId: l.id,
+        leadName: l.name,
+        company: l.company_name,
+        phone: l.phone,
+        priority: l.priority,
+        leadType: l.lead_type,
+        stageName: stage?.name ?? null,
+        assignedTo: l.assigned_to,
+        assignedName: l.assigned_to ? (nameById.get(l.assigned_to) ?? "—") : "Fila geral",
+        touchCount: l.touch_count ?? 0,
+        lastTouchAt: l.last_touch_at,
+        lastTouchChannel: l.last_touch_channel,
+        title: `Touch ${t.touch_number ?? "?"} — follow-up (${t.channel})`,
+        subtitle: t.outcome ? `Resultado: ${t.outcome}` : null,
       });
     }
 
