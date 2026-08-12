@@ -898,6 +898,19 @@ function LeadCard({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao abrir chat"),
   });
 
+  const qcCard = useQueryClient();
+  const fupDoneFn = useServerFn(setFollowUpDone);
+  const fupDone = useMutation({
+    mutationFn: () => fupDoneFn({ data: { leadId: lead.id, done: true } }),
+    onSuccess: () => {
+      toast.success("Follow-up concluído");
+      qcCard.invalidateQueries({ queryKey: ["kanban"] });
+      qcCard.invalidateQueries({ queryKey: ["lead-touches", lead.id] });
+      qcCard.invalidateQueries({ queryKey: ["fup-agenda"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
   const content = (
     <Card
       className={`relative p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${
