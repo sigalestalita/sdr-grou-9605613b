@@ -446,77 +446,76 @@ function KanbanPage() {
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 w-fit">
-        {([
-          { id: "comercial" as Funnel, label: "Empresas & PF" },
-          { id: "consultoria" as Funnel, label: "Consultorias" },
-        ]).map((t) => {
-          const count = data.leads.filter((l) => leadInFunnel(l, t.id)).length;
-          const active = funnel === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => {
-                setFunnel(t.id);
-                setLeadTypeFilter("all");
-              }}
-              className={`h-8 rounded-md px-3 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-              <span className="ml-2 text-xs text-muted-foreground">{count}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {funnel === "consultoria" ? "Pipeline Consultorias" : "Pipeline Empresas & PF"}
-          </h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} leads • arraste cards entre etapas</p>
+    <div className="space-y-3 pb-4">
+      <div className="page-header">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="page-title">Pipeline</h1>
+          <div className="flex items-center gap-0.5 rounded-md bg-secondary p-0.5">
+            {([
+              { id: "comercial" as Funnel, label: "Empresas & PF" },
+              { id: "consultoria" as Funnel, label: "Consultorias" },
+            ]).map((t) => {
+              const count = data.leads.filter((l) => leadInFunnel(l, t.id)).length;
+              const active = funnel === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setFunnel(t.id);
+                    setLeadTypeFilter("all");
+                  }}
+                  className={`h-7 rounded px-2.5 text-[13px] transition-colors ${
+                    active
+                      ? "bg-background font-medium text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                  <span className="ml-1.5 font-mono text-[11px] text-muted-foreground">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-[11px] text-muted-foreground">{filtered.length} leads no filtro atual</span>
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap items-center gap-1.5">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar nome, email, empresa…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 w-64"
+              className="h-8 w-60 pl-7 text-[13px]"
             />
           </div>
           <Button
-            variant={showFilters ? "default" : "outline"}
+            variant={showFilters ? "secondary" : "outline"}
             size="sm"
+            className="h-8"
             onClick={() => setShowFilters((v) => !v)}
             title="Mostrar/ocultar filtros"
           >
-            <SlidersHorizontal className="h-4 w-4 mr-1" />
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
             Filtros{activeFilterCount ? ` (${activeFilterCount})` : ""}
           </Button>
-          <Button variant="outline" size="sm" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
-            <Download className="h-4 w-4 mr-1" />
-            Exportar ({filtered.length})
+          <Button variant="outline" size="sm" className="h-8" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
+            <Download className="mr-1 h-3.5 w-3.5" />
+            Exportar
           </Button>
-          <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+          <Button variant="outline" size="sm" className="h-8" onClick={() => sync.mutate()} disabled={sync.isPending}>
+            <RefreshCw className={`mr-1 h-3.5 w-3.5 ${sync.isPending ? "animate-spin" : ""}`} />
             Sincronizar RD
           </Button>
-          <Button size="sm" onClick={() => setShowNew(true)}>
-            <Plus className="h-4 w-4 mr-1" />
+          <Button size="sm" className="h-8" onClick={() => setShowNew(true)}>
+            <Plus className="mr-1 h-3.5 w-3.5" />
             Novo lead
           </Button>
         </div>
       </div>
 
       {showFilters && (
-        <div className="rounded-lg border bg-card p-4">
+        <div className="mx-4 surface-panel p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold">Filtros</span>
             <Button
@@ -721,7 +720,7 @@ function KanbanPage() {
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div ref={scrollerRef} className="flex gap-3 overflow-x-auto pb-4">
+        <div ref={scrollerRef} className="flex gap-2.5 overflow-x-auto px-4 pb-4">
           {data.stages.map((s, idx) => {
             let stageLeads = filtered.filter((l) => l.stage_id === s.id);
             if (s.slug === "novo") {
@@ -809,16 +808,18 @@ function Column({ stageId, name, color, count, index, focused, children }: { sta
     <div
       ref={setNodeRef}
       data-col-index={index}
-      className={`w-72 shrink-0 rounded-lg bg-muted/40 border ${isOver ? "ring-2 ring-primary" : ""} ${focused ? "ring-2 ring-primary/50" : ""}`}
+      className={`w-[272px] shrink-0 rounded-md border border-border bg-surface ${isOver ? "border-primary/60 bg-primary/5" : ""} ${focused ? "border-primary/40" : ""}`}
     >
-      <div className="px-3 py-2 border-b flex items-center justify-between sticky top-0 bg-muted/60 backdrop-blur rounded-t-lg">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-          <span className="text-sm font-semibold">{name}</span>
+      <div className="sticky top-0 z-1 flex items-center justify-between gap-2 rounded-t-md border-b border-border bg-surface/95 px-2.5 py-2 backdrop-blur">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
+          <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {name}
+          </span>
         </div>
-        <span className="text-xs text-muted-foreground tabular-nums">{count}</span>
+        <span className="metric-value text-[11px] text-muted-foreground">{count}</span>
       </div>
-      <div className="p-2 space-y-2 min-h-[100px]">{children}</div>
+      <div className="min-h-[100px] space-y-1.5 p-1.5">{children}</div>
     </div>
   );
 }
@@ -913,9 +914,9 @@ function LeadCard({
 
   const content = (
     <Card
-      className={`relative p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${
+      className={`relative cursor-grab rounded-md border border-border bg-card p-2.5 shadow-none transition-colors hover:border-primary/40 active:cursor-grabbing ${
         isDragging ? "opacity-30" : ""
-      } ${overlay ? "shadow-lg" : ""} ${
+      } ${overlay ? "shadow-md" : ""} ${
         isHotIcp ? "ring-2 ring-amber-500/60 bg-amber-500/[0.04]" : ""
       } ${
         isCertification ? "kanban-certification-card pr-9" : ""
@@ -938,74 +939,79 @@ function LeadCard({
           params={{ id: lead.id }}
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          className="text-sm font-semibold hover:underline truncate flex-1 flex items-center gap-1"
+          className="flex flex-1 items-center gap-1 truncate text-[13px] font-semibold hover:underline"
         >
           {isHotIcp && <Flame className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
           {lead.name}
         </Link>
         <Badge
           variant="outline"
-          className="text-[10px] shrink-0"
+          className="h-[18px] shrink-0 px-1.5 text-[10px] font-medium"
           style={{ borderColor: PRIORITY_COLOR[lead.priority], color: PRIORITY_COLOR[lead.priority] }}
         >
           {PRIORITY_LABEL[lead.priority]}
         </Badge>
       </div>
-      {lead.lead_type && (
-        <div className="mb-1">
-          <Badge
-            variant="outline"
-            className="text-[10px]"
-            style={{
-              borderColor: LEAD_TYPE_COLOR[lead.lead_type as LeadType],
-              color: LEAD_TYPE_COLOR[lead.lead_type as LeadType],
-            }}
-          >
-            {LEAD_TYPE_LABEL[lead.lead_type as LeadType]}
-          </Badge>
-        </div>
+      {lead.company_name && (
+        <p className="truncate text-[12px] text-foreground/85" title={lead.company_name}>
+          {lead.company_name}
+        </p>
       )}
+      {(lead.position || lead.company_size) && (
+        <p
+          className="truncate text-[11px] text-muted-foreground"
+          title={[lead.position, lead.company_size].filter(Boolean).join(" · ")}
+        >
+          {[lead.position, lead.company_size].filter(Boolean).join(" · ")}
+        </p>
+      )}
+      <p className="mt-1 truncate text-[11px] text-muted-foreground" title={assignedLabel ?? "Sem responsável"}>
+        {assignedLabel ?? <span className="italic">não atribuído</span>}
+      </p>
       {(() => {
         const df = resolveDemoFree(lead);
-        if (!df || df === "nao") return null;
-        return (
-          <div className="mb-1">
-            <Badge variant="outline" className={`text-[10px] ${DEMO_FREE_TONE[df]}`}>
+        const chips: React.ReactNode[] = [];
+        if (lead.lead_type) {
+          chips.push(
+            <Badge
+              key="type"
+              variant="outline"
+              className="h-[18px] px-1.5 text-[10px] font-medium"
+              style={{
+                borderColor: LEAD_TYPE_COLOR[lead.lead_type as LeadType],
+                color: LEAD_TYPE_COLOR[lead.lead_type as LeadType],
+              }}
+            >
+              {LEAD_TYPE_LABEL[lead.lead_type as LeadType]}
+            </Badge>,
+          );
+        }
+        if (df && df !== "nao") {
+          chips.push(
+            <Badge key="df" variant="outline" className={`h-[18px] px-1.5 text-[10px] font-medium ${DEMO_FREE_TONE[df]}`}>
               {df === "sim" ? "Demo Free" : DEMO_FREE_LABEL[df]}
-            </Badge>
-          </div>
-        );
+            </Badge>,
+          );
+        }
+        if (isCertification) {
+          chips.push(
+            <Badge
+              key="cert"
+              variant="outline"
+              className="h-[18px] px-1.5 text-[10px] font-medium"
+              style={{
+                borderColor: "var(--kanban-certification-border)",
+                color: "var(--kanban-certification-fg)",
+                background: "var(--kanban-certification-badge-bg)",
+              }}
+            >
+              Certificação
+            </Badge>,
+          );
+        }
+        if (!chips.length) return null;
+        return <div className="mt-1.5 flex flex-wrap gap-1">{chips}</div>;
       })()}
-      {isCertification && (
-        <div className="mb-1">
-          <Badge
-            variant="outline"
-            className="text-[10px]"
-            style={{
-              borderColor: "var(--kanban-certification-border)",
-              color: "var(--kanban-certification-fg)",
-              background: "var(--kanban-certification-badge-bg)",
-            }}
-          >
-            Certificação
-          </Badge>
-        </div>
-      )}
-      {lead.company_name && <p className="text-xs text-muted-foreground truncate">{lead.company_name}</p>}
-      {lead.position && (
-        <p className="mt-1 text-[11px] text-foreground/80 truncate" title={lead.position}>
-          <span className="text-muted-foreground">Cargo:</span> {lead.position}
-        </p>
-      )}
-      {lead.company_size && (
-        <p className="text-[11px] text-foreground/80 truncate" title={lead.company_size}>
-          <span className="text-muted-foreground">Porte:</span> {lead.company_size}
-        </p>
-      )}
-      <p className="text-[11px] text-foreground/80 truncate" title={assignedLabel ?? "Sem responsável"}>
-        <span className="text-muted-foreground">Responsável:</span>{" "}
-        {assignedLabel ?? <span className="text-muted-foreground italic">não atribuído</span>}
-      </p>
 
       {stageSlug === "novo" && (
         <div className="mt-2 space-y-1">

@@ -15,19 +15,63 @@ import {
   Bot,
   Activity,
   CalendarDays,
+  Search,
+  Users,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
 });
+
+const NAV_GROUPS: {
+  label: string;
+  items: { to: string; label: string; icon: typeof KanbanIcon }[];
+}[] = [
+  {
+    label: "Principal",
+    items: [
+      { to: "/dashboard", label: "Visão geral", icon: BarChart3 },
+      { to: "/kanban", label: "Pipeline", icon: KanbanIcon },
+      { to: "/whatsapp", label: "Inbox", icon: MessageCircle },
+    ],
+  },
+  {
+    label: "Operação",
+    items: [
+      { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays },
+      { to: "/cadencia", label: "Cadência", icon: Activity },
+    ],
+  },
+  {
+    label: "Análise",
+    items: [
+      { to: "/leads-analytics", label: "Performance", icon: LineChart },
+      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot },
+    ],
+  },
+  {
+    label: "Administração",
+    items: [
+      { to: "/usuarios", label: "Usuários", icon: Users },
+      { to: "/configuracoes", label: "Configurações", icon: SettingsIcon },
+      { to: "/novidades", label: "Novidades", icon: Sparkles },
+    ],
+  },
+];
+
+const PALETTE_ROUTES = NAV_GROUPS.flatMap((g) =>
+  g.items.map((i) => ({ to: i.to, label: i.label, group: g.label })),
+);
 
 function AppShell() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
+  const palette = useCommandPalette();
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("sidebar:collapsed") === "1";
@@ -61,80 +105,121 @@ function AppShell() {
   }
 
   const currentPath = router.state.location.pathname;
-  const nav = [
-    { to: "/kanban", label: "Kanban", icon: KanbanIcon },
-    { to: "/whatsapp", label: "WhatsApp", icon: MessageCircle },
-    { to: "/cadencia", label: "Cadência", icon: Activity },
-    { to: "/agenda", label: "Agenda FUPs", icon: CalendarDays },
-    { to: "/dashboard", label: "Dashboard", icon: BarChart3 },
-    { to: "/leads-analytics", label: "Analytics", icon: LineChart },
-    { to: "/analytics-chat", label: "Chat Analytics", icon: Bot },
-    { to: "/novidades", label: "Novidades", icon: Sparkles },
-    { to: "/configuracoes", label: "Configurações", icon: SettingsIcon },
-  ];
+  const initials = (user.email ?? "?").slice(0, 2).toUpperCase();
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex bg-surface">
       <aside
-        className={`${collapsed ? "w-14" : "w-60"} shrink-0 border-r border-white/5 bg-white/[0.03] backdrop-blur-xl text-sidebar-foreground flex flex-col transition-[width] duration-200`}
+        className={`${collapsed ? "w-[52px]" : "w-[228px]"} shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-[width] duration-150`}
       >
-        <div className={`${collapsed ? "px-2" : "px-5"} py-5 border-b border-white/5 flex items-center justify-between gap-2`}>
-          <span className="flex items-center gap-2 min-w-0 rounded-lg bg-foreground px-2 py-1 dark:bg-transparent dark:px-0 dark:py-0">
-            <img
-              src={lidiLogo}
-              alt="Lidi"
-              className={collapsed ? "h-7 w-auto mx-auto" : "h-8 w-auto"}
-            />
+        <div
+          className={`h-12 shrink-0 flex items-center justify-between gap-2 border-b border-sidebar-border ${collapsed ? "px-2" : "px-3"}`}
+        >
+          <span className="flex min-w-0 items-center rounded bg-foreground px-1.5 py-1 dark:bg-transparent dark:px-0 dark:py-0">
+            <img src={lidiLogo} alt="Lidi" className={collapsed ? "h-5 w-auto" : "h-6 w-auto"} />
           </span>
-          <button
-            onClick={() => setCollapsed((v) => !v)}
-            title={collapsed ? "Expandir menu" : "Recolher menu"}
-            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors"
-          >
-            {collapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </button>
-        </div>
-        <nav className="p-3 space-y-1 flex-1">
-          {nav.map((n) => {
-            const Icon = n.icon;
-            const active = currentPath.startsWith(n.to);
-            return (
-              <Link
-                key={n.to}
-                to={n.to}
-                title={collapsed ? n.label : undefined}
-                className={`flex items-center gap-2 ${collapsed ? "justify-center px-2" : "px-3"} py-2 rounded-lg text-sm transition-all ${
-                  active
-                    ? "bg-primary/15 text-primary font-semibold border border-primary/30"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground border border-transparent"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                {!collapsed && n.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="p-3 border-t border-white/5">
           {!collapsed && (
-            <p className="px-3 text-xs text-muted-foreground truncate">{user.email}</p>
+            <button
+              onClick={() => setCollapsed(true)}
+              title="Recolher menu"
+              className="rounded p-1 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </button>
           )}
-          <div className={`mt-2 flex ${collapsed ? "justify-center" : "px-3"}`}>
-            <ThemeToggle showLabel={!collapsed} className={collapsed ? "px-1.5" : "w-full"} />
-          </div>
+        </div>
+
+        {collapsed && (
           <button
-            onClick={signOut}
-            title={collapsed ? "Sair" : undefined}
-            className={`mt-2 flex w-full items-center gap-2 ${collapsed ? "justify-center px-2" : "px-3"} py-2 rounded-lg text-sm text-muted-foreground hover:bg-white/5 hover:text-foreground transition-colors`}
+            onClick={() => setCollapsed(false)}
+            title="Expandir menu"
+            className="mx-auto mt-2 rounded p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
           >
-            <LogOut className="h-4 w-4" />
-            {!collapsed && "Sair"}
+            <PanelLeft className="h-4 w-4" />
           </button>
+        )}
+
+        <nav className="flex-1 overflow-y-auto px-2 py-3">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="mb-4 last:mb-0">
+              {!collapsed && (
+                <p className="section-label px-2 pb-1.5">{group.label}</p>
+              )}
+              <div className="space-y-0.5">
+                {group.items.map((n) => {
+                  const Icon = n.icon;
+                  const active = currentPath === n.to || currentPath.startsWith(`${n.to}/`);
+                  return (
+                    <Link
+                      key={n.to}
+                      to={n.to}
+                      title={collapsed ? n.label : undefined}
+                      data-active={active || undefined}
+                      className={`group flex h-8 items-center gap-2 rounded-md text-[13px] transition-colors ${
+                        collapsed ? "justify-center px-0" : "px-2"
+                      } ${
+                        active
+                          ? "bg-sidebar-accent font-medium text-foreground"
+                          : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                      }`}
+                    >
+                      <Icon
+                        className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`}
+                        strokeWidth={1.75}
+                      />
+                      {!collapsed && <span className="truncate">{n.label}</span>}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        <div className={`border-t border-sidebar-border py-2 ${collapsed ? "px-1.5" : "px-2"}`}>
+          <div className={`flex items-center gap-2 rounded-md px-1 py-1.5 ${collapsed ? "justify-center" : ""}`}>
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/12 text-[10px] font-semibold text-primary">
+              {initials}
+            </span>
+            {!collapsed && (
+              <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{user.email}</span>
+            )}
+          </div>
+          <div className={`mt-1 flex items-center gap-1 ${collapsed ? "flex-col" : ""}`}>
+            <ThemeToggle showLabel={false} className="px-1.5" />
+            <button
+              onClick={signOut}
+              title="Sair"
+              className={`flex h-8 items-center gap-2 rounded-md px-2 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground ${
+                collapsed ? "" : "flex-1"
+              }`}
+            >
+              <LogOut className="h-4 w-4" strokeWidth={1.75} />
+              {!collapsed && "Sair"}
+            </button>
+          </div>
         </div>
       </aside>
-      <main className="flex-1 min-w-0 overflow-auto">
-        <Outlet />
-      </main>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-4">
+          <button
+            onClick={() => palette.setOpen(true)}
+            className="flex h-8 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-[13px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+          >
+            <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
+            <span>Buscar leads, empresas, páginas…</span>
+            <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              ⌘K
+            </kbd>
+          </button>
+        </header>
+        <main className="min-h-0 flex-1 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
+
+      <CommandPalette open={palette.open} onOpenChange={palette.setOpen} routes={PALETTE_ROUTES} />
     </div>
   );
 }

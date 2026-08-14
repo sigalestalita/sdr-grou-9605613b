@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getDashboardStats } from "@/lib/settings.functions";
-import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
 
@@ -30,7 +30,56 @@ function DashboardPage() {
     queryKey: ["dashboard", range, assignedTo],
     queryFn: () => fetchFn({ data: { from, to, assignedTo: assignedTo === "all" ? undefined : assignedTo } }),
   });
-  if (isLoading || !data) return <div className="p-8 text-sm text-muted-foreground">Carregando…</div>;
+
+  const controls = (
+    <div className="flex flex-wrap items-center gap-2">
+      <Select value={assignedTo} onValueChange={setAssignedTo}>
+        <SelectTrigger className="h-8 w-44 text-xs">
+          <SelectValue placeholder="Filtrar por SDR" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">Todos os SDRs</SelectItem>
+          {(data?.sdrOptions ?? []).map((sdr) => (
+            <SelectItem key={sdr.id} value={sdr.id}>
+              {sdr.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={range} onValueChange={(v) => setRange(v as typeof range)}>
+        <SelectTrigger className="h-8 w-32 text-xs">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="7d">Últimos 7d</SelectItem>
+          <SelectItem value="30d">Últimos 30d</SelectItem>
+          <SelectItem value="90d">Últimos 90d</SelectItem>
+          <SelectItem value="180d">Últimos 180d</SelectItem>
+        </SelectContent>
+      </Select>
+    </div>
+  );
+
+  if (isLoading || !data) {
+    return (
+      <div>
+        <div className="page-header">
+          <div>
+            <h1 className="page-title">Visão geral</h1>
+          </div>
+          {controls}
+        </div>
+        <div className="grid grid-cols-2 gap-px overflow-hidden border-b border-border bg-border md:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="bg-background p-3">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="mt-2 h-6 w-12" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   const sourceData = Object.entries(data.bySource).map(([name, count]) => ({ name, count }));
   const management = data.managementAnalytics;
@@ -60,58 +109,48 @@ function DashboardPage() {
   const topCount = funnelCounts[0]?.count || 1;
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={assignedTo} onValueChange={setAssignedTo}>
-            <SelectTrigger className="w-44 h-9 text-xs">
-              <SelectValue placeholder="Filtrar por SDR" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os SDRs</SelectItem>
-              {data.sdrOptions.map((sdr) => (
-                <SelectItem key={sdr.id} value={sdr.id}>
-                  {sdr.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={range} onValueChange={(v) => setRange(v as typeof range)}>
-            <SelectTrigger className="w-32 h-9 text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7d">Últimos 7d</SelectItem>
-              <SelectItem value="30d">Últimos 30d</SelectItem>
-              <SelectItem value="90d">Últimos 90d</SelectItem>
-              <SelectItem value="180d">Últimos 180d</SelectItem>
-            </SelectContent>
-          </Select>
+    <div className="pb-8">
+      <div className="page-header sticky top-0 z-10">
+        <div className="flex items-baseline gap-3">
+          <h1 className="page-title">Visão geral</h1>
+          <span className="text-xs text-muted-foreground">
+            {assignedTo === "all" ? "Toda a operação" : data.sdrOptions.find((s) => s.id === assignedTo)?.name}
+          </span>
         </div>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi label="Total de leads" value={data.total} />
-        <Kpi label="Novos" value={data.novos} />
-        <Kpi label="Em qualificação" value={data.qualificacao} />
-        <Kpi label="Em contato" value={data.em_contato} />
-        <Kpi label="Aguardando" value={data.aguardando} />
-        <Kpi label="Agendados" value={data.agendados} highlight />
-        <Kpi label="Desqualificados" value={data.desqualificados} />
-        <Kpi label="Conversão lead→agenda" value={`${data.conversionRate}%`} />
-        <Kpi label="Tempo médio 1ª abordagem" value={data.avgFirstApproachMin ? `${data.avgFirstApproachMin} min` : "—"} />
+        {controls}
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card className="p-5 md:col-span-2">
-          <div className="flex items-baseline justify-between mb-4">
-            <h2 className="font-semibold">Funil de evolução dos leads</h2>
-            <span className="text-xs text-muted-foreground">
-              Cada etapa inclui leads que avançaram além dela
-            </span>
-          </div>
-          <div className="space-y-2">
+      {/* Faixa operacional */}
+      <div className="grid grid-cols-2 gap-px border-b border-border bg-border md:grid-cols-5">
+        <Metric label="Novos leads" value={data.novos} to="/kanban" />
+        <Metric label="Em contato" value={data.em_contato} to="/kanban" />
+        <Metric label="Aguardando retorno" value={data.aguardando} to="/kanban" />
+        <Metric label="Agenda marcada" value={data.agendados} tone="success" to="/agenda" />
+        <Metric
+          label="Parados +3 dias"
+          value={data.stalled}
+          tone={data.stalled > 0 ? "danger" : undefined}
+          to="/kanban"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-px border-b border-border bg-border md:grid-cols-5">
+        <Metric label="Total de leads" value={data.total} muted />
+        <Metric label="Em qualificação" value={data.qualificacao} muted />
+        <Metric label="Desqualificados" value={data.desqualificados} muted />
+        <Metric label="Conversão lead → agenda" value={`${data.conversionRate}%`} muted />
+        <Metric
+          label="1ª abordagem (média)"
+          value={data.avgFirstApproachMin ? `${data.avgFirstApproachMin} min` : "—"}
+          muted
+        />
+      </div>
+
+      <div className="space-y-4 p-4">
+        <Panel
+          title="Funil de evolução"
+          hint="Cada etapa inclui leads que avançaram além dela"
+        >
+          <div className="space-y-1.5">
             {funnelCounts.map((step, i) => {
               const pctTotal = topCount ? Math.round((step.count / topCount) * 100) : 0;
               const prev = i > 0 ? funnelCounts[i - 1].count : null;
@@ -119,144 +158,185 @@ function DashboardPage() {
               const widthPct = Math.max(8, pctTotal);
               return (
                 <div key={step.slug} className="flex items-center gap-3">
-                  <div className="w-40 shrink-0 text-sm">{step.label}</div>
-                  <div className="flex-1 relative h-9 rounded-md bg-muted/40 overflow-hidden">
+                  <div className="w-36 shrink-0 text-[13px] text-muted-foreground">{step.label}</div>
+                  <div className="relative h-7 flex-1 overflow-hidden rounded bg-secondary">
                     <div
-                      className="h-full rounded-md bg-gradient-to-r from-primary to-primary/70 transition-all"
+                      className="h-full bg-primary/70 transition-all"
                       style={{ width: `${widthPct}%` }}
                     />
-                    <div className="absolute inset-0 flex items-center px-3 text-xs font-medium">
-                      <span className="tabular-nums">{step.count} leads</span>
-                      <span className="ml-2 text-muted-foreground">({pctTotal}% do topo)</span>
+                    <div className="absolute inset-0 flex items-center px-2.5 text-[11px]">
+                      <span className="metric-value">{step.count}</span>
+                      <span className="ml-1.5 text-muted-foreground">leads · {pctTotal}% do topo</span>
                     </div>
                   </div>
-                  <div className="w-24 text-right text-xs text-muted-foreground tabular-nums">
+                  <div className="w-32 text-right text-[11px] text-muted-foreground tabular-nums">
                     {pctPrev != null ? `${pctPrev}% da etapa anterior` : "—"}
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="mt-4 pt-4 border-t flex items-center justify-between text-xs">
+          <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-[11px]">
             <span className="text-muted-foreground">Desqualificados (saídos do funil)</span>
-            <span className="font-semibold">{data.desqualificados}</span>
+            <span className="metric-value">{data.desqualificados}</span>
           </div>
-        </Card>
+        </Panel>
 
-        <Card className="p-5">
-          <h2 className="font-semibold mb-3">Por etapa</h2>
-          <ResponsiveContainer width="100%" height={260}>
+        <div className="grid gap-4 lg:grid-cols-2">
+        <Panel title="Por etapa">
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={data.byStage}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis dataKey="name" fontSize={10} angle={-25} textAnchor="end" height={70} />
               <YAxis fontSize={10} />
               <Tooltip />
-              <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="count" fill="var(--primary)" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
-        <Card className="p-5">
-          <h2 className="font-semibold mb-3">Por origem</h2>
-          <ResponsiveContainer width="100%" height={260}>
+        </Panel>
+        <Panel title="Por origem">
+          <ResponsiveContainer width="100%" height={240}>
             <BarChart data={sourceData} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
               <XAxis type="number" fontSize={10} />
               <YAxis dataKey="name" type="category" fontSize={10} width={100} />
               <Tooltip />
-              <Bar dataKey="count" fill="var(--chart-2)" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="count" fill="var(--chart-2)" radius={[0, 3, 3, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </Card>
-      </div>
-
-      <section className="space-y-3">
-        <div className="flex items-baseline justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="text-lg font-semibold">Análise de gestão do atendimento</h2>
-            <p className="text-sm text-muted-foreground">
-              Tempos entre entrada do lead, abertura do card e avanço de etapa por SDR.
-            </p>
-          </div>
+        </Panel>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <Kpi label="Leads tocados" value={management.summary.touchedLeads} />
-          <Kpi label="Cards abertos" value={management.summary.cardsOpened} />
-          <Kpi label="Mudanças de etapa" value={management.summary.stageMoves} />
-          <Kpi label="Lead → abertura" value={formatDurationMinutes(management.summary.avgLeadToOpenMin)} />
-          <Kpi label="Abertura → etapa" value={formatDurationMinutes(management.summary.avgOpenToStageMin)} />
-        </div>
-
-        <Card className="p-5">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h3 className="font-semibold">Performance individual por SDR</h3>
-            <span className="text-xs text-muted-foreground">
-              Lead → abertura → mudança de etapa
-            </span>
+        <Panel
+          title="Gestão do atendimento"
+          hint="Tempos entre entrada do lead, abertura do card e avanço de etapa"
+        >
+          <div className="mb-3 flex flex-wrap gap-x-6 gap-y-2">
+            <Inline label="Leads tocados" value={management.summary.touchedLeads} />
+            <Inline label="Cards abertos" value={management.summary.cardsOpened} />
+            <Inline label="Mudanças de etapa" value={management.summary.stageMoves} />
+            <Inline label="Lead → abertura" value={formatDurationMinutes(management.summary.avgLeadToOpenMin)} />
+            <Inline label="Abertura → etapa" value={formatDurationMinutes(management.summary.avgOpenToStageMin)} />
           </div>
 
           {management.bySdr.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Sem eventos registrados para o filtro atual.</p>
+            <EmptyState
+              title="Sem eventos no período"
+              hint="Ajuste o intervalo ou o SDR selecionado para ver os tempos de atendimento."
+            />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
+            <div className="-mx-4 overflow-x-auto border-t border-border">
+              <table className="data-table min-w-[760px]">
                 <thead>
-                  <tr className="border-b text-left text-xs text-muted-foreground">
-                    <th className="py-2 pr-3 font-medium">SDR</th>
-                    <th className="py-2 pr-3 font-medium">Leads tocados</th>
-                    <th className="py-2 pr-3 font-medium">Cards abertos</th>
-                    <th className="py-2 pr-3 font-medium">Mud. etapa</th>
-                    <th className="py-2 pr-3 font-medium">Lead → abertura</th>
-                    <th className="py-2 pr-3 font-medium">Abertura → etapa</th>
-                    <th className="py-2 font-medium">Lead → etapa</th>
+                  <tr>
+                    <th>SDR</th>
+                    <th>Leads tocados</th>
+                    <th>Cards abertos</th>
+                    <th>Mud. etapa</th>
+                    <th>Lead → abertura</th>
+                    <th>Abertura → etapa</th>
+                    <th>Lead → etapa</th>
                   </tr>
                 </thead>
                 <tbody>
                   {management.bySdr.map((row) => (
-                    <tr key={row.sdrId} className="border-b last:border-0">
-                      <td className="py-3 pr-3 font-medium">{row.sdrName}</td>
-                      <td className="py-3 pr-3">{row.touchedLeads}</td>
-                      <td className="py-3 pr-3">{row.cardsOpened}</td>
-                      <td className="py-3 pr-3">{row.stageMoves}</td>
-                      <td className="py-3 pr-3">{formatDurationMinutes(row.avgLeadToOpenMin)}</td>
-                      <td className="py-3 pr-3">{formatDurationMinutes(row.avgOpenToStageMin)}</td>
-                      <td className="py-3">{formatDurationMinutes(row.avgLeadToStageMin)}</td>
+                    <tr key={row.sdrId}>
+                      <td className="font-medium">{row.sdrName}</td>
+                      <td className="metric-value">{row.touchedLeads}</td>
+                      <td className="metric-value">{row.cardsOpened}</td>
+                      <td className="metric-value">{row.stageMoves}</td>
+                      <td className="text-muted-foreground">{formatDurationMinutes(row.avgLeadToOpenMin)}</td>
+                      <td className="text-muted-foreground">{formatDurationMinutes(row.avgOpenToStageMin)}</td>
+                      <td className="text-muted-foreground">{formatDurationMinutes(row.avgLeadToStageMin)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
-        </Card>
-      </section>
+        </Panel>
 
-      <Card className="p-5">
-        <h2 className="font-semibold mb-3">Distribuição por prioridade</h2>
-        <div className="grid grid-cols-5 gap-3">
-          <Kpi label="Alta" value={data.byPriority.alta} />
-          <Kpi label="Média" value={data.byPriority.media} />
-          <Kpi label="Baixa" value={data.byPriority.baixa} />
-          <Kpi label="Fora de ICP" value={data.byPriority.fora_icp} />
-          <Kpi label="Pendente" value={data.byPriority.pendente} />
-        </div>
-      </Card>
-
-      <Card className="p-5 border-destructive/30">
-        <p className="text-sm">
-          <span className="font-semibold text-destructive">{data.stalled} leads</span>{" "}
-          parados há mais de 3 dias sem ação (excluindo etapas terminais).
-        </p>
-      </Card>
+        <Panel title="Distribuição por prioridade">
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            <Inline label="Alta" value={data.byPriority.alta} dot="var(--priority-alta)" />
+            <Inline label="Média" value={data.byPriority.media} dot="var(--priority-media)" />
+            <Inline label="Baixa" value={data.byPriority.baixa} dot="var(--priority-baixa)" />
+            <Inline label="Fora de ICP" value={data.byPriority.fora_icp} dot="var(--priority-fora)" />
+            <Inline label="Pendente" value={data.byPriority.pendente} />
+          </div>
+        </Panel>
+      </div>
     </div>
   );
 }
 
-function Kpi({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+function Metric({
+  label,
+  value,
+  tone,
+  muted,
+  to,
+}: {
+  label: string;
+  value: string | number;
+  tone?: "success" | "danger";
+  muted?: boolean;
+  to?: string;
+}) {
+  const color =
+    tone === "success" ? "text-success" : tone === "danger" ? "text-destructive" : "text-foreground";
+  const body = (
+    <div className="bg-background px-3 py-2.5 transition-colors hover:bg-secondary/40">
+      <p className="truncate text-[11px] text-muted-foreground">{label}</p>
+      <p className={`metric-value mt-0.5 ${muted ? "text-lg text-foreground/80" : `text-xl ${color}`}`}>
+        {value}
+      </p>
+    </div>
+  );
+  if (!to) return body;
   return (
-    <Card className={`p-4 ${highlight ? "bg-primary text-primary-foreground" : ""}`}>
-      <p className={`text-xs ${highlight ? "opacity-90" : "text-muted-foreground"}`}>{label}</p>
-      <p className="text-2xl font-bold mt-1">{value}</p>
-    </Card>
+    <Link to={to} className="block">
+      {body}
+    </Link>
+  );
+}
+
+function Panel({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="surface-panel">
+      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-2.5">
+        <h2 className="text-[13px] font-semibold">{title}</h2>
+        {hint && <span className="text-[11px] text-muted-foreground">{hint}</span>}
+      </header>
+      <div className="p-4">{children}</div>
+    </section>
+  );
+}
+
+function Inline({ label, value, dot }: { label: string; value: string | number; dot?: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ background: dot }} />}
+      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="metric-value text-sm">{value}</span>
+    </div>
+  );
+}
+
+function EmptyState({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="py-8 text-center">
+      <p className="text-[13px] font-medium">{title}</p>
+      {hint && <p className="mx-auto mt-1 max-w-sm text-[12px] text-muted-foreground">{hint}</p>}
+    </div>
   );
 }
 

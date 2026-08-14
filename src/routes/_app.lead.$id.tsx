@@ -139,63 +139,11 @@ function LeadDetailPage() {
       }`
     : null;
 
+  const stageIndex = data.stages.findIndex((s) => s.id === lead.stage_id);
+  const nextStage = stageIndex >= 0 ? data.stages[stageIndex + 1] : undefined;
+
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-4 xl:pr-56">
-      <aside className="hidden xl:flex flex-col gap-1 fixed right-4 top-24 w-48 z-10">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold px-2 mb-1">Mover para etapa</p>
-        {data.stages.map((s) => {
-          const active = s.id === lead.stage_id;
-          return (
-            <button
-              key={s.id}
-              type="button"
-              disabled={active || update.isPending}
-              onClick={() => moveToStage(s.id, s.slug)}
-              className={`group flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-xs text-left transition-colors ${
-                active
-                  ? "bg-primary/10 border-primary/40 text-foreground cursor-default"
-                  : "bg-background hover:bg-accent hover:border-primary/40"
-              }`}
-              title={active ? "Etapa atual" : `Mover para ${s.name}`}
-            >
-              <span className="flex items-center gap-2 truncate">
-                <span className="h-2 w-2 rounded-full shrink-0" style={{ background: s.color }} />
-                <span className="truncate">{s.name}</span>
-              </span>
-              {active ? (
-                <span className="text-[9px] uppercase text-primary">atual</span>
-              ) : (
-                <ArrowRight className="h-3 w-3 opacity-0 group-hover:opacity-100 text-primary" />
-              )}
-            </button>
-          );
-        })}
-      </aside>
-
-      <div className="xl:hidden">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Mover para etapa</p>
-        <select
-          value={lead.stage_id ?? ""}
-          onChange={(e) => {
-            const s = data.stages.find((x) => x.id === e.target.value);
-            if (s) moveToStage(s.id, s.slug);
-          }}
-          className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-        >
-          {data.stages.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}{s.id === lead.stage_id ? " (atual)" : ""}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {currentStage && (
-        <p className="text-xs text-muted-foreground">
-          Etapa atual: <span className="font-medium text-foreground">{currentStage.name}</span>
-        </p>
-      )}
-
+    <div className="pb-8">
       {lostFor && (
         <LostReasonDialog
           initial={lead.lost_reason ?? ""}
@@ -211,40 +159,91 @@ function LeadDetailPage() {
           }}
         />
       )}
-      <Link to="/kanban" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-        <ArrowLeft className="h-4 w-4" /> Voltar para o Kanban
-      </Link>
-
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold">{lead.name}</h1>
-          <p className="text-sm text-muted-foreground">{lead.position} {lead.company_name && `@ ${lead.company_name}`}</p>
-          {lead.original_company_name && lead.original_company_name !== lead.company_name && (
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-              ⚠️ Convertido no formulário como <span className="font-medium">{lead.original_company_name}</span> — atualizado pelo LinkedIn
-            </p>
-          )}
-          <div className="flex gap-2 mt-2 items-center">
-            <Badge style={{ borderColor: PRIORITY_COLOR[lead.priority], color: PRIORITY_COLOR[lead.priority] }} variant="outline">
-              {PRIORITY_LABEL[lead.priority]} · {lead.score} pts
-            </Badge>
-            <Button size="sm" variant="ghost" onClick={() => recalc.mutate()}>Recalcular</Button>
-            {currentStage?.slug === "desqualificado" && (
-              <Badge variant="outline" className="border-rose-500/60 text-rose-600 dark:text-rose-400">
-                Descartado: {lead.lost_reason ?? "sem motivo"}
+      <header className="page-header sticky top-0 z-20">
+        <div className="flex min-w-0 items-center gap-3">
+          <Link
+            to="/kanban"
+            title="Voltar para o pipeline"
+            className="grid h-8 w-8 place-items-center rounded-md border border-border text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="page-title truncate">{lead.name}</h1>
+              <Badge
+                variant="outline"
+                className="h-[18px] px-1.5 text-[10px] font-medium"
+                style={{ borderColor: PRIORITY_COLOR[lead.priority], color: PRIORITY_COLOR[lead.priority] }}
+              >
+                {PRIORITY_LABEL[lead.priority]} · {lead.score} pts
               </Badge>
-            )}
+              {currentStage?.slug === "desqualificado" && (
+                <Badge variant="outline" className="h-[18px] border-destructive/50 px-1.5 text-[10px] text-destructive">
+                  Descartado: {lead.lost_reason ?? "sem motivo"}
+                </Badge>
+              )}
+            </div>
+            <p className="truncate text-[12px] text-muted-foreground">
+              {[lead.position, lead.company_name].filter(Boolean).join(" · ") || "Sem cargo/empresa"}
+            </p>
           </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {whatsappUrl && <a href={whatsappUrl} target="_blank" rel="noreferrer"><Button size="sm"><MessageSquare className="h-4 w-4 mr-1" />WhatsApp</Button></a>}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <select
+            value={lead.stage_id ?? ""}
+            onChange={(e) => {
+              const s = data.stages.find((x) => x.id === e.target.value);
+              if (s) moveToStage(s.id, s.slug);
+            }}
+            disabled={update.isPending}
+            className="h-8 rounded-md border border-input bg-background px-2 text-[13px]"
+            title="Mover para etapa"
+          >
+            {data.stages.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+                {s.id === lead.stage_id ? " (atual)" : ""}
+              </option>
+            ))}
+          </select>
+          {nextStage && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              disabled={update.isPending}
+              onClick={() => moveToStage(nextStage.id, nextStage.slug)}
+              title={`Avançar para ${nextStage.name}`}
+            >
+              Avançar <ArrowRight className="ml-1 h-3.5 w-3.5" />
+            </Button>
+          )}
+          <Button size="sm" variant="outline" className="h-8" onClick={() => recalc.mutate()}>
+            Recalcular score
+          </Button>
+          {whatsappUrl && (
+            <a href={whatsappUrl} target="_blank" rel="noreferrer">
+              <Button size="sm" className="h-8">
+                <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                WhatsApp
+              </Button>
+            </a>
+          )}
         </div>
-      </div>
+      </header>
 
-      <Card className="p-4 border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
-        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h2 className="font-semibold text-sm flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
+      <div className="space-y-4 p-4">
+      {lead.original_company_name && lead.original_company_name !== lead.company_name && (
+        <p className="text-[12px] text-warning">
+          Convertido no formulário como <span className="font-medium">{lead.original_company_name}</span> — atualizado pelo LinkedIn
+        </p>
+      )}
+
+      <Card className="p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-[13px] font-semibold">
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
             Pesquisa rápida para abordagem
           </h2>
           <Button size="sm" variant="outline" onClick={() => enrich.mutate()} disabled={enrich.isPending}>
@@ -559,6 +558,7 @@ function LeadDetailPage() {
           rows={3}
         />
       </Card>
+      </div>
     </div>
   );
 }
