@@ -21,12 +21,12 @@ function WhatsappLayout() {
   ];
 
   return (
-    <div className="h-screen flex flex-col">
-      <header className="px-6 py-3 border-b border-white/5 flex items-center gap-6">
-        <h1 className="text-lg font-semibold flex items-center gap-2 shrink-0">
-          <MessageCircle className="h-5 w-5" /> WhatsApp
+    <div className="h-full flex flex-col">
+      <header className="px-4 py-2 border-b border-border bg-background flex items-center gap-4 flex-wrap">
+        <h1 className="page-title flex items-center gap-2 shrink-0">
+          <MessageCircle className="h-4 w-4 text-primary" strokeWidth={1.75} /> Inbox
         </h1>
-        <nav className="flex items-center gap-1">
+        <nav className="flex items-center gap-0.5 flex-wrap">
           {tabs.map((t) => {
             const Icon = t.icon;
             const active = t.exact ? pathname === t.to : pathname.startsWith(t.to);
@@ -34,13 +34,13 @@ function WhatsappLayout() {
               <Link
                 key={t.to}
                 to={t.to}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm transition-colors ${
+                className={`flex h-7 items-center gap-1.5 px-2.5 rounded-md text-[13px] transition-colors ${
                   active
-                    ? "bg-primary/15 text-primary font-medium border border-primary/30"
-                    : "text-muted-foreground hover:bg-white/5 hover:text-foreground border border-transparent"
+                    ? "bg-secondary font-medium text-foreground"
+                    : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                 }`}
               >
-                <Icon className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
                 {t.label}
               </Link>
             );
