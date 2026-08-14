@@ -720,7 +720,7 @@ function KanbanPage() {
         onDragEnd={onDragEnd}
         onDragCancel={() => setActiveId(null)}
       >
-        <div ref={scrollerRef} className="flex gap-3 overflow-x-auto pb-4">
+        <div ref={scrollerRef} className="flex gap-2.5 overflow-x-auto px-4 pb-4">
           {data.stages.map((s, idx) => {
             let stageLeads = filtered.filter((l) => l.stage_id === s.id);
             if (s.slug === "novo") {
@@ -808,16 +808,18 @@ function Column({ stageId, name, color, count, index, focused, children }: { sta
     <div
       ref={setNodeRef}
       data-col-index={index}
-      className={`w-72 shrink-0 rounded-lg bg-muted/40 border ${isOver ? "ring-2 ring-primary" : ""} ${focused ? "ring-2 ring-primary/50" : ""}`}
+      className={`w-[272px] shrink-0 rounded-md border border-border bg-surface ${isOver ? "border-primary/60 bg-primary/5" : ""} ${focused ? "border-primary/40" : ""}`}
     >
-      <div className="px-3 py-2 border-b flex items-center justify-between sticky top-0 bg-muted/60 backdrop-blur rounded-t-lg">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full" style={{ background: color }} />
-          <span className="text-sm font-semibold">{name}</span>
+      <div className="sticky top-0 z-1 flex items-center justify-between gap-2 rounded-t-md border-b border-border bg-surface/95 px-2.5 py-2 backdrop-blur">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: color }} />
+          <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
+            {name}
+          </span>
         </div>
-        <span className="text-xs text-muted-foreground tabular-nums">{count}</span>
+        <span className="metric-value text-[11px] text-muted-foreground">{count}</span>
       </div>
-      <div className="p-2 space-y-2 min-h-[100px]">{children}</div>
+      <div className="min-h-[100px] space-y-1.5 p-1.5">{children}</div>
     </div>
   );
 }
