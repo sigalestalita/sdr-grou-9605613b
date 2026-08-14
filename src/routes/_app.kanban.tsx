@@ -914,9 +914,9 @@ function LeadCard({
 
   const content = (
     <Card
-      className={`relative p-3 cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow ${
+      className={`relative cursor-grab rounded-md border border-border bg-card p-2.5 shadow-none transition-colors hover:border-primary/40 active:cursor-grabbing ${
         isDragging ? "opacity-30" : ""
-      } ${overlay ? "shadow-lg" : ""} ${
+      } ${overlay ? "shadow-md" : ""} ${
         isHotIcp ? "ring-2 ring-amber-500/60 bg-amber-500/[0.04]" : ""
       } ${
         isCertification ? "kanban-certification-card pr-9" : ""
@@ -939,14 +939,14 @@ function LeadCard({
           params={{ id: lead.id }}
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
-          className="text-sm font-semibold hover:underline truncate flex-1 flex items-center gap-1"
+          className="flex flex-1 items-center gap-1 truncate text-[13px] font-semibold hover:underline"
         >
           {isHotIcp && <Flame className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
           {lead.name}
         </Link>
         <Badge
           variant="outline"
-          className="text-[10px] shrink-0"
+          className="h-[18px] shrink-0 px-1.5 text-[10px] font-medium"
           style={{ borderColor: PRIORITY_COLOR[lead.priority], color: PRIORITY_COLOR[lead.priority] }}
         >
           {PRIORITY_LABEL[lead.priority]}
