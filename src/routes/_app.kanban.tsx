@@ -446,77 +446,76 @@ function KanbanPage() {
   };
 
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center gap-1 rounded-lg border bg-muted/40 p-1 w-fit">
-        {([
-          { id: "comercial" as Funnel, label: "Empresas & PF" },
-          { id: "consultoria" as Funnel, label: "Consultorias" },
-        ]).map((t) => {
-          const count = data.leads.filter((l) => leadInFunnel(l, t.id)).length;
-          const active = funnel === t.id;
-          return (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => {
-                setFunnel(t.id);
-                setLeadTypeFilter("all");
-              }}
-              className={`h-8 rounded-md px-3 text-sm font-medium transition-colors ${
-                active
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-              <span className="ml-2 text-xs text-muted-foreground">{count}</span>
-            </button>
-          );
-        })}
-      </div>
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {funnel === "consultoria" ? "Pipeline Consultorias" : "Pipeline Empresas & PF"}
-          </h1>
-          <p className="text-sm text-muted-foreground">{filtered.length} leads • arraste cards entre etapas</p>
+    <div className="space-y-3 pb-4">
+      <div className="page-header">
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="page-title">Pipeline</h1>
+          <div className="flex items-center gap-0.5 rounded-md bg-secondary p-0.5">
+            {([
+              { id: "comercial" as Funnel, label: "Empresas & PF" },
+              { id: "consultoria" as Funnel, label: "Consultorias" },
+            ]).map((t) => {
+              const count = data.leads.filter((l) => leadInFunnel(l, t.id)).length;
+              const active = funnel === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    setFunnel(t.id);
+                    setLeadTypeFilter("all");
+                  }}
+                  className={`h-7 rounded px-2.5 text-[13px] transition-colors ${
+                    active
+                      ? "bg-background font-medium text-foreground shadow-xs"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.label}
+                  <span className="ml-1.5 font-mono text-[11px] text-muted-foreground">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-[11px] text-muted-foreground">{filtered.length} leads no filtro atual</span>
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
+        <div className="flex flex-wrap items-center gap-1.5">
           <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Buscar nome, email, empresa…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-8 w-64"
+              className="h-8 w-60 pl-7 text-[13px]"
             />
           </div>
           <Button
-            variant={showFilters ? "default" : "outline"}
+            variant={showFilters ? "secondary" : "outline"}
             size="sm"
+            className="h-8"
             onClick={() => setShowFilters((v) => !v)}
             title="Mostrar/ocultar filtros"
           >
-            <SlidersHorizontal className="h-4 w-4 mr-1" />
+            <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
             Filtros{activeFilterCount ? ` (${activeFilterCount})` : ""}
           </Button>
-          <Button variant="outline" size="sm" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
-            <Download className="h-4 w-4 mr-1" />
-            Exportar ({filtered.length})
+          <Button variant="outline" size="sm" className="h-8" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
+            <Download className="mr-1 h-3.5 w-3.5" />
+            Exportar
           </Button>
-          <Button variant="outline" size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+          <Button variant="outline" size="sm" className="h-8" onClick={() => sync.mutate()} disabled={sync.isPending}>
+            <RefreshCw className={`mr-1 h-3.5 w-3.5 ${sync.isPending ? "animate-spin" : ""}`} />
             Sincronizar RD
           </Button>
-          <Button size="sm" onClick={() => setShowNew(true)}>
-            <Plus className="h-4 w-4 mr-1" />
+          <Button size="sm" className="h-8" onClick={() => setShowNew(true)}>
+            <Plus className="mr-1 h-3.5 w-3.5" />
             Novo lead
           </Button>
         </div>
       </div>
 
       {showFilters && (
-        <div className="rounded-lg border bg-card p-4">
+        <div className="mx-4 surface-panel p-3">
           <div className="mb-3 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold">Filtros</span>
             <Button
