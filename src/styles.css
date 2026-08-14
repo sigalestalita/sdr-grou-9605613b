@@ -279,6 +279,7 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-info: var(--info);
+  --color-surface: var(--surface);
 }
 
 @utility surface-panel {
