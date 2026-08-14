@@ -558,6 +558,7 @@ function LeadDetailPage() {
           rows={3}
         />
       </Card>
+      </div>
     </div>
   );
 }
