@@ -76,7 +76,7 @@ export function CommandPalette({
   }, [routes]);
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} title="Busca global" description="Leads e navegação">
+    <CommandDialog open={open} onOpenChange={onOpenChange}>
       <CommandInput
         placeholder="Buscar lead, empresa ou página…"
         value={query}
