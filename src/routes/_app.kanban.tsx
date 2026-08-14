@@ -952,61 +952,66 @@ function LeadCard({
           {PRIORITY_LABEL[lead.priority]}
         </Badge>
       </div>
-      {lead.lead_type && (
-        <div className="mb-1">
-          <Badge
-            variant="outline"
-            className="text-[10px]"
-            style={{
-              borderColor: LEAD_TYPE_COLOR[lead.lead_type as LeadType],
-              color: LEAD_TYPE_COLOR[lead.lead_type as LeadType],
-            }}
-          >
-            {LEAD_TYPE_LABEL[lead.lead_type as LeadType]}
-          </Badge>
-        </div>
+      {lead.company_name && (
+        <p className="truncate text-[12px] text-foreground/85" title={lead.company_name}>
+          {lead.company_name}
+        </p>
       )}
+      {(lead.position || lead.company_size) && (
+        <p
+          className="truncate text-[11px] text-muted-foreground"
+          title={[lead.position, lead.company_size].filter(Boolean).join(" · ")}
+        >
+          {[lead.position, lead.company_size].filter(Boolean).join(" · ")}
+        </p>
+      )}
+      <p className="mt-1 truncate text-[11px] text-muted-foreground" title={assignedLabel ?? "Sem responsável"}>
+        {assignedLabel ?? <span className="italic">não atribuído</span>}
+      </p>
       {(() => {
         const df = resolveDemoFree(lead);
-        if (!df || df === "nao") return null;
-        return (
-          <div className="mb-1">
-            <Badge variant="outline" className={`text-[10px] ${DEMO_FREE_TONE[df]}`}>
+        const chips: React.ReactNode[] = [];
+        if (lead.lead_type) {
+          chips.push(
+            <Badge
+              key="type"
+              variant="outline"
+              className="h-[18px] px-1.5 text-[10px] font-medium"
+              style={{
+                borderColor: LEAD_TYPE_COLOR[lead.lead_type as LeadType],
+                color: LEAD_TYPE_COLOR[lead.lead_type as LeadType],
+              }}
+            >
+              {LEAD_TYPE_LABEL[lead.lead_type as LeadType]}
+            </Badge>,
+          );
+        }
+        if (df && df !== "nao") {
+          chips.push(
+            <Badge key="df" variant="outline" className={`h-[18px] px-1.5 text-[10px] font-medium ${DEMO_FREE_TONE[df]}`}>
               {df === "sim" ? "Demo Free" : DEMO_FREE_LABEL[df]}
-            </Badge>
-          </div>
-        );
+            </Badge>,
+          );
+        }
+        if (isCertification) {
+          chips.push(
+            <Badge
+              key="cert"
+              variant="outline"
+              className="h-[18px] px-1.5 text-[10px] font-medium"
+              style={{
+                borderColor: "var(--kanban-certification-border)",
+                color: "var(--kanban-certification-fg)",
+                background: "var(--kanban-certification-badge-bg)",
+              }}
+            >
+              Certificação
+            </Badge>,
+          );
+        }
+        if (!chips.length) return null;
+        return <div className="mt-1.5 flex flex-wrap gap-1">{chips}</div>;
       })()}
-      {isCertification && (
-        <div className="mb-1">
-          <Badge
-            variant="outline"
-            className="text-[10px]"
-            style={{
-              borderColor: "var(--kanban-certification-border)",
-              color: "var(--kanban-certification-fg)",
-              background: "var(--kanban-certification-badge-bg)",
-            }}
-          >
-            Certificação
-          </Badge>
-        </div>
-      )}
-      {lead.company_name && <p className="text-xs text-muted-foreground truncate">{lead.company_name}</p>}
-      {lead.position && (
-        <p className="mt-1 text-[11px] text-foreground/80 truncate" title={lead.position}>
-          <span className="text-muted-foreground">Cargo:</span> {lead.position}
-        </p>
-      )}
-      {lead.company_size && (
-        <p className="text-[11px] text-foreground/80 truncate" title={lead.company_size}>
-          <span className="text-muted-foreground">Porte:</span> {lead.company_size}
-        </p>
-      )}
-      <p className="text-[11px] text-foreground/80 truncate" title={assignedLabel ?? "Sem responsável"}>
-        <span className="text-muted-foreground">Responsável:</span>{" "}
-        {assignedLabel ?? <span className="text-muted-foreground italic">não atribuído</span>}
-      </p>
 
       {stageSlug === "novo" && (
         <div className="mt-2 space-y-1">
