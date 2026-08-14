@@ -185,14 +185,14 @@ export function TouchSequence({ leadId }: { leadId: string }) {
       </div>
 
       {(followUpLate || (belowMin && touches.length > 0)) && (
-        <div className="flex flex-col gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs">
+        <div className="flex flex-col gap-1 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs">
           {followUpLate && (
-            <span className="flex items-center gap-1 text-amber-600">
+            <span className="flex items-center gap-1 text-warning">
               <AlertTriangle className="h-3.5 w-3.5" /> Follow-up vencido.
             </span>
           )}
           {belowMin && rules && (
-            <span className="flex items-center gap-1 text-amber-600">
+            <span className="flex items-center gap-1 text-warning">
               <AlertTriangle className="h-3.5 w-3.5" /> Abaixo do mínimo de {rules.minTouchesBeforeDiscard} tentativas.
             </span>
           )}
