@@ -99,6 +99,86 @@ export const getCampaign = createServerFn({ method: "GET" })
     return { campaign, messages: list, stats };
   });
 
+/** Respostas recebidas dos leads da campanha (mensagens inbound após o disparo). */
+export const listCampaignReplies = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+
+    const { data: sends, error: sErr } = await supabase
+      .from("whatsapp_campaign_messages")
+      .select("lead_id, sent_at, created_at")
+      .eq("campaign_id", data.id)
+      .limit(2000);
+    if (sErr) throw new Error(sErr.message);
+
+    const sentAtByLead = new Map<string, string>();
+    for (const s of sends ?? []) {
+      if (!s.lead_id) continue;
+      const at = s.sent_at ?? s.created_at;
+      const prev = sentAtByLead.get(s.lead_id);
+      if (!prev || (at && at < prev)) sentAtByLead.set(s.lead_id, at as string);
+    }
+    const leadIds = [...sentAtByLead.keys()];
+    if (leadIds.length === 0) return { replies: [] };
+
+    const { data: msgs, error: mErr } = await supabase
+      .from("whatsapp_messages")
+      .select("id, lead_id, body, message_type, created_at, sent_at, conversation_id")
+      .in("lead_id", leadIds)
+      .eq("sender_type", "lead")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (mErr) throw new Error(mErr.message);
+
+    const relevant = (msgs ?? []).filter((m) => {
+      const ref = sentAtByLead.get(m.lead_id!);
+      const at = m.sent_at ?? m.created_at;
+      return !!ref && !!at && at >= ref;
+    });
+    if (relevant.length === 0) return { replies: [] };
+
+    const { data: leads } = await supabase
+      .from("leads")
+      .select("id, name, company_name, phone, assigned_to, priority")
+      .in("id", [...new Set(relevant.map((m) => m.lead_id!))]);
+
+    const ownerIds = [...new Set((leads ?? []).map((l) => l.assigned_to).filter((v): v is string => !!v))];
+    const { data: owners } = ownerIds.length
+      ? await supabase.from("profiles").select("id, full_name, email").in("id", ownerIds)
+      : { data: [] as Array<{ id: string; full_name: string | null; email: string | null }> };
+
+    const leadById = new Map((leads ?? []).map((l) => [l.id, l]));
+    const ownerById = new Map((owners ?? []).map((o) => [o.id, o]));
+
+    const replies = relevant.map((m) => {
+      const lead = leadById.get(m.lead_id!);
+      const owner = lead?.assigned_to ? ownerById.get(lead.assigned_to) : null;
+      return {
+        id: m.id,
+        lead_id: m.lead_id!,
+        lead_name: lead?.name ?? null,
+        company_name: lead?.company_name ?? null,
+        phone: lead?.phone ?? null,
+        priority: lead?.priority ?? null,
+        message_type: m.message_type,
+        body: m.body,
+        received_at: (m.sent_at ?? m.created_at) as string,
+        sdr_name: owner?.full_name ?? owner?.email ?? null,
+      };
+    });
+
+    const firstByLead = new Map<string, string>();
+    for (const r of [...replies].sort((a, b) => a.received_at.localeCompare(b.received_at))) {
+      if (!firstByLead.has(r.lead_id)) firstByLead.set(r.lead_id, r.id);
+    }
+
+    return {
+      replies: replies.map((r) => ({ ...r, is_first: firstByLead.get(r.lead_id) === r.id })),
+    };
+  });
+
 /** Preview de audiência: conta e amostra de leads. */
 export const previewAudience = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
