@@ -12,7 +12,7 @@ export const HOT_ALERT_SETTINGS_KEY = "sdr_hot_lead_alert";
 // As demais SDRs (Camila, Lisiane) recebem apenas EMPRESA/PESSOA_FISICA.
 const MARIANA_USER_ID = "81068193-826f-42e8-8670-df87fcdfecf5";
 
-type HotAlertConfig = {
+export type HotAlertConfig = {
   /** Mapa userId → telefone E.164 (só dígitos). */
   phones: Record<string, string>;
   /** ID da conta whatsapp_accounts usada para o disparo. */
@@ -32,7 +32,7 @@ function isHotPriority(p: unknown): p is HotLeadPriority {
   return p === "alta" || p === "media";
 }
 
-async function readConfig(): Promise<HotAlertConfig | null> {
+export async function readHotAlertConfig(): Promise<HotAlertConfig | null> {
   const { data } = await supabaseAdmin
     .from("app_settings")
     .select("value")
@@ -137,7 +137,7 @@ async function sendEmail(params: {
   return { ok: true, to: params.to, ms, message_id: messageId };
 }
 
-async function sendWhatsApp(cfg: HotAlertConfig, phone: string, text: string) {
+export async function sendHotAlertWhatsApp(cfg: HotAlertConfig, phone: string, text: string) {
   const started = Date.now();
   if (!cfg.whatsapp_account_id) return { ok: false, error: "whatsapp_account_id_missing", phone, ms: 0 };
   const { data: acc } = await supabaseAdmin
