@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getCampaign, launchCampaign } from "@/lib/whatsapp-campaigns.functions";
+import { getCampaign, launchCampaign, listCampaignReplies } from "@/lib/whatsapp-campaigns.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/_app/whatsapp/campanhas/$id")({
   component: CampaignDetail,
@@ -14,6 +14,7 @@ function CampaignDetail() {
   const { id } = Route.useParams();
   const getFn = useServerFn(getCampaign);
   const launchFn = useServerFn(launchCampaign);
+  const repliesFn = useServerFn(listCampaignReplies);
   const qc = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -21,6 +22,14 @@ function CampaignDetail() {
     queryFn: () => getFn({ data: { id } }),
     refetchInterval: 5000,
   });
+
+  const { data: repliesData } = useQuery({
+    queryKey: ["wa-campaign-replies", id],
+    queryFn: () => repliesFn({ data: { id } }),
+    refetchInterval: 15000,
+  });
+  const replies = repliesData?.replies ?? [];
+  const uniqueResponders = new Set(replies.map((r) => r.lead_id)).size;
 
   const launch = useMutation({
     mutationFn: () => launchFn({ data: { id, limit: 200 } }),
