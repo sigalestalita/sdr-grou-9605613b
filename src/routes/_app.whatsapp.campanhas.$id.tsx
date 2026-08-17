@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getCampaign, launchCampaign } from "@/lib/whatsapp-campaigns.functions";
+import { getCampaign, launchCampaign, listCampaignReplies } from "@/lib/whatsapp-campaigns.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Send } from "lucide-react";
+import { ArrowLeft, Send, MessageSquare, ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/_app/whatsapp/campanhas/$id")({
   component: CampaignDetail,
@@ -14,6 +14,7 @@ function CampaignDetail() {
   const { id } = Route.useParams();
   const getFn = useServerFn(getCampaign);
   const launchFn = useServerFn(launchCampaign);
+  const repliesFn = useServerFn(listCampaignReplies);
   const qc = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -21,6 +22,14 @@ function CampaignDetail() {
     queryFn: () => getFn({ data: { id } }),
     refetchInterval: 5000,
   });
+
+  const { data: repliesData } = useQuery({
+    queryKey: ["wa-campaign-replies", id],
+    queryFn: () => repliesFn({ data: { id } }),
+    refetchInterval: 15000,
+  });
+  const replies = repliesData?.replies ?? [];
+  const uniqueResponders = new Set(replies.map((r) => r.lead_id)).size;
 
   const launch = useMutation({
     mutationFn: () => launchFn({ data: { id, limit: 200 } }),
@@ -94,6 +103,68 @@ function CampaignDetail() {
             <p className="text-xl font-semibold">{k.v}</p>
           </div>
         ))}
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-sm font-medium flex items-center gap-1.5">
+            <MessageSquare className="h-3.5 w-3.5 text-primary" /> Respostas recebidas
+          </p>
+          <span className="text-[11px] text-muted-foreground">
+            {uniqueResponders} lead(s) responderam · {replies.length} mensagem(ns)
+          </span>
+        </div>
+        <div className="border border-white/5 rounded-lg overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-white/5 text-muted-foreground">
+              <tr>
+                <th className="text-left px-3 py-2">Lead</th>
+                <th className="text-left px-3 py-2">Resposta</th>
+                <th className="text-left px-3 py-2">Recebida em</th>
+                <th className="text-left px-3 py-2">SDR responsável</th>
+                <th className="px-3 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {replies.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
+                    Nenhuma resposta recebida ainda.
+                  </td>
+                </tr>
+              )}
+              {replies.map((r) => (
+                <tr key={r.id} className="border-t border-white/5 hover:bg-white/[0.02]">
+                  <td className="px-3 py-2">
+                    <Link to="/lead/$id" params={{ id: r.lead_id }} className="hover:text-primary font-medium">
+                      {r.lead_name ?? (r.phone ? `+${r.phone}` : "—")}
+                    </Link>
+                    <div className="text-[10px] text-muted-foreground">
+                      {r.company_name ?? "—"}
+                      {r.is_first && <span className="ml-1 text-primary">· 1ª resposta</span>}
+                    </div>
+                  </td>
+                  <td className="px-3 py-2 max-w-[320px]">
+                    <span className="text-muted-foreground line-clamp-2">
+                      {r.body?.trim() ? r.body : `[${r.message_type}]`}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                    {new Date(r.received_at).toLocaleString("pt-BR")}
+                  </td>
+                  <td className="px-3 py-2 text-muted-foreground">{r.sdr_name ?? "Sem responsável"}</td>
+                  <td className="px-3 py-2 text-right">
+                    <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-[11px]">
+                      <Link to="/lead/$id" params={{ id: r.lead_id }}>
+                        Abrir lead <ExternalLink className="h-3 w-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {c.whatsapp_templates && (
