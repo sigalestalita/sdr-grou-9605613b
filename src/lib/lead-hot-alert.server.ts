@@ -12,7 +12,7 @@ export const HOT_ALERT_SETTINGS_KEY = "sdr_hot_lead_alert";
 // As demais SDRs (Camila, Lisiane) recebem apenas EMPRESA/PESSOA_FISICA.
 const MARIANA_USER_ID = "81068193-826f-42e8-8670-df87fcdfecf5";
 
-type HotAlertConfig = {
+export type HotAlertConfig = {
   /** Mapa userId → telefone E.164 (só dígitos). */
   phones: Record<string, string>;
   /** ID da conta whatsapp_accounts usada para o disparo. */
@@ -32,7 +32,7 @@ function isHotPriority(p: unknown): p is HotLeadPriority {
   return p === "alta" || p === "media";
 }
 
-async function readConfig(): Promise<HotAlertConfig | null> {
+export async function readHotAlertConfig(): Promise<HotAlertConfig | null> {
   const { data } = await supabaseAdmin
     .from("app_settings")
     .select("value")
@@ -137,7 +137,7 @@ async function sendEmail(params: {
   return { ok: true, to: params.to, ms, message_id: messageId };
 }
 
-async function sendWhatsApp(cfg: HotAlertConfig, phone: string, text: string) {
+export async function sendHotAlertWhatsApp(cfg: HotAlertConfig, phone: string, text: string) {
   const started = Date.now();
   if (!cfg.whatsapp_account_id) return { ok: false, error: "whatsapp_account_id_missing", phone, ms: 0 };
   const { data: acc } = await supabaseAdmin
@@ -215,7 +215,7 @@ export async function maybeAlertHotLead(leadId: string, opts?: { force?: boolean
     return;
   }
 
-  const cfg = await readConfig();
+  const cfg = await readHotAlertConfig();
 
   // Descobre e-mail do SDR responsável
   const { data: profile } = await supabaseAdmin
@@ -271,7 +271,7 @@ export async function maybeAlertHotLead(leadId: string, opts?: { force?: boolean
   // WhatsApp para o SDR responsável
   const phone = cfg?.phones?.[lead.assigned_to];
   if (phone && cfg) {
-    results.whatsapp = await sendWhatsApp(cfg, phone, waText);
+    results.whatsapp = await sendHotAlertWhatsApp(cfg, phone, waText);
   } else {
     results.whatsapp = {
       ok: false,
@@ -288,7 +288,7 @@ export async function maybeAlertHotLead(leadId: string, opts?: { force?: boolean
     if (extras.length > 0) {
       const extraResults: Array<Record<string, unknown>> = [];
       for (const p of extras) {
-        const r = await sendWhatsApp(cfg, p, waText);
+        const r = await sendHotAlertWhatsApp(cfg, p, waText);
         extraResults.push({ ...r, phone: p });
       }
       results.whatsapp_cc = extraResults;
@@ -319,7 +319,7 @@ export async function sendMonitoringHotAlert(leadId: string, phone: string) {
     await log("skipped", { lead_id: leadId, reason: "not_hot_priority", monitoring_phone: phone });
     return { ok: false, error: "not_hot_priority" };
   }
-  const cfg = await readConfig();
+  const cfg = await readHotAlertConfig();
   if (!cfg) return { ok: false, error: "no_config" };
   const priority = lead.priority as HotLeadPriority;
   const company = lead.company_name?.trim() || "—";
@@ -330,7 +330,7 @@ export async function sendMonitoringHotAlert(leadId: string, phone: string) {
   const phoneLead = lead.phone || "—";
   const waText =
     `${phoneLead} | ${icon} ${label} prioridade | ${lead.name} — ${company} | ${role} | Score ${lead.score ?? 0} | ${url}`;
-  const r = await sendWhatsApp(cfg, phone, waText);
+  const r = await sendHotAlertWhatsApp(cfg, phone, waText);
   await log(r.ok ? "ok" : "error", {
     lead_id: lead.id,
     lead_name: lead.name,

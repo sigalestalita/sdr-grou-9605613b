@@ -255,6 +255,25 @@ async function handleInbound(
   let conversationStatus: "open" | "pending" = "open";
   let conversationAssignee = conv.assigned_user_id ?? null;
 
+  // 4a) resposta a uma campanha de WhatsApp → avisa a SDR responsável e tira a IA da conversa
+  let isCampaignReply = false;
+  try {
+    const { maybeAlertCampaignReply } = await import("@/lib/whatsapp/campaign-reply-alert.server");
+    const res = await maybeAlertCampaignReply({
+      admin,
+      leadId,
+      conversationId: conv.id,
+      replyText: msg.body ?? null,
+    });
+    isCampaignReply = res.isCampaignReply;
+    if (isCampaignReply) {
+      conversationStatus = "pending";
+      conversationAssignee = conv.assigned_user_id ?? null;
+    }
+  } catch (e) {
+    console.error("[wa webhook] campaign reply alert error", e);
+  }
+
   await admin
     .from("whatsapp_contacts")
     .update({ last_message_at: ts })
@@ -284,6 +303,9 @@ async function handleInbound(
     const responseMaxPerConversation = typeof cfg.responseMaxPerConversation === "number" ? cfg.responseMaxPerConversation : 12;
 
     if (!autoReplyEnabled || !conv?.id || !leadId) return;
+
+    // Respostas de campanha vão direto para a SDR humana (IA fica fora).
+    if (isCampaignReply) return;
 
     if (conv.assumed_at && conv.assumed_by_user_id) return;
 
