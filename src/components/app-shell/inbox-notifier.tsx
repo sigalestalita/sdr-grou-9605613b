@@ -8,7 +8,7 @@ import { getInboxPulse } from "@/lib/inbox-alerts.functions";
 
 const SOUND_KEY = "inbox:sound";
 const DESKTOP_KEY = "inbox:desktop";
-const BASE_TITLE = "Lidi · CRM Grou";
+const FALLBACK_TITLE = "Lidi · CRM Grou";
 
 /** Bip curto (WebAudio) — não depende de arquivo de áudio. */
 function playBeep() {
@@ -45,10 +45,12 @@ export function InboxNotifier() {
   const [desktop, setDesktop] = useState(false);
   const seen = useRef<Map<string, string> | null>(null);
   const flashTimer = useRef<number | null>(null);
+  const baseTitle = useRef(FALLBACK_TITLE);
 
   useEffect(() => {
     setSound(window.localStorage.getItem(SOUND_KEY) !== "0");
     setDesktop(window.localStorage.getItem(DESKTOP_KEY) === "1");
+    baseTitle.current = document.title || FALLBACK_TITLE;
   }, []);
 
   const { data } = useQuery({
@@ -66,14 +68,14 @@ export function InboxNotifier() {
     if (typeof document === "undefined") return;
     if (flashTimer.current) window.clearInterval(flashTimer.current);
     if (totalUnread <= 0) {
-      document.title = BASE_TITLE;
+      document.title = baseTitle.current;
       return;
     }
     let on = true;
     document.title = `(${totalUnread}) 💬 Respostas no inbox`;
     flashTimer.current = window.setInterval(() => {
       on = !on;
-      document.title = on ? `(${totalUnread}) 💬 Respostas no inbox` : BASE_TITLE;
+      document.title = on ? `(${totalUnread}) 💬 Respostas no inbox` : baseTitle.current;
     }, 2000);
     return () => {
       if (flashTimer.current) window.clearInterval(flashTimer.current);
