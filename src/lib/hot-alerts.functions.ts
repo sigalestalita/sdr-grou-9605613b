@@ -19,7 +19,7 @@ export const listHotLeadAlerts = createServerFn({ method: "GET" })
     const actions =
       data.action && data.action !== "all"
         ? [data.action]
-        : ["hot_lead_alert", "campaign_reply_alert"];
+        : ["hot_lead_alert", "campaign_reply_alert", "inbound_reply_alert"];
     let q = context.supabase
       .from("integration_logs")
       .select("id, created_at, status, action, detail")
