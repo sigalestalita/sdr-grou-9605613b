@@ -100,6 +100,8 @@ function CampaignsPage() {
   const [leadTypes, setLeadTypes] = useState<string[]>([]);
   const [companySizes, setCompanySizes] = useState<string[]>([]);
   const [emailDomainsText, setEmailDomainsText] = useState("");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
   const [csvText, setCsvText] = useState("");
   const [manualText, setManualText] = useState("");
   const [exclusionText, setExclusionText] = useState("");
@@ -149,10 +151,24 @@ function CampaignsPage() {
         leadType: leadTypes.length ? leadTypes : undefined,
         companySizes: companySizes.length ? companySizes : undefined,
         emailDomains: emailDomains.length ? emailDomains : undefined,
+        createdFrom: createdFrom || undefined,
+        createdTo: createdTo || undefined,
       },
       exclusions,
     };
-  }, [source, phoneEntries, stageIds, priorities, demoFree, leadTypes, companySizes, emailDomains, exclusions]);
+  }, [
+    source,
+    phoneEntries,
+    stageIds,
+    priorities,
+    demoFree,
+    leadTypes,
+    companySizes,
+    emailDomains,
+    createdFrom,
+    createdTo,
+    exclusions,
+  ]);
 
   const { data: preview } = useQuery({
     queryKey: ["wa-camp-preview", audience],
@@ -248,6 +264,37 @@ function CampaignsPage() {
 
                 {source === "filters" && (
                   <>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Período de entrada no Kanban</p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="date"
+                      value={createdFrom}
+                      onChange={(e) => setCreatedFrom(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    <span className="text-xs text-muted-foreground">até</span>
+                    <Input
+                      type="date"
+                      value={createdTo}
+                      onChange={(e) => setCreatedTo(e.target.value)}
+                      className="h-8 text-xs"
+                    />
+                    {(createdFrom || createdTo) && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setCreatedFrom("");
+                          setCreatedTo("");
+                        }}
+                        className="text-[11px] text-muted-foreground hover:text-foreground underline shrink-0"
+                      >
+                        limpar
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Estágios</p>
                   <div className="flex flex-wrap gap-1.5">
