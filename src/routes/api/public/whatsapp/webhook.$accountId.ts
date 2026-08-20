@@ -274,6 +274,23 @@ async function handleInbound(
     console.error("[wa webhook] campaign reply alert error", e);
   }
 
+  // 4b) qualquer outra resposta do lead → avisa a SDR responsável no WhatsApp dela
+  if (!isCampaignReply) {
+    try {
+      const { maybeAlertInboundReply } = await import("@/lib/whatsapp/inbound-reply-alert.server");
+      await maybeAlertInboundReply({
+        admin,
+        leadId,
+        conversationId: conv.id,
+        assignedUserId: conv.assigned_user_id ?? null,
+        replyText: msg.body ?? null,
+        messageType: msg.type,
+      });
+    } catch (e) {
+      console.error("[wa webhook] inbound reply alert error", e);
+    }
+  }
+
   await admin
     .from("whatsapp_contacts")
     .update({ last_message_at: ts })
