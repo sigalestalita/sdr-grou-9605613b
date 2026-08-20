@@ -13,6 +13,9 @@ const AudienceFilters = z
     leadType: z.array(z.string()).optional(),
     companySizes: z.array(z.string()).optional(),
     emailDomains: z.array(z.string()).optional(),
+    /** Data de entrada do lead (created_at) — formato YYYY-MM-DD. */
+    createdFrom: z.string().optional(),
+    createdTo: z.string().optional(),
   })
   .default({});
 type AudienceFiltersT = z.infer<typeof AudienceFilters>;
@@ -60,6 +63,14 @@ function normPhone(raw: string): string {
 
 function normDomain(raw: string): string {
   return raw.trim().toLowerCase().replace(/^@+/, "");
+}
+
+/** Converte YYYY-MM-DD em limites ISO (início do dia / fim do dia). */
+function dayStartIso(d: string): string | null {
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T00:00:00.000Z` : null;
+}
+function dayEndIso(d: string): string | null {
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T23:59:59.999Z` : null;
 }
 
 /** Lista campanhas com contagem de mensagens. */
