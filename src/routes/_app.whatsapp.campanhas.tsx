@@ -99,6 +99,7 @@ function CampaignsPage() {
   const [demoFree, setDemoFree] = useState<DemoFreeF>("any");
   const [leadTypes, setLeadTypes] = useState<string[]>([]);
   const [companySizes, setCompanySizes] = useState<string[]>([]);
+  const [lostReasons, setLostReasons] = useState<string[]>([]);
   const [emailDomainsText, setEmailDomainsText] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
@@ -150,6 +151,7 @@ function CampaignsPage() {
         demoFree: demoFree === "any" ? undefined : demoFree,
         leadType: leadTypes.length ? leadTypes : undefined,
         companySizes: companySizes.length ? companySizes : undefined,
+        lostReasons: lostReasons.length ? lostReasons : undefined,
         emailDomains: emailDomains.length ? emailDomains : undefined,
         createdFrom: createdFrom || undefined,
         createdTo: createdTo || undefined,
@@ -164,6 +166,7 @@ function CampaignsPage() {
     demoFree,
     leadTypes,
     companySizes,
+    lostReasons,
     emailDomains,
     createdFrom,
     createdTo,
