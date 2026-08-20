@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LostReasonFilter } from "@/components/leads/lost-reason-filter";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, normalizeLeadType, type LeadType } from "@/lib/lead-type";
 import { DEMO_FREE_LABEL, DEMO_FREE_OPTIONS, DEMO_FREE_TONE, resolveDemoFree } from "@/lib/demo-free";

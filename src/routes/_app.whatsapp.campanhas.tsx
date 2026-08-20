@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Megaphone, ChevronRight, Upload, Send } from "lucide-react";
 import { parseExclusionText, countExclusions } from "@/lib/campaign-exclusions";
+import { LostReasonFilter } from "@/components/leads/lost-reason-filter";
 
 export const Route = createFileRoute("/_app/whatsapp/campanhas")({
   component: CampaignsPage,
