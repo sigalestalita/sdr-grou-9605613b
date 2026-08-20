@@ -24,6 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Plus, Megaphone, ChevronRight, Upload, Send } from "lucide-react";
+import { parseExclusionText, countExclusions } from "@/lib/campaign-exclusions";
 
 export const Route = createFileRoute("/_app/whatsapp/campanhas")({
   component: CampaignsPage,
@@ -101,6 +102,7 @@ function CampaignsPage() {
   const [emailDomainsText, setEmailDomainsText] = useState("");
   const [csvText, setCsvText] = useState("");
   const [manualText, setManualText] = useState("");
+  const [exclusionText, setExclusionText] = useState("");
 
   const { data: tmpls } = useQuery({
     queryKey: ["wa-templates-mini"],
@@ -131,9 +133,12 @@ function CampaignsPage() {
     });
   }, [source, csvText, manualText]);
 
+  const exclusions = useMemo(() => parseExclusionText(exclusionText), [exclusionText]);
+  const exclusionCount = countExclusions(exclusions);
+
   const audience = useMemo(() => {
     if (source === "phones") {
-      return { source: "phones" as const, phones: phoneEntries };
+      return { source: "phones" as const, phones: phoneEntries, exclusions };
     }
     return {
       source: "filters" as const,
@@ -145,8 +150,9 @@ function CampaignsPage() {
         companySizes: companySizes.length ? companySizes : undefined,
         emailDomains: emailDomains.length ? emailDomains : undefined,
       },
+      exclusions,
     };
-  }, [source, phoneEntries, stageIds, priorities, demoFree, leadTypes, companySizes, emailDomains]);
+  }, [source, phoneEntries, stageIds, priorities, demoFree, leadTypes, companySizes, emailDomains, exclusions]);
 
   const { data: preview } = useQuery({
     queryKey: ["wa-camp-preview", audience],
@@ -400,9 +406,31 @@ function CampaignsPage() {
                 )}
 
                 <div className="text-xs flex items-center justify-between border-t border-white/5 pt-3">
-                  <span className="text-muted-foreground">Audiência estimada (com telefone)</span>
+                  <div>
+                    <span className="text-muted-foreground">Audiência estimada (com telefone)</span>
+                    {exclusionCount > 0 && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {exclusionCount} regra(s) de exclusão aplicadas
+                        {typeof preview?.excluded === "number" ? ` · ${preview.excluded} lead(s) removidos` : ""}
+                      </p>
+                    )}
+                  </div>
                   <span className="font-semibold text-base">{preview?.count ?? 0}</span>
                 </div>
+              </div>
+
+              <div className="border border-white/5 rounded-lg p-3">
+                <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Excluir do disparo</p>
+                <Textarea
+                  value={exclusionText}
+                  onChange={(e) => setExclusionText(e.target.value)}
+                  placeholder={"Nome do lead ou empresa\n51999998888"}
+                  className="text-xs font-mono min-h-[70px]"
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Um por linha (ou separados por vírgula/ponto-e-vírgula). Números comparam os últimos 8 dígitos; nomes
+                  comparam por trecho no nome do lead ou da empresa.
+                </p>
               </div>
 
               {create.error instanceof Error && (
