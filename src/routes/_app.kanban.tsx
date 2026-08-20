@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LostReasonFilter } from "@/components/leads/lost-reason-filter";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, normalizeLeadType, type LeadType } from "@/lib/lead-type";
 import { DEMO_FREE_LABEL, DEMO_FREE_OPTIONS, DEMO_FREE_TONE, resolveDemoFree } from "@/lib/demo-free";
@@ -638,66 +639,15 @@ function KanbanPage() {
             <option value="fup_vencido">Follow-up vencido</option>
             <option value="abaixo_minimo">Descartado abaixo do mínimo</option>
           </select>
-          <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 space-y-1.5">
-            <div className="flex items-center gap-2">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Motivos de desqualificação
-              </p>
-              {lostReasons.length > 0 && (
-                <button
-                  type="button"
-                  className="text-[11px] text-muted-foreground underline"
-                  onClick={() => setLostReasons([])}
-                >
-                  limpar ({lostReasons.length})
-                </button>
-              )}
-            </div>
-            {lostReasonOptions.length === 0 && lostWithoutReason === 0 ? (
-              <p className="text-[11px] text-muted-foreground">Nenhum lead desqualificado nesta visão.</p>
-            ) : (
-              <div className="flex flex-wrap gap-1.5">
-                {lostReasonOptions.map(([reason, count]) => {
-                  const active = lostReasons.includes(reason);
-                  return (
-                    <button
-                      key={reason}
-                      type="button"
-                      onClick={() =>
-                        setLostReasons((prev) =>
-                          prev.includes(reason) ? prev.filter((r) => r !== reason) : [...prev, reason],
-                        )
-                      }
-                      className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
-                        active
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:bg-secondary"
-                      }`}
-                    >
-                      {reason} · {count}
-                    </button>
-                  );
-                })}
-                {lostWithoutReason > 0 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setLostReasons((prev) =>
-                        prev.includes("__nd") ? prev.filter((r) => r !== "__nd") : [...prev, "__nd"],
-                      )
-                    }
-                    className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
-                      lostReasons.includes("__nd")
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border text-muted-foreground hover:bg-secondary"
-                    }`}
-                  >
-                    Sem motivo informado · {lostWithoutReason}
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
+          {lostReasonOptions.length === 0 && lostWithoutReason === 0 ? null : (
+            <LostReasonFilter
+              options={lostReasonOptions.map(([reason, count]) => ({ reason, count }))}
+              withoutReasonCount={lostWithoutReason}
+              value={lostReasons}
+              onChange={setLostReasons}
+              label="Motivo de descarte"
+            />
+          )}
           <div className="flex flex-wrap items-center gap-1 sm:col-span-2">
             <select
               value=""
