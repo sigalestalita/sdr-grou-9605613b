@@ -21,6 +21,7 @@ import {
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
+import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
@@ -213,6 +214,9 @@ function AppShell() {
               ⌘K
             </kbd>
           </button>
+          <div className="ml-auto flex items-center gap-2">
+            <InboxNotifier />
+          </div>
         </header>
         <main className="min-h-0 flex-1 overflow-auto">
           <Outlet />
