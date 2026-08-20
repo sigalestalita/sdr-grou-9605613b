@@ -99,6 +99,7 @@ function CampaignsPage() {
   const [demoFree, setDemoFree] = useState<DemoFreeF>("any");
   const [leadTypes, setLeadTypes] = useState<string[]>([]);
   const [companySizes, setCompanySizes] = useState<string[]>([]);
+  const [lostReasons, setLostReasons] = useState<string[]>([]);
   const [emailDomainsText, setEmailDomainsText] = useState("");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
@@ -150,6 +151,7 @@ function CampaignsPage() {
         demoFree: demoFree === "any" ? undefined : demoFree,
         leadType: leadTypes.length ? leadTypes : undefined,
         companySizes: companySizes.length ? companySizes : undefined,
+        lostReasons: lostReasons.length ? lostReasons : undefined,
         emailDomains: emailDomains.length ? emailDomains : undefined,
         createdFrom: createdFrom || undefined,
         createdTo: createdTo || undefined,
@@ -164,6 +166,7 @@ function CampaignsPage() {
     demoFree,
     leadTypes,
     companySizes,
+    lostReasons,
     emailDomains,
     createdFrom,
     createdTo,
@@ -393,6 +396,54 @@ function CampaignsPage() {
                         );
                       })}
                     </div>
+                  </div>
+                )}
+
+                {((meta?.lostReasons ?? []).length > 0) && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="text-xs text-muted-foreground">Motivo de desqualificação</p>
+                      {lostReasons.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setLostReasons([])}
+                          className="text-[11px] text-muted-foreground hover:text-foreground underline"
+                        >
+                          limpar ({lostReasons.length})
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(meta?.lostReasons ?? []).map((lr) => {
+                        const active = lostReasons.includes(lr.reason);
+                        return (
+                          <button
+                            key={lr.reason}
+                            type="button"
+                            onClick={() => setLostReasons(toggle(lostReasons, lr.reason))}
+                            className={`text-xs px-2 py-1 rounded border ${
+                              active ? "bg-primary/15 border-primary/40 text-primary" : "border-white/10 text-muted-foreground hover:bg-white/5"
+                            }`}
+                          >
+                            {lr.reason} · {lr.count}
+                          </button>
+                        );
+                      })}
+                      <button
+                        type="button"
+                        onClick={() => setLostReasons(toggle(lostReasons, "__nd"))}
+                        className={`text-xs px-2 py-1 rounded border ${
+                          lostReasons.includes("__nd")
+                            ? "bg-primary/15 border-primary/40 text-primary"
+                            : "border-white/10 text-muted-foreground hover:bg-white/5"
+                        }`}
+                      >
+                        Sem motivo informado
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Útil para reengajar quem foi descartado por um motivo específico.
+                    </p>
                   </div>
                 )}
 

@@ -13,6 +13,8 @@ const AudienceFilters = z
     leadType: z.array(z.string()).optional(),
     companySizes: z.array(z.string()).optional(),
     emailDomains: z.array(z.string()).optional(),
+    /** Motivos de desqualificação (use "__nd" para "sem motivo informado"). */
+    lostReasons: z.array(z.string().max(200)).max(200).optional(),
     /** Data de entrada do lead (created_at) — formato YYYY-MM-DD. */
     createdFrom: z.string().optional(),
     createdTo: z.string().optional(),
@@ -54,6 +56,23 @@ function parseAudience(raw: unknown): CampaignAudience {
 }
 
 function normPhone(raw: string): string {
+  return normPhoneImpl(raw);
+}
+
+/** Aplica filtro de motivos de desqualificação a uma query PostgREST. */
+function lostReasonOr(reasons: string[]): string {
+  const ors: string[] = [];
+  for (const r of reasons) {
+    if (r === "__nd") continue;
+    ors.push(`lost_reason.eq."${r.replace(/"/g, "")}"`);
+  }
+  if (reasons.includes("__nd")) {
+    ors.push("lost_reason.is.null", 'lost_reason.eq.""');
+  }
+  return ors.join(",");
+}
+
+function normPhoneImpl(raw: string): string {
   const digits = raw.replace(/\D+/g, "").replace(/^0+/, "");
   if ((digits.length === 10 || digits.length === 11) && !digits.startsWith("55")) {
     return `55${digits}`;
@@ -248,6 +267,10 @@ export const previewAudience = createServerFn({ method: "POST" })
       const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
       q = q.or(ors);
     }
+    if (f.lostReasons?.length) {
+      const ors = lostReasonOr(f.lostReasons);
+      if (ors) q = q.or(ors);
+    }
     if (f.createdFrom) {
       const iso = dayStartIso(f.createdFrom);
       if (iso) q = q.gte("created_at", iso);
@@ -390,6 +413,10 @@ export const launchCampaign = createServerFn({ method: "POST" })
       if (f.emailDomains?.length) {
         const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
         q = q.or(ors);
+      }
+      if (f.lostReasons?.length) {
+        const ors = lostReasonOr(f.lostReasons);
+        if (ors) q = q.or(ors);
       }
       if (f.createdFrom) {
         const iso = dayStartIso(f.createdFrom);
@@ -576,11 +603,12 @@ export const getCampaignFilterMeta = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const [{ data: stages }, { data: types }, { data: sizes }] = await Promise.all([
+    const [{ data: stages }, { data: types }, { data: sizes }, { data: lost }] = await Promise.all([
       supabase.from("stages").select("id, name, position").order("position"),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       supabase.from("leads").select("lead_type").not("lead_type", "is", null).limit(2000),
       supabase.from("leads").select("company_size").not("company_size", "is", null).limit(2000),
+      supabase.from("leads").select("lost_reason").not("lost_reason", "is", null).limit(5000),
     ]);
     const leadTypes = Array.from(
       new Set((types ?? []).map((r) => (r as { lead_type: string | null }).lead_type).filter(Boolean) as string[]),
@@ -588,5 +616,14 @@ export const getCampaignFilterMeta = createServerFn({ method: "GET" })
     const companySizes = Array.from(
       new Set((sizes ?? []).map((r) => (r as { company_size: string | null }).company_size).filter(Boolean) as string[]),
     ).sort();
-    return { stages: stages ?? [], leadTypes, companySizes };
+    const lostCounts = new Map<string, number>();
+    for (const row of (lost ?? []) as { lost_reason: string | null }[]) {
+      const r = (row.lost_reason ?? "").trim();
+      if (!r) continue;
+      lostCounts.set(r, (lostCounts.get(r) ?? 0) + 1);
+    }
+    const lostReasons = Array.from(lostCounts.entries())
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason));
+    return { stages: stages ?? [], leadTypes, companySizes, lostReasons };
   });

@@ -96,10 +96,10 @@ function KanbanPage() {
   const [touchAlert, setTouchAlert] = useState<string>("all");
   const [adFilter, setAdFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [lostReasonFilter, setLostReasonFilter] = useState<string>("all");
+  const [lostReasons, setLostReasons] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const activeFilterCount = [priority, companySize, assigned, demoFree, leadTypeFilter, certificationFilter, adFilter, sourceFilter, lostReasonFilter, touchAlert]
-    .filter((v) => v !== "all").length + (dateFrom || dateTo ? 1 : 0);
+  const activeFilterCount = [priority, companySize, assigned, demoFree, leadTypeFilter, certificationFilter, adFilter, sourceFilter, touchAlert]
+    .filter((v) => v !== "all").length + (dateFrom || dateTo ? 1 : 0) + (lostReasons.length ? 1 : 0);
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
@@ -283,11 +283,11 @@ function KanbanPage() {
       const src = (l.source ?? "").trim();
       if (sourceFilter === "nd" ? src !== "" : src !== sourceFilter) return false;
     }
-    if (lostReasonFilter !== "all") {
+    if (lostReasons.length) {
       const stage = data.stages.find((s) => s.id === l.stage_id) ?? null;
       if (stage?.slug !== "desqualificado") return false;
       const reason = (l.lost_reason ?? "").trim();
-      if (lostReasonFilter === "nd" ? reason !== "" : reason !== lostReasonFilter) return false;
+      if (!lostReasons.includes(reason || "__nd")) return false;
     }
     if (leadTypeFilter !== "all") {
       const t = resolveLeadType(l);
@@ -524,7 +524,7 @@ function KanbanPage() {
               onClick={() => {
                 setPriority("all"); setCompanySize("all"); setAssigned("all"); setDemoFree("all");
                 setLeadTypeFilter("all"); setCertificationFilter("all"); setAdFilter("all");
-                setSourceFilter("all"); setLostReasonFilter("all"); setTouchAlert("all");
+                setSourceFilter("all"); setLostReasons([]); setTouchAlert("all");
                 setDateFrom(""); setDateTo("");
               }}
             >
@@ -626,18 +626,6 @@ function KanbanPage() {
             ))}
           </select>
           <select
-            value={lostReasonFilter}
-            onChange={(e) => setLostReasonFilter(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            title="Motivo de descarte (desqualificados)"
-          >
-            <option value="all">Motivo de descarte: todos</option>
-            <option value="nd">{`Sem motivo informado${lostWithoutReason ? ` (${lostWithoutReason})` : ""}`}</option>
-            {lostReasonOptions.map(([reason, count]) => (
-              <option key={reason} value={reason}>{`${count} • ${reason}`}</option>
-            ))}
-          </select>
-          <select
             value={touchAlert}
             onChange={(e) => setTouchAlert(e.target.value)}
             className="h-9 w-full rounded-md border bg-background px-2 text-sm"
@@ -650,6 +638,66 @@ function KanbanPage() {
             <option value="fup_vencido">Follow-up vencido</option>
             <option value="abaixo_minimo">Descartado abaixo do mínimo</option>
           </select>
+          <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4 space-y-1.5">
+            <div className="flex items-center gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Motivos de desqualificação
+              </p>
+              {lostReasons.length > 0 && (
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground underline"
+                  onClick={() => setLostReasons([])}
+                >
+                  limpar ({lostReasons.length})
+                </button>
+              )}
+            </div>
+            {lostReasonOptions.length === 0 && lostWithoutReason === 0 ? (
+              <p className="text-[11px] text-muted-foreground">Nenhum lead desqualificado nesta visão.</p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {lostReasonOptions.map(([reason, count]) => {
+                  const active = lostReasons.includes(reason);
+                  return (
+                    <button
+                      key={reason}
+                      type="button"
+                      onClick={() =>
+                        setLostReasons((prev) =>
+                          prev.includes(reason) ? prev.filter((r) => r !== reason) : [...prev, reason],
+                        )
+                      }
+                      className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                        active
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:bg-secondary"
+                      }`}
+                    >
+                      {reason} · {count}
+                    </button>
+                  );
+                })}
+                {lostWithoutReason > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLostReasons((prev) =>
+                        prev.includes("__nd") ? prev.filter((r) => r !== "__nd") : [...prev, "__nd"],
+                      )
+                    }
+                    className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                      lostReasons.includes("__nd")
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:bg-secondary"
+                    }`}
+                  >
+                    Sem motivo informado · {lostWithoutReason}
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-1 sm:col-span-2">
             <select
               value=""
