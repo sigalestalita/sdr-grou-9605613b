@@ -405,7 +405,7 @@ function CampaignsPage() {
                     <p className="text-xs text-muted-foreground mb-1">Motivo de desqualificação</p>
                     <LostReasonFilter
                       options={meta?.lostReasons ?? []}
-                      withoutReasonCount={1}
+                      showWithoutReason
                       value={lostReasons}
                       onChange={setLostReasons}
                     />

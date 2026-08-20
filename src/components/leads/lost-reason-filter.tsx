@@ -9,6 +9,8 @@ type Props = {
   options: LostReasonOption[];
   /** Contagem de leads desqualificados sem motivo (0 esconde a opção). */
   withoutReasonCount?: number;
+  /** Mostra "Sem motivo informado" mesmo sem contagem conhecida. */
+  showWithoutReason?: boolean;
   value: string[];
   onChange: (next: string[]) => void;
   className?: string;
@@ -19,6 +21,7 @@ type Props = {
 export function LostReasonFilter({
   options,
   withoutReasonCount = 0,
+  showWithoutReason = false,
   value,
   onChange,
   className,
@@ -27,12 +30,20 @@ export function LostReasonFilter({
   const [open, setOpen] = useState(false);
 
   const items = useMemo(() => {
-    const list = options.map((o) => ({ key: o.reason, label: o.reason, count: o.count }));
-    if (withoutReasonCount > 0) {
-      list.push({ key: "__nd", label: "Sem motivo informado", count: withoutReasonCount });
+    const list: Array<{ key: string; label: string; count: number | null }> = options.map((o) => ({
+      key: o.reason,
+      label: o.reason,
+      count: o.count,
+    }));
+    if (withoutReasonCount > 0 || showWithoutReason) {
+      list.push({
+        key: "__nd",
+        label: "Sem motivo informado",
+        count: withoutReasonCount > 0 ? withoutReasonCount : null,
+      });
     }
     return list;
-  }, [options, withoutReasonCount]);
+  }, [options, withoutReasonCount, showWithoutReason]);
 
   const toggle = (key: string) => {
     onChange(value.includes(key) ? value.filter((v) => v !== key) : [...value, key]);
@@ -92,7 +103,9 @@ export function LostReasonFilter({
                     <CommandItem key={item.key} value={item.label} onSelect={() => toggle(item.key)}>
                       <Check className={`mr-2 h-4 w-4 ${active ? "opacity-100" : "opacity-0"}`} />
                       <span className="flex-1 truncate">{item.label}</span>
-                      <span className="ml-2 text-xs text-muted-foreground">{item.count}</span>
+                      {item.count !== null && (
+                        <span className="ml-2 text-xs text-muted-foreground">{item.count}</span>
+                      )}
                     </CommandItem>
                   );
                 })}
