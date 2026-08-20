@@ -267,6 +267,10 @@ export const previewAudience = createServerFn({ method: "POST" })
       const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
       q = q.or(ors);
     }
+    if (f.lostReasons?.length) {
+      const ors = lostReasonOr(f.lostReasons);
+      if (ors) q = q.or(ors);
+    }
     if (f.createdFrom) {
       const iso = dayStartIso(f.createdFrom);
       if (iso) q = q.gte("created_at", iso);
@@ -409,6 +413,10 @@ export const launchCampaign = createServerFn({ method: "POST" })
       if (f.emailDomains?.length) {
         const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
         q = q.or(ors);
+      }
+      if (f.lostReasons?.length) {
+        const ors = lostReasonOr(f.lostReasons);
+        if (ors) q = q.or(ors);
       }
       if (f.createdFrom) {
         const iso = dayStartIso(f.createdFrom);
@@ -595,11 +603,12 @@ export const getCampaignFilterMeta = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
-    const [{ data: stages }, { data: types }, { data: sizes }] = await Promise.all([
+    const [{ data: stages }, { data: types }, { data: sizes }, { data: lost }] = await Promise.all([
       supabase.from("stages").select("id, name, position").order("position"),
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       supabase.from("leads").select("lead_type").not("lead_type", "is", null).limit(2000),
       supabase.from("leads").select("company_size").not("company_size", "is", null).limit(2000),
+      supabase.from("leads").select("lost_reason").not("lost_reason", "is", null).limit(5000),
     ]);
     const leadTypes = Array.from(
       new Set((types ?? []).map((r) => (r as { lead_type: string | null }).lead_type).filter(Boolean) as string[]),
@@ -607,5 +616,14 @@ export const getCampaignFilterMeta = createServerFn({ method: "GET" })
     const companySizes = Array.from(
       new Set((sizes ?? []).map((r) => (r as { company_size: string | null }).company_size).filter(Boolean) as string[]),
     ).sort();
-    return { stages: stages ?? [], leadTypes, companySizes };
+    const lostCounts = new Map<string, number>();
+    for (const row of (lost ?? []) as { lost_reason: string | null }[]) {
+      const r = (row.lost_reason ?? "").trim();
+      if (!r) continue;
+      lostCounts.set(r, (lostCounts.get(r) ?? 0) + 1);
+    }
+    const lostReasons = Array.from(lostCounts.entries())
+      .map(([reason, count]) => ({ reason, count }))
+      .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason));
+    return { stages: stages ?? [], leadTypes, companySizes, lostReasons };
   });
