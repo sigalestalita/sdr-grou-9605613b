@@ -56,6 +56,23 @@ function parseAudience(raw: unknown): CampaignAudience {
 }
 
 function normPhone(raw: string): string {
+  return normPhoneImpl(raw);
+}
+
+/** Aplica filtro de motivos de desqualificação a uma query PostgREST. */
+function lostReasonOr(reasons: string[]): string {
+  const ors: string[] = [];
+  for (const r of reasons) {
+    if (r === "__nd") continue;
+    ors.push(`lost_reason.eq."${r.replace(/"/g, "")}"`);
+  }
+  if (reasons.includes("__nd")) {
+    ors.push("lost_reason.is.null", 'lost_reason.eq.""');
+  }
+  return ors.join(",");
+}
+
+function normPhoneImpl(raw: string): string {
   const digits = raw.replace(/\D+/g, "").replace(/^0+/, "");
   if ((digits.length === 10 || digits.length === 11) && !digits.startsWith("55")) {
     return `55${digits}`;
