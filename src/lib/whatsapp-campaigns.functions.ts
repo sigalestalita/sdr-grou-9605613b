@@ -248,6 +248,14 @@ export const previewAudience = createServerFn({ method: "POST" })
       const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
       q = q.or(ors);
     }
+    if (f.createdFrom) {
+      const iso = dayStartIso(f.createdFrom);
+      if (iso) q = q.gte("created_at", iso);
+    }
+    if (f.createdTo) {
+      const iso = dayEndIso(f.createdTo);
+      if (iso) q = q.lte("created_at", iso);
+    }
     q = q.not("phone", "is", null).limit(5000);
 
     const { data: rows, error } = await q;
