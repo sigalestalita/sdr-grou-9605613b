@@ -352,6 +352,16 @@ function CampaignsPage() {
                       </SelectContent>
                     </Select>
                   </div>
+                  {false && (
+                    <Select value={demoFree} onValueChange={(v) => setDemoFree(v as DemoFreeF)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="any">Qualquer</SelectItem>
+                        <SelectItem value="yes">Sim</SelectItem>
+                        <SelectItem value="no">Não</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                   {(meta?.leadTypes ?? []).length > 0 && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">Tipo de lead</p>
