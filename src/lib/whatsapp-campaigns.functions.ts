@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { renderTemplate } from "./whatsapp-templates.functions";
+import { makeExclusionMatcher } from "./campaign-exclusions";
 
 const AudienceFilters = z
   .object({
@@ -24,11 +25,19 @@ const PhoneEntry = z.object({
 });
 export type CampaignPhoneEntry = z.infer<typeof PhoneEntry>;
 
+const Exclusions = z
+  .object({
+    phones: z.array(z.string().max(40)).max(5000).optional(),
+    names: z.array(z.string().max(160)).max(5000).optional(),
+  })
+  .optional();
+
 const Audience = z
   .object({
     source: z.enum(["filters", "phones"]).default("filters"),
     filters: AudienceFilters.optional(),
     phones: z.array(PhoneEntry).max(5000).optional(),
+    exclusions: Exclusions,
   })
   .default({ source: "filters" });
 export type CampaignAudience = z.infer<typeof Audience>;
@@ -197,7 +206,11 @@ export const previewAudience = createServerFn({ method: "POST" })
     const audience = data.audience ?? parseAudience(data.filters ?? {});
 
     if (audience.source === "phones") {
-      const phones = (audience.phones ?? []).map((p) => ({ ...p, phone: normPhone(p.phone) })).filter((p) => p.phone);
+      const isExcluded = makeExclusionMatcher(audience.exclusions);
+      const phones = (audience.phones ?? [])
+        .map((p) => ({ ...p, phone: normPhone(p.phone) }))
+        .filter((p) => p.phone)
+        .filter((p) => !isExcluded({ name: p.name ?? null, company_name: p.company ?? null, phone: p.phone }));
       return {
         count: phones.length,
         sample: phones.slice(0, 20).map((p, i) => ({
@@ -212,7 +225,7 @@ export const previewAudience = createServerFn({ method: "POST" })
     }
 
     const f = audience.filters ?? {};
-    let q = supabase.from("leads").select("id, name, company_name, phone, priority, stage_id", { count: "exact" });
+    let q = supabase.from("leads").select("id, name, company_name, phone, priority, stage_id");
     if (f.stageIds?.length) q = q.in("stage_id", f.stageIds);
     if (f.priorities?.length) q = q.in("priority", f.priorities);
     if (f.demoFree === "yes") q = q.eq("demo_free", true);
@@ -224,11 +237,14 @@ export const previewAudience = createServerFn({ method: "POST" })
       const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
       q = q.or(ors);
     }
-    q = q.not("phone", "is", null).limit(20);
+    q = q.not("phone", "is", null).limit(5000);
 
-    const { data: rows, count, error } = await q;
+    const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    return { count: count ?? 0, sample: rows ?? [] };
+    const isExcluded = makeExclusionMatcher(audience.exclusions);
+    const all = rows ?? [];
+    const kept = all.filter((r) => !isExcluded(r));
+    return { count: kept.length, sample: kept.slice(0, 20), excluded: all.length - kept.length };
   });
 
 /** Cria campanha em rascunho. */
@@ -311,7 +327,10 @@ export const launchCampaign = createServerFn({ method: "POST" })
     let targets: Target[] = [];
 
     if (audience.source === "phones") {
-      const entries = (audience.phones ?? []).slice(0, data.limit);
+      const isExcludedEntry = makeExclusionMatcher(audience.exclusions);
+      const entries = (audience.phones ?? [])
+        .filter((e) => !isExcludedEntry({ name: e.name ?? null, company_name: e.company ?? null, phone: e.phone }))
+        .slice(0, data.limit);
       for (const e of entries) {
         const phone = normPhone(e.phone);
         if (!phone) continue;
@@ -353,10 +372,11 @@ export const launchCampaign = createServerFn({ method: "POST" })
         const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
         q = q.or(ors);
       }
-      q = q.not("phone", "is", null).limit(data.limit);
+      q = q.not("phone", "is", null).limit(Math.min(5000, data.limit + 2000));
       const { data: leads, error: lErr } = await q;
       if (lErr) throw new Error(lErr.message);
-      targets = (leads ?? []) as Target[];
+      const isExcludedLead = makeExclusionMatcher(audience.exclusions);
+      targets = ((leads ?? []) as Target[]).filter((l) => !isExcludedLead(l)).slice(0, data.limit);
     }
 
     if (targets.length === 0) {
