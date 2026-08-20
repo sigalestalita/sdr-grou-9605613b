@@ -13,6 +13,8 @@ const AudienceFilters = z
     leadType: z.array(z.string()).optional(),
     companySizes: z.array(z.string()).optional(),
     emailDomains: z.array(z.string()).optional(),
+    /** Motivos de desqualificação (use "__nd" para "sem motivo informado"). */
+    lostReasons: z.array(z.string().max(200)).max(200).optional(),
     /** Data de entrada do lead (created_at) — formato YYYY-MM-DD. */
     createdFrom: z.string().optional(),
     createdTo: z.string().optional(),
