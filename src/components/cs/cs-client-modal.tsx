@@ -323,28 +323,14 @@ export function CsClientModal({
             )}
 
             {!isLoading && tab === "timeline" && (
-              <div className="space-y-2">
-                {(data?.timeline ?? []).length === 0 && (
-                  <p className="text-sm text-muted-foreground">Nenhum evento registrado ainda.</p>
-                )}
-                <ol className="relative border-l pl-4 space-y-3">
-                  {(data?.timeline ?? []).map((ev) => (
-                    <li key={ev.id} className="text-xs">
-                      <span className="absolute -left-[5px] mt-1.5 h-2 w-2 rounded-full bg-primary" />
-                      <p className="font-medium text-foreground flex items-center gap-2">
-                        <History className="h-3 w-3" /> {ev.title}
-                        <span className="text-muted-foreground font-normal">
-                          {format(new Date(ev.occurred_at), "dd/MM/yy HH:mm", { locale: ptBR })}
-                        </span>
-                      </p>
-                      {ev.description && <p className="text-muted-foreground whitespace-pre-wrap">{ev.description}</p>}
-                      <p className="text-muted-foreground">
-                        {ev.channel ? `${ev.channel} · ` : ""}{profileName(ev.author_id)}
-                      </p>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+              <UnifiedTimeline
+                timeline={data?.timeline ?? []}
+                emails={data?.emails ?? []}
+                agenda={data?.agenda ?? []}
+                whatsapp={data?.whatsapp ?? []}
+                records={data?.records ?? []}
+                authorName={profileName}
+              />
             )}
 
             {!isLoading && tab === "registros" && (
