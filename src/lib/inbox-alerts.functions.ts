@@ -5,7 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * Conversas com mensagens não lidas do lead (minhas + sem responsável).
  * Usado pelo aviso visual/sonoro do inbox.
  */
-export const getInboxPulse = createServerFn({ method: "GET" })
+export const getInboxNotificationPulse = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
