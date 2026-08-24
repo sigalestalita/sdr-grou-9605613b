@@ -821,7 +821,81 @@ function UnifiedTimeline({
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Registre aqui contatos feitos fora do sistema (ligações, visitas, observações).
+        </p>
+        <Button
+          size="sm"
+          variant={manual.open ? "ghost" : "default"}
+          onClick={() => setManual({ ...manual, open: !manual.open })}
+        >
+          <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
+          {manual.open ? "Cancelar" : "Registrar contato"}
+        </Button>
+      </div>
+
+      {manual.open && (
+        <Card className="space-y-2 p-3">
+          <div className="grid gap-2 sm:grid-cols-3">
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={manual.channel}
+              onChange={(e) => setManual({ ...manual, channel: e.target.value as ManualChannel })}
+            >
+              {(Object.keys(MANUAL_CHANNEL_LABEL) as ManualChannel[]).map((c) => (
+                <option key={c} value={c}>
+                  {MANUAL_CHANNEL_LABEL[c]}
+                </option>
+              ))}
+            </select>
+            <Input
+              className="sm:col-span-2"
+              placeholder="Resumo curto (ex.: Ligação para alinhar renovação)"
+              value={manual.title}
+              onChange={(e) => setManual({ ...manual, title: e.target.value })}
+            />
+          </div>
+          <Textarea
+            rows={3}
+            placeholder="Detalhes do contato (opcional)"
+            value={manual.description}
+            onChange={(e) => setManual({ ...manual, description: e.target.value })}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Input
+              type="datetime-local"
+              className="w-56"
+              value={manual.occurredAt}
+              onChange={(e) => setManual({ ...manual, occurredAt: e.target.value })}
+            />
+            <Button
+              size="sm"
+              disabled={manual.title.trim().length < 3 || pending}
+              onClick={() => {
+                onAddEntry({
+                  channel: manual.channel,
+                  title: manual.title.trim(),
+                  description: manual.description.trim() || null,
+                  occurredAt: manual.occurredAt,
+                });
+                setManual({
+                  open: false,
+                  channel: manual.channel,
+                  title: "",
+                  description: "",
+                  occurredAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+                });
+              }}
+            >
+              Salvar na timeline
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <div className="flex flex-wrap gap-1">
+
         {(Object.keys(TL_KIND_LABEL) as TlKind[]).map((k) => {
           const active = kinds.includes(k);
           return (
