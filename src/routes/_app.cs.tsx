@@ -93,7 +93,11 @@ function CsPage() {
   const sync = useMutation({
     mutationFn: () => syncFn({ data: {} }),
     onSuccess: (r) => {
-      if (r.ok) toast.success(`Sinaleira sincronizada (${r.tab}) — ${r.matched} cliente(s)`);
+      if (r.ok)
+        toast.success(
+          `Sinaleira sincronizada (${r.tab}) — ${r.matched} cliente(s)` +
+            (r.created ? `, ${r.created} novo(s) importado(s)` : ""),
+        );
       else toast.error(r.error ?? "Falha na sincronização");
       invalidate();
     },

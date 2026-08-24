@@ -34,10 +34,20 @@ export function pickLatestTab(tabs: string[]): string | null {
     const score = tabDateScore(tab);
     if (score !== null && (!best || score > best.score)) best = { tab, score };
   }
-  return best?.tab ?? tabs[tabs.length - 1];
+  if (best) return best.tab;
+  const dataTabs = tabs.filter((t) => /sinaleira/i.test(t));
+  const pool = dataTabs.length > 0 ? dataTabs : tabs;
+  return pool[pool.length - 1];
 }
 
 function tabDateScore(tab: string): number | null {
+  const iso = tab.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (iso) {
+    const y = Number(iso[1]);
+    const m = Number(iso[2]);
+    const d = Number(iso[3]);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return y * 10000 + m * 100 + d;
+  }
   const dmy = tab.match(/(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?/);
   if (dmy) {
     const d = Number(dmy[1]);
@@ -46,8 +56,6 @@ function tabDateScore(tab: string): number | null {
     const y = yRaw < 100 ? 2000 + yRaw : yRaw;
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return y * 10000 + m * 100 + d;
   }
-  const iso = tab.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
-  if (iso) return Number(iso[1]) * 10000 + Number(iso[2]) * 100 + Number(iso[3]);
   return null;
 }
 
@@ -61,9 +69,12 @@ function norm(s: unknown): string {
 
 function parseSignal(raw: unknown, consumo: number | null): CsSignal {
   const v = norm(raw);
-  if (/verde|green|ok|bom/.test(v)) return "verde";
+  if (!v || /^n\/?d$|^nd$|sem dado|indispon/.test(v)) {
+    if (consumo == null) return "sem_dado";
+  }
+  if (/verde|green|\bok\b|bom/.test(v)) return "verde";
   if (/amarel|yellow|atencao|medio/.test(v)) return "amarelo";
-  if (/vermelh|red|critic|ruim/.test(v)) return "vermelho";
+  if (/vermelh|red|critic|ruim|preto|black/.test(v)) return "vermelho";
   if (consumo != null) {
     if (consumo >= 0.7) return "verde";
     if (consumo >= 0.3) return "amarelo";
@@ -72,12 +83,21 @@ function parseSignal(raw: unknown, consumo: number | null): CsSignal {
   return "sem_dado";
 }
 
-function parsePct(raw: unknown): number | null {
-  const s = String(raw ?? "").replace(/%/g, "").replace(/\./g, "").replace(",", ".").trim();
+/** Número em formato pt-BR ("1.234,5" -> 1234.5). */
+function parseNum(raw: unknown): number | null {
+  const s = String(raw ?? "").replace(/%/g, "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".").trim();
   if (!s) return null;
   const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  return n > 1 ? n / 100 : n;
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Percentual: aceita "85%", "0,85" e "1,2" (razão consumo/meta). */
+function parsePct(raw: unknown): number | null {
+  const txt = String(raw ?? "");
+  const n = parseNum(txt);
+  if (n == null) return null;
+  if (txt.includes("%")) return n / 100;
+  return n > 5 ? n / 100 : n;
 }
 
 type SyncResult = {
@@ -86,12 +106,18 @@ type SyncResult = {
   weekStart?: string;
   rows?: number;
   matched?: number;
+  created?: number;
   unmatched?: string[];
   error?: string;
 };
 
 /** Lê a aba mais recente da planilha da sinaleira e grava o snapshot da semana. */
-export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: string }): Promise<SyncResult> {
+export async function syncSignalFromSheet(opts?: {
+  tab?: string;
+  weekStart?: string;
+  /** Cria no CS os clientes da planilha que ainda não existem (padrão: sim). */
+  createMissing?: boolean;
+}): Promise<SyncResult> {
   try {
     const tabs = await listSheetTabs();
     const tab = opts?.tab ?? pickLatestTab(tabs);
@@ -105,29 +131,100 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
     if (values.length < 2) return { ok: false, tab, error: "Aba sem dados" };
 
     const header = (values[0] ?? []).map(norm);
-    const findCol = (patterns: RegExp[]) =>
-      header.findIndex((h) => patterns.some((p) => p.test(h)));
+    // Padrões em ordem de prioridade: o primeiro padrão que casar decide a coluna.
+    const findCol = (patterns: RegExp[]) => {
+      for (const p of patterns) {
+        const idx = header.findIndex((h) => p.test(h));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
 
-    const colEmpresa = findCol([/empresa|cliente|razao/]);
-    const colUid = findCol([/client_uid|codigo|cod\b|uid/]);
+    const colEmpresa = findCol([/nome da conta/, /empresa|cliente|razao|conta/]);
+    const colUid = findCol([/client_uid/, /^codigo|\bcod\b|\buid\b/]);
     const colLogin = findCol([/login/]);
-    const colSignal = findCol([/sinaleira|status|cor|farol/]);
-    const colConsumo = findCol([/consumo|uso|utilizacao|%/]);
+    const colSignal = findCol([/^sinaleira/, /sinaleira|farol|\bcor\b/]);
+    const colConsumo = findCol([/comparativo/, /consumo|uso|utilizacao|%/]);
+    const colMotivo = findCol([/motivo/]);
+    const colResponsavel = findCol([/^responsavel/, /responsavel/]);
+    const colSaldo = findCol([/saldo atual|^saldo/]);
+    const colTipo = findCol([/tipo do lead|tipo de conta/]);
+    const colCiclo = findCol([/ciclo de vida/]);
 
     if (colEmpresa < 0 && colUid < 0 && colLogin < 0) {
       return { ok: false, tab, error: "Não encontrei coluna de empresa/código/login na aba" };
     }
 
-    const { data: clients } = await supabaseAdmin
-      .from("cs_clients")
-      .select("client_uid, nome_empresa, login_pda");
-    const byName = new Map<string, string>();
-    const byUid = new Map<string, string>();
-    const byLogin = new Map<string, string>();
-    for (const c of clients ?? []) {
-      byUid.set(norm(c.client_uid), c.client_uid);
-      byName.set(norm(c.nome_empresa), c.client_uid);
-      if (c.login_pda) byLogin.set(norm(c.login_pda), c.client_uid);
+    const loadClients = async () => {
+      // Paginação obrigatória: o Data API limita a 1000 linhas por consulta.
+      const data: Array<{ client_uid: string; nome_empresa: string; login_pda: string | null }> = [];
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data: page, error } = await supabaseAdmin
+          .from("cs_clients")
+          .select("client_uid, nome_empresa, login_pda")
+          .order("client_uid")
+          .range(from, from + PAGE - 1);
+        if (error) throw new Error(error.message);
+        data.push(...((page ?? []) as typeof data));
+        if (!page || page.length < PAGE) break;
+      }
+      const byName = new Map<string, string>();
+      const byUid = new Map<string, string>();
+      const byLogin = new Map<string, string>();
+      for (const c of data ?? []) {
+        byUid.set(norm(c.client_uid), c.client_uid);
+        byName.set(norm(c.nome_empresa), c.client_uid);
+        if (c.login_pda) byLogin.set(norm(c.login_pda), c.client_uid);
+      }
+      return { byName, byUid, byLogin };
+    };
+
+    let { byName, byUid, byLogin } = await loadClients();
+
+    const dataRows = values.slice(1).filter((row) => {
+      if (colCiclo < 0) return true;
+      const ciclo = norm(row[colCiclo]);
+      return !ciclo || /cliente/.test(ciclo);
+    });
+
+    const keyOf = (row: unknown[]) => ({
+      nome: colEmpresa >= 0 ? String(row[colEmpresa] ?? "").trim() : "",
+      uid: colUid >= 0 ? String(row[colUid] ?? "").trim() : "",
+      login: colLogin >= 0 ? String(row[colLogin] ?? "").trim() : "",
+    });
+    const resolve = (k: { nome: string; uid: string; login: string }) =>
+      (k.uid && byUid.get(norm(k.uid))) ||
+      (k.login && byLogin.get(norm(k.login))) ||
+      (k.nome && byName.get(norm(k.nome))) ||
+      null;
+
+    // Cria os clientes que ainda não existem no CS a partir da planilha.
+    let created = 0;
+    if (opts?.createMissing !== false) {
+      const seen = new Set<string>();
+      const toCreate: Array<Record<string, unknown>> = [];
+      for (const row of dataRows) {
+        const k = keyOf(row);
+        if (!k.nome || resolve(k)) continue;
+        const dedupe = norm(k.nome);
+        if (seen.has(dedupe)) continue;
+        seen.add(dedupe);
+        const tipoRaw = colTipo >= 0 ? norm(row[colTipo]) : "";
+        toCreate.push({
+          nome_empresa: k.nome,
+          login_pda: k.login || null,
+          tipo_lead: /consultoria/.test(tipoRaw) ? "consultoria" : "empresa",
+          origem: "marketing",
+        });
+      }
+      for (let i = 0; i < toCreate.length; i += 200) {
+        const chunk = toCreate.slice(i, i + 200);
+        const { error } = await supabaseAdmin.from("cs_clients").insert(chunk as never);
+        if (error) throw new Error(`Falha ao criar clientes: ${error.message}`);
+        created += chunk.length;
+      }
+      if (created > 0) ({ byName, byUid, byLogin } = await loadClients());
     }
 
     const weekStart = opts?.weekStart ?? mondayOf();
@@ -141,21 +238,19 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
     }> = [];
     const unmatched: string[] = [];
 
-    for (const row of values.slice(1)) {
-      const nome = colEmpresa >= 0 ? String(row[colEmpresa] ?? "").trim() : "";
-      const uid = colUid >= 0 ? String(row[colUid] ?? "").trim() : "";
-      const login = colLogin >= 0 ? String(row[colLogin] ?? "").trim() : "";
+    const seenSnapshot = new Set<string>();
+    for (const row of dataRows) {
+      const { nome, uid, login } = keyOf(row);
       if (!nome && !uid && !login) continue;
 
-      const clientUid =
-        (uid && byUid.get(norm(uid))) ||
-        (login && byLogin.get(norm(login))) ||
-        (nome && byName.get(norm(nome))) ||
-        null;
+      const clientUid = resolve({ nome, uid, login });
       if (!clientUid) {
         if (nome || uid || login) unmatched.push(nome || uid || login);
         continue;
       }
+
+      if (seenSnapshot.has(clientUid)) continue;
+      seenSnapshot.add(clientUid);
 
       const consumo = colConsumo >= 0 ? parsePct(row[colConsumo]) : null;
       rows.push({
@@ -164,7 +259,15 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
         signal: parseSignal(colSignal >= 0 ? row[colSignal] : null, consumo),
         consumo_pct: consumo,
         source: `planilha:${tab}`,
-        metadata: { tab, nome_planilha: nome || null },
+        metadata: {
+          tab,
+          nome_planilha: nome || null,
+          login_pda: login || null,
+          motivo: colMotivo >= 0 ? String(row[colMotivo] ?? "") || null : null,
+          responsavel: colResponsavel >= 0 ? String(row[colResponsavel] ?? "") || null : null,
+          saldo_atual: colSaldo >= 0 ? parseNum(row[colSaldo]) : null,
+          tipo: colTipo >= 0 ? String(row[colTipo] ?? "") || null : null,
+        },
       });
     }
 
@@ -174,12 +277,18 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
         .upsert(rows as never, { onConflict: "client_uid,week_start" });
       if (error) throw new Error(error.message);
 
-      for (const r of rows) {
-        await supabaseAdmin
-          .from("cs_clients")
-          .update({ current_signal: r.signal, pda_consumo_pct: r.consumo_pct })
-          .eq("client_uid", r.client_uid);
-        await recomputeHealth(supabaseAdmin, r.client_uid);
+      // Atualiza em lotes paralelos para não estourar o tempo da requisição.
+      const CONCURRENCY = 12;
+      for (let i = 0; i < rows.length; i += CONCURRENCY) {
+        await Promise.all(
+          rows.slice(i, i + CONCURRENCY).map(async (r) => {
+            await supabaseAdmin
+              .from("cs_clients")
+              .update({ current_signal: r.signal, pda_consumo_pct: r.consumo_pct })
+              .eq("client_uid", r.client_uid);
+            await recomputeHealth(supabaseAdmin, r.client_uid);
+          }),
+        );
       }
     }
 
@@ -187,7 +296,7 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
       provider: "cs_signal",
       action: "sheet_sync",
       status: "success",
-      detail: { tab, weekStart, matched: rows.length, unmatched: unmatched.slice(0, 50) } as never,
+      detail: { tab, weekStart, created, matched: rows.length, unmatched: unmatched.slice(0, 50) } as never,
     });
 
     return {
@@ -196,6 +305,7 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
       weekStart,
       rows: values.length - 1,
       matched: rows.length,
+      created,
       unmatched: Array.from(new Set(unmatched)).slice(0, 50),
     };
   } catch (e) {
