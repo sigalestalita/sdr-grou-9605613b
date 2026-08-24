@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const TALITA_EMAIL = "talita.sigales@grougp.com.br";
 
 const RoleSchema = z.enum(["super_admin", "gestao", "executivo", "sdr"]);
+const TeamSchema = z.enum(["comercial", "cs"]);
 
 async function getCallerRole(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -20,6 +21,7 @@ async function getCallerRole(userId: string) {
     roles,
   };
 }
+
 
 export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -40,8 +42,20 @@ export const listUsers = createServerFn({ method: "GET" })
       .select("user_id, role");
     if (rErr) throw new Error(rErr.message);
 
+    const { data: teams, error: tErr } = await supabaseAdmin
+      .from("user_teams")
+      .select("user_id, team");
+    if (tErr) throw new Error(tErr.message);
+
     const roleByUser = new Map<string, string>();
     for (const r of roles ?? []) roleByUser.set(r.user_id as string, r.role as string);
+
+    const teamsByUser = new Map<string, string[]>();
+    for (const t of teams ?? []) {
+      const list = teamsByUser.get(t.user_id as string) ?? [];
+      list.push(t.team as string);
+      teamsByUser.set(t.user_id as string, list);
+    }
 
     return {
       canEdit: caller.isSuperAdmin,
@@ -52,8 +66,10 @@ export const listUsers = createServerFn({ method: "GET" })
         full_name: (p.full_name as string) ?? "",
         created_at: p.created_at as string,
         role: roleByUser.get(p.id as string) ?? null,
+        teams: teamsByUser.get(p.id as string) ?? [],
       })),
     };
+
   });
 
 export const updateUserRole = createServerFn({ method: "POST" })
@@ -120,13 +136,47 @@ export const getMyRole = createServerFn({ method: "GET" })
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     const roles = (data ?? []).map((r) => r.role as string);
+
+    const { data: teamRows, error: tErr } = await supabaseAdmin
+      .from("user_teams")
+      .select("team")
+      .eq("user_id", context.userId);
+    if (tErr) throw new Error(tErr.message);
+
     return {
       roles,
       role: roles[0] ?? null,
       isSuperAdmin: roles.includes("super_admin"),
       isGestao: roles.includes("gestao"),
+      teams: (teamRows ?? []).map((t) => t.team as string),
     };
   });
+
+export const setUserTeams = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ userId: z.string().uuid(), teams: z.array(TeamSchema) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const caller = await getCallerRole(context.userId);
+    if (!caller.isSuperAdmin) throw new Error("Apenas super admin pode alterar times");
+
+    const { error: delErr } = await supabaseAdmin
+      .from("user_teams")
+      .delete()
+      .eq("user_id", data.userId);
+    if (delErr) throw new Error(delErr.message);
+
+    if (data.teams.length > 0) {
+      const { error: insErr } = await supabaseAdmin
+        .from("user_teams")
+        .insert(data.teams.map((team) => ({ user_id: data.userId, team })));
+      if (insErr) throw new Error(insErr.message);
+    }
+
+    return { ok: true };
+  });
+
 
 export const setUserPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

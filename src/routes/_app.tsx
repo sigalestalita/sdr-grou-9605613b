@@ -23,54 +23,59 @@ import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
+import { useCurrentRole } from "@/lib/use-role";
+import { TEAM_LABEL, teamForPath, type AppTeam } from "@/lib/teams";
+import { ShieldAlert } from "lucide-react";
+
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
 });
 
-const NAV_GROUPS: {
+type NavItem = {
+  to: string;
   label: string;
-  items: { to: string; label: string; icon: typeof KanbanIcon }[];
-}[] = [
+  icon: typeof KanbanIcon;
+  team?: AppTeam;
+  managerOnly?: boolean;
+};
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Principal",
+    label: "Comercial / SDR",
     items: [
-      { to: "/dashboard", label: "Visão geral", icon: BarChart3 },
-      { to: "/kanban", label: "Pipeline", icon: KanbanIcon },
-      { to: "/whatsapp", label: "Inbox", icon: MessageCircle },
+      { to: "/dashboard", label: "Visão geral", icon: BarChart3, team: "comercial" },
+      { to: "/kanban", label: "Pipeline", icon: KanbanIcon, team: "comercial" },
+      { to: "/whatsapp", label: "Inbox", icon: MessageCircle, team: "comercial" },
+      { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
+      { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
     ],
   },
   {
-    label: "Operação",
-    items: [
-      { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays },
-      { to: "/cadencia", label: "Cadência", icon: Activity },
-      { to: "/cs", label: "Customer Success", icon: HeartPulse },
-    ],
+    label: "Customer Success",
+    items: [{ to: "/cs", label: "Carteira CS", icon: HeartPulse, team: "cs" }],
   },
   {
     label: "Análise",
     items: [
-      { to: "/leads-analytics", label: "Performance", icon: LineChart },
-      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot },
+      { to: "/leads-analytics", label: "Performance", icon: LineChart, team: "comercial" },
+      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
     ],
   },
   {
     label: "Administração",
     items: [
-      { to: "/usuarios", label: "Usuários", icon: Users },
-      { to: "/configuracoes", label: "Configurações", icon: SettingsIcon },
+      { to: "/usuarios", label: "Usuários", icon: Users, managerOnly: true },
+      { to: "/configuracoes", label: "Configurações", icon: SettingsIcon, managerOnly: true },
       { to: "/novidades", label: "Novidades", icon: Sparkles },
     ],
   },
 ];
 
-const PALETTE_ROUTES = NAV_GROUPS.flatMap((g) =>
-  g.items.map((i) => ({ to: i.to, label: i.label, group: g.label })),
-);
 
 function AppShell() {
   const { user, loading } = useAuth();
+  const role = useCurrentRole();
   const navigate = useNavigate();
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
@@ -110,6 +115,25 @@ function AppShell() {
   const currentPath = router.state.location.pathname;
   const initials = (user.email ?? "?").slice(0, 2).toUpperCase();
 
+  const canSee = (item: NavItem) => {
+    if (item.managerOnly) return role.canAccessAll;
+    return role.canAccessTeam(item.team ?? null);
+  };
+
+  const visibleGroups = role.loading
+    ? []
+    : NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
+        (g) => g.items.length > 0,
+      );
+
+  const paletteRoutes = visibleGroups.flatMap((g) =>
+    g.items.map((i) => ({ to: i.to, label: i.label, group: g.label })),
+  );
+
+  const currentTeam = teamForPath(currentPath) as AppTeam | null;
+  const blocked = !role.loading && !role.canAccessTeam(currentTeam);
+
+
   return (
     <div className="min-h-screen flex bg-surface">
       <aside
@@ -143,7 +167,7 @@ function AppShell() {
         )}
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">
-          {NAV_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.label} className="mb-4 last:mb-0">
               {!collapsed && (
                 <p className="section-label px-2 pb-1.5">{group.label}</p>
@@ -221,11 +245,40 @@ function AppShell() {
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-auto">
-          <Outlet />
+          {blocked ? (
+            <div className="grid min-h-full place-items-center p-8">
+              <div className="max-w-md rounded-lg border border-border bg-background p-6 text-center">
+                <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
+                  <ShieldAlert className="h-5 w-5" strokeWidth={1.75} />
+                </span>
+                <h2 className="text-base font-semibold text-foreground">Módulo restrito</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Este módulo pertence ao time{" "}
+                  <strong className="text-foreground">
+                    {currentTeam ? TEAM_LABEL[currentTeam] : "restrito"}
+                  </strong>
+                  . Você não faz parte dele — peça a um super admin para incluir seu usuário em
+                  Configurações → Usuários.
+                </p>
+                <div className="mt-5 flex justify-center gap-2">
+                  {paletteRoutes[0] && (
+                    <Link
+                      to={paletteRoutes[0].to}
+                      className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                      Ir para {paletteRoutes[0].label}
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
 
-      <CommandPalette open={palette.open} onOpenChange={palette.setOpen} routes={PALETTE_ROUTES} />
+      <CommandPalette open={palette.open} onOpenChange={palette.setOpen} routes={paletteRoutes} />
     </div>
   );
 }

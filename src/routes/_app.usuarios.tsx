@@ -7,7 +7,9 @@ import {
   removeUser,
   setUserPassword,
   sendUserPasswordReset,
+  setUserTeams,
 } from "@/lib/users.functions";
+import { TEAMS, TEAM_DESCRIPTION, TEAM_LABEL, TEAM_TONE, type AppTeam } from "@/lib/teams";
 import { useCurrentRole } from "@/lib/use-role";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,6 +53,7 @@ function UsersPage() {
   const removeFn = useServerFn(removeUser);
   const setPasswordFn = useServerFn(setUserPassword);
   const sendResetFn = useServerFn(sendUserPasswordReset);
+  const setTeamsFn = useServerFn(setUserTeams);
   const qc = useQueryClient();
   const [pwdTarget, setPwdTarget] = useState<{ id: string; email: string } | null>(null);
   const [newPassword, setNewPassword] = useState("");
@@ -77,6 +80,16 @@ function UsersPage() {
     onSuccess: () => {
       toast.success("Usuário removido");
       qc.invalidateQueries({ queryKey: ["users-list"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const saveTeams = useMutation({
+    mutationFn: (v: { userId: string; teams: AppTeam[] }) => setTeamsFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Times atualizados");
+      qc.invalidateQueries({ queryKey: ["users-list"] });
+      qc.invalidateQueries({ queryKey: ["my-role"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
@@ -133,7 +146,19 @@ function UsersPage() {
       <Card className="p-5 space-y-2">
         <p className="text-xs text-muted-foreground">
           Apenas emails do domínio <strong>@grougp.com.br</strong> podem se cadastrar pela tela de login.
-          Cada novo usuário escolhe seu papel no momento do cadastro. Aqui você ajusta papéis e remove acessos.
+          Cada novo usuário escolhe seu papel no momento do cadastro. Aqui você ajusta papéis, times e remove acessos.
+        </p>
+        <div className="grid gap-2 pt-1 sm:grid-cols-2">
+          {TEAMS.map((t) => (
+            <div key={t} className={`rounded-md border px-3 py-2 ${TEAM_TONE[t]}`}>
+              <p className="text-xs font-semibold">{TEAM_LABEL[t]}</p>
+              <p className="text-[11px] opacity-80">{TEAM_DESCRIPTION[t]}</p>
+            </div>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Um usuário pode estar em mais de um time. <strong>Super Admin</strong> e{" "}
+          <strong>Gestão</strong> acessam todos os módulos automaticamente.
         </p>
       </Card>
 
@@ -147,6 +172,7 @@ function UsersPage() {
                 <th className="text-left p-3">Nome</th>
                 <th className="text-left p-3">Email</th>
                 <th className="text-left p-3">Papel</th>
+                <th className="text-left p-3">Times / módulos</th>
                 <th className="text-left p-3">Cadastrado em</th>
                 <th className="text-right p-3">Ações</th>
               </tr>
@@ -185,6 +211,41 @@ function UsersPage() {
                         <Badge className="ml-2" variant="secondary">
                           {ROLE_LABEL[u.role ?? "super_admin"]}
                         </Badge>
+                      )}
+                    </td>
+                    <td className="p-3">
+                      {u.role === "super_admin" || u.role === "gestao" ? (
+                        <Badge variant="secondary">Acesso total</Badge>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {TEAMS.map((t) => {
+                            const active = (u.teams ?? []).includes(t);
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                disabled={!data.canEdit || saveTeams.isPending}
+                                title={TEAM_DESCRIPTION[t]}
+                                onClick={() => {
+                                  const next = active
+                                    ? (u.teams as AppTeam[]).filter((x) => x !== t)
+                                    : ([...(u.teams as AppTeam[]), t] as AppTeam[]);
+                                  saveTeams.mutate({ userId: u.id, teams: next });
+                                }}
+                                className={`rounded-full border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:opacity-50 ${
+                                  active
+                                    ? TEAM_TONE[t]
+                                    : "border-border text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                {TEAM_LABEL[t]}
+                              </button>
+                            );
+                          })}
+                          {(u.teams ?? []).length === 0 && (
+                            <span className="text-[11px] text-amber-500">sem módulo</span>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td className="p-3 text-muted-foreground">

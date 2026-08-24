@@ -939,6 +939,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_teams: {
+        Row: {
+          created_at: string
+          id: string
+          team: Database["public"]["Enums"]["app_team"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          team: Database["public"]["Enums"]["app_team"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          team?: Database["public"]["Enums"]["app_team"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       weekly_digests: {
         Row: {
           content_html: string
@@ -1687,6 +1708,13 @@ export type Database = {
     }
     Functions: {
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
+      can_access_module: {
+        Args: {
+          _team: Database["public"]["Enums"]["app_team"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
       cs_gen_client_uid: { Args: never; Returns: string }
       has_role: {
@@ -1696,11 +1724,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_team: {
+        Args: {
+          _team: Database["public"]["Enums"]["app_team"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr"
+      app_team: "comercial" | "cs"
       cs_client_type: "empresa" | "consultoria"
       cs_contact_origin: "manual" | "email_bcc" | "pda_api" | "linkedin"
       cs_journey_stage: "onboarding" | "ativacao" | "renovacao"
@@ -1836,6 +1872,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "gestao", "executivo", "sdr"],
+      app_team: ["comercial", "cs"],
       cs_client_type: ["empresa", "consultoria"],
       cs_contact_origin: ["manual", "email_bcc", "pda_api", "linkedin"],
       cs_journey_stage: ["onboarding", "ativacao", "renovacao"],
