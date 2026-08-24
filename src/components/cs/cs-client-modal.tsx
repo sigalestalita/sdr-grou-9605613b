@@ -197,7 +197,7 @@ export function CsClientModal({
                   <Info label="Início contrato" value={fmtDate(client.data_inicio_contrato)} />
                   <Info label="Renovação" value={fmtDate(client.data_renovacao)} />
                   <Info label="Último contato" value={fmtDate(client.last_contact_at)} />
-                  <Info label="Agendas 90d" value={String(client.agenda_count_90d ?? 0)} />
+                  <Info label="Tipo" value={client.tipo_lead === "consultoria" ? "Consultoria" : "Empresa"} />
                   <Info label="Login PDA" value={client.login_pda || "—"} />
                   <Info label="DG ativo" value={client.dg_ativo ? "Sim" : "Não"} />
                   <Info label="Consultoria-mãe" value={client.parent_client_uid || "—"} />
