@@ -79,6 +79,7 @@ function CsPage() {
   const [fSignal, setFSignal] = useState("");
   const [fExec, setFExec] = useState("");
   const [fTag, setFTag] = useState("");
+  const [fStage, setFStage] = useState("");
   const [funnel, setFunnel] = useState<"empresa" | "consultoria">("empresa");
 
   const { user } = useAuth();
