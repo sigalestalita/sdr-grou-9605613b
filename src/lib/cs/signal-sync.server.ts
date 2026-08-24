@@ -106,12 +106,18 @@ type SyncResult = {
   weekStart?: string;
   rows?: number;
   matched?: number;
+  created?: number;
   unmatched?: string[];
   error?: string;
 };
 
 /** Lê a aba mais recente da planilha da sinaleira e grava o snapshot da semana. */
-export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: string }): Promise<SyncResult> {
+export async function syncSignalFromSheet(opts?: {
+  tab?: string;
+  weekStart?: string;
+  /** Cria no CS os clientes da planilha que ainda não existem (padrão: sim). */
+  createMissing?: boolean;
+}): Promise<SyncResult> {
   try {
     const tabs = await listSheetTabs();
     const tab = opts?.tab ?? pickLatestTab(tabs);
@@ -222,21 +228,19 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
     }> = [];
     const unmatched: string[] = [];
 
-    for (const row of values.slice(1)) {
-      const nome = colEmpresa >= 0 ? String(row[colEmpresa] ?? "").trim() : "";
-      const uid = colUid >= 0 ? String(row[colUid] ?? "").trim() : "";
-      const login = colLogin >= 0 ? String(row[colLogin] ?? "").trim() : "";
+    const seenSnapshot = new Set<string>();
+    for (const row of dataRows) {
+      const { nome, uid, login } = keyOf(row);
       if (!nome && !uid && !login) continue;
 
-      const clientUid =
-        (uid && byUid.get(norm(uid))) ||
-        (login && byLogin.get(norm(login))) ||
-        (nome && byName.get(norm(nome))) ||
-        null;
+      const clientUid = resolve({ nome, uid, login });
       if (!clientUid) {
         if (nome || uid || login) unmatched.push(nome || uid || login);
         continue;
       }
+
+      if (seenSnapshot.has(clientUid)) continue;
+      seenSnapshot.add(clientUid);
 
       const consumo = colConsumo >= 0 ? parsePct(row[colConsumo]) : null;
       rows.push({
@@ -276,7 +280,7 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
       provider: "cs_signal",
       action: "sheet_sync",
       status: "success",
-      detail: { tab, weekStart, matched: rows.length, unmatched: unmatched.slice(0, 50) } as never,
+      detail: { tab, weekStart, created, matched: rows.length, unmatched: unmatched.slice(0, 50) } as never,
     });
 
     return {
@@ -285,6 +289,7 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
       weekStart,
       rows: values.length - 1,
       matched: rows.length,
+      created,
       unmatched: Array.from(new Set(unmatched)).slice(0, 50),
     };
   } catch (e) {
