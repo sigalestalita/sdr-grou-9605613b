@@ -100,13 +100,13 @@ export function CsClientModal({
     "Registro salvo",
   );
   const saveContact = mut(
-    (v: Parameters<typeof saveCsContact>[0] extends never ? never : Record<string, unknown>) =>
-      contactFn({ data: { ...(v as never), client_uid: clientUid } }),
+    (v: Record<string, unknown>) =>
+      contactFn({ data: { ...v, client_uid: clientUid } as never }),
     "Contato salvo",
   );
   const delContact = mut((id: string) => delContactFn({ data: { id } }), "Contato removido");
   const saveClient = mut(
-    (v: Record<string, unknown>) => clientFn({ data: { ...(v as never), clientUid } }),
+    (v: Record<string, unknown>) => clientFn({ data: { ...v, clientUid } as never }),
     "Cliente atualizado",
   );
 
