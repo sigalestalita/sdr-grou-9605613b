@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/use-auth";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Bell, BellOff, Volume2, VolumeX } from "lucide-react";
-import { getInboxPulse } from "@/lib/inbox-alerts.functions";
+import { getInboxNotificationPulse } from "@/lib/inbox-alerts.functions";
 
 const SOUND_KEY = "inbox:sound";
 const DESKTOP_KEY = "inbox:desktop";
@@ -41,7 +41,7 @@ function playBeep() {
 }
 
 export function InboxNotifier() {
-  const fn = useServerFn(getInboxPulse);
+  const fn = useServerFn(getInboxNotificationPulse);
   const navigate = useNavigate();
   const [sound, setSound] = useState(true);
   const [desktop, setDesktop] = useState(false);
@@ -57,9 +57,17 @@ export function InboxNotifier() {
 
   const { user } = useAuth();
   const { data } = useQuery({
-    queryKey: ["inbox-pulse", user?.id],
-    queryFn: () => fn(),
+    queryKey: ["inbox-notification-pulse-v2", user?.id],
+    queryFn: async () => {
+      try {
+        return await fn();
+      } catch (error) {
+        console.warn("Não foi possível atualizar as notificações do inbox", error);
+        return { conversations: [], totalUnread: 0, mineUnread: 0 };
+      }
+    },
     enabled: !!user,
+    retry: false,
     refetchInterval: 12000,
     refetchIntervalInBackground: true,
   });
@@ -95,7 +103,9 @@ export function InboxNotifier() {
       seen.current = current; // primeira carga: só sincroniza, não alerta
       return;
     }
-    const fresh = conversations.filter((c) => seen.current!.get(c.id) !== current.get(c.id));
+    const previouslySeen = seen.current;
+    if (!previouslySeen) return;
+    const fresh = conversations.filter((c) => previouslySeen.get(c.id) !== current.get(c.id));
     seen.current = current;
     if (fresh.length === 0) return;
 
