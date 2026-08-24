@@ -40,6 +40,7 @@ import { Route as ApiPublicRdCallbackRouteImport } from './routes/api/public/rd/
 import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
+import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
 import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
 import { Route as ApiPublicWhatsappWebhookAccountIdRouteImport } from './routes/api/public/whatsapp/webhook.$accountId'
 import { Route as ApiPublicWhatsappAutomationsTickRouteImport } from './routes/api/public/whatsapp/automations.tick'
@@ -200,6 +201,11 @@ const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
   path: '/api/public/hooks/run-fups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCsEmailInboundRoute = ApiPublicCsEmailInboundRouteImport.update({
+  id: '/api/public/cs/email-inbound',
+  path: '/api/public/cs/email-inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppWhatsappCampanhasIdRoute = AppWhatsappCampanhasIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -246,6 +252,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp/templates': typeof AppWhatsappTemplatesRoute
   '/whatsapp/': typeof AppWhatsappIndexRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -280,6 +287,7 @@ export interface FileRoutesByTo {
   '/whatsapp/templates': typeof AppWhatsappTemplatesRoute
   '/whatsapp': typeof AppWhatsappIndexRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -317,6 +325,7 @@ export interface FileRoutesById {
   '/_app/whatsapp/templates': typeof AppWhatsappTemplatesRoute
   '/_app/whatsapp/': typeof AppWhatsappIndexRoute
   '/_app/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -354,6 +363,7 @@ export interface FileRouteTypes {
     | '/whatsapp/templates'
     | '/whatsapp/'
     | '/whatsapp/campanhas/$id'
+    | '/api/public/cs/email-inbound'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
@@ -388,6 +398,7 @@ export interface FileRouteTypes {
     | '/whatsapp/templates'
     | '/whatsapp'
     | '/whatsapp/campanhas/$id'
+    | '/api/public/cs/email-inbound'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
@@ -424,6 +435,7 @@ export interface FileRouteTypes {
     | '/_app/whatsapp/templates'
     | '/_app/whatsapp/'
     | '/_app/whatsapp/campanhas/$id'
+    | '/api/public/cs/email-inbound'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
@@ -438,6 +450,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
   ApiPublicHooksSyncRdRoute: typeof ApiPublicHooksSyncRdRoute
@@ -665,6 +678,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRunFupsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cs/email-inbound': {
+      id: '/api/public/cs/email-inbound'
+      path: '/api/public/cs/email-inbound'
+      fullPath: '/api/public/cs/email-inbound'
+      preLoaderRoute: typeof ApiPublicCsEmailInboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/whatsapp/campanhas/$id': {
       id: '/_app/whatsapp/campanhas/$id'
       path: '/$id'
@@ -777,6 +797,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
   ApiPublicHooksSyncRdRoute: ApiPublicHooksSyncRdRoute,
