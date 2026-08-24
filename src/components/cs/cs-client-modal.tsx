@@ -187,7 +187,7 @@ export function CsClientModal({
                   </p>
                   <SignalStrip history={history} weeks={data?.weeks ?? []} size="lg" />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Tendência: {trend === "queda" ? "queda de engajamento" : trend === "melhora" ? "melhora" : trend === "critico" ? "crítica" : "estável"}
+                    Tendência: {TREND_LABEL[trend.kind]}
                     {client.pda_consumo_pct != null && ` · consumo ${Math.round((client.pda_consumo_pct ?? 0) * 100)}%`}
                   </p>
                 </div>
