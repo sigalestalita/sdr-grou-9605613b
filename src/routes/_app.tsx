@@ -18,6 +18,9 @@ import {
   Search,
   Users,
   HeartPulse,
+  Mail,
+  Link2,
+
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
