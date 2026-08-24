@@ -39,6 +39,7 @@ import {
 } from "@/lib/cs-types";
 import { SignalStrip } from "./signal-strip";
 import { CsMeetingsTab } from "./cs-meetings-tab";
+import { CsSalesTab } from "./cs-sales-tab";
 import { Plus, Trash2, X, Building2, Users, Tag as TagIcon, History, StickyNote, PhoneCall } from "lucide-react";
 
 
