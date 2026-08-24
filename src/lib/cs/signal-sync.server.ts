@@ -156,9 +156,19 @@ export async function syncSignalFromSheet(opts?: {
     }
 
     const loadClients = async () => {
-      const { data } = await supabaseAdmin
-        .from("cs_clients")
-        .select("client_uid, nome_empresa, login_pda");
+      // Paginação obrigatória: o Data API limita a 1000 linhas por consulta.
+      const data: Array<{ client_uid: string; nome_empresa: string; login_pda: string | null }> = [];
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data: page, error } = await supabaseAdmin
+          .from("cs_clients")
+          .select("client_uid, nome_empresa, login_pda")
+          .order("client_uid")
+          .range(from, from + PAGE - 1);
+        if (error) throw new Error(error.message);
+        data.push(...((page ?? []) as typeof data));
+        if (!page || page.length < PAGE) break;
+      }
       const byName = new Map<string, string>();
       const byUid = new Map<string, string>();
       const byLogin = new Map<string, string>();
