@@ -1,0 +1,279 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  connectCsCalendly,
+  disconnectCsCalendly,
+  listCsIntegrations,
+  rotateCsInboundToken,
+  saveCsMailbox,
+  syncCsCalendly,
+} from "@/lib/cs-integrations.functions";
+import { CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
+
+export const Route = createFileRoute("/_app/cs-integracoes")({
+  component: CsIntegrationsPage,
+  head: () => ({
+    meta: [
+      { title: "Integrações CS | Lidi CRM" },
+      {
+        name: "description",
+        content:
+          "Vincule a agenda do Calendly e a caixa de e-mail de cada pessoa do time de Customer Success.",
+      },
+      { property: "og:title", content: "Integrações CS | Lidi CRM" },
+      {
+        property: "og:description",
+        content: "Conexão de agenda Calendly e caixa de e-mail do time de Customer Success.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
+});
+
+function CsIntegrationsPage() {
+  const listFn = useServerFn(listCsIntegrations);
+  const connectFn = useServerFn(connectCsCalendly);
+  const disconnectFn = useServerFn(disconnectCsCalendly);
+  const mailboxFn = useServerFn(saveCsMailbox);
+  const syncFn = useServerFn(syncCsCalendly);
+  const rotateFn = useServerFn(rotateCsInboundToken);
+  const qc = useQueryClient();
+
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["cs-integrations"],
+    queryFn: () => listFn(),
+  });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["cs-integrations"] });
+
+  const [token, setToken] = useState("");
+  const [mailbox, setMailbox] = useState("");
+
+  const connect = useMutation({
+    mutationFn: () => connectFn({ data: { token } }),
+    onSuccess: (r) => {
+      toast.success(`Calendly conectado (${r.name ?? r.email}) — ${r.events} evento(s)`);
+      setToken("");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const disconnect = useMutation({
+    mutationFn: () => disconnectFn({}),
+    onSuccess: () => {
+      toast.success("Calendly desconectado");
+      invalidate();
+    },
+  });
+
+  const saveMailbox = useMutation({
+    mutationFn: () => mailboxFn({ data: { mailbox } }),
+    onSuccess: () => {
+      toast.success("Caixa de e-mail vinculada");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const sync = useMutation({
+    mutationFn: (all: boolean) => syncFn({ data: { all } }),
+    onSuccess: (r) => {
+      toast.success(`${r.events} evento(s) sincronizado(s) de ${r.users} agenda(s)`);
+      if (r.failures.length) toast.error(r.failures[0]);
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const rotate = useMutation({
+    mutationFn: () => rotateFn({}),
+    onSuccess: () => {
+      toast.success("Novo endereço de recebimento gerado");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <p className="text-sm text-muted-foreground">
+          {error instanceof Error ? error.message : "Erro ao carregar integrações"}
+        </p>
+      </div>
+    );
+  }
+
+  const mine = data?.mine;
+  const inboundUrl =
+    typeof window !== "undefined" && data?.inboundToken
+      ? `${window.location.origin}/api/public/cs/email-inbound?token=${data.inboundToken}`
+      : "";
+
+  return (
+    <div className="space-y-5 p-6">
+      <div>
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <Link2 className="h-5 w-5" /> Integrações do Customer Success
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Cada pessoa vincula a própria agenda do Calendly e a caixa de e-mail do atendimento. O
+          gestor enxerga a agenda e os e-mails de todo o time.
+        </p>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Minha agenda (Calendly)</h2>
+            {mine?.calendlyConnected && <Badge variant="secondary">Conectado</Badge>}
+          </div>
+          {mine?.calendlyConnected ? (
+            <div className="space-y-2 text-sm">
+              <p className="text-muted-foreground">
+                {mine.calendlyName} · {mine.calendlyEmail}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Última sincronização:{" "}
+                {mine.calendlyLastSyncAt
+                  ? new Date(mine.calendlyLastSyncAt).toLocaleString("pt-BR")
+                  : "nunca"}
+              </p>
+              {mine.calendlyLastError && (
+                <p className="text-xs text-destructive">{mine.calendlyLastError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate(false)}>
+                  <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
+                  Sincronizar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => disconnect.mutate()}>
+                  <Unlink className="mr-1 h-4 w-4" /> Desconectar
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Gere um token pessoal em calendly.com → Integrations → API &amp; Webhooks →
+                Personal access token e cole abaixo.
+              </p>
+              <Input
+                placeholder="eyJraWQiOi..."
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+              />
+              <Button
+                size="sm"
+                disabled={token.trim().length < 10 || connect.isPending}
+                onClick={() => connect.mutate()}
+              >
+                {connect.isPending ? "Conectando…" : "Conectar Calendly"}
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        <Card className="space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <Mail className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Minha caixa de e-mail</h2>
+            {mine?.mailbox && <Badge variant="secondary">Vinculada</Badge>}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Informe o endereço usado no atendimento. Os e-mails redirecionados para o endereço de
+            recebimento abaixo são atribuídos automaticamente a você e ao cliente correspondente.
+          </p>
+          <Input
+            placeholder={mine?.mailbox ?? "nome.sobrenome@grougp.com.br"}
+            value={mailbox}
+            onChange={(e) => setMailbox(e.target.value)}
+          />
+          <Button size="sm" disabled={!mailbox.trim() || saveMailbox.isPending} onClick={() => saveMailbox.mutate()}>
+            Salvar caixa
+          </Button>
+        </Card>
+      </div>
+
+      {data?.isManager && (
+        <>
+          <Card className="space-y-3 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Endereço de recebimento (redirecionamento)</h2>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => rotate.mutate()}>
+                  Gerar novo
+                </Button>
+                <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate(true)}>
+                  <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
+                  Sincronizar todas as agendas
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Configure no Gmail/Outlook (ou no Zapier/Make) o encaminhamento das caixas do time
+              para este endpoint. Cada mensagem encaminhada entra em “E-mails CS”.
+            </p>
+            <div className="flex items-center gap-2">
+              <code className="min-w-0 flex-1 truncate rounded-md border bg-muted/40 px-2 py-1.5 text-[11px]">
+                {inboundUrl || "—"}
+              </code>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  navigator.clipboard.writeText(inboundUrl);
+                  toast.success("Endereço copiado");
+                }}
+              >
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          </Card>
+
+          <Card className="p-0">
+            <div className="border-b px-4 py-3">
+              <h2 className="text-sm font-semibold">Status do time</h2>
+            </div>
+            {isLoading ? (
+              <p className="p-4 text-sm text-muted-foreground">Carregando…</p>
+            ) : (
+              <div className="divide-y">
+                {(data?.users ?? []).map((u) => (
+                  <div key={u.userId} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
+                    <span className="min-w-40 flex-1 truncate">{u.name}</span>
+                    <Badge variant={u.calendlyConnected ? "secondary" : "outline"}>
+                      {u.calendlyConnected ? "Calendly OK" : "Sem agenda"}
+                    </Badge>
+                    <Badge variant={u.mailbox ? "secondary" : "outline"}>
+                      {u.mailbox ?? "Sem e-mail"}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {u.calendlyLastSyncAt
+                        ? new Date(u.calendlyLastSyncAt).toLocaleString("pt-BR")
+                        : "—"}
+                    </span>
+                  </div>
+                ))}
+                {(data?.users ?? []).length === 0 && (
+                  <p className="p-4 text-sm text-muted-foreground">
+                    Ninguém vinculou agenda ou e-mail ainda.
+                  </p>
+                )}
+              </div>
+            )}
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}

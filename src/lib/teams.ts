@@ -17,18 +17,25 @@ export const TEAM_TONE: Record<AppTeam, string> = {
   cs: "border-emerald-500/40 bg-emerald-500/10 text-emerald-500",
 };
 
-/** Prefixos de rota que pertencem a cada time. Rotas não listadas são livres. */
+/**
+ * Prefixos de rota que pertencem a cada time. Rotas não listadas são livres.
+ * O inbox/disparos de WhatsApp é compartilhado entre Comercial e CS — a
+ * visibilidade real é feita por conta (whatsapp_accounts.visible_to_user_ids).
+ */
 const ROUTE_TEAMS: { prefix: string; team: AppTeam }[] = [
   { prefix: "/cs", team: "cs" },
+  { prefix: "/cs-agenda", team: "cs" },
+  { prefix: "/cs-emails", team: "cs" },
+  { prefix: "/cs-integracoes", team: "cs" },
   { prefix: "/dashboard", team: "comercial" },
   { prefix: "/kanban", team: "comercial" },
   { prefix: "/lead", team: "comercial" },
-  { prefix: "/whatsapp", team: "comercial" },
   { prefix: "/agenda", team: "comercial" },
   { prefix: "/cadencia", team: "comercial" },
   { prefix: "/leads-analytics", team: "comercial" },
   { prefix: "/analytics-chat", team: "comercial" },
 ];
+
 
 export function teamForPath(pathname: string): AppTeam | null {
   const match = ROUTE_TEAMS.find(

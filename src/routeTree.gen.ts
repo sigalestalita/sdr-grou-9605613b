@@ -20,6 +20,9 @@ import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integracoes'
+import { Route as AppCsEmailsRouteImport } from './routes/_app.cs-emails'
+import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
 import { Route as AppCsRouteImport } from './routes/_app.cs'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
@@ -40,6 +43,7 @@ import { Route as ApiPublicRdCallbackRouteImport } from './routes/api/public/rd/
 import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
+import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
 import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
 import { Route as ApiPublicWhatsappWebhookAccountIdRouteImport } from './routes/api/public/whatsapp/webhook.$accountId'
 import { Route as ApiPublicWhatsappAutomationsTickRouteImport } from './routes/api/public/whatsapp/automations.tick'
@@ -96,6 +100,21 @@ const AppKanbanRoute = AppKanbanRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsIntegracoesRoute = AppCsIntegracoesRouteImport.update({
+  id: '/cs-integracoes',
+  path: '/cs-integracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsEmailsRoute = AppCsEmailsRouteImport.update({
+  id: '/cs-emails',
+  path: '/cs-emails',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsAgendaRoute = AppCsAgendaRouteImport.update({
+  id: '/cs-agenda',
+  path: '/cs-agenda',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCsRoute = AppCsRouteImport.update({
@@ -200,6 +219,11 @@ const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
   path: '/api/public/hooks/run-fups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicCsEmailInboundRoute = ApiPublicCsEmailInboundRouteImport.update({
+  id: '/api/public/cs/email-inbound',
+  path: '/api/public/cs/email-inbound',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppWhatsappCampanhasIdRoute = AppWhatsappCampanhasIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -228,6 +252,9 @@ export interface FileRoutesByFullPath {
   '/cadencia': typeof AppCadenciaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
+  '/cs-agenda': typeof AppCsAgendaRoute
+  '/cs-emails': typeof AppCsEmailsRoute
+  '/cs-integracoes': typeof AppCsIntegracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -246,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp/templates': typeof AppWhatsappTemplatesRoute
   '/whatsapp/': typeof AppWhatsappIndexRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -263,6 +291,9 @@ export interface FileRoutesByTo {
   '/cadencia': typeof AppCadenciaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
+  '/cs-agenda': typeof AppCsAgendaRoute
+  '/cs-emails': typeof AppCsEmailsRoute
+  '/cs-integracoes': typeof AppCsIntegracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -280,6 +311,7 @@ export interface FileRoutesByTo {
   '/whatsapp/templates': typeof AppWhatsappTemplatesRoute
   '/whatsapp': typeof AppWhatsappIndexRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -299,6 +331,9 @@ export interface FileRoutesById {
   '/_app/cadencia': typeof AppCadenciaRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/cs': typeof AppCsRoute
+  '/_app/cs-agenda': typeof AppCsAgendaRoute
+  '/_app/cs-emails': typeof AppCsEmailsRoute
+  '/_app/cs-integracoes': typeof AppCsIntegracoesRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/kanban': typeof AppKanbanRoute
   '/_app/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -317,6 +352,7 @@ export interface FileRoutesById {
   '/_app/whatsapp/templates': typeof AppWhatsappTemplatesRoute
   '/_app/whatsapp/': typeof AppWhatsappIndexRoute
   '/_app/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -336,6 +372,9 @@ export interface FileRouteTypes {
     | '/cadencia'
     | '/configuracoes'
     | '/cs'
+    | '/cs-agenda'
+    | '/cs-emails'
+    | '/cs-integracoes'
     | '/dashboard'
     | '/kanban'
     | '/leads-analytics'
@@ -354,6 +393,7 @@ export interface FileRouteTypes {
     | '/whatsapp/templates'
     | '/whatsapp/'
     | '/whatsapp/campanhas/$id'
+    | '/api/public/cs/email-inbound'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
@@ -371,6 +411,9 @@ export interface FileRouteTypes {
     | '/cadencia'
     | '/configuracoes'
     | '/cs'
+    | '/cs-agenda'
+    | '/cs-emails'
+    | '/cs-integracoes'
     | '/dashboard'
     | '/kanban'
     | '/leads-analytics'
@@ -388,6 +431,7 @@ export interface FileRouteTypes {
     | '/whatsapp/templates'
     | '/whatsapp'
     | '/whatsapp/campanhas/$id'
+    | '/api/public/cs/email-inbound'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
@@ -406,6 +450,9 @@ export interface FileRouteTypes {
     | '/_app/cadencia'
     | '/_app/configuracoes'
     | '/_app/cs'
+    | '/_app/cs-agenda'
+    | '/_app/cs-emails'
+    | '/_app/cs-integracoes'
     | '/_app/dashboard'
     | '/_app/kanban'
     | '/_app/leads-analytics'
@@ -424,6 +471,7 @@ export interface FileRouteTypes {
     | '/_app/whatsapp/templates'
     | '/_app/whatsapp/'
     | '/_app/whatsapp/campanhas/$id'
+    | '/api/public/cs/email-inbound'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
@@ -438,6 +486,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
   ApiPublicHooksSyncRdRoute: typeof ApiPublicHooksSyncRdRoute
@@ -523,6 +572,27 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-integracoes': {
+      id: '/_app/cs-integracoes'
+      path: '/cs-integracoes'
+      fullPath: '/cs-integracoes'
+      preLoaderRoute: typeof AppCsIntegracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-emails': {
+      id: '/_app/cs-emails'
+      path: '/cs-emails'
+      fullPath: '/cs-emails'
+      preLoaderRoute: typeof AppCsEmailsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-agenda': {
+      id: '/_app/cs-agenda'
+      path: '/cs-agenda'
+      fullPath: '/cs-agenda'
+      preLoaderRoute: typeof AppCsAgendaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cs': {
@@ -665,6 +735,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRunFupsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/cs/email-inbound': {
+      id: '/api/public/cs/email-inbound'
+      path: '/api/public/cs/email-inbound'
+      fullPath: '/api/public/cs/email-inbound'
+      preLoaderRoute: typeof ApiPublicCsEmailInboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/whatsapp/campanhas/$id': {
       id: '/_app/whatsapp/campanhas/$id'
       path: '/$id'
@@ -745,6 +822,9 @@ interface AppRouteChildren {
   AppCadenciaRoute: typeof AppCadenciaRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppCsRoute: typeof AppCsRoute
+  AppCsAgendaRoute: typeof AppCsAgendaRoute
+  AppCsEmailsRoute: typeof AppCsEmailsRoute
+  AppCsIntegracoesRoute: typeof AppCsIntegracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppKanbanRoute: typeof AppKanbanRoute
   AppLeadsAnalyticsRoute: typeof AppLeadsAnalyticsRoute
@@ -760,6 +840,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppCadenciaRoute: AppCadenciaRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppCsRoute: AppCsRoute,
+  AppCsAgendaRoute: AppCsAgendaRoute,
+  AppCsEmailsRoute: AppCsEmailsRoute,
+  AppCsIntegracoesRoute: AppCsIntegracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppKanbanRoute: AppKanbanRoute,
   AppLeadsAnalyticsRoute: AppLeadsAnalyticsRoute,
@@ -777,6 +860,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
   ApiPublicHooksSyncRdRoute: ApiPublicHooksSyncRdRoute,
