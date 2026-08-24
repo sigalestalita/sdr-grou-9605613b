@@ -44,6 +44,7 @@ const NAV_GROUPS: {
     items: [
       { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays },
       { to: "/cadencia", label: "Cadência", icon: Activity },
+      { to: "/cs", label: "Customer Success", icon: HeartPulse },
     ],
   },
   {
