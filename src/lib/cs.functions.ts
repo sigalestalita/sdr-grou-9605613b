@@ -116,7 +116,9 @@ export const getCsClient = createServerFn({ method: "GET" })
     const [emailsRes, agendaRes] = await Promise.all([
       supabase
         .from("cs_emails")
-        .select("id, direction, from_email, from_name, to_emails, subject, snippet, received_at, owner_user_id")
+        .select(
+          "id, direction, from_email, from_name, to_emails, cc_emails, subject, snippet, body_text, received_at, owner_user_id",
+        )
         .eq("client_uid", data.clientUid)
         .order("received_at", { ascending: false })
         .limit(200),
@@ -136,25 +138,42 @@ export const getCsClient = createServerFn({ method: "GET" })
       message_type: string;
       created_at: string;
       lead_id: string;
+      phone?: string | null;
+      contact_name?: string | null;
     }[] = [];
     if (phones.length > 0) {
       const { data: waContacts } = await supabase
         .from("whatsapp_contacts")
-        .select("lead_id, phone")
+        .select("lead_id, phone, name")
         .in("phone", phones);
-      const leadIds = Array.from(
-        new Set((waContacts ?? []).map((c) => c.lead_id).filter((v): v is string => !!v)),
-      );
+      const byLead = new Map<string, { phone: string; name: string | null }>();
+      for (const c of waContacts ?? []) {
+        if (c.lead_id) byLead.set(c.lead_id, { phone: c.phone, name: c.name ?? null });
+      }
+      const leadIds = Array.from(byLead.keys());
       if (leadIds.length > 0) {
         const { data: msgs } = await supabase
           .from("whatsapp_messages")
           .select("id, body, sender_type, sender_user_id, message_type, created_at, lead_id")
           .in("lead_id", leadIds)
           .order("created_at", { ascending: false })
-          .limit(200);
-        waMessages = msgs ?? [];
+          .limit(300);
+        const nameByPhone = new Map(
+          (contacts.data ?? [])
+            .filter((c) => digits(c.whatsapp).length >= 8)
+            .map((c) => [digits(c.whatsapp), c.nome] as const),
+        );
+        waMessages = (msgs ?? []).map((m) => {
+          const info = byLead.get(m.lead_id);
+          return {
+            ...m,
+            phone: info?.phone ?? null,
+            contact_name: (info?.phone ? nameByPhone.get(info.phone) : null) ?? info?.name ?? null,
+          };
+        });
       }
     }
+
 
     return {
       client: client.data,
