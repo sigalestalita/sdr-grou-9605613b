@@ -267,12 +267,18 @@ export async function syncSignalFromSheet(opts?: {
         .upsert(rows as never, { onConflict: "client_uid,week_start" });
       if (error) throw new Error(error.message);
 
-      for (const r of rows) {
-        await supabaseAdmin
-          .from("cs_clients")
-          .update({ current_signal: r.signal, pda_consumo_pct: r.consumo_pct })
-          .eq("client_uid", r.client_uid);
-        await recomputeHealth(supabaseAdmin, r.client_uid);
+      // Atualiza em lotes paralelos para não estourar o tempo da requisição.
+      const CONCURRENCY = 12;
+      for (let i = 0; i < rows.length; i += CONCURRENCY) {
+        await Promise.all(
+          rows.slice(i, i + CONCURRENCY).map(async (r) => {
+            await supabaseAdmin
+              .from("cs_clients")
+              .update({ current_signal: r.signal, pda_consumo_pct: r.consumo_pct })
+              .eq("client_uid", r.client_uid);
+            await recomputeHealth(supabaseAdmin, r.client_uid);
+          }),
+        );
       }
     }
 
