@@ -100,7 +100,9 @@ export function CsClientCard({
 
       <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
         <span className={health.cls}>Health {c.health_score ?? 0}</span>
-        <span>· {CS_ORIGIN_LABEL[c.origem] ?? c.origem}</span>
+        {c.origem && c.origem !== "marketing" && (
+          <span>· {CS_ORIGIN_LABEL[c.origem] ?? c.origem}</span>
+        )}
         <span>· {daysInStage}d na etapa</span>
         {c.tipo_lead === "consultoria" && (
           <Badge variant="outline" className="text-[10px]">Consultoria</Badge>
