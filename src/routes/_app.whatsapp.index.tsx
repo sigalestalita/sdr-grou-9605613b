@@ -139,7 +139,7 @@ function WhatsappInbox() {
             <Select value={assigned} onValueChange={(v) => setAssigned(v as typeof assigned)}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos {ownerLabel}s</SelectItem>
+                <SelectItem value="all">Todos {roleLabel}s</SelectItem>
                 <SelectItem value="me">Minhas</SelectItem>
                 <SelectItem value="unassigned">Sem atribuição</SelectItem>
               </SelectContent>
