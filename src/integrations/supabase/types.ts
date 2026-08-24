@@ -467,6 +467,124 @@ export type Database = {
           },
         ]
       }
+      cs_meeting_categories: {
+        Row: {
+          ativo: boolean
+          color: string
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cs_meetings: {
+        Row: {
+          attendees: string | null
+          calendly_event_id: string | null
+          category_id: string | null
+          client_uid: string
+          created_at: string
+          created_by: string | null
+          duration_minutes: number | null
+          id: string
+          meeting_url: string | null
+          next_step: string | null
+          next_step_at: string | null
+          occurred_at: string
+          owner_user_id: string | null
+          source: string
+          status: string
+          summary: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          attendees?: string | null
+          calendly_event_id?: string | null
+          category_id?: string | null
+          client_uid: string
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_url?: string | null
+          next_step?: string | null
+          next_step_at?: string | null
+          occurred_at?: string
+          owner_user_id?: string | null
+          source?: string
+          status?: string
+          summary?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          attendees?: string | null
+          calendly_event_id?: string | null
+          category_id?: string | null
+          client_uid?: string
+          created_at?: string
+          created_by?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_url?: string | null
+          next_step?: string | null
+          next_step_at?: string | null
+          occurred_at?: string
+          owner_user_id?: string | null
+          source?: string
+          status?: string
+          summary?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_meetings_calendly_event_id_fkey"
+            columns: ["calendly_event_id"]
+            isOneToOne: false
+            referencedRelation: "cs_calendly_events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_meetings_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "cs_meeting_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_meetings_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
       cs_records: {
         Row: {
           author_id: string | null
