@@ -20,6 +20,7 @@ import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integracoes'
 import { Route as AppCsRouteImport } from './routes/_app.cs'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
@@ -97,6 +98,11 @@ const AppKanbanRoute = AppKanbanRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsIntegracoesRoute = AppCsIntegracoesRouteImport.update({
+  id: '/cs-integracoes',
+  path: '/cs-integracoes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCsRoute = AppCsRouteImport.update({
@@ -234,6 +240,7 @@ export interface FileRoutesByFullPath {
   '/cadencia': typeof AppCadenciaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
+  '/cs-integracoes': typeof AppCsIntegracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -270,6 +277,7 @@ export interface FileRoutesByTo {
   '/cadencia': typeof AppCadenciaRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
+  '/cs-integracoes': typeof AppCsIntegracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -307,6 +315,7 @@ export interface FileRoutesById {
   '/_app/cadencia': typeof AppCadenciaRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/cs': typeof AppCsRoute
+  '/_app/cs-integracoes': typeof AppCsIntegracoesRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/kanban': typeof AppKanbanRoute
   '/_app/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -345,6 +354,7 @@ export interface FileRouteTypes {
     | '/cadencia'
     | '/configuracoes'
     | '/cs'
+    | '/cs-integracoes'
     | '/dashboard'
     | '/kanban'
     | '/leads-analytics'
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/cadencia'
     | '/configuracoes'
     | '/cs'
+    | '/cs-integracoes'
     | '/dashboard'
     | '/kanban'
     | '/leads-analytics'
@@ -417,6 +428,7 @@ export interface FileRouteTypes {
     | '/_app/cadencia'
     | '/_app/configuracoes'
     | '/_app/cs'
+    | '/_app/cs-integracoes'
     | '/_app/dashboard'
     | '/_app/kanban'
     | '/_app/leads-analytics'
@@ -536,6 +548,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-integracoes': {
+      id: '/_app/cs-integracoes'
+      path: '/cs-integracoes'
+      fullPath: '/cs-integracoes'
+      preLoaderRoute: typeof AppCsIntegracoesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cs': {
@@ -765,6 +784,7 @@ interface AppRouteChildren {
   AppCadenciaRoute: typeof AppCadenciaRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppCsRoute: typeof AppCsRoute
+  AppCsIntegracoesRoute: typeof AppCsIntegracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppKanbanRoute: typeof AppKanbanRoute
   AppLeadsAnalyticsRoute: typeof AppLeadsAnalyticsRoute
@@ -780,6 +800,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCadenciaRoute: AppCadenciaRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppCsRoute: AppCsRoute,
+  AppCsIntegracoesRoute: AppCsIntegracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppKanbanRoute: AppKanbanRoute,
   AppLeadsAnalyticsRoute: AppLeadsAnalyticsRoute,
