@@ -12,6 +12,7 @@ export const Route = createFileRoute("/_app/whatsapp/campanhas/$id")({
 });
 
 function CampaignDetail() {
+  const ownerLabel = useOwnerLabel();
   const { id } = Route.useParams();
   const getFn = useServerFn(getCampaign);
   const launchFn = useServerFn(launchCampaign);

@@ -148,6 +148,7 @@ function AlertRow({ row }: { row: { id: string; created_at: string; status: stri
 }
 
 function HotAlertsLogPage() {
+  const ownerLabel = useOwnerLabel();
   const fn = useServerFn(listHotLeadAlerts);
   const [statusFilter, setStatusFilter] = useState<"all" | "ok" | "error" | "skipped">("all");
 

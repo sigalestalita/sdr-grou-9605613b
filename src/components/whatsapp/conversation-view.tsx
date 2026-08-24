@@ -360,6 +360,7 @@ function AiToolbar({
   onPlan: () => void;
   onUsePlanMessage: (m: string) => void;
 }) {
+  const ownerLabel = useOwnerLabel();
   const tempColor =
     ai?.temperature === "quente"
       ? "border-red-500/40 text-red-300 bg-red-500/10"

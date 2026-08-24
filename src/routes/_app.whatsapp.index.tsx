@@ -26,6 +26,7 @@ export const Route = createFileRoute("/_app/whatsapp/")({
 });
 
 function WhatsappInbox() {
+  const roleLabel = useOwnerLabel();
   const { user } = useAuth();
   const fn = useServerFn(listConversations);
   const setStatusFn = useServerFn(setConversationStatus);

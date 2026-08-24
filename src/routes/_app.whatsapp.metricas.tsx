@@ -29,6 +29,7 @@ export const Route = createFileRoute("/_app/whatsapp/metricas")({
 });
 
 function MetricsPage() {
+  const ownerLabel = useOwnerLabel();
   const fn = useServerFn(getWhatsappMetrics);
   const [range, setRange] = useState<"7d" | "30d" | "90d">("30d");
 
