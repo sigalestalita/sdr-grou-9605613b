@@ -30,7 +30,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
         fetchAllRows((f, t) =>
           supabase
             .from("cs_signal_snapshots")
-            .select("client_uid, week_start, signal, consumo_pct")
+            .select("client_uid, week_start, signal, consumo_pct, metadata")
             .gte("week_start", weeks[0])
             .order("week_start")
             .range(f, t),
