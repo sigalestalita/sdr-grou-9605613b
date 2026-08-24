@@ -136,7 +136,12 @@ export async function syncCalendly(userIds: string[] | null, days = 45) {
       );
       if (list.length) {
         const { error: upErr } = await supabaseAdmin.from("cs_calendly_events").upsert(
-          list.map((e) => ({ ...e, user_id: row.user_id, synced_at: new Date().toISOString() })),
+          list.map((e) => ({
+            ...e,
+            raw: e.raw as never,
+            user_id: row.user_id,
+            synced_at: new Date().toISOString(),
+          })),
           { onConflict: "event_uri" },
         );
         if (upErr) throw new Error(upErr.message);
@@ -270,7 +275,7 @@ export async function storeInboundEmail(payload: InboundEmail) {
       client_uid: clientUid,
       owner_user_id: ownerUserId,
       mailbox,
-      raw: payload as unknown as Record<string, unknown>,
+      raw: payload as never,
     },
     { onConflict: "message_id" },
   );
