@@ -2016,6 +2016,15 @@ export type Database = {
       }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
       cs_gen_client_uid: { Args: never; Returns: string }
+      cs_stage_from_contract:
+        | {
+            Args: { _start: string }
+            Returns: Database["public"]["Enums"]["cs_journey_stage"]
+          }
+        | {
+            Args: { _renewal?: string; _start: string }
+            Returns: Database["public"]["Enums"]["cs_journey_stage"]
+          }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
