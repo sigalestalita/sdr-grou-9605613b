@@ -60,6 +60,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Customer Success",
     items: [
       { to: "/cs", label: "Carteira CS", icon: HeartPulse, team: "cs" },
+      { to: "/cs-dashboard", label: "Dashboard CS", icon: BarChart3, team: "cs", managerOnly: true },
       { to: "/cs-agenda", label: "Agenda CS", icon: CalendarDays, team: "cs" },
       { to: "/cs-follow-ups", label: "Follow-ups CS", icon: CalendarClock, team: "cs" },
       { to: "/cs-emails", label: "E-mails CS", icon: Mail, team: "cs" },
