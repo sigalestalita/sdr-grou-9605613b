@@ -125,8 +125,14 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
     if (values.length < 2) return { ok: false, tab, error: "Aba sem dados" };
 
     const header = (values[0] ?? []).map(norm);
-    const findCol = (patterns: RegExp[]) =>
-      header.findIndex((h) => patterns.some((p) => p.test(h)));
+    // Padrões em ordem de prioridade: o primeiro padrão que casar decide a coluna.
+    const findCol = (patterns: RegExp[]) => {
+      for (const p of patterns) {
+        const idx = header.findIndex((h) => p.test(h));
+        if (idx >= 0) return idx;
+      }
+      return -1;
+    };
 
     const colEmpresa = findCol([/nome da conta/, /empresa|cliente|razao|conta/]);
     const colUid = findCol([/client_uid/, /^codigo|\bcod\b|\buid\b/]);
