@@ -45,6 +45,7 @@ export function CsClientCard({
   weeks,
   ownerName,
   sheet,
+  changed,
   alerts = [],
   tags = [],
   slaDays = 0,
@@ -58,6 +59,8 @@ export function CsClientCard({
   weeks?: string[];
   ownerName: string;
   sheet?: CsCardSheet;
+  /** Chaves de `sheet` alteradas na última sincronização. */
+  changed?: Set<string>;
   alerts?: CsCardAlert[];
   tags?: string[];
   slaDays?: number;
