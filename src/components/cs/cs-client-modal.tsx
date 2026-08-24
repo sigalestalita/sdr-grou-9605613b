@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   addCsRecord,
+  addCsTimelineEntry,
+
   addCsTag,
   deleteCsContact,
   getCsClient,
@@ -36,7 +38,9 @@ import {
   type CsSignal,
 } from "@/lib/cs-types";
 import { SignalStrip } from "./signal-strip";
-import { Plus, Trash2, X, Building2, Users, Tag as TagIcon, History, StickyNote } from "lucide-react";
+import { CsMeetingsTab } from "./cs-meetings-tab";
+import { Plus, Trash2, X, Building2, Users, Tag as TagIcon, History, StickyNote, PhoneCall } from "lucide-react";
+
 
 const TREND_LABEL: Record<string, string> = {
   critico: "crítica (vermelho persistente)",
@@ -45,15 +49,17 @@ const TREND_LABEL: Record<string, string> = {
   estavel: "estável",
 };
 
-const TABS = ["visao", "contatos", "tags", "timeline", "registros"] as const;
+const TABS = ["visao", "contatos", "reunioes", "tags", "timeline", "registros"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   visao: "Visão geral",
   contatos: "Contatos",
+  reunioes: "Reuniões",
   tags: "Tags",
   timeline: "Timeline",
   registros: "Registros",
 };
+
 
 export function CsClientModal({
   clientUid,
@@ -69,6 +75,8 @@ export function CsClientModal({
   const tagFn = useServerFn(addCsTag);
   const untagFn = useServerFn(removeCsTag);
   const recordFn = useServerFn(addCsRecord);
+  const entryFn = useServerFn(addCsTimelineEntry);
+
   const contactFn = useServerFn(saveCsContact);
   const delContactFn = useServerFn(deleteCsContact);
   const clientFn = useServerFn(saveCsClient);
@@ -106,6 +114,12 @@ export function CsClientModal({
     (v: { tipo: string; content: string }) => recordFn({ data: { clientUid, ...v } }),
     "Registro salvo",
   );
+  const addEntry = mut(
+    (v: { channel: ManualChannel; title: string; description: string | null; occurredAt: string }) =>
+      entryFn({ data: { clientUid, ...v, countsAsContact: true } }),
+    "Contato registrado na timeline",
+  );
+
   const saveContact = mut(
     (v: Record<string, unknown>) =>
       contactFn({ data: { ...v, client_uid: clientUid } as never }),
@@ -322,6 +336,10 @@ export function CsClientModal({
               />
             )}
 
+            {!isLoading && tab === "reunioes" && (
+              <CsMeetingsTab clientUid={clientUid} authorName={profileName} />
+            )}
+
             {!isLoading && tab === "timeline" && (
               <UnifiedTimeline
                 timeline={data?.timeline ?? []}
@@ -330,8 +348,11 @@ export function CsClientModal({
                 whatsapp={data?.whatsapp ?? []}
                 records={data?.records ?? []}
                 authorName={profileName}
+                pending={addEntry.isPending}
+                onAddEntry={(v) => addEntry.mutate(v)}
               />
             )}
+
 
             {!isLoading && tab === "registros" && (
               <RecordsTab
@@ -671,6 +692,23 @@ type TlItem = {
   meta?: string | null;
 };
 
+export type ManualChannel =
+  | "ligacao"
+  | "whatsapp"
+  | "email"
+  | "reuniao"
+  | "presencial"
+  | "observacao";
+
+const MANUAL_CHANNEL_LABEL: Record<ManualChannel, string> = {
+  ligacao: "Ligação",
+  whatsapp: "WhatsApp",
+  email: "E-mail",
+  reuniao: "Reunião",
+  presencial: "Presencial",
+  observacao: "Observação",
+};
+
 /** Timeline unificada do atendimento: sistema, e-mails, WhatsApp, agenda e registros. */
 function UnifiedTimeline({
   timeline,
@@ -679,6 +717,8 @@ function UnifiedTimeline({
   whatsapp,
   records,
   authorName,
+  pending,
+  onAddEntry,
 }: {
   timeline: { id: string; title: string; description: string | null; channel: string | null; occurred_at: string; author_id: string | null }[];
   emails: { id: string; direction: string; from_email: string | null; from_name: string | null; subject: string | null; snippet: string | null; received_at: string; owner_user_id: string | null }[];
@@ -686,7 +726,28 @@ function UnifiedTimeline({
   whatsapp: { id: string; body: string | null; sender_type: string; sender_user_id: string | null; message_type: string; created_at: string }[];
   records: { id: string; tipo: string; content: string; created_at: string; author_id: string | null }[];
   authorName: (id: string | null | undefined) => string;
+  pending: boolean;
+  onAddEntry: (v: {
+    channel: ManualChannel;
+    title: string;
+    description: string | null;
+    occurredAt: string;
+  }) => void;
 }) {
+  const [manual, setManual] = useState<{
+    open: boolean;
+    channel: ManualChannel;
+    title: string;
+    description: string;
+    occurredAt: string;
+  }>(() => ({
+    open: false,
+    channel: "ligacao",
+    title: "",
+    description: "",
+    occurredAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+  }));
+
   const [kinds, setKinds] = useState<TlKind[]>([]);
 
   const items = useMemo<TlItem[]>(() => {
@@ -760,7 +821,81 @@ function UnifiedTimeline({
 
   return (
     <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Registre aqui contatos feitos fora do sistema (ligações, visitas, observações).
+        </p>
+        <Button
+          size="sm"
+          variant={manual.open ? "ghost" : "default"}
+          onClick={() => setManual({ ...manual, open: !manual.open })}
+        >
+          <PhoneCall className="mr-1.5 h-3.5 w-3.5" />
+          {manual.open ? "Cancelar" : "Registrar contato"}
+        </Button>
+      </div>
+
+      {manual.open && (
+        <Card className="space-y-2 p-3">
+          <div className="grid gap-2 sm:grid-cols-3">
+            <select
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              value={manual.channel}
+              onChange={(e) => setManual({ ...manual, channel: e.target.value as ManualChannel })}
+            >
+              {(Object.keys(MANUAL_CHANNEL_LABEL) as ManualChannel[]).map((c) => (
+                <option key={c} value={c}>
+                  {MANUAL_CHANNEL_LABEL[c]}
+                </option>
+              ))}
+            </select>
+            <Input
+              className="sm:col-span-2"
+              placeholder="Resumo curto (ex.: Ligação para alinhar renovação)"
+              value={manual.title}
+              onChange={(e) => setManual({ ...manual, title: e.target.value })}
+            />
+          </div>
+          <Textarea
+            rows={3}
+            placeholder="Detalhes do contato (opcional)"
+            value={manual.description}
+            onChange={(e) => setManual({ ...manual, description: e.target.value })}
+          />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Input
+              type="datetime-local"
+              className="w-56"
+              value={manual.occurredAt}
+              onChange={(e) => setManual({ ...manual, occurredAt: e.target.value })}
+            />
+            <Button
+              size="sm"
+              disabled={manual.title.trim().length < 3 || pending}
+              onClick={() => {
+                onAddEntry({
+                  channel: manual.channel,
+                  title: manual.title.trim(),
+                  description: manual.description.trim() || null,
+                  occurredAt: manual.occurredAt,
+                });
+                setManual({
+                  open: false,
+                  channel: manual.channel,
+                  title: "",
+                  description: "",
+                  occurredAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+                });
+              }}
+            >
+              Salvar na timeline
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <div className="flex flex-wrap gap-1">
+
         {(Object.keys(TL_KIND_LABEL) as TlKind[]).map((k) => {
           const active = kinds.includes(k);
           return (

@@ -684,3 +684,169 @@ export const listCsSignalTabs = createServerFn({ method: "GET" })
       return { ok: false as const, tabs: [] as string[], latest: null, error: e instanceof Error ? e.message : String(e) };
     }
   });
+
+/* ------------------------------------------------------------------ */
+/* Reuniões (cadastro manual, futuro vínculo com Calendly)            */
+/* ------------------------------------------------------------------ */
+
+/** Categorias de reunião + reuniões do cliente. */
+export const listCsMeetings = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ clientUid: z.string().min(1) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const [meetings, categories] = await Promise.all([
+      context.supabase
+        .from("cs_meetings")
+        .select("*")
+        .eq("client_uid", data.clientUid)
+        .order("occurred_at", { ascending: false }),
+      context.supabase
+        .from("cs_meeting_categories")
+        .select("*")
+        .eq("ativo", true)
+        .order("name"),
+    ]);
+    if (meetings.error) throw new Error(meetings.error.message);
+    return { meetings: meetings.data ?? [], categories: categories.data ?? [] };
+  });
+
+/** Cria/edita uma reunião e espelha na timeline do cliente. */
+export const saveCsMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        clientUid: z.string().min(1),
+        title: z.string().min(1),
+        categoryId: z.string().uuid().nullable().optional(),
+        occurredAt: z.string().min(1),
+        durationMinutes: z.number().int().positive().nullable().optional(),
+        status: z.enum(["realizada", "agendada", "cancelada", "no_show"]).default("realizada"),
+        attendees: z.string().nullable().optional(),
+        meetingUrl: z.string().nullable().optional(),
+        summary: z.string().nullable().optional(),
+        nextStep: z.string().nullable().optional(),
+        nextStepAt: z.string().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const row = {
+      client_uid: data.clientUid,
+      title: data.title,
+      category_id: data.categoryId ?? null,
+      occurred_at: new Date(data.occurredAt).toISOString(),
+      duration_minutes: data.durationMinutes ?? null,
+      status: data.status,
+      attendees: data.attendees || null,
+      meeting_url: data.meetingUrl || null,
+      summary: data.summary || null,
+      next_step: data.nextStep || null,
+      next_step_at: data.nextStepAt ? new Date(data.nextStepAt).toISOString() : null,
+      owner_user_id: userId,
+    };
+
+    let meetingId = data.id ?? null;
+    if (data.id) {
+      const { error } = await supabase.from("cs_meetings").update(row as never).eq("id", data.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { data: created, error } = await supabase
+        .from("cs_meetings")
+        .insert({ ...row, created_by: userId, source: "manual" } as never)
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      meetingId = (created as { id: string }).id;
+    }
+
+    await supabase.from("cs_timeline_events").insert({
+      client_uid: data.clientUid,
+      author_id: userId,
+      event_type: "reuniao",
+      channel: "reuniao",
+      title: data.title,
+      description: data.summary || null,
+      occurred_at: row.occurred_at,
+      metadata: { meeting_id: meetingId, status: data.status, category_id: row.category_id },
+    } as never);
+
+    if (data.status === "realizada") {
+      await supabase
+        .from("cs_clients")
+        .update({ last_contact_at: row.occurred_at } as never)
+        .eq("client_uid", data.clientUid);
+    }
+
+    return { ok: true, id: meetingId };
+  });
+
+export const deleteCsMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("cs_meetings").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Cria uma nova categoria de reunião (livre para o time). */
+export const saveCsMeetingCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ name: z.string().min(2) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const slug = data.name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+    const { data: created, error } = await context.supabase
+      .from("cs_meeting_categories")
+      .upsert({ name: data.name, slug, created_by: context.userId } as never, { onConflict: "slug" })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return { ok: true, category: created };
+  });
+
+/** Registro manual de atendimento direto na timeline (ligação, observação, etc). */
+export const addCsTimelineEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        clientUid: z.string().min(1),
+        channel: z.enum(["ligacao", "whatsapp", "email", "reuniao", "presencial", "observacao"]),
+        title: z.string().min(1),
+        description: z.string().nullable().optional(),
+        occurredAt: z.string().optional(),
+        countsAsContact: z.boolean().default(true),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const occurredAt = data.occurredAt ? new Date(data.occurredAt).toISOString() : new Date().toISOString();
+    const { error } = await supabase.from("cs_timeline_events").insert({
+      client_uid: data.clientUid,
+      author_id: userId,
+      event_type: "contato_manual",
+      channel: data.channel,
+      title: data.title,
+      description: data.description || null,
+      occurred_at: occurredAt,
+      metadata: { manual: true },
+    } as never);
+    if (error) throw new Error(error.message);
+
+    if (data.countsAsContact && data.channel !== "observacao") {
+      await supabase
+        .from("cs_clients")
+        .update({ last_contact_at: occurredAt } as never)
+        .eq("client_uid", data.clientUid);
+    }
+    return { ok: true };
+  });
