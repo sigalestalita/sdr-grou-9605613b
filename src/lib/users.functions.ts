@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const TALITA_EMAIL = "talita.sigales@grougp.com.br";
 
 const RoleSchema = z.enum(["super_admin", "gestao", "executivo", "sdr"]);
+const TeamSchema = z.enum(["comercial", "cs"]);
 
 async function getCallerRole(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -20,6 +21,7 @@ async function getCallerRole(userId: string) {
     roles,
   };
 }
+
 
 export const listUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
