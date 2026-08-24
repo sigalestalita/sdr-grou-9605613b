@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useAuth } from "@/lib/use-auth";
+
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -78,8 +80,14 @@ function CsPage() {
   const [fType, setFType] = useState("");
   const [fTag, setFTag] = useState("");
 
-  const { data, isLoading } = useQuery({ queryKey: ["cs-board"], queryFn: () => boardFn({}) });
+  const { user } = useAuth();
+  const { data, isLoading } = useQuery({
+    queryKey: ["cs-board", user?.id],
+    queryFn: () => boardFn({}),
+    enabled: !!user,
+  });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["cs-board"] });
+
 
   const scan = useMutation({
     mutationFn: () => scanFn({}),
