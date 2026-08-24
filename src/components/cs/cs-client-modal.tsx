@@ -721,9 +721,10 @@ function UnifiedTimeline({
   onAddEntry,
 }: {
   timeline: { id: string; title: string; description: string | null; channel: string | null; occurred_at: string; author_id: string | null }[];
-  emails: { id: string; direction: string; from_email: string | null; from_name: string | null; subject: string | null; snippet: string | null; received_at: string; owner_user_id: string | null }[];
+  emails: { id: string; direction: string; from_email: string | null; from_name: string | null; to_emails?: string[] | null; cc_emails?: string[] | null; subject: string | null; snippet: string | null; body_text?: string | null; received_at: string; owner_user_id: string | null }[];
   agenda: { id: string; name: string | null; status: string | null; start_time: string; invitee_name: string | null; invitee_email: string | null; user_id: string | null }[];
-  whatsapp: { id: string; body: string | null; sender_type: string; sender_user_id: string | null; message_type: string; created_at: string }[];
+  whatsapp: { id: string; body: string | null; sender_type: string; sender_user_id: string | null; message_type: string; created_at: string; phone?: string | null; contact_name?: string | null }[];
+
   records: { id: string; tipo: string; content: string; created_at: string; author_id: string | null }[];
   authorName: (id: string | null | undefined) => string;
   pending: boolean;
@@ -749,6 +750,8 @@ function UnifiedTimeline({
   }));
 
   const [kinds, setKinds] = useState<TlKind[]>([]);
+  const [view, setView] = useState<"tudo" | "whatsapp" | "email">("tudo");
+
 
   const items = useMemo<TlItem[]>(() => {
     const out: TlItem[] = [
@@ -821,7 +824,35 @@ function UnifiedTimeline({
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap gap-1 border-b pb-2">
+        {(
+          [
+            ["tudo", `Tudo (${items.length})`],
+            ["whatsapp", `WhatsApp (${whatsapp.length})`],
+            ["email", `E-mails (${emails.length})`],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-full px-3 py-1 text-xs transition ${
+              view === v ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "whatsapp" ? (
+        <WhatsAppThreadView whatsapp={whatsapp} authorName={authorName} />
+      ) : view === "email" ? (
+        <EmailThreadView emails={emails} authorName={authorName} />
+      ) : (
+      <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
+
         <p className="text-xs text-muted-foreground">
           Registre aqui contatos feitos fora do sistema (ligações, visitas, observações).
         </p>
@@ -954,6 +985,181 @@ function UnifiedTimeline({
           ))}
         </ol>
       )}
+      </div>
+      )}
     </div>
   );
 }
+
+/** Conversa do WhatsApp com o cliente, em formato de chat por contato. */
+function WhatsAppThreadView({
+  whatsapp,
+  authorName,
+}: {
+  whatsapp: { id: string; body: string | null; sender_type: string; sender_user_id: string | null; message_type: string; created_at: string; phone?: string | null; contact_name?: string | null }[];
+  authorName: (id: string | null | undefined) => string;
+}) {
+  const threads = useMemo(() => {
+    const map = new Map<string, { key: string; label: string; phone: string | null; msgs: typeof whatsapp }>();
+    for (const m of whatsapp) {
+      const key = m.phone || "sem-numero";
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          label: m.contact_name || m.phone || "Contato",
+          phone: m.phone ?? null,
+          msgs: [],
+        });
+      }
+      map.get(key)!.msgs.push(m);
+    }
+    return Array.from(map.values()).map((t) => ({
+      ...t,
+      msgs: [...t.msgs].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      ),
+    }));
+  }, [whatsapp]);
+
+  const [active, setActive] = useState<string | null>(null);
+  const current = threads.find((t) => t.key === (active ?? threads[0]?.key));
+
+  if (threads.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Nenhuma conversa de WhatsApp vinculada aos contatos deste cliente.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      {threads.length > 1 && (
+        <div className="flex flex-wrap gap-1">
+          {threads.map((t) => (
+            <button
+              key={t.key}
+              type="button"
+              onClick={() => setActive(t.key)}
+              className={`rounded-full border px-2 py-0.5 text-[11px] transition ${
+                current?.key === t.key ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"
+              }`}
+            >
+              {t.label} <span className="text-muted-foreground">{t.msgs.length}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {current && (
+        <Card className="space-y-2 bg-muted/30 p-3">
+          <p className="text-xs font-medium">
+            {current.label}
+            {current.phone && (
+              <span className="ml-2 font-normal text-muted-foreground">+{current.phone}</span>
+            )}
+          </p>
+          <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+            {current.msgs.map((m) => {
+              const inbound = m.sender_type === "lead";
+              return (
+                <div key={m.id} className={`flex ${inbound ? "justify-start" : "justify-end"}`}>
+                  <div
+                    className={`max-w-[80%] rounded-lg px-3 py-2 text-xs shadow-sm ${
+                      inbound
+                        ? "bg-background"
+                        : m.sender_type === "ai"
+                          ? "bg-violet-500/15"
+                          : "bg-emerald-500/15"
+                    }`}
+                  >
+                    <p className="whitespace-pre-wrap text-foreground">
+                      {m.body || `[${m.message_type}]`}
+                    </p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      {inbound
+                        ? current.label
+                        : m.sender_type === "ai"
+                          ? "IA"
+                          : authorName(m.sender_user_id)}
+                      {" · "}
+                      {format(new Date(m.created_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/** Trocas de e-mail com o cliente, com corpo expansível. */
+function EmailThreadView({
+  emails,
+  authorName,
+}: {
+  emails: { id: string; direction: string; from_email: string | null; from_name: string | null; to_emails?: string[] | null; cc_emails?: string[] | null; subject: string | null; snippet: string | null; body_text?: string | null; received_at: string; owner_user_id: string | null }[];
+  authorName: (id: string | null | undefined) => string;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const sorted = useMemo(
+    () =>
+      [...emails].sort(
+        (a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime(),
+      ),
+    [emails],
+  );
+
+  if (sorted.length === 0) {
+    return <p className="text-sm text-muted-foreground">Nenhum e-mail registrado para este cliente.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      {sorted.map((e) => {
+        const outbound = e.direction === "outbound";
+        const expanded = open === e.id;
+        return (
+          <Card key={e.id} className="p-3">
+            <button
+              type="button"
+              onClick={() => setOpen(expanded ? null : e.id)}
+              className="w-full text-left"
+            >
+              <p className="flex flex-wrap items-center gap-2 text-xs font-medium">
+                <Badge variant="outline" className="text-[10px]">
+                  {outbound ? "Enviado" : "Recebido"}
+                </Badge>
+                {e.subject || "(sem assunto)"}
+                <span className="font-normal text-muted-foreground">
+                  {format(new Date(e.received_at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                </span>
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                {[
+                  `De: ${e.from_name || e.from_email || "—"}`,
+                  e.to_emails?.length ? `Para: ${e.to_emails.join(", ")}` : null,
+                  e.cc_emails?.length ? `Cc: ${e.cc_emails.join(", ")}` : null,
+                  authorName(e.owner_user_id),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+            </button>
+            <p
+              className={`mt-1 whitespace-pre-wrap text-xs text-muted-foreground ${
+                expanded ? "" : "line-clamp-2"
+              }`}
+            >
+              {expanded ? e.body_text || e.snippet || "" : e.snippet || e.body_text || ""}
+            </p>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
