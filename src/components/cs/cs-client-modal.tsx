@@ -138,6 +138,14 @@ export function CsClientModal({
     (w) => ((data?.snapshots ?? []).find((s) => s.week_start === w)?.signal ?? "sem_dado") as CsSignal,
   );
   const trend = analyzeSignalTrend(history);
+  // Colunas cruas da última semana sincronizada da planilha.
+  const latestSheet = (() => {
+    const snaps = data?.snapshots ?? [];
+    const last = snaps[snaps.length - 1] as { metadata?: unknown } | undefined;
+    const meta = last?.metadata as Record<string, unknown> | undefined;
+    const sheet = meta?.["sheet"];
+    return sheet && typeof sheet === "object" ? (sheet as Record<string, unknown>) : null;
+  })();
 
   return createPortal(
     <div
