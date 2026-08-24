@@ -323,28 +323,14 @@ export function CsClientModal({
             )}
 
             {!isLoading && tab === "timeline" && (
-              <div className="space-y-2">
-                {(data?.timeline ?? []).length === 0 && (
-                  <p className="text-sm text-muted-foreground">Nenhum evento registrado ainda.</p>
-                )}
-                <ol className="relative border-l pl-4 space-y-3">
-                  {(data?.timeline ?? []).map((ev) => (
-                    <li key={ev.id} className="text-xs">
-                      <span className="absolute -left-[5px] mt-1.5 h-2 w-2 rounded-full bg-primary" />
-                      <p className="font-medium text-foreground flex items-center gap-2">
-                        <History className="h-3 w-3" /> {ev.title}
-                        <span className="text-muted-foreground font-normal">
-                          {format(new Date(ev.occurred_at), "dd/MM/yy HH:mm", { locale: ptBR })}
-                        </span>
-                      </p>
-                      {ev.description && <p className="text-muted-foreground whitespace-pre-wrap">{ev.description}</p>}
-                      <p className="text-muted-foreground">
-                        {ev.channel ? `${ev.channel} · ` : ""}{profileName(ev.author_id)}
-                      </p>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+              <UnifiedTimeline
+                timeline={data?.timeline ?? []}
+                emails={data?.emails ?? []}
+                agenda={data?.agenda ?? []}
+                whatsapp={data?.whatsapp ?? []}
+                records={data?.records ?? []}
+                authorName={profileName}
+              />
             )}
 
             {!isLoading && tab === "registros" && (
@@ -654,6 +640,185 @@ function RecordsTab({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+type TlKind = "sistema" | "email" | "whatsapp" | "agenda" | "registro";
+
+const TL_KIND_LABEL: Record<TlKind, string> = {
+  sistema: "Sistema",
+  email: "E-mail",
+  whatsapp: "WhatsApp",
+  agenda: "Agenda",
+  registro: "Registro",
+};
+
+const TL_KIND_CLASS: Record<TlKind, string> = {
+  sistema: "bg-primary",
+  email: "bg-sky-500",
+  whatsapp: "bg-emerald-500",
+  agenda: "bg-violet-500",
+  registro: "bg-amber-500",
+};
+
+type TlItem = {
+  id: string;
+  kind: TlKind;
+  at: string;
+  title: string;
+  description?: string | null;
+  meta?: string | null;
+};
+
+/** Timeline unificada do atendimento: sistema, e-mails, WhatsApp, agenda e registros. */
+function UnifiedTimeline({
+  timeline,
+  emails,
+  agenda,
+  whatsapp,
+  records,
+  authorName,
+}: {
+  timeline: { id: string; title: string; description: string | null; channel: string | null; occurred_at: string; author_id: string | null }[];
+  emails: { id: string; direction: string; from_email: string | null; from_name: string | null; subject: string | null; snippet: string | null; received_at: string; owner_user_id: string | null }[];
+  agenda: { id: string; name: string | null; status: string | null; start_time: string; invitee_name: string | null; invitee_email: string | null; user_id: string | null }[];
+  whatsapp: { id: string; body: string | null; sender_type: string; sender_user_id: string | null; message_type: string; created_at: string }[];
+  records: { id: string; tipo: string; content: string; created_at: string; author_id: string | null }[];
+  authorName: (id: string | null | undefined) => string;
+}) {
+  const [kinds, setKinds] = useState<TlKind[]>([]);
+
+  const items = useMemo<TlItem[]>(() => {
+    const out: TlItem[] = [
+      ...timeline.map((ev) => ({
+        id: `tl-${ev.id}`,
+        kind: "sistema" as TlKind,
+        at: ev.occurred_at,
+        title: ev.title,
+        description: ev.description,
+        meta: [ev.channel, authorName(ev.author_id)].filter(Boolean).join(" · "),
+      })),
+      ...emails.map((e) => ({
+        id: `em-${e.id}`,
+        kind: "email" as TlKind,
+        at: e.received_at,
+        title: e.subject || "(sem assunto)",
+        description: e.snippet,
+        meta: [
+          e.direction === "outbound" ? "Enviado" : "Recebido",
+          e.from_name || e.from_email,
+          authorName(e.owner_user_id),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      })),
+      ...whatsapp.map((m) => ({
+        id: `wa-${m.id}`,
+        kind: "whatsapp" as TlKind,
+        at: m.created_at,
+        title:
+          m.sender_type === "lead"
+            ? "Mensagem do cliente"
+            : m.sender_type === "ai"
+              ? "Mensagem da IA"
+              : "Mensagem enviada",
+        description: m.body || `[${m.message_type}]`,
+        meta: m.sender_user_id ? authorName(m.sender_user_id) : null,
+      })),
+      ...agenda.map((a) => ({
+        id: `ag-${a.id}`,
+        kind: "agenda" as TlKind,
+        at: a.start_time,
+        title: a.name || "Reunião agendada",
+        description: [a.invitee_name, a.invitee_email].filter(Boolean).join(" · ") || null,
+        meta: [a.status === "canceled" ? "Cancelada" : "Agendada", authorName(a.user_id)]
+          .filter(Boolean)
+          .join(" · "),
+      })),
+      ...records.map((r) => ({
+        id: `rc-${r.id}`,
+        kind: "registro" as TlKind,
+        at: r.created_at,
+        title: `Registro · ${r.tipo}`,
+        description: r.content,
+        meta: authorName(r.author_id),
+      })),
+    ];
+    return out
+      .filter((i) => !!i.at)
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+  }, [timeline, emails, whatsapp, agenda, records, authorName]);
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const i of items) c[i.kind] = (c[i.kind] ?? 0) + 1;
+    return c;
+  }, [items]);
+
+  const visible = kinds.length === 0 ? items : items.filter((i) => kinds.includes(i.kind));
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-1">
+        {(Object.keys(TL_KIND_LABEL) as TlKind[]).map((k) => {
+          const active = kinds.includes(k);
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() =>
+                setKinds((prev) => (active ? prev.filter((v) => v !== k) : [...prev, k]))
+              }
+              className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition ${
+                active ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${TL_KIND_CLASS[k]}`} />
+              {TL_KIND_LABEL[k]}
+              <span className="text-muted-foreground">{counts[k] ?? 0}</span>
+            </button>
+          );
+        })}
+        {kinds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setKinds([])}
+            className="rounded-full border px-2 py-0.5 text-[11px] hover:bg-muted"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
+
+      {visible.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhum evento registrado ainda.</p>
+      ) : (
+        <ol className="relative border-l pl-4 space-y-3">
+          {visible.map((i) => (
+            <li key={i.id} className="text-xs">
+              <span
+                className={`absolute -left-[5px] mt-1.5 h-2 w-2 rounded-full ${TL_KIND_CLASS[i.kind]}`}
+              />
+              <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                <History className="h-3 w-3" /> {i.title}
+                <Badge variant="outline" className="text-[10px]">
+                  {TL_KIND_LABEL[i.kind]}
+                </Badge>
+                <span className="font-normal text-muted-foreground">
+                  {format(new Date(i.at), "dd/MM/yy HH:mm", { locale: ptBR })}
+                </span>
+              </p>
+              {i.description && (
+                <p className="whitespace-pre-wrap text-muted-foreground line-clamp-4">
+                  {i.description}
+                </p>
+              )}
+              {i.meta && <p className="text-muted-foreground">{i.meta}</p>}
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }

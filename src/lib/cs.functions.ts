@@ -106,6 +106,56 @@ export const getCsClient = createServerFn({ method: "GET" })
         supabase.from("profiles").select("id, full_name, email"),
       ]);
     if (!client.data) throw new Error("Cliente não encontrado");
+
+    // Canais de atendimento: e-mails redirecionados, agenda (Calendly) e WhatsApp.
+    const digits = (v?: string | null) => (v ?? "").replace(/\D/g, "");
+    const phones = Array.from(
+      new Set((contacts.data ?? []).map((c) => digits(c.whatsapp)).filter((p) => p.length >= 8)),
+    );
+
+    const [emailsRes, agendaRes] = await Promise.all([
+      supabase
+        .from("cs_emails")
+        .select("id, direction, from_email, from_name, to_emails, subject, snippet, received_at, owner_user_id")
+        .eq("client_uid", data.clientUid)
+        .order("received_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("cs_calendly_events")
+        .select("id, name, status, start_time, end_time, invitee_name, invitee_email, meeting_url, user_id")
+        .eq("client_uid", data.clientUid)
+        .order("start_time", { ascending: false })
+        .limit(200),
+    ]);
+
+    let waMessages: {
+      id: string;
+      body: string | null;
+      sender_type: string;
+      sender_user_id: string | null;
+      message_type: string;
+      created_at: string;
+      lead_id: string;
+    }[] = [];
+    if (phones.length > 0) {
+      const { data: waContacts } = await supabase
+        .from("whatsapp_contacts")
+        .select("lead_id, phone")
+        .in("phone", phones);
+      const leadIds = Array.from(
+        new Set((waContacts ?? []).map((c) => c.lead_id).filter((v): v is string => !!v)),
+      );
+      if (leadIds.length > 0) {
+        const { data: msgs } = await supabase
+          .from("whatsapp_messages")
+          .select("id, body, sender_type, sender_user_id, message_type, created_at, lead_id")
+          .in("lead_id", leadIds)
+          .order("created_at", { ascending: false })
+          .limit(200);
+        waMessages = msgs ?? [];
+      }
+    }
+
     return {
       client: client.data,
       contacts: contacts.data ?? [],
@@ -116,6 +166,9 @@ export const getCsClient = createServerFn({ method: "GET" })
       alerts: alerts.data ?? [],
       children: children.data ?? [],
       profiles: profiles.data ?? [],
+      emails: emailsRes.data ?? [],
+      agenda: agendaRes.data ?? [],
+      whatsapp: waMessages,
       weeks,
     };
   });
