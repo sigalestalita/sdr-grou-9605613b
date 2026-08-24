@@ -38,6 +38,13 @@ import {
 import { SignalStrip } from "./signal-strip";
 import { Plus, Trash2, X, Building2, Users, Tag as TagIcon, History, StickyNote } from "lucide-react";
 
+const TREND_LABEL: Record<string, string> = {
+  critico: "crítica (vermelho persistente)",
+  queda: "queda de engajamento",
+  oportunidade: "oportunidade (verde persistente)",
+  estavel: "estável",
+};
+
 const TABS = ["visao", "contatos", "tags", "timeline", "registros"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
