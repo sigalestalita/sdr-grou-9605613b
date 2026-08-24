@@ -341,6 +341,11 @@ export function CsClientModal({
               <CsMeetingsTab clientUid={clientUid} authorName={profileName} />
             )}
 
+            {!isLoading && tab === "vendas" && (
+              <CsSalesTab clientUid={clientUid} authorName={profileName} />
+            )}
+
+
             {!isLoading && tab === "timeline" && (
               <UnifiedTimeline
                 timeline={data?.timeline ?? []}
