@@ -13,7 +13,7 @@ import {
   type CsSignal,
   type CsStage,
 } from "@/lib/cs-types";
-import { AlertTriangle, Bell, Building2, Sparkles } from "lucide-react";
+import { AlertTriangle, Bell, Building2, RefreshCw, Sparkles } from "lucide-react";
 
 export type CsCardClient = {
   client_uid: string;
@@ -45,6 +45,7 @@ export function CsClientCard({
   weeks,
   ownerName,
   sheet,
+  changed,
   alerts = [],
   tags = [],
   slaDays = 0,
@@ -58,6 +59,8 @@ export function CsClientCard({
   weeks?: string[];
   ownerName: string;
   sheet?: CsCardSheet;
+  /** Chaves de `sheet` alteradas na última sincronização. */
+  changed?: Set<string>;
   alerts?: CsCardAlert[];
   tags?: string[];
   slaDays?: number;
@@ -106,39 +109,61 @@ export function CsClientCard({
 
       {sheet && (
         <div className="rounded-md border bg-muted/30 p-2 space-y-1">
+          {changed && changed.size > 0 && (
+            <p className="flex items-center gap-1 text-[10px] font-medium text-primary">
+              <RefreshCw className="h-3 w-3" /> {changed.size} campo(s) alterado(s) na última sync
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
             {[
-              ["CS", str(sheet.cs_atendimento)],
-              ["Responsável", str(sheet.responsavel)],
-              ["Tipo conta", str(sheet.tipo_conta)],
-              ["Ciclo de vida", str(sheet.ciclo_vida)],
-              ["Login PDA", str(sheet.login_pda)],
-              ["Domínio", str(sheet.dominio)],
-              ["Saldo atual", fmt(num(sheet.saldo_atual))],
-              ["Meta mensal", fmt(num(sheet.meta_mensal))],
-              ["Consumo últ. mês", fmt(num(sheet.consumo_ultimo_mes))],
-              ["Créditos usados", fmt(num(sheet.creditos_utilizados))],
-              ["Meses restantes", fmt(num(sheet.meses_restantes))],
-              ["Exp. créditos", str(sheet.data_expiracao_creditos)],
-              ["Exp. conta", str(sheet.data_expiracao_conta)],
-              ["Status dados", str(sheet.status_dados)],
-              ["Desabilitada", str(sheet.conta_desabilitada)],
+              ["CS", str(sheet.cs_atendimento), "cs_atendimento"],
+              ["Responsável", str(sheet.responsavel), "responsavel"],
+              ["Tipo conta", str(sheet.tipo_conta), "tipo_conta"],
+              ["Ciclo de vida", str(sheet.ciclo_vida), "ciclo_vida"],
+              ["Login PDA", str(sheet.login_pda), "login_pda"],
+              ["Domínio", str(sheet.dominio), "dominio"],
+              ["Saldo atual", fmt(num(sheet.saldo_atual)), "saldo_atual"],
+              ["Meta mensal", fmt(num(sheet.meta_mensal)), "meta_mensal"],
+              ["Consumo últ. mês", fmt(num(sheet.consumo_ultimo_mes)), "consumo_ultimo_mes"],
+              ["Créditos usados", fmt(num(sheet.creditos_utilizados)), "creditos_utilizados"],
+              ["Meses restantes", fmt(num(sheet.meses_restantes)), "meses_restantes"],
+              ["Exp. créditos", str(sheet.data_expiracao_creditos), "data_expiracao_creditos"],
+              ["Exp. conta", str(sheet.data_expiracao_conta), "data_expiracao_conta"],
+              ["Status dados", str(sheet.status_dados), "status_dados"],
+              ["Desabilitada", str(sheet.conta_desabilitada), "conta_desabilitada"],
             ]
               .filter(([, v]) => v)
-              .map(([k, v]) => (
-                <p key={k as string} className="truncate">
-                  <span className="text-muted-foreground">{k}: </span>
-                  <span className="font-medium">{v}</span>
-                </p>
-              ))}
+              .map(([k, v, key]) => {
+                const isChanged = !!key && !!changed?.has(key);
+                return (
+                  <p
+                    key={k as string}
+                    className={`truncate ${
+                      isChanged ? "rounded bg-primary/10 px-1 ring-1 ring-primary/30" : ""
+                    }`}
+                    title={isChanged ? "Alterado na última sincronização" : undefined}
+                  >
+                    <span className="text-muted-foreground">{k}: </span>
+                    <span className={`font-medium ${isChanged ? "text-primary" : ""}`}>{v}</span>
+                    {isChanged && <span className="ml-0.5 text-primary">•</span>}
+                  </p>
+                );
+              })}
           </div>
           {str(sheet.motivo) && (
-            <p className="text-[10px] text-muted-foreground">
+            <p
+              className={`text-[10px] ${
+                changed?.has("motivo")
+                  ? "rounded bg-primary/10 px-1 text-primary ring-1 ring-primary/30"
+                  : "text-muted-foreground"
+              }`}
+            >
               <span className="font-medium">Motivo:</span> {str(sheet.motivo)}
             </p>
           )}
         </div>
       )}
+
 
 
 

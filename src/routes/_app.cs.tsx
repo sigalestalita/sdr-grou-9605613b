@@ -134,6 +134,35 @@ function CsPage() {
     return map;
   }, [data?.snapshots]);
 
+  /** Campos que mudaram entre o penúltimo e o último snapshot sincronizado. */
+  const changedOf = useMemo(() => {
+    const prev = new Map<string, Record<string, unknown>>();
+    const last = new Map<string, Record<string, unknown>>();
+    for (const s of data?.snapshots ?? []) {
+      const meta = (s as { metadata?: unknown }).metadata;
+      if (!meta || typeof meta !== "object") continue;
+      const cur = last.get(s.client_uid);
+      if (cur) prev.set(s.client_uid, cur);
+      last.set(s.client_uid, meta as Record<string, unknown>);
+    }
+    const out = new Map<string, Set<string>>();
+    for (const [uid, cur] of last) {
+      const before = prev.get(uid);
+      if (!before) continue;
+      const keys = new Set([...Object.keys(cur), ...Object.keys(before)]);
+      const diff = new Set<string>();
+      for (const k of keys) {
+        if (k === "tab" || k === "sheet") continue;
+        const a = cur[k] ?? "";
+        const b = before[k] ?? "";
+        if (String(a) !== String(b)) diff.add(k);
+      }
+      if (diff.size > 0) out.set(uid, diff);
+    }
+    return out;
+  }, [data?.snapshots]);
+
+
   const alertsOf = useMemo(() => {
     const map = new Map<string, NonNullable<typeof data>["alerts"]>();
     for (const a of data?.alerts ?? []) {
@@ -287,6 +316,7 @@ function CsPage() {
                         weeks={weeks}
                         ownerName={profileName(c.cs_responsavel_id)}
                         sheet={sheetOf.get(c.client_uid)}
+                        changed={changedOf.get(c.client_uid)}
                         alerts={alertsOf.get(c.client_uid) ?? []}
                         tags={tagsOf.get(c.client_uid) ?? []}
                         slaDays={data?.sla?.[stage] ?? 0}
