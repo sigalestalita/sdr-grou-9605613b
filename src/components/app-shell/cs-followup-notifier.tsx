@@ -89,12 +89,7 @@ export function CsFollowUpNotifier() {
 
   return (
     <button
-      onClick={() => {
-        const next = !sound;
-        setSound(next);
-        window.localStorage.setItem(SOUND_KEY, next ? "1" : "0");
-        navigate({ to: "/cs-follow-ups" });
-      }}
+      onClick={() => navigate({ to: "/cs-follow-ups" })}
       title={
         count > 0
           ? `${count} follow-up(s) de CS na hora ou atrasado(s)`
