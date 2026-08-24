@@ -106,7 +106,27 @@ export const listCsAgenda = createServerFn({ method: "GET" })
     else if (data.userId) q = q.eq("user_id", data.userId);
     const { data: events, error } = await q;
     if (error) throw new Error(error.message);
-    return { isManager: access.isManager, events: events ?? [], users: await listIntegrationStatus() };
+
+    // Donos de agenda: quem tem eventos registrados (Calendly ou simulados) + integrações vinculadas.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: ownerRows }, { data: profiles }] = await Promise.all([
+      supabaseAdmin.from("cs_calendly_events").select("user_id"),
+      supabaseAdmin.from("profiles").select("id, full_name, email"),
+    ]);
+    const nameById = new Map(
+      (profiles ?? []).map((p) => [p.id as string, (p.full_name || p.email || p.id) as string]),
+    );
+    const ownerIds = Array.from(new Set((ownerRows ?? []).map((r) => r.user_id as string)));
+    const owners = ownerIds
+      .map((id) => ({ userId: id, name: nameById.get(id) ?? id }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return {
+      isManager: access.isManager,
+      events: events ?? [],
+      users: await listIntegrationStatus(),
+      owners,
+    };
   });
 
 /** E-mails recebidos por redirecionamento. */
