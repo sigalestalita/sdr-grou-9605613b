@@ -35,7 +35,7 @@ import { toast } from "sonner";
 import { ArrowLeft, KeyRound } from "lucide-react";
 
 export const Route = createFileRoute("/_app/usuarios")({
-  head: () => ({ meta: [{ title: "Usuários — Lidi" }] }),
+  head: () => ({ meta: [{ title: "Usuários — Grou Compass" }] }),
   component: UsersPage,
 });
 

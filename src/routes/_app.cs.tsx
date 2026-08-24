@@ -44,13 +44,13 @@ export const Route = createFileRoute("/_app/cs")({
   component: CsPage,
   head: () => ({
     meta: [
-      { title: "Customer Success | Lidi CRM" },
+      { title: "Customer Success | Grou Compass" },
       {
         name: "description",
         content:
           "Gestão de carteira de Customer Success: jornada do cliente, sinaleira de engajamento PDA, health score e alertas de SLA.",
       },
-      { property: "og:title", content: "Customer Success | Lidi CRM" },
+      { property: "og:title", content: "Customer Success | Grou Compass" },
       {
         property: "og:description",
         content: "Carteira de clientes, sinaleira de engajamento, health score e alertas de CS.",

@@ -13,13 +13,13 @@ export const Route = createFileRoute("/_app/cs-agenda")({
   component: CsAgendaPage,
   head: () => ({
     meta: [
-      { title: "Agenda CS | Lidi CRM" },
+      { title: "Agenda CS | Grou Compass" },
       {
         name: "description",
         content:
           "Agenda do time de Customer Success por dia, semana e mês, com reuniões, convidados e links de acesso.",
       },
-      { property: "og:title", content: "Agenda CS | Lidi CRM" },
+      { property: "og:title", content: "Agenda CS | Grou Compass" },
       {
         property: "og:description",
         content: "Visão do gestor sobre as reuniões agendadas de cada pessoa do time de CS.",

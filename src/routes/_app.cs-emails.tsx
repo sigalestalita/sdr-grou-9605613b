@@ -12,13 +12,13 @@ export const Route = createFileRoute("/_app/cs-emails")({
   component: CsEmailsPage,
   head: () => ({
     meta: [
-      { title: "E-mails CS | Lidi CRM" },
+      { title: "E-mails CS | Grou Compass" },
       {
         name: "description",
         content:
           "Acompanhe os e-mails redirecionados do atendimento de Customer Success, vinculados ao cliente e ao responsável.",
       },
-      { property: "og:title", content: "E-mails CS | Lidi CRM" },
+      { property: "og:title", content: "E-mails CS | Grou Compass" },
       {
         property: "og:description",
         content: "Caixa compartilhada do time de CS com vínculo automático a cliente e responsável.",
