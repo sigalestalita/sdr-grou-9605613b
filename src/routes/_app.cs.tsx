@@ -228,6 +228,7 @@ function CsPage() {
     if (fSignal && c.current_signal !== fSignal) return false;
     if (c.tipo_lead !== funnel) return false;
     if (fTag && !(tagsOf.get(c.client_uid) ?? []).includes(fTag)) return false;
+    if (fStage && c.journey_stage !== fStage) return false;
     return true;
   });
 
