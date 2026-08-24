@@ -692,6 +692,23 @@ type TlItem = {
   meta?: string | null;
 };
 
+export type ManualChannel =
+  | "ligacao"
+  | "whatsapp"
+  | "email"
+  | "reuniao"
+  | "presencial"
+  | "observacao";
+
+const MANUAL_CHANNEL_LABEL: Record<ManualChannel, string> = {
+  ligacao: "Ligação",
+  whatsapp: "WhatsApp",
+  email: "E-mail",
+  reuniao: "Reunião",
+  presencial: "Presencial",
+  observacao: "Observação",
+};
+
 /** Timeline unificada do atendimento: sistema, e-mails, WhatsApp, agenda e registros. */
 function UnifiedTimeline({
   timeline,
@@ -700,6 +717,8 @@ function UnifiedTimeline({
   whatsapp,
   records,
   authorName,
+  pending,
+  onAddEntry,
 }: {
   timeline: { id: string; title: string; description: string | null; channel: string | null; occurred_at: string; author_id: string | null }[];
   emails: { id: string; direction: string; from_email: string | null; from_name: string | null; subject: string | null; snippet: string | null; received_at: string; owner_user_id: string | null }[];
@@ -707,7 +726,28 @@ function UnifiedTimeline({
   whatsapp: { id: string; body: string | null; sender_type: string; sender_user_id: string | null; message_type: string; created_at: string }[];
   records: { id: string; tipo: string; content: string; created_at: string; author_id: string | null }[];
   authorName: (id: string | null | undefined) => string;
+  pending: boolean;
+  onAddEntry: (v: {
+    channel: ManualChannel;
+    title: string;
+    description: string | null;
+    occurredAt: string;
+  }) => void;
 }) {
+  const [manual, setManual] = useState<{
+    open: boolean;
+    channel: ManualChannel;
+    title: string;
+    description: string;
+    occurredAt: string;
+  }>(() => ({
+    open: false,
+    channel: "ligacao",
+    title: "",
+    description: "",
+    occurredAt: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+  }));
+
   const [kinds, setKinds] = useState<TlKind[]>([]);
 
   const items = useMemo<TlItem[]>(() => {
