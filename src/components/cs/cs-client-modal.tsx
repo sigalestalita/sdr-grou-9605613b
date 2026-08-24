@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   addCsRecord,
+  addCsTimelineEntry,
+
   addCsTag,
   deleteCsContact,
   getCsClient,
@@ -36,7 +38,9 @@ import {
   type CsSignal,
 } from "@/lib/cs-types";
 import { SignalStrip } from "./signal-strip";
-import { Plus, Trash2, X, Building2, Users, Tag as TagIcon, History, StickyNote } from "lucide-react";
+import { CsMeetingsTab } from "./cs-meetings-tab";
+import { Plus, Trash2, X, Building2, Users, Tag as TagIcon, History, StickyNote, PhoneCall } from "lucide-react";
+
 
 const TREND_LABEL: Record<string, string> = {
   critico: "crítica (vermelho persistente)",
