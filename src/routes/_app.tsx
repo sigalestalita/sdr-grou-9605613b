@@ -23,6 +23,10 @@ import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
+import { useCurrentRole } from "@/lib/use-role";
+import { TEAM_LABEL, teamForPath, type AppTeam } from "@/lib/teams";
+import { ShieldAlert } from "lucide-react";
+
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
