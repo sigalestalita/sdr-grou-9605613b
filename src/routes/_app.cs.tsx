@@ -247,7 +247,24 @@ function CsPage() {
   const avgHealth = clients.length
     ? Math.round(clients.reduce((a, c) => a + (c.health_score ?? 0), 0) / clients.length)
     : 0;
-  const reds = clients.filter((c) => c.current_signal === "vermelho").length;
+
+  // Sinaleira: contagem por cor dentro dos filtros atuais (ignorando o próprio filtro de sinaleira).
+  const signalCounts = useMemo(() => {
+    const base = (data?.clients ?? []).filter((c) => {
+      if (!c.ativo) return false;
+      if (q && !`${c.nome_empresa} ${c.client_uid} ${c.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase()))
+        return false;
+      if (fOwner && c.cs_responsavel_id !== fOwner) return false;
+      if (fExec && c.comercial_responsavel_id !== fExec) return false;
+      if (c.tipo_lead !== funnel) return false;
+      if (fTag && !(tagsOf.get(c.client_uid) ?? []).includes(fTag)) return false;
+      if (fStage && c.journey_stage !== fStage) return false;
+      return true;
+    });
+    const counts: Record<string, number> = { verde: 0, amarelo: 0, vermelho: 0, sem_dado: 0 };
+    for (const c of base) counts[c.current_signal] = (counts[c.current_signal] ?? 0) + 1;
+    return { counts, total: base.length };
+  }, [data?.clients, q, fOwner, fExec, funnel, fTag, fStage, tagsOf]);
 
   return (
     <div className="space-y-5">
