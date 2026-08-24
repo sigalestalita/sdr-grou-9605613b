@@ -21,13 +21,13 @@ export const Route = createFileRoute("/_app/cs-integracoes")({
   component: CsIntegrationsPage,
   head: () => ({
     meta: [
-      { title: "Integrações CS | Lidi CRM" },
+      { title: "Integrações CS | Grou Compass" },
       {
         name: "description",
         content:
           "Vincule a agenda do Calendly e a caixa de e-mail de cada pessoa do time de Customer Success.",
       },
-      { property: "og:title", content: "Integrações CS | Lidi CRM" },
+      { property: "og:title", content: "Integrações CS | Grou Compass" },
       {
         property: "og:description",
         content: "Conexão de agenda Calendly e caixa de e-mail do time de Customer Success.",

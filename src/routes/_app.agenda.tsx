@@ -24,12 +24,12 @@ export const Route = createFileRoute("/_app/agenda")({
   component: AgendaPage,
   head: () => ({
     meta: [
-      { title: "Agenda de FUPs | Lidi CRM" },
+      { title: "Agenda de FUPs | Grou Compass" },
       {
         name: "description",
         content: "Cronograma semanal de follow-ups: o que cada SDR precisa fazer em cada touchpoint do atendimento.",
       },
-      { property: "og:title", content: "Agenda de FUPs | Lidi CRM" },
+      { property: "og:title", content: "Agenda de FUPs | Grou Compass" },
       { property: "og:description", content: "Calendário de follow-ups manuais e automáticos por SDR." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

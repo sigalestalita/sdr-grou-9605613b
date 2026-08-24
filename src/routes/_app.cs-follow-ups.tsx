@@ -27,13 +27,13 @@ export const Route = createFileRoute("/_app/cs-follow-ups")({
   component: CsFollowUpsPage,
   head: () => ({
     meta: [
-      { title: "Follow-ups CS | Lidi CRM" },
+      { title: "Follow-ups CS | Grou Compass" },
       {
         name: "description",
         content:
           "Calendário semanal de follow-ups de cada CS e executivo, com alertas dos checkpoints de onboarding, ativação e renovação.",
       },
-      { property: "og:title", content: "Follow-ups CS | Lidi CRM" },
+      { property: "og:title", content: "Follow-ups CS | Grou Compass" },
       {
         property: "og:description",
         content: "Cronograma de próximos passos, alertas e checkpoints da jornada do cliente.",

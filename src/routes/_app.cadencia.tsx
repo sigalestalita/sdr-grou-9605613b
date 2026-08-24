@@ -15,9 +15,9 @@ export const Route = createFileRoute("/_app/cadencia")({
   component: CadenciaPage,
   head: () => ({
     meta: [
-      { title: "Cadência e Touches | Lidi CRM" },
+      { title: "Cadência e Touches | Grou Compass" },
       { name: "description", content: "Gestão da cadência comercial: touches por SDR, taxa de resposta por canal e leads esquecidos." },
-      { property: "og:title", content: "Cadência e Touches | Lidi CRM" },
+      { property: "og:title", content: "Cadência e Touches | Grou Compass" },
       { property: "og:description", content: "Indicadores operacionais de cadência e follow-up do time de SDR." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
