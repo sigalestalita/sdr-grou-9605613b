@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CsClientModal } from "@/components/cs/cs-client-modal";
-import { SignalStrip } from "@/components/cs/signal-strip";
 import { CsClientCard } from "@/components/cs/cs-client-card";
 import { CsAlertModal } from "@/components/cs/cs-alert-modal";
 import { CsSettingsPanel } from "@/components/cs/cs-settings-panel";
@@ -25,25 +24,18 @@ import {
   CS_ORIGINS,
   CS_ORIGIN_LABEL,
   CS_SIGNALS,
-  CS_SIGNAL_CLASS,
   CS_SIGNAL_LABEL,
   CS_STAGES,
   CS_STAGE_LABEL,
-  analyzeSignalTrend,
-  daysBetween,
-  healthLabel,
   type CsSignal,
 } from "@/lib/cs-types";
 import {
-  AlertTriangle,
-  Building2,
   Bell,
   HeartPulse,
   Plus,
   RefreshCw,
   Search,
   Settings2,
-  Sparkles,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs")({
