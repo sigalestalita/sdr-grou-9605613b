@@ -58,6 +58,23 @@ export async function listIntegrationStatus(userIds?: string[]): Promise<Integra
   });
 }
 
+/** Pessoas elegíveis do CS (time cs, gestão ou super admin) para o gestor vincular agendas. */
+export async function listCsTeamUsers(): Promise<Array<{ userId: string; name: string; email: string | null }>> {
+  const [{ data: teams }, { data: roles }, { data: profiles }] = await Promise.all([
+    supabaseAdmin.from("user_teams").select("user_id, team").eq("team", "cs"),
+    supabaseAdmin.from("user_roles").select("user_id, role"),
+    supabaseAdmin.from("profiles").select("id, full_name, email"),
+  ]);
+  const ids = new Set((teams ?? []).map((t) => t.user_id));
+  for (const r of roles ?? [])
+    if (r.role === "super_admin" || r.role === "gestao" || r.role === "executivo")
+      ids.add(r.user_id);
+  return (profiles ?? [])
+    .filter((p) => ids.has(p.id))
+    .map((p) => ({ userId: p.id, name: p.full_name || p.email || p.id, email: p.email }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
 /** Valida o token pessoal e salva a conexão do usuário. */
 export async function connectCalendly(userId: string, token: string) {
   const me = await getCalendlyMe(token);

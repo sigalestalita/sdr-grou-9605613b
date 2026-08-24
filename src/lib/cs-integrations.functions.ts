@@ -6,9 +6,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const listCsIntegrations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { assertCsAccess, listIntegrationStatus, getInboundToken } = await import(
-      "@/lib/cs/integrations.server"
-    );
+    const { assertCsAccess, listIntegrationStatus, getInboundToken, listCsTeamUsers } =
+      await import("@/lib/cs/integrations.server");
     const access = await assertCsAccess(context.userId);
     const all = await listIntegrationStatus();
     const mine = all.find((i) => i.userId === context.userId) ?? null;
@@ -16,6 +15,7 @@ export const listCsIntegrations = createServerFn({ method: "GET" })
       isManager: access.isManager,
       mine,
       users: access.isManager ? all : mine ? [mine] : [],
+      teamUsers: access.isManager ? await listCsTeamUsers() : [],
       inboundToken: access.isManager ? await getInboundToken() : null,
     };
   });
