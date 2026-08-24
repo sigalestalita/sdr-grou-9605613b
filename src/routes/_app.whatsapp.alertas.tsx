@@ -6,6 +6,7 @@ import { listHotLeadAlerts } from "@/lib/hot-alerts.functions";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { useOwnerLabel } from "@/lib/use-owner-label";
 import { RefreshCw, Mail, MessageCircle, ChevronDown, ChevronRight } from "lucide-react";
 
 export const Route = createFileRoute("/_app/whatsapp/alertas")({
@@ -171,7 +172,7 @@ function HotAlertsLogPage() {
         <div>
           <h2 className="text-lg font-semibold">Log de alertas de lead quente</h2>
           <p className="text-xs text-muted-foreground">
-            Cada disparo (ou tentativa) de alerta HOT para SDR — canais, latência e motivos de falha.
+            Cada disparo (ou tentativa) de alerta HOT para {ownerLabel} — canais, latência e motivos de falha.
           </p>
         </div>
         <div className="flex items-center gap-2">

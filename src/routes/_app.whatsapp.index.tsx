@@ -16,6 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BellRing, ExternalLink } from "lucide-react";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type";
 import { toast } from "sonner";
+import { useOwnerLabel } from "@/lib/use-owner-label";
 
 const LISIANE_USER_ID = "96c713e5-af8f-48fd-b536-59c2e1879f73";
 
@@ -138,7 +139,7 @@ function WhatsappInbox() {
             <Select value={assigned} onValueChange={(v) => setAssigned(v as typeof assigned)}>
               <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos SDRs</SelectItem>
+                <SelectItem value="all">Todos {ownerLabel}s</SelectItem>
                 <SelectItem value="me">Minhas</SelectItem>
                 <SelectItem value="unassigned">Sem atribuição</SelectItem>
               </SelectContent>

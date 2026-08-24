@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { toast } from "sonner";
+import { useOwnerLabel } from "@/lib/use-owner-label";
 import {
   Send, Check, CheckCheck, AlertCircle, Clock,
   Sparkles, FileText, Thermometer, Loader2, Paperclip, Target,
@@ -450,7 +451,7 @@ function AiToolbar({
         <PopoverContent className="w-[420px]" align="start">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-medium">Plano de abordagem (SDR sênior)</p>
+              <p className="text-xs font-medium">Plano de abordagem ({ownerLabel} sênior)</p>
               <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={onPlan} disabled={planning}>
                 {planning ? <Loader2 className="h-3 w-3 animate-spin" /> : plan ? "Atualizar" : "Gerar"}
               </Button>

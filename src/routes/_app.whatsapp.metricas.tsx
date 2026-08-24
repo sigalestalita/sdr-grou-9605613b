@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getWhatsappMetrics } from "@/lib/whatsapp-metrics.functions";
+import { useOwnerLabel } from "@/lib/use-owner-label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -48,7 +49,7 @@ function MetricsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Métricas de WhatsApp</h2>
-          <p className="text-xs text-muted-foreground">Volume, entregas, resposta e conversão por SDR / campanha.</p>
+          <p className="text-xs text-muted-foreground">Volume, entregas, resposta e conversão por {ownerLabel} / campanha.</p>
         </div>
         <Select value={range} onValueChange={(v) => setRange(v as "7d" | "30d" | "90d")}>
           <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -81,7 +82,7 @@ function MetricsPage() {
             />
             <KpiCard
               icon={<Timer className="h-4 w-4" />}
-              label="Resposta média SDR"
+              label={`Resposta média ${ownerLabel}`}
               value={data.avgFirstResponseMin == null ? "—" : `${data.avgFirstResponseMin} min`}
             />
             <KpiCard icon={<MessageSquare className="h-4 w-4" />} label="Conversas ativas" value={data.totals.activeConvs} />
@@ -166,13 +167,13 @@ function MetricsPage() {
             </Card>
           </div>
 
-          {/* Por SDR */}
-          <Card title="Por SDR">
+          {/* Por responsável */}
+          <Card title={`Por ${ownerLabel}`}>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-white/5 text-muted-foreground">
-                    <th className="text-left py-2 px-3">SDR</th>
+                    <th className="text-left py-2 px-3">{ownerLabel}</th>
                     <th className="text-right py-2 px-3">Conversas</th>
                     <th className="text-right py-2 px-3">Enviadas</th>
                     <th className="text-right py-2 px-3">Recebidas</th>
