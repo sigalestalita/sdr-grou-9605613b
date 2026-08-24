@@ -34,10 +34,20 @@ export function pickLatestTab(tabs: string[]): string | null {
     const score = tabDateScore(tab);
     if (score !== null && (!best || score > best.score)) best = { tab, score };
   }
-  return best?.tab ?? tabs[tabs.length - 1];
+  if (best) return best.tab;
+  const dataTabs = tabs.filter((t) => /sinaleira/i.test(t));
+  const pool = dataTabs.length > 0 ? dataTabs : tabs;
+  return pool[pool.length - 1];
 }
 
 function tabDateScore(tab: string): number | null {
+  const iso = tab.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (iso) {
+    const y = Number(iso[1]);
+    const m = Number(iso[2]);
+    const d = Number(iso[3]);
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return y * 10000 + m * 100 + d;
+  }
   const dmy = tab.match(/(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?/);
   if (dmy) {
     const d = Number(dmy[1]);
@@ -46,8 +56,6 @@ function tabDateScore(tab: string): number | null {
     const y = yRaw < 100 ? 2000 + yRaw : yRaw;
     if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return y * 10000 + m * 100 + d;
   }
-  const iso = tab.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
-  if (iso) return Number(iso[1]) * 10000 + Number(iso[2]) * 100 + Number(iso[3]);
   return null;
 }
 
@@ -61,9 +69,12 @@ function norm(s: unknown): string {
 
 function parseSignal(raw: unknown, consumo: number | null): CsSignal {
   const v = norm(raw);
-  if (/verde|green|ok|bom/.test(v)) return "verde";
+  if (!v || /^n\/?d$|^nd$|sem dado|indispon/.test(v)) {
+    if (consumo == null) return "sem_dado";
+  }
+  if (/verde|green|\bok\b|bom/.test(v)) return "verde";
   if (/amarel|yellow|atencao|medio/.test(v)) return "amarelo";
-  if (/vermelh|red|critic|ruim/.test(v)) return "vermelho";
+  if (/vermelh|red|critic|ruim|preto|black/.test(v)) return "vermelho";
   if (consumo != null) {
     if (consumo >= 0.7) return "verde";
     if (consumo >= 0.3) return "amarelo";
@@ -72,12 +83,21 @@ function parseSignal(raw: unknown, consumo: number | null): CsSignal {
   return "sem_dado";
 }
 
-function parsePct(raw: unknown): number | null {
-  const s = String(raw ?? "").replace(/%/g, "").replace(/\./g, "").replace(",", ".").trim();
+/** Número em formato pt-BR ("1.234,5" -> 1234.5). */
+function parseNum(raw: unknown): number | null {
+  const s = String(raw ?? "").replace(/%/g, "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".").trim();
   if (!s) return null;
   const n = Number(s);
-  if (!Number.isFinite(n)) return null;
-  return n > 1 ? n / 100 : n;
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Percentual: aceita "85%", "0,85" e "1,2" (razão consumo/meta). */
+function parsePct(raw: unknown): number | null {
+  const txt = String(raw ?? "");
+  const n = parseNum(txt);
+  if (n == null) return null;
+  if (txt.includes("%")) return n / 100;
+  return n > 5 ? n / 100 : n;
 }
 
 type SyncResult = {
@@ -108,11 +128,15 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
     const findCol = (patterns: RegExp[]) =>
       header.findIndex((h) => patterns.some((p) => p.test(h)));
 
-    const colEmpresa = findCol([/empresa|cliente|razao/]);
-    const colUid = findCol([/client_uid|codigo|cod\b|uid/]);
+    const colEmpresa = findCol([/nome da conta/, /empresa|cliente|razao|conta/]);
+    const colUid = findCol([/client_uid/, /^codigo|\bcod\b|\buid\b/]);
     const colLogin = findCol([/login/]);
-    const colSignal = findCol([/sinaleira|status|cor|farol/]);
-    const colConsumo = findCol([/consumo|uso|utilizacao|%/]);
+    const colSignal = findCol([/^sinaleira/, /sinaleira|farol|\bcor\b/]);
+    const colConsumo = findCol([/comparativo/, /consumo|uso|utilizacao|%/]);
+    const colMotivo = findCol([/motivo/]);
+    const colResponsavel = findCol([/^responsavel/, /responsavel/]);
+    const colSaldo = findCol([/saldo atual|^saldo/]);
+    const colTipo = findCol([/tipo do lead|tipo de conta/]);
 
     if (colEmpresa < 0 && colUid < 0 && colLogin < 0) {
       return { ok: false, tab, error: "Não encontrei coluna de empresa/código/login na aba" };
@@ -164,7 +188,15 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
         signal: parseSignal(colSignal >= 0 ? row[colSignal] : null, consumo),
         consumo_pct: consumo,
         source: `planilha:${tab}`,
-        metadata: { tab, nome_planilha: nome || null },
+        metadata: {
+          tab,
+          nome_planilha: nome || null,
+          login_pda: login || null,
+          motivo: colMotivo >= 0 ? String(row[colMotivo] ?? "") || null : null,
+          responsavel: colResponsavel >= 0 ? String(row[colResponsavel] ?? "") || null : null,
+          saldo_atual: colSaldo >= 0 ? parseNum(row[colSaldo]) : null,
+          tipo: colTipo >= 0 ? String(row[colTipo] ?? "") || null : null,
+        },
       });
     }
 
