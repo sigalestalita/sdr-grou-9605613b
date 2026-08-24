@@ -45,15 +45,17 @@ const TREND_LABEL: Record<string, string> = {
   estavel: "estável",
 };
 
-const TABS = ["visao", "contatos", "tags", "timeline", "registros"] as const;
+const TABS = ["visao", "contatos", "reunioes", "tags", "timeline", "registros"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   visao: "Visão geral",
   contatos: "Contatos",
+  reunioes: "Reuniões",
   tags: "Tags",
   timeline: "Timeline",
   registros: "Registros",
 };
+
 
 export function CsClientModal({
   clientUid,
