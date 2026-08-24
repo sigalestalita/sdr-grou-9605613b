@@ -157,9 +157,14 @@ function AppShell() {
         <div
           className={`h-12 shrink-0 flex items-center justify-between gap-2 border-b border-sidebar-border ${collapsed ? "px-2" : "px-3"}`}
         >
-          <span className="flex min-w-0 items-center rounded bg-foreground px-1.5 py-1 dark:bg-transparent dark:px-0 dark:py-0">
-            <img src={lidiLogo} alt="Lidi" className={collapsed ? "h-5 w-auto" : "h-6 w-auto"} />
-          </span>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="flex min-w-0 items-center rounded bg-foreground px-1.5 py-1 dark:bg-transparent dark:px-0 dark:py-0">
+              <img src={lidiLogo} alt="Grou" className={collapsed ? "h-5 w-auto" : "h-6 w-auto"} />
+            </span>
+            {!collapsed && (
+              <span className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">compass</span>
+            )}
+          </div>
           {!collapsed && (
             <button
               onClick={() => setCollapsed(true)}
