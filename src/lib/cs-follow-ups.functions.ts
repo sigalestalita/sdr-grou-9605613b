@@ -29,8 +29,6 @@ export type CsFollowUpItem = {
   subtitle: string | null;
 };
 
-const dayMs = 86400000;
-
 /**
  * Cronograma de follow-ups de CS por responsável (CS e executivo comercial).
  * Fontes: próximos passos de reuniões, alertas com follow-up marcado e os
@@ -49,6 +47,7 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const dayMs = 86400000;
     const { DEFAULT_STAGE_SLA } = await import("@/lib/cs-types");
     const { getStageSla, fetchAllRows } = await import("@/lib/cs/cs-core.server");
 
