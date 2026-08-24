@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  CS_FOLLOWUP_CHANNELS,
+  CS_FOLLOWUP_OUTCOMES,
+  CS_FOLLOWUP_OUTCOME_LABEL,
+} from "@/lib/cs-follow-up-types";
 
 export type CsFollowUpKind = "reuniao" | "alerta" | "jornada" | "sem_contato";
 
@@ -202,7 +207,8 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
     return { period: { from, to }, currentUserId: userId, owners, overdue, scheduled };
   });
 
-/** Marca um follow-up de CS como feito, registrando na timeline do cliente. */
+
+/** Marca um follow-up de CS como feito, registrando o resultado na timeline do cliente. */
 export const completeCsFollowUp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -212,45 +218,135 @@ export const completeCsFollowUp = createServerFn({ method: "POST" })
         refId: z.string().uuid().nullable().optional(),
         clientUid: z.string().min(1),
         title: z.string().min(1),
+        outcome: z.enum(CS_FOLLOWUP_OUTCOMES).optional(),
+        channel: z.enum(CS_FOLLOWUP_CHANNELS).optional(),
+        notes: z.string().max(2000).nullable().optional(),
+        /** Se informado, agenda um novo follow-up após registrar o resultado. */
+        nextAt: z.string().nullable().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const now = new Date().toISOString();
+    const outcome = data.outcome ?? "atendimento_concluido";
+    const nextAt = data.nextAt ? new Date(data.nextAt).toISOString() : null;
+    const channel = data.channel ?? (data.kind === "reuniao" ? "reuniao" : "observacao");
 
     if (data.kind === "reuniao" && data.refId) {
       const { error } = await supabase
         .from("cs_meetings")
-        .update({ next_step_at: null } as never)
+        .update({ next_step_at: nextAt } as never)
         .eq("id", data.refId);
       if (error) throw new Error(error.message);
     }
     if (data.kind === "alerta" && data.refId) {
       const { error } = await supabase
         .from("cs_alerts")
-        .update({ status: "resolved", resolved_at: now, resolved_by: userId } as never)
+        .update({
+          status: "resolved",
+          resolved_at: now,
+          resolved_by: userId,
+          follow_up_at: nextAt,
+          observation: data.notes ?? null,
+        } as never)
         .eq("id", data.refId);
       if (error) throw new Error(error.message);
     }
 
+    // Reagendamento de checkpoints derivados vira um alerta com follow-up marcado.
+    if (nextAt && (data.kind === "jornada" || data.kind === "sem_contato")) {
+      await supabase.from("cs_alerts").insert({
+        client_uid: data.clientUid,
+        alert_type: data.kind === "jornada" ? "sla_estourado" : "sem_contato",
+        reason: data.title,
+        severity: "media",
+        status: "open",
+        follow_up_at: nextAt,
+      } as never);
+    }
+
+    const outcomeLabel = CS_FOLLOWUP_OUTCOME_LABEL[outcome] ?? outcome;
     await supabase.from("cs_timeline_events").insert({
       client_uid: data.clientUid,
       author_id: userId,
       event_type: "follow_up_concluido",
-      channel: data.kind === "reuniao" ? "reuniao" : "observacao",
-      title: `Follow-up concluído: ${data.title}`,
-      description: null,
+      channel,
+      title: `Follow-up: ${data.title} — ${outcomeLabel}`,
+      description: data.notes?.trim() || null,
       occurred_at: now,
-      metadata: { kind: data.kind, ref_id: data.refId ?? null },
+      metadata: {
+        kind: data.kind,
+        ref_id: data.refId ?? null,
+        outcome,
+        next_follow_up_at: nextAt,
+      },
     } as never);
 
-    if (data.kind !== "alerta") {
+    if (outcome !== "sem_resposta" && data.kind !== "alerta") {
       await supabase
         .from("cs_clients")
         .update({ last_contact_at: now } as never)
         .eq("client_uid", data.clientUid);
     }
 
-    return { ok: true };
+    return { ok: true, nextAt };
   });
+
+/** Reagenda um follow-up de CS sem marcá-lo como concluído. */
+export const rescheduleCsFollowUp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato"]),
+        refId: z.string().uuid().nullable().optional(),
+        clientUid: z.string().min(1),
+        title: z.string().min(1),
+        nextAt: z.string().min(1),
+        notes: z.string().max(2000).nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const nextAt = new Date(data.nextAt).toISOString();
+
+    if (data.kind === "reuniao" && data.refId) {
+      const { error } = await supabase
+        .from("cs_meetings")
+        .update({ next_step_at: nextAt } as never)
+        .eq("id", data.refId);
+      if (error) throw new Error(error.message);
+    } else if (data.kind === "alerta" && data.refId) {
+      const { error } = await supabase
+        .from("cs_alerts")
+        .update({ follow_up_at: nextAt } as never)
+        .eq("id", data.refId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("cs_alerts").insert({
+        client_uid: data.clientUid,
+        alert_type: data.kind === "jornada" ? "sla_estourado" : "sem_contato",
+        reason: data.title,
+        severity: "media",
+        status: "open",
+        follow_up_at: nextAt,
+      } as never);
+      if (error) throw new Error(error.message);
+    }
+
+    await supabase.from("cs_timeline_events").insert({
+      client_uid: data.clientUid,
+      author_id: userId,
+      event_type: "follow_up_reagendado",
+      channel: "observacao",
+      title: `Follow-up reagendado: ${data.title}`,
+      description: data.notes?.trim() || null,
+      occurred_at: new Date().toISOString(),
+      metadata: { kind: data.kind, ref_id: data.refId ?? null, next_follow_up_at: nextAt },
+    } as never);
+
+    return { ok: true, nextAt };
+  });
+

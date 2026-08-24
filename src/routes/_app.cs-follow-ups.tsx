@@ -1,22 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/use-auth";
-import {
-  completeCsFollowUp,
-  getCsFollowUpAgenda,
-  type CsFollowUpItem,
-} from "@/lib/cs-follow-ups.functions";
+import { getCsFollowUpAgenda, type CsFollowUpItem } from "@/lib/cs-follow-ups.functions";
+import { CsFollowUpActionModal } from "@/components/cs/cs-followup-action-modal";
 import { CS_SIGNAL_CLASS, CS_SIGNAL_LABEL, CS_STAGE_LABEL, healthLabel } from "@/lib/cs-types";
 import {
   AlertTriangle,
   Bell,
   CalendarDays,
+  CalendarClock,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -76,8 +74,11 @@ const KIND_META: Record<CsFollowUpItem["kind"], { label: string; icon: typeof Be
 function CsFollowUpsPage() {
   const { user } = useAuth();
   const agendaFn = useServerFn(getCsFollowUpAgenda);
-  const doneFn = useServerFn(completeCsFollowUp);
   const qc = useQueryClient();
+  const [action, setAction] = useState<{
+    item: CsFollowUpItem;
+    mode: "resultado" | "reagendar";
+  } | null>(null);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [owner, setOwner] = useState("me");
 
@@ -97,23 +98,10 @@ function CsFollowUpsPage() {
   const overdue = filter(data?.overdue ?? []);
   const scheduled = filter(data?.scheduled ?? []);
 
-  const complete = useMutation({
-    mutationFn: (item: CsFollowUpItem) =>
-      doneFn({
-        data: {
-          kind: item.kind,
-          refId: item.refId ?? null,
-          clientUid: item.clientUid,
-          title: item.title,
-        },
-      }),
-    onSuccess: () => {
-      toast.success("Follow-up concluído");
-      qc.invalidateQueries({ queryKey: ["cs-follow-ups"] });
-      qc.invalidateQueries({ queryKey: ["cs-board"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
-  });
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ["cs-follow-ups"] });
+    qc.invalidateQueries({ queryKey: ["cs-board"] });
+  };
 
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const byDay = useMemo(() => {
@@ -187,8 +175,7 @@ function CsFollowUpsPage() {
                     key={it.key}
                     item={it}
                     late
-                    onDone={() => complete.mutate(it)}
-                    doing={complete.isPending}
+                    onAction={(mode) => setAction({ item: it, mode })}
                   />
                 ))}
               </div>
@@ -225,8 +212,7 @@ function CsFollowUpsPage() {
                         key={it.key}
                         item={it}
                         compact
-                        onDone={() => complete.mutate(it)}
-                        doing={complete.isPending}
+                        onAction={(mode) => setAction({ item: it, mode })}
                       />
                     ))
                   )}
@@ -236,6 +222,15 @@ function CsFollowUpsPage() {
           </div>
         </>
       )}
+
+      {action && (
+        <CsFollowUpActionModal
+          item={action.item}
+          mode={action.mode}
+          onClose={() => setAction(null)}
+          onDone={refresh}
+        />
+      )}
     </div>
   );
 }
@@ -244,14 +239,12 @@ function FollowUpItem({
   item,
   compact,
   late,
-  onDone,
-  doing,
+  onAction,
 }: {
   item: CsFollowUpItem;
   compact?: boolean;
   late?: boolean;
-  onDone?: () => void;
-  doing?: boolean;
+  onAction?: (mode: "resultado" | "reagendar") => void;
 }) {
   const meta = KIND_META[item.kind];
   const Icon = meta.icon;
@@ -289,15 +282,23 @@ function FollowUpItem({
           <span className={health.cls}>Health {item.healthScore}</span>
         </p>
       )}
-      {onDone && !item.done && (
-        <button
-          type="button"
-          disabled={doing}
-          onClick={onDone}
-          className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-600 hover:bg-emerald-500/20 disabled:opacity-50"
-        >
-          <Check className="h-3 w-3" /> Feito
-        </button>
+      {onAction && !item.done && (
+        <div className="flex flex-wrap gap-1 pt-0.5">
+          <button
+            type="button"
+            onClick={() => onAction("resultado")}
+            className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-600 hover:bg-emerald-500/20"
+          >
+            <Check className="h-3 w-3" /> Resultado
+          </button>
+          <button
+            type="button"
+            onClick={() => onAction("reagendar")}
+            className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted"
+          >
+            <CalendarClock className="h-3 w-3" /> Reagendar
+          </button>
+        </div>
       )}
       {item.done && (
         <Badge
