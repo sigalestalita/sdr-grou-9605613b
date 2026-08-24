@@ -281,7 +281,7 @@ function CsPage() {
               view === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
-            {t === "kanban" ? "Jornada" : "Configurações"}
+            {t === "kanban" ? "Funil" : "Configurações"}
           </button>
         ))}
       </div>
