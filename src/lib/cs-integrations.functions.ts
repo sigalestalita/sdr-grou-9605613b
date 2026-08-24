@@ -6,9 +6,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const listCsIntegrations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { assertCsAccess, listIntegrationStatus, getInboundToken } = await import(
-      "@/lib/cs/integrations.server"
-    );
+    const { assertCsAccess, listIntegrationStatus, getInboundToken, listCsTeamUsers } =
+      await import("@/lib/cs/integrations.server");
     const access = await assertCsAccess(context.userId);
     const all = await listIntegrationStatus();
     const mine = all.find((i) => i.userId === context.userId) ?? null;
@@ -16,29 +15,47 @@ export const listCsIntegrations = createServerFn({ method: "GET" })
       isManager: access.isManager,
       mine,
       users: access.isManager ? all : mine ? [mine] : [],
+      teamUsers: access.isManager ? await listCsTeamUsers() : [],
       inboundToken: access.isManager ? await getInboundToken() : null,
     };
   });
 
 export const connectCsCalendly = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { token: string }) => z.object({ token: z.string().min(10) }).parse(d))
+  .inputValidator((d: { token: string; userId?: string }) =>
+    z.object({ token: z.string().min(10), userId: z.string().uuid().optional() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { assertCsAccess, connectCalendly, syncCalendly } = await import(
       "@/lib/cs/integrations.server"
     );
-    await assertCsAccess(context.userId);
-    const me = await connectCalendly(context.userId, data.token.trim());
-    const sync = await syncCalendly([context.userId]);
+    const access = await assertCsAccess(context.userId);
+    // Gestor pode vincular o token em nome de outra pessoa do time.
+    const targetId =
+      data.userId && data.userId !== context.userId
+        ? (() => {
+            if (!access.isManager)
+              throw new Error("Apenas gestores podem vincular a agenda de outra pessoa");
+            return data.userId;
+          })()
+        : context.userId;
+    const me = await connectCalendly(targetId, data.token.trim());
+    const sync = await syncCalendly([targetId]);
     return { ...me, events: sync.events };
   });
 
 export const disconnectCsCalendly = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: { userId?: string } | undefined) =>
+    z.object({ userId: z.string().uuid().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { assertCsAccess, disconnectCalendly } = await import("@/lib/cs/integrations.server");
-    await assertCsAccess(context.userId);
-    return disconnectCalendly(context.userId);
+    const access = await assertCsAccess(context.userId);
+    const targetId = data.userId && data.userId !== context.userId ? data.userId : context.userId;
+    if (targetId !== context.userId && !access.isManager)
+      throw new Error("Apenas gestores podem desconectar a agenda de outra pessoa");
+    return disconnectCalendly(targetId);
   });
 
 export const saveCsMailbox = createServerFn({ method: "POST" })

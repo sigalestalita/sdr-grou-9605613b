@@ -58,6 +58,23 @@ export async function listIntegrationStatus(userIds?: string[]): Promise<Integra
   });
 }
 
+/** Pessoas elegíveis do CS (time cs, gestão ou super admin) para o gestor vincular agendas. */
+export async function listCsTeamUsers(): Promise<Array<{ userId: string; name: string; email: string | null }>> {
+  const [{ data: teams }, { data: roles }, { data: profiles }] = await Promise.all([
+    supabaseAdmin.from("user_teams").select("user_id, team").eq("team", "cs"),
+    supabaseAdmin.from("user_roles").select("user_id, role"),
+    supabaseAdmin.from("profiles").select("id, full_name, email"),
+  ]);
+  const ids = new Set((teams ?? []).map((t) => t.user_id));
+  for (const r of roles ?? [])
+    if (r.role === "super_admin" || r.role === "gestao" || r.role === "executivo")
+      ids.add(r.user_id);
+  return (profiles ?? [])
+    .filter((p) => ids.has(p.id))
+    .map((p) => ({ userId: p.id, name: p.full_name || p.email || p.id, email: p.email }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+}
+
 /** Valida o token pessoal e salva a conexão do usuário. */
 export async function connectCalendly(userId: string, token: string) {
   const me = await getCalendlyMe(token);
@@ -111,7 +128,7 @@ export async function saveMailbox(userId: string, mailbox: string | null) {
 }
 
 /** Sincroniza a agenda de um ou de todos os usuários conectados. */
-export async function syncCalendly(userIds: string[] | null, days = 45) {
+export async function syncCalendly(userIds: string[] | null, days = 120, pastDays = 365) {
   let q = supabaseAdmin
     .from("cs_user_integrations")
     .select("user_id, calendly_token, calendly_user_uri")
@@ -120,7 +137,7 @@ export async function syncCalendly(userIds: string[] | null, days = 45) {
   const { data: rows, error } = await q;
   if (error) throw new Error(error.message);
 
-  const minStart = new Date(Date.now() - 30 * 86400000).toISOString();
+  const minStart = new Date(Date.now() - pastDays * 86400000).toISOString();
   const maxStart = new Date(Date.now() + days * 86400000).toISOString();
   let events = 0;
   const failures: string[] = [];

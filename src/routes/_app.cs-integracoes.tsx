@@ -54,20 +54,23 @@ function CsIntegrationsPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: ["cs-integrations"] });
 
   const [token, setToken] = useState("");
+  const [targetUser, setTargetUser] = useState("");
   const [mailbox, setMailbox] = useState("");
 
   const connect = useMutation({
-    mutationFn: () => connectFn({ data: { token } }),
+    mutationFn: () =>
+      connectFn({ data: { token, ...(targetUser ? { userId: targetUser } : {}) } }),
     onSuccess: (r) => {
       toast.success(`Calendly conectado (${r.name ?? r.email}) — ${r.events} evento(s)`);
       setToken("");
+      setTargetUser("");
       invalidate();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
   const disconnect = useMutation({
-    mutationFn: () => disconnectFn({}),
+    mutationFn: (userId?: string) => disconnectFn({ data: userId ? { userId } : {} }),
     onSuccess: () => {
       toast.success("Calendly desconectado");
       invalidate();
@@ -137,7 +140,7 @@ function CsIntegrationsPage() {
             <h2 className="text-sm font-semibold">Minha agenda (Calendly)</h2>
             {mine?.calendlyConnected && <Badge variant="secondary">Conectado</Badge>}
           </div>
-          {mine?.calendlyConnected ? (
+          {mine?.calendlyConnected && (
             <div className="space-y-2 text-sm">
               <p className="text-muted-foreground">
                 {mine.calendlyName} · {mine.calendlyEmail}
@@ -156,12 +159,13 @@ function CsIntegrationsPage() {
                   <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
                   Sincronizar
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => disconnect.mutate()}>
+                <Button size="sm" variant="ghost" onClick={() => disconnect.mutate(undefined)}>
                   <Unlink className="mr-1 h-4 w-4" /> Desconectar
                 </Button>
               </div>
             </div>
-          ) : (
+          )}
+          {(!mine?.calendlyConnected || data?.isManager) && (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
                 Gere um token pessoal em calendly.com → Integrations → API &amp; Webhooks →
@@ -172,6 +176,25 @@ function CsIntegrationsPage() {
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />
+              {data?.isManager && (
+                <label className="block space-y-1 text-xs text-muted-foreground">
+                  Vincular em nome de
+                  <select
+                    className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                    value={targetUser}
+                    onChange={(e) => setTargetUser(e.target.value)}
+                  >
+                    <option value="">Eu mesmo</option>
+                    {(data?.teamUsers ?? [])
+                      .filter((u) => u.userId !== mine?.userId)
+                      .map((u) => (
+                        <option key={u.userId} value={u.userId}>
+                          {u.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
               <Button
                 size="sm"
                 disabled={token.trim().length < 10 || connect.isPending}
@@ -262,6 +285,15 @@ function CsIntegrationsPage() {
                         ? new Date(u.calendlyLastSyncAt).toLocaleString("pt-BR")
                         : "—"}
                     </span>
+                    {u.calendlyConnected && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => disconnect.mutate(u.userId)}
+                      >
+                        <Unlink className="mr-1 h-4 w-4" /> Desvincular
+                      </Button>
+                    )}
                   </div>
                 ))}
                 {(data?.users ?? []).length === 0 && (
