@@ -1,0 +1,205 @@
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { mondayOf, type CsSignal } from "@/lib/cs-types";
+import { recomputeHealth } from "./cs-core.server";
+
+const SPREADSHEET_ID = "191ZmqoIwCPrmtL2KxDMMSBpZ3_bSBuCp6_H6b8iRNmY";
+const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
+
+function gatewayHeaders() {
+  const key = process.env.GOOGLE_SHEETS_API_KEY;
+  if (!key) throw new Error("GOOGLE_SHEETS_API_KEY ausente — conecte o Google Sheets em Connectors");
+  return { Accept: "application/json", "X-Connection-Api-Key": key };
+}
+
+/** Títulos das abas, na ordem em que aparecem na planilha. */
+export async function listSheetTabs(): Promise<string[]> {
+  const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}?fields=sheets.properties.title`;
+  const res = await fetch(url, { headers: gatewayHeaders() });
+  if (!res.ok) throw new Error(`Google Sheets ${res.status}: ${await res.text()}`);
+  const json = (await res.json()) as { sheets?: Array<{ properties?: { title?: string } }> };
+  return (json.sheets ?? []).map((s) => s.properties?.title ?? "").filter(Boolean);
+}
+
+/** Aba mais recente: maior data detectada no título; sem data, a última da planilha. */
+export function pickLatestTab(tabs: string[]): string | null {
+  if (tabs.length === 0) return null;
+  let best: { tab: string; score: number } | null = null;
+  for (const tab of tabs) {
+    const score = tabDateScore(tab);
+    if (score !== null && (!best || score > best.score)) best = { tab, score };
+  }
+  return best?.tab ?? tabs[tabs.length - 1];
+}
+
+function tabDateScore(tab: string): number | null {
+  const dmy = tab.match(/(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?/);
+  if (dmy) {
+    const d = Number(dmy[1]);
+    const m = Number(dmy[2]);
+    const yRaw = dmy[3] ? Number(dmy[3]) : new Date().getUTCFullYear();
+    const y = yRaw < 100 ? 2000 + yRaw : yRaw;
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) return y * 10000 + m * 100 + d;
+  }
+  const iso = tab.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (iso) return Number(iso[1]) * 10000 + Number(iso[2]) * 100 + Number(iso[3]);
+  return null;
+}
+
+function norm(s: unknown): string {
+  return String(s ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+function parseSignal(raw: unknown, consumo: number | null): CsSignal {
+  const v = norm(raw);
+  if (/verde|green|ok|bom/.test(v)) return "verde";
+  if (/amarel|yellow|atencao|medio/.test(v)) return "amarelo";
+  if (/vermelh|red|critic|ruim/.test(v)) return "vermelho";
+  if (consumo != null) {
+    if (consumo >= 0.7) return "verde";
+    if (consumo >= 0.3) return "amarelo";
+    return "vermelho";
+  }
+  return "sem_dado";
+}
+
+function parsePct(raw: unknown): number | null {
+  const s = String(raw ?? "").replace(/%/g, "").replace(/\./g, "").replace(",", ".").trim();
+  if (!s) return null;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  return n > 1 ? n / 100 : n;
+}
+
+type SyncResult = {
+  ok: boolean;
+  tab?: string;
+  weekStart?: string;
+  rows?: number;
+  matched?: number;
+  unmatched?: string[];
+  error?: string;
+};
+
+/** Lê a aba mais recente da planilha da sinaleira e grava o snapshot da semana. */
+export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: string }): Promise<SyncResult> {
+  try {
+    const tabs = await listSheetTabs();
+    const tab = opts?.tab ?? pickLatestTab(tabs);
+    if (!tab) return { ok: false, error: "Nenhuma aba encontrada na planilha" };
+
+    const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(`${tab}!A1:Z2000`)}`;
+    const res = await fetch(url, { headers: gatewayHeaders() });
+    if (!res.ok) throw new Error(`Google Sheets ${res.status}: ${await res.text()}`);
+    const json = (await res.json()) as { values?: unknown[][] };
+    const values = json.values ?? [];
+    if (values.length < 2) return { ok: false, tab, error: "Aba sem dados" };
+
+    const header = (values[0] ?? []).map(norm);
+    const findCol = (patterns: RegExp[]) =>
+      header.findIndex((h) => patterns.some((p) => p.test(h)));
+
+    const colEmpresa = findCol([/empresa|cliente|razao/]);
+    const colUid = findCol([/client_uid|codigo|cod\b|uid/]);
+    const colLogin = findCol([/login/]);
+    const colSignal = findCol([/sinaleira|status|cor|farol/]);
+    const colConsumo = findCol([/consumo|uso|utilizacao|%/]);
+
+    if (colEmpresa < 0 && colUid < 0 && colLogin < 0) {
+      return { ok: false, tab, error: "Não encontrei coluna de empresa/código/login na aba" };
+    }
+
+    const { data: clients } = await supabaseAdmin
+      .from("cs_clients")
+      .select("client_uid, nome_empresa, login_pda");
+    const byName = new Map<string, string>();
+    const byUid = new Map<string, string>();
+    const byLogin = new Map<string, string>();
+    for (const c of clients ?? []) {
+      byUid.set(norm(c.client_uid), c.client_uid);
+      byName.set(norm(c.nome_empresa), c.client_uid);
+      if (c.login_pda) byLogin.set(norm(c.login_pda), c.client_uid);
+    }
+
+    const weekStart = opts?.weekStart ?? mondayOf();
+    const rows: Array<{
+      client_uid: string;
+      week_start: string;
+      signal: CsSignal;
+      consumo_pct: number | null;
+      source: string;
+      metadata: Record<string, unknown>;
+    }> = [];
+    const unmatched: string[] = [];
+
+    for (const row of values.slice(1)) {
+      const nome = colEmpresa >= 0 ? String(row[colEmpresa] ?? "").trim() : "";
+      const uid = colUid >= 0 ? String(row[colUid] ?? "").trim() : "";
+      const login = colLogin >= 0 ? String(row[colLogin] ?? "").trim() : "";
+      if (!nome && !uid && !login) continue;
+
+      const clientUid =
+        (uid && byUid.get(norm(uid))) ||
+        (login && byLogin.get(norm(login))) ||
+        (nome && byName.get(norm(nome))) ||
+        null;
+      if (!clientUid) {
+        if (nome || uid || login) unmatched.push(nome || uid || login);
+        continue;
+      }
+
+      const consumo = colConsumo >= 0 ? parsePct(row[colConsumo]) : null;
+      rows.push({
+        client_uid: clientUid,
+        week_start: weekStart,
+        signal: parseSignal(colSignal >= 0 ? row[colSignal] : null, consumo),
+        consumo_pct: consumo,
+        source: `planilha:${tab}`,
+        metadata: { tab, nome_planilha: nome || null },
+      });
+    }
+
+    if (rows.length > 0) {
+      const { error } = await supabaseAdmin
+        .from("cs_signal_snapshots")
+        .upsert(rows as never, { onConflict: "client_uid,week_start" });
+      if (error) throw new Error(error.message);
+
+      for (const r of rows) {
+        await supabaseAdmin
+          .from("cs_clients")
+          .update({ current_signal: r.signal, pda_consumo_pct: r.consumo_pct })
+          .eq("client_uid", r.client_uid);
+        await recomputeHealth(supabaseAdmin, r.client_uid);
+      }
+    }
+
+    await supabaseAdmin.from("integration_logs").insert({
+      provider: "cs_signal",
+      action: "sheet_sync",
+      status: "success",
+      detail: { tab, weekStart, matched: rows.length, unmatched: unmatched.slice(0, 50) } as never,
+    });
+
+    return {
+      ok: true,
+      tab,
+      weekStart,
+      rows: values.length - 1,
+      matched: rows.length,
+      unmatched: Array.from(new Set(unmatched)).slice(0, 50),
+    };
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    await supabaseAdmin.from("integration_logs").insert({
+      provider: "cs_signal",
+      action: "sheet_sync",
+      status: "error",
+      detail: { error } as never,
+    });
+    return { ok: false, error };
+  }
+}
