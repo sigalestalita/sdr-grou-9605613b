@@ -123,7 +123,7 @@ export async function syncSignalFromSheet(opts?: {
     const tab = opts?.tab ?? pickLatestTab(tabs);
     if (!tab) return { ok: false, error: "Nenhuma aba encontrada na planilha" };
 
-    const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(`${tab}!A1:Z2000`)}`;
+    const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(`${tab}!A1:AZ5000`)}`;
     const res = await fetch(url, { headers: gatewayHeaders() });
     if (!res.ok) throw new Error(`Google Sheets ${res.status}: ${await res.text()}`);
     const json = (await res.json()) as { values?: unknown[][] };
