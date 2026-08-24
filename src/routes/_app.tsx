@@ -17,6 +17,7 @@ import {
   CalendarDays,
   Search,
   Users,
+  HeartPulse,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
