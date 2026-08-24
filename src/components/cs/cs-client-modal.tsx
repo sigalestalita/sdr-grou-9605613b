@@ -210,6 +210,21 @@ export function CsClientModal({
                   <Info label="Consultoria-mãe" value={client.parent_client_uid || "—"} />
                 </div>
 
+                {latestSheet && Object.keys(latestSheet).length > 0 && (
+                  <div className="rounded-lg border bg-muted/20 p-3">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">
+                      Dados da planilha (sinaleira) — todas as colunas
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                      {Object.entries(latestSheet).map(([k, v]) => (
+                        <Info key={k} label={k} value={String(v)} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+
+
                 <div className="grid gap-2 sm:grid-cols-3">
                   <Field label="Etapa da jornada">
                     <select
