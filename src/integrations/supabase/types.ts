@@ -620,6 +620,95 @@ export type Database = {
           },
         ]
       }
+      cs_sales: {
+        Row: {
+          category: string | null
+          client_uid: string
+          contract_ref: string | null
+          created_at: string
+          created_by: string | null
+          currency: string
+          discount: number
+          external_key: string | null
+          id: string
+          item_kind: string
+          item_name: string
+          notes: string | null
+          owner_user_id: string | null
+          payment_method: string | null
+          period_end: string | null
+          period_start: string | null
+          quantity: number
+          recurrence: string
+          sale_date: string
+          source: string
+          status: string
+          total_value: number
+          unit_value: number
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          client_uid: string
+          contract_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          discount?: number
+          external_key?: string | null
+          id?: string
+          item_kind?: string
+          item_name: string
+          notes?: string | null
+          owner_user_id?: string | null
+          payment_method?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          quantity?: number
+          recurrence?: string
+          sale_date?: string
+          source?: string
+          status?: string
+          total_value?: number
+          unit_value?: number
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          client_uid?: string
+          contract_ref?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          discount?: number
+          external_key?: string | null
+          id?: string
+          item_kind?: string
+          item_name?: string
+          notes?: string | null
+          owner_user_id?: string | null
+          payment_method?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          quantity?: number
+          recurrence?: string
+          sale_date?: string
+          source?: string
+          status?: string
+          total_value?: number
+          unit_value?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_sales_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
       cs_settings: {
         Row: {
           key: string
