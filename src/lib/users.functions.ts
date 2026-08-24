@@ -42,8 +42,20 @@ export const listUsers = createServerFn({ method: "GET" })
       .select("user_id, role");
     if (rErr) throw new Error(rErr.message);
 
+    const { data: teams, error: tErr } = await supabaseAdmin
+      .from("user_teams")
+      .select("user_id, team");
+    if (tErr) throw new Error(tErr.message);
+
     const roleByUser = new Map<string, string>();
     for (const r of roles ?? []) roleByUser.set(r.user_id as string, r.role as string);
+
+    const teamsByUser = new Map<string, string[]>();
+    for (const t of teams ?? []) {
+      const list = teamsByUser.get(t.user_id as string) ?? [];
+      list.push(t.team as string);
+      teamsByUser.set(t.user_id as string, list);
+    }
 
     return {
       canEdit: caller.isSuperAdmin,
@@ -54,8 +66,10 @@ export const listUsers = createServerFn({ method: "GET" })
         full_name: (p.full_name as string) ?? "",
         created_at: p.created_at as string,
         role: roleByUser.get(p.id as string) ?? null,
+        teams: teamsByUser.get(p.id as string) ?? [],
       })),
     };
+
   });
 
 export const updateUserRole = createServerFn({ method: "POST" })
