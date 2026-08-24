@@ -111,7 +111,7 @@ function LoginPage() {
             </span>
             <span className="text-2xl font-semibold tracking-tight text-foreground">compass</span>
           </div>
-          <p className="text-xs text-muted-foreground">Grou Compass · CRM comercial e de Customer Success</p>
+          <p className="text-xs text-muted-foreground">Grou Compass · CRM</p>
         </div>
         <form onSubmit={submit} className="space-y-4">
           {mode === "signup" && (
