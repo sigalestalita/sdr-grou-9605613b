@@ -822,7 +822,35 @@ function UnifiedTimeline({
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap gap-1 border-b pb-2">
+        {(
+          [
+            ["tudo", `Tudo (${items.length})`],
+            ["whatsapp", `WhatsApp (${whatsapp.length})`],
+            ["email", `E-mails (${emails.length})`],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`rounded-full px-3 py-1 text-xs transition ${
+              view === v ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === "whatsapp" ? (
+        <WhatsAppThreadView whatsapp={whatsapp} authorName={authorName} />
+      ) : view === "email" ? (
+        <EmailThreadView emails={emails} authorName={authorName} />
+      ) : (
+      <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
+
         <p className="text-xs text-muted-foreground">
           Registre aqui contatos feitos fora do sistema (ligações, visitas, observações).
         </p>
