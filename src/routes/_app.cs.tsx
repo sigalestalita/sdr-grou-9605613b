@@ -77,8 +77,9 @@ function CsPage() {
   const [q, setQ] = useState("");
   const [fOwner, setFOwner] = useState("");
   const [fSignal, setFSignal] = useState("");
-  const [fType, setFType] = useState("");
+  const [fExec, setFExec] = useState("");
   const [fTag, setFTag] = useState("");
+  const [funnel, setFunnel] = useState<"empresa" | "consultoria">("empresa");
 
   const { user } = useAuth();
   const { data, isLoading } = useQuery({
@@ -194,6 +195,24 @@ function CsPage() {
     [data?.tags],
   );
 
+  // Quem realmente aparece como responsável: CS (cs_responsavel_id) e executivo (comercial_responsavel_id).
+  const { csOptions, execOptions } = useMemo(() => {
+    const name = new Map(
+      (data?.profiles ?? []).map((p) => [p.id, p.full_name || p.email || p.id] as const),
+    );
+    const csIds = new Set<string>();
+    const execIds = new Set<string>();
+    for (const c of data?.clients ?? []) {
+      if (c.cs_responsavel_id) csIds.add(c.cs_responsavel_id);
+      if (c.comercial_responsavel_id) execIds.add(c.comercial_responsavel_id);
+    }
+    const toList = (ids: Set<string>) =>
+      Array.from(ids)
+        .map((id) => ({ id, name: name.get(id) ?? id }))
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    return { csOptions: toList(csIds), execOptions: toList(execIds) };
+  }, [data?.clients, data?.profiles]);
+
   const profileName = useMemo(() => {
     const map = new Map((data?.profiles ?? []).map((p) => [p.id, p.full_name || p.email || p.id]));
     return (id: string | null | undefined) => (id ? map.get(id) ?? "—" : "Sem responsável");
@@ -204,11 +223,23 @@ function CsPage() {
     if (q && !`${c.nome_empresa} ${c.client_uid} ${c.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase()))
       return false;
     if (fOwner && c.cs_responsavel_id !== fOwner) return false;
+    if (fExec && c.comercial_responsavel_id !== fExec) return false;
     if (fSignal && c.current_signal !== fSignal) return false;
-    if (fType && c.tipo_lead !== fType) return false;
+    if (c.tipo_lead !== funnel) return false;
     if (fTag && !(tagsOf.get(c.client_uid) ?? []).includes(fTag)) return false;
     return true;
   });
+
+  const funnelCounts = useMemo(() => {
+    let empresa = 0;
+    let consultoria = 0;
+    for (const c of data?.clients ?? []) {
+      if (!c.ativo) continue;
+      if (c.tipo_lead === "consultoria") consultoria += 1;
+      else empresa += 1;
+    }
+    return { empresa, consultoria };
+  }, [data?.clients]);
 
   const openAlerts = (data?.alerts ?? []).length;
   const avgHealth = clients.length
@@ -265,6 +296,26 @@ function CsPage() {
         />
       ) : (
         <>
+          <div className="flex gap-2">
+            {([
+              ["empresa", `Empresas (${funnelCounts.empresa})`],
+              ["consultoria", `Consultorias (${funnelCounts.consultoria})`],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setFunnel(key)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+                  funnel === key
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <Kpi label="Clientes ativos" value={String(clients.length)} />
             <Kpi label="Health médio" value={`${avgHealth}`} />
@@ -279,8 +330,8 @@ function CsPage() {
             </div>
             <select value={fOwner} onChange={(e) => setFOwner(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
               <option value="">Todos os CS</option>
-              {(data?.profiles ?? []).map((p) => (
-                <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
+              {csOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
             <select value={fSignal} onChange={(e) => setFSignal(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
@@ -289,10 +340,10 @@ function CsPage() {
                 <option key={s} value={s}>{CS_SIGNAL_LABEL[s]}</option>
               ))}
             </select>
-            <select value={fType} onChange={(e) => setFType(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
-              <option value="">Empresa e consultoria</option>
-              {CS_CLIENT_TYPES.map((t) => (
-                <option key={t} value={t}>{CS_CLIENT_TYPE_LABEL[t]}</option>
+            <select value={fExec} onChange={(e) => setFExec(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+              <option value="">Todos os executivos</option>
+              {execOptions.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </select>
             <select value={fTag} onChange={(e) => setFTag(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
