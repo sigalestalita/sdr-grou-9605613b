@@ -136,13 +136,47 @@ export const getMyRole = createServerFn({ method: "GET" })
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     const roles = (data ?? []).map((r) => r.role as string);
+
+    const { data: teamRows, error: tErr } = await supabaseAdmin
+      .from("user_teams")
+      .select("team")
+      .eq("user_id", context.userId);
+    if (tErr) throw new Error(tErr.message);
+
     return {
       roles,
       role: roles[0] ?? null,
       isSuperAdmin: roles.includes("super_admin"),
       isGestao: roles.includes("gestao"),
+      teams: (teamRows ?? []).map((t) => t.team as string),
     };
   });
+
+export const setUserTeams = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ userId: z.string().uuid(), teams: z.array(TeamSchema) }).parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    const caller = await getCallerRole(context.userId);
+    if (!caller.isSuperAdmin) throw new Error("Apenas super admin pode alterar times");
+
+    const { error: delErr } = await supabaseAdmin
+      .from("user_teams")
+      .delete()
+      .eq("user_id", data.userId);
+    if (delErr) throw new Error(delErr.message);
+
+    if (data.teams.length > 0) {
+      const { error: insErr } = await supabaseAdmin
+        .from("user_teams")
+        .insert(data.teams.map((team) => ({ user_id: data.userId, team })));
+      if (insErr) throw new Error(insErr.message);
+    }
+
+    return { ok: true };
+  });
+
 
 export const setUserPassword = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
