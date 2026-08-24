@@ -167,7 +167,7 @@ function AppShell() {
         )}
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">
-          {NAV_GROUPS.map((group) => (
+          {visibleGroups.map((group) => (
             <div key={group.label} className="mb-4 last:mb-0">
               {!collapsed && (
                 <p className="section-label px-2 pb-1.5">{group.label}</p>
@@ -245,11 +245,40 @@ function AppShell() {
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-auto">
-          <Outlet />
+          {blocked ? (
+            <div className="grid min-h-full place-items-center p-8">
+              <div className="max-w-md rounded-lg border border-border bg-background p-6 text-center">
+                <span className="mx-auto mb-3 grid h-11 w-11 place-items-center rounded-full bg-primary/10 text-primary">
+                  <ShieldAlert className="h-5 w-5" strokeWidth={1.75} />
+                </span>
+                <h2 className="text-base font-semibold text-foreground">Módulo restrito</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Este módulo pertence ao time{" "}
+                  <strong className="text-foreground">
+                    {currentTeam ? TEAM_LABEL[currentTeam] : "restrito"}
+                  </strong>
+                  . Você não faz parte dele — peça a um super admin para incluir seu usuário em
+                  Configurações → Usuários.
+                </p>
+                <div className="mt-5 flex justify-center gap-2">
+                  {paletteRoutes[0] && (
+                    <Link
+                      to={paletteRoutes[0].to}
+                      className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-[13px] font-medium text-primary-foreground hover:bg-primary/90"
+                    >
+                      Ir para {paletteRoutes[0].label}
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <Outlet />
+          )}
         </main>
       </div>
 
-      <CommandPalette open={palette.open} onOpenChange={palette.setOpen} routes={PALETTE_ROUTES} />
+      <CommandPalette open={palette.open} onOpenChange={palette.setOpen} routes={paletteRoutes} />
     </div>
   );
 }
