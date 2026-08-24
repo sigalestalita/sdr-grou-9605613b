@@ -1,4 +1,4 @@
-# SDR GROU
+# CRM GROU
 
 Crie um sistema interno para acelerar a qualificação de leads inbound e organizar o trabalho de SDR em formato Kanban.
 
