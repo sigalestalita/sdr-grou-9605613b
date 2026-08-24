@@ -7,7 +7,7 @@ import {
   CS_FOLLOWUP_OUTCOME_LABEL,
 } from "@/lib/cs-follow-up-types";
 
-export type CsFollowUpKind = "reuniao" | "alerta" | "jornada" | "sem_contato";
+export type CsFollowUpKind = "reuniao" | "alerta" | "jornada" | "sem_contato" | "timeline";
 
 export type CsFollowUpItem = {
   key: string;
@@ -54,7 +54,9 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
     const from = new Date(data.from).toISOString();
     const to = new Date(data.to).toISOString();
 
-    const [clients, meetings, alerts, profilesRes, slaCfg] = await Promise.all([
+    const nowIso = new Date().toISOString();
+
+    const [clients, meetings, alerts, timelineFuture, profilesRes, slaCfg] = await Promise.all([
       fetchAllRows((f, t) =>
         supabase
           .from("cs_clients")
@@ -80,6 +82,14 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
           .select("id, client_uid, reason, alert_type, severity, status, follow_up_at, resolved_at")
           .not("follow_up_at", "is", null)
           .lte("follow_up_at", to)
+          .range(f, t),
+      ),
+      fetchAllRows((f, t) =>
+        supabase
+          .from("cs_timeline_events")
+          .select("id, client_uid, title, description, event_type, channel, occurred_at, author_id, metadata")
+          .gt("occurred_at", nowIso)
+          .lte("occurred_at", to)
           .range(f, t),
       ),
       supabase.from("profiles").select("id, full_name, email"),
@@ -144,6 +154,33 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
         ...base(c, c.cs_responsavel_id ?? null, "cs"),
         title: `Tratativa de alerta (${a.severity})`,
         subtitle: a.reason,
+      });
+    }
+
+    // Registros da timeline agendados para o futuro viram follow-ups.
+    for (const ev of timelineFuture as Array<{
+      id: string;
+      client_uid: string;
+      title: string;
+      description: string | null;
+      event_type: string;
+      channel: string | null;
+      occurred_at: string;
+      author_id: string | null;
+    }>) {
+      const c = clientByUid.get(ev.client_uid);
+      if (!c) continue;
+      const owner = ev.author_id ?? c.cs_responsavel_id ?? null;
+      items.push({
+        key: `timeline:${ev.id}`,
+        kind: "timeline",
+        refId: ev.id,
+        dueAt: ev.occurred_at,
+        done: false,
+        doneAt: null,
+        ...base(c, owner, "cs"),
+        title: ev.title,
+        subtitle: ev.description?.trim() || `Registro agendado (${ev.channel ?? ev.event_type})`,
       });
     }
 
@@ -213,7 +250,7 @@ export const completeCsFollowUp = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato"]),
+        kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato", "timeline"]),
         refId: z.string().uuid().nullable().optional(),
         clientUid: z.string().min(1),
         title: z.string().min(1),
@@ -251,6 +288,13 @@ export const completeCsFollowUp = createServerFn({ method: "POST" })
         } as never)
         .eq("id", data.refId);
       if (error) throw new Error(error.message);
+    }
+
+    if (data.kind === "timeline" && data.refId) {
+      await supabase
+        .from("cs_timeline_events")
+        .update({ occurred_at: now } as never)
+        .eq("id", data.refId);
     }
 
     // Reagendamento de checkpoints derivados vira um alerta com follow-up marcado.
@@ -298,7 +342,7 @@ export const rescheduleCsFollowUp = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato"]),
+        kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato", "timeline"]),
         refId: z.string().uuid().nullable().optional(),
         clientUid: z.string().min(1),
         title: z.string().min(1),
@@ -321,6 +365,12 @@ export const rescheduleCsFollowUp = createServerFn({ method: "POST" })
       const { error } = await supabase
         .from("cs_alerts")
         .update({ follow_up_at: nextAt } as never)
+        .eq("id", data.refId);
+      if (error) throw new Error(error.message);
+    } else if (data.kind === "timeline" && data.refId) {
+      const { error } = await supabase
+        .from("cs_timeline_events")
+        .update({ occurred_at: nextAt } as never)
         .eq("id", data.refId);
       if (error) throw new Error(error.message);
     } else {
