@@ -17,30 +17,41 @@ export const listCsBoard = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { lastNWeeks, DEFAULT_STAGE_SLA } = await import("@/lib/cs-types");
-    const { getStageSla, getHealthWeights, getRouting } = await import("@/lib/cs/cs-core.server");
+    const { getStageSla, getHealthWeights, getRouting, fetchAllRows } = await import(
+      "@/lib/cs/cs-core.server"
+    );
     const weeks = lastNWeeks(8);
 
-    const [clientsRes, snapsRes, alertsRes, tagsRes, profilesRes, sla, weights, routing] =
+    const [clients, snapshots, alerts, tags, profilesRes, sla, weights, routing] =
       await Promise.all([
-        supabase.from("cs_clients").select("*").order("nome_empresa"),
-        supabase
-          .from("cs_signal_snapshots")
-          .select("client_uid, week_start, signal, consumo_pct")
-          .gte("week_start", weeks[0]),
-        supabase.from("cs_alerts").select("*").eq("status", "open"),
-        supabase.from("cs_client_tags").select("client_uid, tag, data_criacao"),
+        fetchAllRows((f, t) =>
+          supabase.from("cs_clients").select("*").order("nome_empresa").range(f, t),
+        ),
+        fetchAllRows((f, t) =>
+          supabase
+            .from("cs_signal_snapshots")
+            .select("client_uid, week_start, signal, consumo_pct")
+            .gte("week_start", weeks[0])
+            .order("week_start")
+            .range(f, t),
+        ),
+        fetchAllRows((f, t) =>
+          supabase.from("cs_alerts").select("*").eq("status", "open").range(f, t),
+        ),
+        fetchAllRows((f, t) =>
+          supabase.from("cs_client_tags").select("client_uid, tag, data_criacao").range(f, t),
+        ),
         supabase.from("profiles").select("id, full_name, email"),
         getStageSla(supabase),
         getHealthWeights(supabase),
         getRouting(supabase),
       ]);
-    if (clientsRes.error) throw new Error(clientsRes.error.message);
 
     return {
-      clients: clientsRes.data ?? [],
-      snapshots: snapsRes.data ?? [],
-      alerts: alertsRes.data ?? [],
-      tags: tagsRes.data ?? [],
+      clients,
+      snapshots,
+      alerts,
+      tags,
       profiles: profilesRes.data ?? [],
       weeks,
       sla: sla ?? DEFAULT_STAGE_SLA,
