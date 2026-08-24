@@ -39,6 +39,29 @@ const RECURRENCE_LABEL: Record<Recurrence, string> = {
 const brl = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 2 });
 
+/** Aceita formatos BR e US: "1.000" -> 1000, "1.000,50" -> 1000.5, "16,647" -> 16647, "1234.56" -> 1234.56 */
+export const parseMoney = (raw: string): number => {
+  const s = String(raw ?? "").replace(/[^\d.,-]/g, "").trim();
+  if (!s) return 0;
+  const lastDot = s.lastIndexOf(".");
+  const lastComma = s.lastIndexOf(",");
+  const sep = Math.max(lastDot, lastComma);
+  let decimals = 0;
+  if (sep >= 0) {
+    const tail = s.slice(sep + 1);
+    // separador decimal só quando sobram 1 ou 2 dígitos depois dele
+    if (/^\d{1,2}$/.test(tail)) decimals = tail.length;
+  }
+  const digits = s.replace(/[.,]/g, "");
+  const neg = digits.startsWith("-");
+  const n = Number(digits.replace(/-/g, "")) / Math.pow(10, decimals);
+  if (!Number.isFinite(n)) return 0;
+  return neg ? -n : n;
+};
+
+const fmtNum = (v: number) => (v ? v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : "");
+
+
 type SaleRow = {
   id: string;
   item_kind: Kind;
