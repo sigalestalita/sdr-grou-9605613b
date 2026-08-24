@@ -75,6 +75,8 @@ export function CsClientModal({
   const tagFn = useServerFn(addCsTag);
   const untagFn = useServerFn(removeCsTag);
   const recordFn = useServerFn(addCsRecord);
+  const entryFn = useServerFn(addCsTimelineEntry);
+
   const contactFn = useServerFn(saveCsContact);
   const delContactFn = useServerFn(deleteCsContact);
   const clientFn = useServerFn(saveCsClient);
@@ -112,6 +114,12 @@ export function CsClientModal({
     (v: { tipo: string; content: string }) => recordFn({ data: { clientUid, ...v } }),
     "Registro salvo",
   );
+  const addEntry = mut(
+    (v: { channel: ManualChannel; title: string; description: string | null; occurredAt: string }) =>
+      entryFn({ data: { clientUid, ...v, countsAsContact: true } }),
+    "Contato registrado na timeline",
+  );
+
   const saveContact = mut(
     (v: Record<string, unknown>) =>
       contactFn({ data: { ...v, client_uid: clientUid } as never }),
@@ -328,6 +336,10 @@ export function CsClientModal({
               />
             )}
 
+            {!isLoading && tab === "reunioes" && (
+              <CsMeetingsTab clientUid={clientUid} authorName={profileName} />
+            )}
+
             {!isLoading && tab === "timeline" && (
               <UnifiedTimeline
                 timeline={data?.timeline ?? []}
@@ -336,8 +348,11 @@ export function CsClientModal({
                 whatsapp={data?.whatsapp ?? []}
                 records={data?.records ?? []}
                 authorName={profileName}
+                pending={addEntry.isPending}
+                onAddEntry={(v) => addEntry.mutate(v)}
               />
             )}
+
 
             {!isLoading && tab === "registros" && (
               <RecordsTab
