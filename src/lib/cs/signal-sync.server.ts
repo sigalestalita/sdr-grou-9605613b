@@ -143,21 +143,72 @@ export async function syncSignalFromSheet(opts?: { tab?: string; weekStart?: str
     const colResponsavel = findCol([/^responsavel/, /responsavel/]);
     const colSaldo = findCol([/saldo atual|^saldo/]);
     const colTipo = findCol([/tipo do lead|tipo de conta/]);
+    const colCiclo = findCol([/ciclo de vida/]);
 
     if (colEmpresa < 0 && colUid < 0 && colLogin < 0) {
       return { ok: false, tab, error: "Não encontrei coluna de empresa/código/login na aba" };
     }
 
-    const { data: clients } = await supabaseAdmin
-      .from("cs_clients")
-      .select("client_uid, nome_empresa, login_pda");
-    const byName = new Map<string, string>();
-    const byUid = new Map<string, string>();
-    const byLogin = new Map<string, string>();
-    for (const c of clients ?? []) {
-      byUid.set(norm(c.client_uid), c.client_uid);
-      byName.set(norm(c.nome_empresa), c.client_uid);
-      if (c.login_pda) byLogin.set(norm(c.login_pda), c.client_uid);
+    const loadClients = async () => {
+      const { data } = await supabaseAdmin
+        .from("cs_clients")
+        .select("client_uid, nome_empresa, login_pda");
+      const byName = new Map<string, string>();
+      const byUid = new Map<string, string>();
+      const byLogin = new Map<string, string>();
+      for (const c of data ?? []) {
+        byUid.set(norm(c.client_uid), c.client_uid);
+        byName.set(norm(c.nome_empresa), c.client_uid);
+        if (c.login_pda) byLogin.set(norm(c.login_pda), c.client_uid);
+      }
+      return { byName, byUid, byLogin };
+    };
+
+    let { byName, byUid, byLogin } = await loadClients();
+
+    const dataRows = values.slice(1).filter((row) => {
+      if (colCiclo < 0) return true;
+      const ciclo = norm(row[colCiclo]);
+      return !ciclo || /cliente/.test(ciclo);
+    });
+
+    const keyOf = (row: unknown[]) => ({
+      nome: colEmpresa >= 0 ? String(row[colEmpresa] ?? "").trim() : "",
+      uid: colUid >= 0 ? String(row[colUid] ?? "").trim() : "",
+      login: colLogin >= 0 ? String(row[colLogin] ?? "").trim() : "",
+    });
+    const resolve = (k: { nome: string; uid: string; login: string }) =>
+      (k.uid && byUid.get(norm(k.uid))) ||
+      (k.login && byLogin.get(norm(k.login))) ||
+      (k.nome && byName.get(norm(k.nome))) ||
+      null;
+
+    // Cria os clientes que ainda não existem no CS a partir da planilha.
+    let created = 0;
+    if (opts?.createMissing !== false) {
+      const seen = new Set<string>();
+      const toCreate: Array<Record<string, unknown>> = [];
+      for (const row of dataRows) {
+        const k = keyOf(row);
+        if (!k.nome || resolve(k)) continue;
+        const dedupe = norm(k.nome);
+        if (seen.has(dedupe)) continue;
+        seen.add(dedupe);
+        const tipoRaw = colTipo >= 0 ? norm(row[colTipo]) : "";
+        toCreate.push({
+          nome_empresa: k.nome,
+          login_pda: k.login || null,
+          tipo_lead: /consultoria/.test(tipoRaw) ? "consultoria" : "empresa",
+          origem: "marketing",
+        });
+      }
+      for (let i = 0; i < toCreate.length; i += 200) {
+        const chunk = toCreate.slice(i, i + 200);
+        const { error } = await supabaseAdmin.from("cs_clients").insert(chunk as never);
+        if (error) throw new Error(`Falha ao criar clientes: ${error.message}`);
+        created += chunk.length;
+      }
+      if (created > 0) ({ byName, byUid, byLogin } = await loadClients());
     }
 
     const weekStart = opts?.weekStart ?? mondayOf();
