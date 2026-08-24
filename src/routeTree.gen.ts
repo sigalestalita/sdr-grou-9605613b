@@ -21,6 +21,7 @@ import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analy
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integracoes'
+import { Route as AppCsEmailsRouteImport } from './routes/_app.cs-emails'
 import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
 import { Route as AppCsRouteImport } from './routes/_app.cs'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
@@ -104,6 +105,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
 const AppCsIntegracoesRoute = AppCsIntegracoesRouteImport.update({
   id: '/cs-integracoes',
   path: '/cs-integracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsEmailsRoute = AppCsEmailsRouteImport.update({
+  id: '/cs-emails',
+  path: '/cs-emails',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCsAgendaRoute = AppCsAgendaRouteImport.update({
@@ -247,6 +253,7 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
+  '/cs-emails': typeof AppCsEmailsRoute
   '/cs-integracoes': typeof AppCsIntegracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
@@ -285,6 +292,7 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
+  '/cs-emails': typeof AppCsEmailsRoute
   '/cs-integracoes': typeof AppCsIntegracoesRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
@@ -324,6 +332,7 @@ export interface FileRoutesById {
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/cs': typeof AppCsRoute
   '/_app/cs-agenda': typeof AppCsAgendaRoute
+  '/_app/cs-emails': typeof AppCsEmailsRoute
   '/_app/cs-integracoes': typeof AppCsIntegracoesRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/kanban': typeof AppKanbanRoute
@@ -364,6 +373,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/cs'
     | '/cs-agenda'
+    | '/cs-emails'
     | '/cs-integracoes'
     | '/dashboard'
     | '/kanban'
@@ -402,6 +412,7 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/cs'
     | '/cs-agenda'
+    | '/cs-emails'
     | '/cs-integracoes'
     | '/dashboard'
     | '/kanban'
@@ -440,6 +451,7 @@ export interface FileRouteTypes {
     | '/_app/configuracoes'
     | '/_app/cs'
     | '/_app/cs-agenda'
+    | '/_app/cs-emails'
     | '/_app/cs-integracoes'
     | '/_app/dashboard'
     | '/_app/kanban'
@@ -567,6 +579,13 @@ declare module '@tanstack/react-router' {
       path: '/cs-integracoes'
       fullPath: '/cs-integracoes'
       preLoaderRoute: typeof AppCsIntegracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-emails': {
+      id: '/_app/cs-emails'
+      path: '/cs-emails'
+      fullPath: '/cs-emails'
+      preLoaderRoute: typeof AppCsEmailsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cs-agenda': {
@@ -804,6 +823,7 @@ interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppCsRoute: typeof AppCsRoute
   AppCsAgendaRoute: typeof AppCsAgendaRoute
+  AppCsEmailsRoute: typeof AppCsEmailsRoute
   AppCsIntegracoesRoute: typeof AppCsIntegracoesRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppKanbanRoute: typeof AppKanbanRoute
@@ -821,6 +841,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppCsRoute: AppCsRoute,
   AppCsAgendaRoute: AppCsAgendaRoute,
+  AppCsEmailsRoute: AppCsEmailsRoute,
   AppCsIntegracoesRoute: AppCsIntegracoesRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppKanbanRoute: AppKanbanRoute,
