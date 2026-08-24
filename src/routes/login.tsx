@@ -105,12 +105,13 @@ function LoginPage() {
       </div>
       <Card className="relative w-full max-w-md p-8 border-border bg-card/90 backdrop-blur-2xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.35)] animate-[loginIn_700ms_cubic-bezier(0.22,1,0.36,1)_both]">
         <div className="flex flex-col items-center text-center gap-2 mb-8">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center gap-2">
             <span className="rounded-xl bg-foreground px-4 py-2 dark:bg-transparent dark:px-0 dark:py-0">
               <img src={lidiLogo} alt="Grou" className="h-12 w-auto" />
             </span>
             <span className="text-2xl font-semibold tracking-tight text-foreground">compass</span>
           </div>
+
           <p className="text-xs text-muted-foreground">Grou Compass · CRM</p>
         </div>
         <form onSubmit={submit} className="space-y-4">
