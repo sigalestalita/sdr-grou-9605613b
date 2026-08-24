@@ -15,6 +15,7 @@ import {
   Bot,
   Activity,
   CalendarDays,
+  CalendarClock,
   Search,
   Users,
   HeartPulse,
@@ -26,6 +27,7 @@ import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
+import { CsFollowUpNotifier } from "@/components/app-shell/cs-followup-notifier";
 import { useCurrentRole } from "@/lib/use-role";
 import { TEAM_LABEL, teamForPath, type AppTeam } from "@/lib/teams";
 import { ShieldAlert, ChevronRight } from "lucide-react";
@@ -59,6 +61,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/cs", label: "Carteira CS", icon: HeartPulse, team: "cs" },
       { to: "/cs-agenda", label: "Agenda CS", icon: CalendarDays, team: "cs" },
+      { to: "/cs-follow-ups", label: "Follow-ups CS", icon: CalendarClock, team: "cs" },
       { to: "/cs-emails", label: "E-mails CS", icon: Mail, team: "cs" },
       { to: "/whatsapp", label: "Inbox / Disparos CS", icon: MessageCircle, team: "cs" },
       { to: "/cs-integracoes", label: "Integrações CS", icon: Link2, team: "cs" },
@@ -279,6 +282,7 @@ function AppShell() {
           </button>
           <div className="ml-auto flex items-center gap-2">
             <InboxNotifier />
+            {role.canAccessTeam("cs") && <CsFollowUpNotifier />}
           </div>
         </header>
         <main className="min-h-0 flex-1 overflow-auto">
