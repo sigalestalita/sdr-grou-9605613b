@@ -17,6 +17,7 @@ import {
   CalendarDays,
   Search,
   Users,
+  HeartPulse,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -44,6 +45,7 @@ const NAV_GROUPS: {
     items: [
       { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays },
       { to: "/cadencia", label: "Cadência", icon: Activity },
+      { to: "/cs", label: "Customer Success", icon: HeartPulse },
     ],
   },
   {

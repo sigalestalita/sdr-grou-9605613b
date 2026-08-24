@@ -128,7 +128,7 @@ function CsPage() {
   }, [data?.snapshots, weeks]);
 
   const alertsOf = useMemo(() => {
-    const map = new Map<string, typeof data.alerts>();
+    const map = new Map<string, NonNullable<typeof data>["alerts"]>();
     for (const a of data?.alerts ?? []) {
       const arr = map.get(a.client_uid) ?? [];
       arr.push(a);
