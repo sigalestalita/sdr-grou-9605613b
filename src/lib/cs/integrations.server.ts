@@ -111,7 +111,7 @@ export async function saveMailbox(userId: string, mailbox: string | null) {
 }
 
 /** Sincroniza a agenda de um ou de todos os usuários conectados. */
-export async function syncCalendly(userIds: string[] | null, days = 45) {
+export async function syncCalendly(userIds: string[] | null, days = 120, pastDays = 365) {
   let q = supabaseAdmin
     .from("cs_user_integrations")
     .select("user_id, calendly_token, calendly_user_uri")
@@ -120,7 +120,7 @@ export async function syncCalendly(userIds: string[] | null, days = 45) {
   const { data: rows, error } = await q;
   if (error) throw new Error(error.message);
 
-  const minStart = new Date(Date.now() - 30 * 86400000).toISOString();
+  const minStart = new Date(Date.now() - pastDays * 86400000).toISOString();
   const maxStart = new Date(Date.now() + days * 86400000).toISOString();
   let events = 0;
   const failures: string[] = [];
