@@ -54,22 +54,21 @@ export const syncCsOwners = createServerFn({ method: "POST" })
     const weekStart = last?.week_start as string | undefined;
     if (!weekStart) throw new Error("Nenhuma sinaleira sincronizada ainda");
 
-    const snaps = await fetchAllRows<{ client_uid: string; metadata: Record<string, unknown> | null }>(
-      (f, t) =>
-        supabaseAdmin
-          .from("cs_signal_snapshots")
-          .select("client_uid, metadata")
-          .eq("week_start", weekStart)
-          .range(f, t),
+    const snaps = await fetchAllRows<{ client_uid: string; metadata: unknown }>((f, t) =>
+      supabaseAdmin
+        .from("cs_signal_snapshots")
+        .select("client_uid, metadata")
+        .eq("week_start", weekStart)
+        .range(f, t) as never,
     );
 
     // Nomes distintos que aparecem nos cards
     const wanted = new Map<string, string>(); // norm -> nome original
     const perClient: Array<{ client_uid: string; cs: string | null; com: string | null }> = [];
     for (const s of snaps) {
-      const meta = s.metadata ?? {};
-      const cs = String((meta as Record<string, unknown>)["cs_atendimento"] ?? "").trim() || null;
-      const com = String((meta as Record<string, unknown>)["responsavel"] ?? "").trim() || null;
+      const meta = (s.metadata && typeof s.metadata === "object" ? s.metadata : {}) as Record<string, unknown>;
+      const cs = String(meta["cs_atendimento"] ?? "").trim() || null;
+      const com = String(meta["responsavel"] ?? "").trim() || null;
       for (const n of [cs, com]) if (n && !wanted.has(normName(n))) wanted.set(normName(n), n);
       perClient.push({ client_uid: s.client_uid, cs, com });
     }
