@@ -141,7 +141,7 @@ describe("CS — card do cliente", () => {
     expect(screen.getByText(/Mariana Borges/)).toBeTruthy();
     expect(screen.getByText("Health 42")).toBeTruthy();
     expect(screen.getByText(/Consultoria/)).toBeTruthy();
-    expect(screen.getByText(/SLA da etapa estourado \(60d\)/)).toBeTruthy();
+    expect(screen.getByText(/Queda de engajamento/)).toBeTruthy();
     expect(screen.getByText(/1 alerta\(s\)/)).toBeTruthy();
     expect(screen.getByText("Sem contato há 50 dias")).toBeTruthy();
 
@@ -158,6 +158,19 @@ describe("CS — card do cliente", () => {
 
     // tags deduplicadas
     expect(screen.getAllByText("risco_churn")).toHaveLength(1);
+  });
+
+  it("alerta SLA da etapa estourado quando a tendência é estável", () => {
+    render(
+      <CsClientCard
+        client={{ ...client, client_uid: "E5F6", current_signal: "amarelo" }}
+        history={["amarelo", "amarelo"]}
+        weeks={weeks.slice(6)}
+        ownerName="Camila Mattie"
+        slaDays={60}
+      />,
+    );
+    expect(screen.getByText(/SLA da etapa estourado \(60d\)/)).toBeTruthy();
   });
 
   it("mostra oportunidade de expansão em sequência verde", () => {
