@@ -13,7 +13,7 @@ import {
   type CsSignal,
   type CsStage,
 } from "@/lib/cs-types";
-import { AlertTriangle, Bell, Building2, Sparkles } from "lucide-react";
+import { AlertTriangle, Bell, Building2, RefreshCw, Sparkles } from "lucide-react";
 
 export type CsCardClient = {
   client_uid: string;
