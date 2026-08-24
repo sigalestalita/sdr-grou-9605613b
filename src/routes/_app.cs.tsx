@@ -286,6 +286,7 @@ function CsPage() {
                         history={historyOf(c.client_uid)}
                         weeks={weeks}
                         ownerName={profileName(c.cs_responsavel_id)}
+                        sheet={sheetOf.get(c.client_uid)}
                         alerts={alertsOf.get(c.client_uid) ?? []}
                         tags={tagsOf.get(c.client_uid) ?? []}
                         slaDays={data?.sla?.[stage] ?? 0}
