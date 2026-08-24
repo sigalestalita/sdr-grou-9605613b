@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CsClientModal } from "@/components/cs/cs-client-modal";
 import { SignalStrip } from "@/components/cs/signal-strip";
+import { CsClientCard } from "@/components/cs/cs-client-card";
 import { CsAlertModal } from "@/components/cs/cs-alert-modal";
 import { CsSettingsPanel } from "@/components/cs/cs-settings-panel";
 import {
