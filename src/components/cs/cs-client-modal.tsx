@@ -750,6 +750,8 @@ function UnifiedTimeline({
   }));
 
   const [kinds, setKinds] = useState<TlKind[]>([]);
+  const [view, setView] = useState<"tudo" | "whatsapp" | "email">("tudo");
+
 
   const items = useMemo<TlItem[]>(() => {
     const out: TlItem[] = [
