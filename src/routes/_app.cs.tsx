@@ -354,6 +354,12 @@ function CsPage() {
                 <option key={t} value={t}>{t}</option>
               ))}
             </select>
+            <select value={fStage} onChange={(e) => setFStage(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+              <option value="">Todas as etapas</option>
+              {CS_STAGES.map((s) => (
+                <option key={s} value={s}>{CS_STAGE_LABEL[s]}</option>
+              ))}
+            </select>
           </Card>
 
           {isLoading ? (
