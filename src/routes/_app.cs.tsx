@@ -325,7 +325,7 @@ function CsPage() {
             <Kpi label="Alertas abertos" value={String(openAlerts)} alert={openAlerts > 0} />
           </div>
 
-          <Card className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <Card className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input className="pl-8" placeholder="Buscar empresa ou código" value={q} onChange={(e) => setQ(e.target.value)} />
