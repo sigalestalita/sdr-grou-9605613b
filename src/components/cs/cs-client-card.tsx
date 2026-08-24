@@ -30,12 +30,21 @@ export type CsCardClient = {
 
 export type CsCardAlert = { id: string; reason: string };
 
+/** Metadados da planilha da sinaleira (última semana sincronizada). */
+export type CsCardSheet = Record<string, unknown>;
+
+const str = (v: unknown) => (v == null || v === "" ? null : String(v));
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const fmt = (v: number | null) =>
+  v == null ? null : v.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+
 /** Card de cliente do board de CS: sinaleira, health score, tendência, SLA, tags e alertas. */
 export function CsClientCard({
   client: c,
   history,
   weeks,
   ownerName,
+  sheet,
   alerts = [],
   tags = [],
   slaDays = 0,
@@ -48,6 +57,7 @@ export function CsClientCard({
   history: CsSignal[];
   weeks?: string[];
   ownerName: string;
+  sheet?: CsCardSheet;
   alerts?: CsCardAlert[];
   tags?: string[];
   slaDays?: number;
@@ -93,6 +103,44 @@ export function CsClientCard({
           <Badge variant="outline" className="text-[10px]">Consultoria</Badge>
         )}
       </div>
+
+      {sheet && (
+        <div className="rounded-md border bg-muted/30 p-2 space-y-1">
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+            {[
+              ["CS", str(sheet.cs_atendimento)],
+              ["Responsável", str(sheet.responsavel)],
+              ["Tipo conta", str(sheet.tipo_conta)],
+              ["Ciclo de vida", str(sheet.ciclo_vida)],
+              ["Login PDA", str(sheet.login_pda)],
+              ["Domínio", str(sheet.dominio)],
+              ["Saldo atual", fmt(num(sheet.saldo_atual))],
+              ["Meta mensal", fmt(num(sheet.meta_mensal))],
+              ["Consumo últ. mês", fmt(num(sheet.consumo_ultimo_mes))],
+              ["Créditos usados", fmt(num(sheet.creditos_utilizados))],
+              ["Meses restantes", fmt(num(sheet.meses_restantes))],
+              ["Exp. créditos", str(sheet.data_expiracao_creditos)],
+              ["Exp. conta", str(sheet.data_expiracao_conta)],
+              ["Status dados", str(sheet.status_dados)],
+              ["Desabilitada", str(sheet.conta_desabilitada)],
+            ]
+              .filter(([, v]) => v)
+              .map(([k, v]) => (
+                <p key={k as string} className="truncate">
+                  <span className="text-muted-foreground">{k}: </span>
+                  <span className="font-medium">{v}</span>
+                </p>
+              ))}
+          </div>
+          {str(sheet.motivo) && (
+            <p className="text-[10px] text-muted-foreground">
+              <span className="font-medium">Motivo:</span> {str(sheet.motivo)}
+            </p>
+          )}
+        </div>
+      )}
+
+
 
       {(trend.kind === "critico" || trend.kind === "queda" || slaBreach) && (
         <p className="flex items-center gap-1 text-[11px] text-warning">

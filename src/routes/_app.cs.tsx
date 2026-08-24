@@ -124,6 +124,16 @@ function CsPage() {
     return (uid: string) => weeks.map((w) => map.get(uid)?.get(w) ?? ("sem_dado" as CsSignal));
   }, [data?.snapshots, weeks]);
 
+  /** Último snapshot de cada cliente: traz todas as colunas da planilha. */
+  const sheetOf = useMemo(() => {
+    const map = new Map<string, Record<string, unknown>>();
+    for (const s of data?.snapshots ?? []) {
+      const meta = (s as { metadata?: unknown }).metadata;
+      if (meta && typeof meta === "object") map.set(s.client_uid, meta as Record<string, unknown>);
+    }
+    return map;
+  }, [data?.snapshots]);
+
   const alertsOf = useMemo(() => {
     const map = new Map<string, NonNullable<typeof data>["alerts"]>();
     for (const a of data?.alerts ?? []) {
@@ -276,6 +286,7 @@ function CsPage() {
                         history={historyOf(c.client_uid)}
                         weeks={weeks}
                         ownerName={profileName(c.cs_responsavel_id)}
+                        sheet={sheetOf.get(c.client_uid)}
                         alerts={alertsOf.get(c.client_uid) ?? []}
                         tags={tagsOf.get(c.client_uid) ?? []}
                         slaDays={data?.sla?.[stage] ?? 0}

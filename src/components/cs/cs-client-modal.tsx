@@ -138,6 +138,14 @@ export function CsClientModal({
     (w) => ((data?.snapshots ?? []).find((s) => s.week_start === w)?.signal ?? "sem_dado") as CsSignal,
   );
   const trend = analyzeSignalTrend(history);
+  // Colunas cruas da última semana sincronizada da planilha.
+  const latestSheet = (() => {
+    const snaps = data?.snapshots ?? [];
+    const last = snaps[snaps.length - 1] as { metadata?: unknown } | undefined;
+    const meta = last?.metadata as Record<string, unknown> | undefined;
+    const sheet = meta?.["sheet"];
+    return sheet && typeof sheet === "object" ? (sheet as Record<string, unknown>) : null;
+  })();
 
   return createPortal(
     <div
@@ -209,6 +217,21 @@ export function CsClientModal({
                   <Info label="DG ativo" value={client.dg_ativo ? "Sim" : "Não"} />
                   <Info label="Consultoria-mãe" value={client.parent_client_uid || "—"} />
                 </div>
+
+                {latestSheet && Object.keys(latestSheet).length > 0 && (
+                  <div className="rounded-lg border bg-muted/20 p-3">
+                    <p className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2">
+                      Dados da planilha (sinaleira) — todas as colunas
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3">
+                      {Object.entries(latestSheet).map(([k, v]) => (
+                        <Info key={k} label={k} value={String(v)} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+
 
                 <div className="grid gap-2 sm:grid-cols-3">
                   <Field label="Etapa da jornada">
