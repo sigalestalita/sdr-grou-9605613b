@@ -69,6 +69,7 @@ const KIND_META: Record<CsFollowUpItem["kind"], { label: string; icon: typeof Be
   alerta: { label: "Alerta", icon: Bell },
   jornada: { label: "Jornada", icon: HeartPulse },
   sem_contato: { label: "Relacionamento", icon: Users },
+  timeline: { label: "Agendado", icon: CalendarClock },
 };
 
 function CsFollowUpsPage() {

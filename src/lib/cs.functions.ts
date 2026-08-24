@@ -861,7 +861,9 @@ export const addCsTimelineEntry = createServerFn({ method: "POST" })
     } as never);
     if (error) throw new Error(error.message);
 
-    if (data.countsAsContact && data.channel !== "observacao") {
+    // Registro com data futura é agendamento (aparece em Follow-ups CS), não contato feito.
+    const isFuture = occurredAt > new Date().toISOString();
+    if (data.countsAsContact && data.channel !== "observacao" && !isFuture) {
       await supabase
         .from("cs_clients")
         .update({ last_contact_at: occurredAt } as never)
