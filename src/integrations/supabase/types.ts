@@ -97,6 +97,387 @@ export type Database = {
         }
         Relationships: []
       }
+      cs_alerts: {
+        Row: {
+          agenda_type: string | null
+          alert_type: string
+          client_uid: string
+          contact_type: string | null
+          created_at: string
+          follow_up_at: string | null
+          id: string
+          observation: string | null
+          reason: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          updated_at: string
+          whatsapp_answered: boolean | null
+        }
+        Insert: {
+          agenda_type?: string | null
+          alert_type: string
+          client_uid: string
+          contact_type?: string | null
+          created_at?: string
+          follow_up_at?: string | null
+          id?: string
+          observation?: string | null
+          reason: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+          whatsapp_answered?: boolean | null
+        }
+        Update: {
+          agenda_type?: string | null
+          alert_type?: string
+          client_uid?: string
+          contact_type?: string | null
+          created_at?: string
+          follow_up_at?: string | null
+          id?: string
+          observation?: string | null
+          reason?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          updated_at?: string
+          whatsapp_answered?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_alerts_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_client_tags: {
+        Row: {
+          client_uid: string
+          created_by: string | null
+          data_criacao: string
+          id: string
+          origem_agenda_id: string | null
+          tag: string
+        }
+        Insert: {
+          client_uid: string
+          created_by?: string | null
+          data_criacao?: string
+          id?: string
+          origem_agenda_id?: string | null
+          tag: string
+        }
+        Update: {
+          client_uid?: string
+          created_by?: string | null
+          data_criacao?: string
+          id?: string
+          origem_agenda_id?: string | null
+          tag?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_client_tags_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_clients: {
+        Row: {
+          aporte_valor: number
+          ativo: boolean
+          client_uid: string
+          cnpj: string | null
+          comercial_responsavel_id: string | null
+          created_at: string
+          created_by: string | null
+          cs_responsavel_id: string | null
+          current_signal: Database["public"]["Enums"]["cs_signal"]
+          data_inicio_contrato: string | null
+          data_renovacao: string | null
+          dg_ativo: boolean
+          health_score: number
+          id: string
+          journey_stage: Database["public"]["Enums"]["cs_journey_stage"]
+          last_contact_at: string | null
+          linkedin_url: string | null
+          login_pda: string | null
+          nome_empresa: string
+          origem: Database["public"]["Enums"]["cs_origin"]
+          parent_client_uid: string | null
+          pda_consumo_pct: number | null
+          setor: string | null
+          site_url: string | null
+          stage_entered_at: string
+          tipo_lead: Database["public"]["Enums"]["cs_client_type"]
+          updated_at: string
+        }
+        Insert: {
+          aporte_valor?: number
+          ativo?: boolean
+          client_uid: string
+          cnpj?: string | null
+          comercial_responsavel_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          cs_responsavel_id?: string | null
+          current_signal?: Database["public"]["Enums"]["cs_signal"]
+          data_inicio_contrato?: string | null
+          data_renovacao?: string | null
+          dg_ativo?: boolean
+          health_score?: number
+          id?: string
+          journey_stage?: Database["public"]["Enums"]["cs_journey_stage"]
+          last_contact_at?: string | null
+          linkedin_url?: string | null
+          login_pda?: string | null
+          nome_empresa: string
+          origem?: Database["public"]["Enums"]["cs_origin"]
+          parent_client_uid?: string | null
+          pda_consumo_pct?: number | null
+          setor?: string | null
+          site_url?: string | null
+          stage_entered_at?: string
+          tipo_lead?: Database["public"]["Enums"]["cs_client_type"]
+          updated_at?: string
+        }
+        Update: {
+          aporte_valor?: number
+          ativo?: boolean
+          client_uid?: string
+          cnpj?: string | null
+          comercial_responsavel_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          cs_responsavel_id?: string | null
+          current_signal?: Database["public"]["Enums"]["cs_signal"]
+          data_inicio_contrato?: string | null
+          data_renovacao?: string | null
+          dg_ativo?: boolean
+          health_score?: number
+          id?: string
+          journey_stage?: Database["public"]["Enums"]["cs_journey_stage"]
+          last_contact_at?: string | null
+          linkedin_url?: string | null
+          login_pda?: string | null
+          nome_empresa?: string
+          origem?: Database["public"]["Enums"]["cs_origin"]
+          parent_client_uid?: string | null
+          pda_consumo_pct?: number | null
+          setor?: string | null
+          site_url?: string | null
+          stage_entered_at?: string
+          tipo_lead?: Database["public"]["Enums"]["cs_client_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cs_contacts: {
+        Row: {
+          ativo_no_cliente: boolean
+          cargo: string | null
+          client_uid: string
+          created_at: string
+          email: string | null
+          id: string
+          modulos_vinculados: string[]
+          nome: string
+          origem_detecao: Database["public"]["Enums"]["cs_contact_origin"]
+          updated_at: string
+          whatsapp: string | null
+        }
+        Insert: {
+          ativo_no_cliente?: boolean
+          cargo?: string | null
+          client_uid: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          modulos_vinculados?: string[]
+          nome: string
+          origem_detecao?: Database["public"]["Enums"]["cs_contact_origin"]
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Update: {
+          ativo_no_cliente?: boolean
+          cargo?: string | null
+          client_uid?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          modulos_vinculados?: string[]
+          nome?: string
+          origem_detecao?: Database["public"]["Enums"]["cs_contact_origin"]
+          updated_at?: string
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_contacts_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_records: {
+        Row: {
+          author_id: string | null
+          client_uid: string
+          content: string
+          created_at: string
+          id: string
+          tipo: string
+        }
+        Insert: {
+          author_id?: string | null
+          client_uid: string
+          content: string
+          created_at?: string
+          id?: string
+          tipo?: string
+        }
+        Update: {
+          author_id?: string | null
+          client_uid?: string
+          content?: string
+          created_at?: string
+          id?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_records_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      cs_signal_snapshots: {
+        Row: {
+          client_uid: string
+          consumo_pct: number | null
+          created_at: string
+          health_score: number | null
+          id: string
+          metadata: Json
+          signal: Database["public"]["Enums"]["cs_signal"]
+          source: string
+          week_start: string
+        }
+        Insert: {
+          client_uid: string
+          consumo_pct?: number | null
+          created_at?: string
+          health_score?: number | null
+          id?: string
+          metadata?: Json
+          signal?: Database["public"]["Enums"]["cs_signal"]
+          source?: string
+          week_start: string
+        }
+        Update: {
+          client_uid?: string
+          consumo_pct?: number | null
+          created_at?: string
+          health_score?: number | null
+          id?: string
+          metadata?: Json
+          signal?: Database["public"]["Enums"]["cs_signal"]
+          source?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_signal_snapshots_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_timeline_events: {
+        Row: {
+          author_id: string | null
+          channel: string | null
+          client_uid: string
+          created_at: string
+          description: string | null
+          event_type: string
+          id: string
+          metadata: Json
+          occurred_at: string
+          title: string
+        }
+        Insert: {
+          author_id?: string | null
+          channel?: string | null
+          client_uid: string
+          created_at?: string
+          description?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          title: string
+        }
+        Update: {
+          author_id?: string | null
+          channel?: string | null
+          client_uid?: string
+          created_at?: string
+          description?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json
+          occurred_at?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_timeline_events_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
       icp_config: {
         Row: {
           id: string
@@ -1307,6 +1688,7 @@ export type Database = {
     Functions: {
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
+      cs_gen_client_uid: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1319,6 +1701,11 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr"
+      cs_client_type: "empresa" | "consultoria"
+      cs_contact_origin: "manual" | "email_bcc" | "pda_api" | "linkedin"
+      cs_journey_stage: "onboarding" | "ativacao" | "renovacao"
+      cs_origin: "marketing" | "indicacao" | "outbound" | "renovacao"
+      cs_signal: "verde" | "amarelo" | "vermelho" | "sem_dado"
       enrichment_status: "pending" | "found" | "not_found" | "manual"
       lead_priority: "alta" | "media" | "baixa" | "fora_icp" | "pendente"
     }
@@ -1449,6 +1836,11 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "gestao", "executivo", "sdr"],
+      cs_client_type: ["empresa", "consultoria"],
+      cs_contact_origin: ["manual", "email_bcc", "pda_api", "linkedin"],
+      cs_journey_stage: ["onboarding", "ativacao", "renovacao"],
+      cs_origin: ["marketing", "indicacao", "outbound", "renovacao"],
+      cs_signal: ["verde", "amarelo", "vermelho", "sem_dado"],
       enrichment_status: ["pending", "found", "not_found", "manual"],
       lead_priority: ["alta", "media", "baixa", "fora_icp", "pendente"],
     },
