@@ -16,6 +16,23 @@ import {
 
 type DB = SupabaseClient<Database>;
 
+/** Busca todas as linhas de uma query, contornando o limite de 1000 do Data API. */
+export async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  pageSize = 1000,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let page = 0; page < 100; page++) {
+    const from = page * pageSize;
+    const { data, error } = await build(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    const rows = data ?? [];
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+  }
+  return out;
+}
+
 export async function getCsSetting<T>(db: DB, key: string, fallback: T): Promise<T> {
   const { data } = await db.from("cs_settings").select("value").eq("key", key).maybeSingle();
   if (!data?.value) return fallback;
