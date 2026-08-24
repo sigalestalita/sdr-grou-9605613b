@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
+import { useOwnerLabel } from "@/lib/use-owner-label";
 import { MessageCircle, FileText, Megaphone, Zap, Settings2, BarChart3, Repeat, Bot, Bell } from "lucide-react";
 
 export const Route = createFileRoute("/_app/whatsapp")({
@@ -7,6 +8,7 @@ export const Route = createFileRoute("/_app/whatsapp")({
 
 function WhatsappLayout() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const ownerLabel = useOwnerLabel();
 
   const tabs = [
     { to: "/whatsapp", label: "Inbox", icon: MessageCircle, exact: true },
@@ -16,7 +18,7 @@ function WhatsappLayout() {
     { to: "/whatsapp/ia", label: "IA", icon: Bot, exact: false },
     { to: "/whatsapp/automacoes", label: "Automações", icon: Zap, exact: false },
     { to: "/whatsapp/fups", label: "FUPs", icon: Repeat, exact: false },
-    { to: "/whatsapp/alertas", label: "Alertas SDR", icon: Bell, exact: false },
+    { to: "/whatsapp/alertas", label: `Alertas ${ownerLabel}`, icon: Bell, exact: false },
     { to: "/whatsapp/contas", label: "Contas", icon: Settings2, exact: false },
   ];
 

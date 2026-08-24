@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getCampaign, launchCampaign, listCampaignReplies } from "@/lib/whatsapp-campaigns.functions";
 import { Button } from "@/components/ui/button";
+import { useOwnerLabel } from "@/lib/use-owner-label";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Send, MessageSquare, ExternalLink } from "lucide-react";
 
@@ -11,6 +12,7 @@ export const Route = createFileRoute("/_app/whatsapp/campanhas/$id")({
 });
 
 function CampaignDetail() {
+  const ownerLabel = useOwnerLabel();
   const { id } = Route.useParams();
   const getFn = useServerFn(getCampaign);
   const launchFn = useServerFn(launchCampaign);
@@ -121,7 +123,7 @@ function CampaignDetail() {
                 <th className="text-left px-3 py-2">Lead</th>
                 <th className="text-left px-3 py-2">Resposta</th>
                 <th className="text-left px-3 py-2">Recebida em</th>
-                <th className="text-left px-3 py-2">SDR responsável</th>
+                <th className="text-left px-3 py-2">{ownerLabel} responsável</th>
                 <th className="px-3 py-2" />
               </tr>
             </thead>
