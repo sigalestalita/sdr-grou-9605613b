@@ -130,7 +130,8 @@ export async function syncSignalFromSheet(opts?: {
     const values = json.values ?? [];
     if (values.length < 2) return { ok: false, tab, error: "Aba sem dados" };
 
-    const header = (values[0] ?? []).map(norm);
+    const rawHeader = (values[0] ?? []).map((h) => String(h ?? "").trim());
+    const header = rawHeader.map(norm);
     // Padrões em ordem de prioridade: o primeiro padrão que casar decide a coluna.
     const findCol = (patterns: RegExp[]) => {
       for (const p of patterns) {
@@ -150,10 +151,33 @@ export async function syncSignalFromSheet(opts?: {
     const colSaldo = findCol([/saldo atual|^saldo/]);
     const colTipo = findCol([/tipo do lead|tipo de conta/]);
     const colCiclo = findCol([/ciclo de vida/]);
+    const colCsAtend = findCol([/atendimento sucesso do cliente|sucesso do cliente|^\[cs\]/]);
+    const colTipoConta = findCol([/tipo de conta/]);
+    const colExpCred = findCol([/expiracao dos creditos/]);
+    const colMeses = findCol([/meses restantes/]);
+    const colMeta = findCol([/meta mensal/]);
+    const colConsumoMes = findCol([/consumo ultimo mes/]);
+    const colCredUsados = findCol([/creditos utilizados/]);
+    const colExpConta = findCol([/expiracao da conta/]);
+    const colStatusDados = findCol([/status dos dados/]);
+    const colDesabilitada = findCol([/conta desabilitada/]);
+    const colBaseId = findCol([/^baseid$/, /baseid/]);
+    const colDominio = findCol([/dominio/]);
 
     if (colEmpresa < 0 && colUid < 0 && colLogin < 0) {
       return { ok: false, tab, error: "Não encontrei coluna de empresa/código/login na aba" };
     }
+
+    const txt = (row: unknown[], idx: number) =>
+      idx >= 0 ? String(row[idx] ?? "").trim() || null : null;
+    /** Data pt-BR (dd/mm/aaaa) -> ISO, para gravar em colunas date. */
+    const parseDateBr = (raw: unknown): string | null => {
+      const m = String(raw ?? "").match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+      if (!m) return null;
+      const y = Number(m[3]) < 100 ? 2000 + Number(m[3]) : Number(m[3]);
+      return `${y}-${String(Number(m[2])).padStart(2, "0")}-${String(Number(m[1])).padStart(2, "0")}`;
+    };
+
 
     const loadClients = async () => {
       // Paginação obrigatória: o Data API limita a 1000 linhas por consulta.
