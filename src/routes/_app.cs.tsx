@@ -79,6 +79,7 @@ function CsPage() {
   const [fSignal, setFSignal] = useState("");
   const [fExec, setFExec] = useState("");
   const [fTag, setFTag] = useState("");
+  const [fStage, setFStage] = useState("");
   const [funnel, setFunnel] = useState<"empresa" | "consultoria">("empresa");
 
   const { user } = useAuth();
@@ -227,6 +228,7 @@ function CsPage() {
     if (fSignal && c.current_signal !== fSignal) return false;
     if (c.tipo_lead !== funnel) return false;
     if (fTag && !(tagsOf.get(c.client_uid) ?? []).includes(fTag)) return false;
+    if (fStage && c.journey_stage !== fStage) return false;
     return true;
   });
 
@@ -323,7 +325,7 @@ function CsPage() {
             <Kpi label="Alertas abertos" value={String(openAlerts)} alert={openAlerts > 0} />
           </div>
 
-          <Card className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <Card className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input className="pl-8" placeholder="Buscar empresa ou código" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -350,6 +352,12 @@ function CsPage() {
               <option value="">Todas as tags</option>
               {tagOptions.map((t) => (
                 <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <select value={fStage} onChange={(e) => setFStage(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+              <option value="">Todas as etapas</option>
+              {CS_STAGES.map((s) => (
+                <option key={s} value={s}>{CS_STAGE_LABEL[s]}</option>
               ))}
             </select>
           </Card>
