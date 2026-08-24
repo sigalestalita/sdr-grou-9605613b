@@ -140,7 +140,7 @@ function CsIntegrationsPage() {
             <h2 className="text-sm font-semibold">Minha agenda (Calendly)</h2>
             {mine?.calendlyConnected && <Badge variant="secondary">Conectado</Badge>}
           </div>
-          {mine?.calendlyConnected && !data?.isManager ? (
+          {mine?.calendlyConnected && (
             <div className="space-y-2 text-sm">
               <p className="text-muted-foreground">
                 {mine.calendlyName} · {mine.calendlyEmail}
@@ -164,7 +164,8 @@ function CsIntegrationsPage() {
                 </Button>
               </div>
             </div>
-          ) : (
+          )}
+          {(!mine?.calendlyConnected || data?.isManager) && (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
                 Gere um token pessoal em calendly.com → Integrations → API &amp; Webhooks →
