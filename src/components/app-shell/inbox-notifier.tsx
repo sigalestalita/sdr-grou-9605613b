@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { useAuth } from "@/lib/use-auth";
+
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Bell, BellOff, Volume2, VolumeX } from "lucide-react";
@@ -53,12 +55,15 @@ export function InboxNotifier() {
     baseTitle.current = document.title || FALLBACK_TITLE;
   }, []);
 
+  const { user } = useAuth();
   const { data } = useQuery({
-    queryKey: ["inbox-pulse"],
+    queryKey: ["inbox-pulse", user?.id],
     queryFn: () => fn(),
+    enabled: !!user,
     refetchInterval: 12000,
     refetchIntervalInBackground: true,
   });
+
 
   const conversations = useMemo(() => data?.conversations ?? [], [data]);
   const totalUnread = data?.totalUnread ?? 0;
