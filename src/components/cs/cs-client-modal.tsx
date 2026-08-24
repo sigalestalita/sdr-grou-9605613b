@@ -39,6 +39,7 @@ import {
 } from "@/lib/cs-types";
 import { SignalStrip } from "./signal-strip";
 import { CsMeetingsTab } from "./cs-meetings-tab";
+import { CsSalesTab } from "./cs-sales-tab";
 import { Plus, Trash2, X, Building2, Users, Tag as TagIcon, History, StickyNote, PhoneCall } from "lucide-react";
 
 
@@ -49,12 +50,13 @@ const TREND_LABEL: Record<string, string> = {
   estavel: "estável",
 };
 
-const TABS = ["visao", "contatos", "reunioes", "tags", "timeline", "registros"] as const;
+const TABS = ["visao", "contatos", "reunioes", "vendas", "tags", "timeline", "registros"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   visao: "Visão geral",
   contatos: "Contatos",
   reunioes: "Reuniões",
+  vendas: "Histórico de vendas",
   tags: "Tags",
   timeline: "Timeline",
   registros: "Registros",
@@ -339,6 +341,11 @@ export function CsClientModal({
             {!isLoading && tab === "reunioes" && (
               <CsMeetingsTab clientUid={clientUid} authorName={profileName} />
             )}
+
+            {!isLoading && tab === "vendas" && (
+              <CsSalesTab clientUid={clientUid} authorName={profileName} />
+            )}
+
 
             {!isLoading && tab === "timeline" && (
               <UnifiedTimeline
