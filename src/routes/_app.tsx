@@ -53,8 +53,15 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   },
   {
     label: "Customer Success",
-    items: [{ to: "/cs", label: "Carteira CS", icon: HeartPulse, team: "cs" }],
+    items: [
+      { to: "/cs", label: "Carteira CS", icon: HeartPulse, team: "cs" },
+      { to: "/cs-agenda", label: "Agenda CS", icon: CalendarDays, team: "cs" },
+      { to: "/cs-emails", label: "E-mails CS", icon: Mail, team: "cs" },
+      { to: "/whatsapp", label: "Inbox / Disparos CS", icon: MessageCircle, team: "cs" },
+      { to: "/cs-integracoes", label: "Integrações CS", icon: Link2, team: "cs" },
+    ],
   },
+
   {
     label: "Análise",
     items: [
