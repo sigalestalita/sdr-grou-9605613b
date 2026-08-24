@@ -49,12 +49,13 @@ const TREND_LABEL: Record<string, string> = {
   estavel: "estável",
 };
 
-const TABS = ["visao", "contatos", "reunioes", "tags", "timeline", "registros"] as const;
+const TABS = ["visao", "contatos", "reunioes", "vendas", "tags", "timeline", "registros"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   visao: "Visão geral",
   contatos: "Contatos",
   reunioes: "Reuniões",
+  vendas: "Histórico de vendas",
   tags: "Tags",
   timeline: "Timeline",
   registros: "Registros",
