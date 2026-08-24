@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CsClientModal } from "@/components/cs/cs-client-modal";
-import { SignalStrip } from "@/components/cs/signal-strip";
+import { CsClientCard } from "@/components/cs/cs-client-card";
 import { CsAlertModal } from "@/components/cs/cs-alert-modal";
 import { CsSettingsPanel } from "@/components/cs/cs-settings-panel";
 import {
@@ -24,25 +24,18 @@ import {
   CS_ORIGINS,
   CS_ORIGIN_LABEL,
   CS_SIGNALS,
-  CS_SIGNAL_CLASS,
   CS_SIGNAL_LABEL,
   CS_STAGES,
   CS_STAGE_LABEL,
-  analyzeSignalTrend,
-  daysBetween,
-  healthLabel,
   type CsSignal,
 } from "@/lib/cs-types";
 import {
-  AlertTriangle,
-  Building2,
   Bell,
   HeartPulse,
   Plus,
   RefreshCw,
   Search,
   Settings2,
-  Sparkles,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs")({
@@ -272,106 +265,22 @@ function CsPage() {
                       <Badge variant="secondary" className="text-[10px]">{col.length}</Badge>
                     </div>
                     {col.length === 0 && <p className="text-xs text-muted-foreground">Nenhum cliente nesta etapa.</p>}
-                    {col.map((c) => {
-                      const history = historyOf(c.client_uid);
-                      const trend = analyzeSignalTrend(history);
-                      const alerts = alertsOf.get(c.client_uid) ?? [];
-                      const health = healthLabel(c.health_score ?? 0);
-                      const daysInStage = daysBetween(c.stage_entered_at) ?? 0;
-                      const slaDays = data?.sla?.[stage] ?? 0;
-                      const slaBreach = slaDays > 0 && daysInStage > slaDays;
-                      return (
-                        <Card
-                          key={c.client_uid}
-                          className={`p-3 space-y-2 cursor-pointer hover:border-primary/50 ${
-                            c.current_signal === "vermelho" ? "border-red-500/40 bg-red-500/5" : ""
-                          }`}
-                          onClick={() => setOpenClient(c.client_uid)}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold truncate flex items-center gap-1">
-                                <Building2 className="h-3.5 w-3.5 shrink-0" /> {c.nome_empresa}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground">
-                                <span className="font-mono">{c.client_uid}</span> · {profileName(c.cs_responsavel_id)}
-                              </p>
-                            </div>
-                            <Badge className={`text-[10px] shrink-0 ${CS_SIGNAL_CLASS[c.current_signal ?? "sem_dado"]}`}>
-                              {CS_SIGNAL_LABEL[c.current_signal ?? "sem_dado"]}
-                            </Badge>
-                          </div>
-
-                          <SignalStrip history={history} weeks={weeks} />
-
-                          <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
-                            <span className={health.cls}>Health {c.health_score ?? 0}</span>
-                            <span>· {CS_ORIGIN_LABEL[c.origem] ?? c.origem}</span>
-                            <span>· {daysInStage}d na etapa</span>
-                            {c.tipo_lead === "consultoria" && (
-                              <Badge variant="outline" className="text-[10px]">Consultoria</Badge>
-                            )}
-                          </div>
-
-                          {(trend.kind === "critico" || trend.kind === "queda" || slaBreach) && (
-                            <p className="flex items-center gap-1 text-[11px] text-warning">
-                              <AlertTriangle className="h-3 w-3" />
-                              {trend.kind === "critico"
-                                ? `Vermelho há ${trend.weeks} semanas`
-                                : trend.kind === "queda"
-                                  ? "Queda de engajamento"
-                                  : `SLA da etapa estourado (${slaDays}d)`}
-                            </p>
-                          )}
-                          {trend.kind === "oportunidade" && (
-                            <p className="flex items-center gap-1 text-[11px] text-emerald-600">
-                              <Sparkles className="h-3 w-3" /> Verde há {trend.weeks} semanas — oportunidade de expansão
-                            </p>
-                          )}
-
-                          {(tagsOf.get(c.client_uid) ?? []).length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {Array.from(new Set(tagsOf.get(c.client_uid) ?? [])).slice(0, 5).map((t) => (
-                                <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
-                              ))}
-                            </div>
-                          )}
-
-                          {alerts.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenAlert(alerts[0].id);
-                              }}
-                              className="w-full rounded-md border border-warning/50 bg-warning/10 px-2 py-1 text-left text-[11px] text-warning hover:bg-warning/20"
-                            >
-                              <span className="inline-flex items-center gap-1 font-medium">
-                                <Bell className="h-3 w-3" /> {alerts.length} alerta(s) — registrar tratativa
-                              </span>
-                              <span className="block truncate text-[10px]">{alerts[0].reason}</span>
-                            </button>
-                          )}
-
-                          <div className="flex gap-1">
-                            {CS_STAGES.filter((s) => s !== stage).map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                disabled={move.isPending}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  move.mutate({ clientUid: c.client_uid, stage: s });
-                                }}
-                                className="rounded-md border px-1.5 py-0.5 text-[10px] hover:bg-muted disabled:opacity-50"
-                              >
-                                → {CS_STAGE_LABEL[s]}
-                              </button>
-                            ))}
-                          </div>
-                        </Card>
-                      );
-                    })}
+                    {col.map((c) => (
+                      <CsClientCard
+                        key={c.client_uid}
+                        client={c}
+                        history={historyOf(c.client_uid)}
+                        weeks={weeks}
+                        ownerName={profileName(c.cs_responsavel_id)}
+                        alerts={alertsOf.get(c.client_uid) ?? []}
+                        tags={tagsOf.get(c.client_uid) ?? []}
+                        slaDays={data?.sla?.[stage] ?? 0}
+                        moveDisabled={move.isPending}
+                        onOpen={setOpenClient}
+                        onOpenAlert={setOpenAlert}
+                        onMove={(uid, s) => move.mutate({ clientUid: uid, stage: s })}
+                      />
+                    ))}
                   </div>
                 );
               })}

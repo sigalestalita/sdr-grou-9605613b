@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { parseCsvClients } from "@/lib/cs-import";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -49,7 +50,7 @@ export function CsSettingsPanel({
 
   const [csv, setCsv] = useState("");
   const importer = useMutation({
-    mutationFn: () => importFn({ data: { rows: parseCsv(csv), autoRoute: true } }),
+    mutationFn: () => importFn({ data: { rows: parseCsvClients(csv), autoRoute: true } }),
     onSuccess: (res) => {
       toast.success(`${res.created} criado(s), ${res.skipped} já existiam, ${res.linked} vinculado(s) à consultoria`);
       setCsv("");
@@ -190,7 +191,7 @@ export function CsSettingsPanel({
         />
         <div className="flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
-            {csv.trim() ? `${Math.max(parseCsv(csv).length, 0)} linha(s) válida(s)` : "Nenhuma linha"}
+            {csv.trim() ? `${Math.max(parseCsvClients(csv).length, 0)} linha(s) válida(s)` : "Nenhuma linha"}
           </span>
           <Button size="sm" disabled={importer.isPending || !csv.trim()} onClick={() => importer.mutate()}>
             {importer.isPending ? "Importando…" : "Importar clientes"}
@@ -216,64 +217,4 @@ const SLA_LABEL: Record<keyof StageSla, string> = {
   sem_contato_dias: "Sem contato (dias)",
 };
 
-type ImportRow = {
-  nome_empresa: string;
-  cnpj?: string | null;
-  parent_nome?: string | null;
-  tipo_lead: "empresa" | "consultoria";
-  origem: "marketing" | "indicacao" | "outbound" | "renovacao";
-  aporte_valor: number;
-  login_pda?: string | null;
-  linkedin_url?: string | null;
-  site_url?: string | null;
-  data_inicio_contrato?: string | null;
-  data_renovacao?: string | null;
-  cs_responsavel_email?: string | null;
-  comercial_responsavel_email?: string | null;
-};
 
-function parseCsv(text: string): ImportRow[] {
-  const lines = text.trim().split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const sep = (lines[0].match(/;/g)?.length ?? 0) >= (lines[0].match(/,/g)?.length ?? 0) ? ";" : ",";
-  const header = lines[0].split(sep).map((h) => h.trim().toLowerCase());
-  const idx = (name: string) => header.indexOf(name);
-  const out: ImportRow[] = [];
-  for (const line of lines.slice(1)) {
-    const cells = line.split(sep).map((c) => c.trim());
-    const get = (name: string) => {
-      const i = idx(name);
-      return i >= 0 ? cells[i] || "" : "";
-    };
-    const nome = get("nome_empresa");
-    if (!nome) continue;
-    const tipo = get("tipo_lead").toLowerCase() === "consultoria" ? "consultoria" : "empresa";
-    const origemRaw = get("origem").toLowerCase();
-    const origem = (["marketing", "indicacao", "outbound", "renovacao"] as const).includes(origemRaw as never)
-      ? (origemRaw as ImportRow["origem"])
-      : "marketing";
-    out.push({
-      nome_empresa: nome,
-      cnpj: get("cnpj") || null,
-      parent_nome: get("parent_nome") || null,
-      tipo_lead: tipo,
-      origem,
-      aporte_valor: Number(get("aporte_valor").replace(/\./g, "").replace(",", ".")) || 0,
-      login_pda: get("login_pda") || null,
-      linkedin_url: get("linkedin_url") || null,
-      site_url: get("site_url") || null,
-      data_inicio_contrato: normDate(get("data_inicio_contrato")),
-      data_renovacao: normDate(get("data_renovacao")),
-      cs_responsavel_email: get("cs_responsavel_email") || null,
-      comercial_responsavel_email: get("comercial_responsavel_email") || null,
-    });
-  }
-  return out;
-}
-
-function normDate(v: string): string | null {
-  if (!v) return null;
-  const br = v.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-  if (br) return `${br[3]}-${br[2].padStart(2, "0")}-${br[1].padStart(2, "0")}`;
-  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
-}
