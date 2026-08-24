@@ -260,6 +260,8 @@ export async function syncSignalFromSheet(opts?: {
       source: string;
       metadata: Record<string, unknown>;
     }> = [];
+    /** Campos da planilha refletidos no próprio cadastro do cliente. */
+    const clientUpdates = new Map<string, Record<string, unknown>>();
     const unmatched: string[] = [];
 
     const seenSnapshot = new Set<string>();
@@ -277,6 +279,25 @@ export async function syncSignalFromSheet(opts?: {
       seenSnapshot.add(clientUid);
 
       const consumo = colConsumo >= 0 ? parsePct(row[colConsumo]) : null;
+      // Todas as colunas da aba, na íntegra, para exibição no card.
+      const sheet: Record<string, string> = {};
+      rawHeader.forEach((h, i) => {
+        if (!h) return;
+        const v = String(row[i] ?? "").trim();
+        if (v) sheet[h] = v;
+      });
+      const dominio = txt(row, colDominio);
+      const expCred = parseDateBr(row[colExpCred]);
+      const tipoLeadRaw = norm(txt(row, colTipo) ?? "");
+
+      clientUpdates.set(clientUid, {
+        login_pda: login || null,
+        ...(dominio ? { site_url: dominio } : {}),
+        ...(expCred ? { data_renovacao: expCred } : {}),
+        ...(tipoLeadRaw ? { tipo_lead: /consultoria/.test(tipoLeadRaw) ? "consultoria" : "empresa" } : {}),
+        ...(colDesabilitada >= 0 ? { dg_ativo: !/^sim$/i.test(txt(row, colDesabilitada) ?? "") } : {}),
+      });
+
       rows.push({
         client_uid: clientUid,
         week_start: weekStart,
@@ -287,10 +308,24 @@ export async function syncSignalFromSheet(opts?: {
           tab,
           nome_planilha: nome || null,
           login_pda: login || null,
-          motivo: colMotivo >= 0 ? String(row[colMotivo] ?? "") || null : null,
-          responsavel: colResponsavel >= 0 ? String(row[colResponsavel] ?? "") || null : null,
+          motivo: txt(row, colMotivo),
+          responsavel: txt(row, colResponsavel),
+          cs_atendimento: txt(row, colCsAtend),
+          tipo_conta: txt(row, colTipoConta),
+          tipo: txt(row, colTipo),
           saldo_atual: colSaldo >= 0 ? parseNum(row[colSaldo]) : null,
-          tipo: colTipo >= 0 ? String(row[colTipo] ?? "") || null : null,
+          meta_mensal: colMeta >= 0 ? parseNum(row[colMeta]) : null,
+          consumo_ultimo_mes: colConsumoMes >= 0 ? parseNum(row[colConsumoMes]) : null,
+          creditos_utilizados: colCredUsados >= 0 ? parseNum(row[colCredUsados]) : null,
+          meses_restantes: colMeses >= 0 ? parseNum(row[colMeses]) : null,
+          data_expiracao_creditos: txt(row, colExpCred),
+          data_expiracao_conta: txt(row, colExpConta),
+          status_dados: txt(row, colStatusDados),
+          conta_desabilitada: txt(row, colDesabilitada),
+          base_id: txt(row, colBaseId),
+          dominio,
+          ciclo_vida: txt(row, colCiclo),
+          sheet,
         },
       });
     }
@@ -308,13 +343,18 @@ export async function syncSignalFromSheet(opts?: {
           rows.slice(i, i + CONCURRENCY).map(async (r) => {
             await supabaseAdmin
               .from("cs_clients")
-              .update({ current_signal: r.signal, pda_consumo_pct: r.consumo_pct })
+              .update({
+                current_signal: r.signal,
+                pda_consumo_pct: r.consumo_pct,
+                ...(clientUpdates.get(r.client_uid) ?? {}),
+              } as never)
               .eq("client_uid", r.client_uid);
             await recomputeHealth(supabaseAdmin, r.client_uid);
           }),
         );
       }
     }
+
 
     await supabaseAdmin.from("integration_logs").insert({
       provider: "cs_signal",
