@@ -721,9 +721,10 @@ function UnifiedTimeline({
   onAddEntry,
 }: {
   timeline: { id: string; title: string; description: string | null; channel: string | null; occurred_at: string; author_id: string | null }[];
-  emails: { id: string; direction: string; from_email: string | null; from_name: string | null; subject: string | null; snippet: string | null; received_at: string; owner_user_id: string | null }[];
+  emails: { id: string; direction: string; from_email: string | null; from_name: string | null; to_emails?: string[] | null; cc_emails?: string[] | null; subject: string | null; snippet: string | null; body_text?: string | null; received_at: string; owner_user_id: string | null }[];
   agenda: { id: string; name: string | null; status: string | null; start_time: string; invitee_name: string | null; invitee_email: string | null; user_id: string | null }[];
-  whatsapp: { id: string; body: string | null; sender_type: string; sender_user_id: string | null; message_type: string; created_at: string }[];
+  whatsapp: { id: string; body: string | null; sender_type: string; sender_user_id: string | null; message_type: string; created_at: string; phone?: string | null; contact_name?: string | null }[];
+
   records: { id: string; tipo: string; content: string; created_at: string; author_id: string | null }[];
   authorName: (id: string | null | undefined) => string;
   pending: boolean;
