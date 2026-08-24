@@ -336,10 +336,42 @@ function CsPage() {
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            <Kpi label="Clientes ativos" value={String(clients.length)} />
+            <Kpi label="Ativos · Empresas" value={String(funnelCounts.empresa)} />
+            <Kpi label="Ativos · Consultorias" value={String(funnelCounts.consultoria)} />
             <Kpi label="Health médio" value={`${avgHealth}`} />
-            <Kpi label="Sinaleira vermelha" value={String(reds)} alert={reds > 0} />
             <Kpi label="Alertas abertos" value={String(openAlerts)} alert={openAlerts > 0} />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            {CS_SIGNALS.map((s) => {
+              const n = signalCounts.counts[s] ?? 0;
+              const pct = signalCounts.total ? Math.round((n / signalCounts.total) * 100) : 0;
+              const tone =
+                s === "verde"
+                  ? "border-emerald-500/50 bg-emerald-500/10"
+                  : s === "amarelo"
+                    ? "border-amber-500/50 bg-amber-500/10"
+                    : s === "vermelho"
+                      ? "border-red-500/50 bg-red-500/10"
+                      : "border-border bg-muted/30";
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setFSignal(fSignal === s ? "" : s)}
+                  className={`rounded-xl border p-3 text-left transition ${tone} ${
+                    fSignal === s ? "ring-2 ring-primary" : "hover:opacity-90"
+                  }`}
+                >
+                  <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {CS_SIGNAL_LABEL[s]}
+                  </p>
+                  <p className="text-lg font-bold">
+                    {n} <span className="text-xs font-medium text-muted-foreground">· {pct}%</span>
+                  </p>
+                </button>
+              );
+            })}
           </div>
 
           <Card className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
