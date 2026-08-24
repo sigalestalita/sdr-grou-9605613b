@@ -155,8 +155,8 @@ export function CsSalesTab({
           itemName: form.itemName.trim(),
           category: form.category || null,
           quantity: Number(form.quantity || 1),
-          unitValue: Number(form.unitValue || 0),
-          discount: Number(form.discount || 0),
+          unitValue: parseMoney(form.unitValue),
+          discount: parseMoney(form.discount),
           status: form.status,
           recurrence: form.recurrence,
           saleDate: form.saleDate,
@@ -192,8 +192,8 @@ export function CsSalesTab({
       itemName: s.item_name,
       category: s.category ?? "",
       quantity: String(s.quantity ?? 1),
-      unitValue: String(s.unit_value ?? ""),
-      discount: String(s.discount ?? 0),
+      unitValue: fmtNum(Number(s.unit_value ?? 0)),
+      discount: fmtNum(Number(s.discount ?? 0)),
       status: s.status,
       recurrence: s.recurrence,
       saleDate: s.sale_date,
@@ -293,17 +293,13 @@ export function CsSalesTab({
                 onChange={(e) => setForm({ ...form, quantity: e.target.value })}
               />
               <Input
-                type="number"
-                min={0}
-                step="0.01"
+                inputMode="decimal"
                 placeholder="Valor unitário"
                 value={form.unitValue}
                 onChange={(e) => setForm({ ...form, unitValue: e.target.value })}
               />
               <Input
-                type="number"
-                min={0}
-                step="0.01"
+                inputMode="decimal"
                 placeholder="Desconto"
                 value={form.discount}
                 onChange={(e) => setForm({ ...form, discount: e.target.value })}
@@ -367,8 +363,8 @@ export function CsSalesTab({
               Total:{" "}
               {brl(
                 Math.max(
-                  Number(form.quantity || 1) * Number(form.unitValue || 0) -
-                    Number(form.discount || 0),
+                  Number(form.quantity || 1) * parseMoney(form.unitValue) -
+                    parseMoney(form.discount),
                   0,
                 ),
               )}
