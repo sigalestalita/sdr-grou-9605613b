@@ -30,12 +30,21 @@ export type CsCardClient = {
 
 export type CsCardAlert = { id: string; reason: string };
 
+/** Metadados da planilha da sinaleira (última semana sincronizada). */
+export type CsCardSheet = Record<string, unknown>;
+
+const str = (v: unknown) => (v == null || v === "" ? null : String(v));
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+const fmt = (v: number | null) =>
+  v == null ? null : v.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+
 /** Card de cliente do board de CS: sinaleira, health score, tendência, SLA, tags e alertas. */
 export function CsClientCard({
   client: c,
   history,
   weeks,
   ownerName,
+  sheet,
   alerts = [],
   tags = [],
   slaDays = 0,
@@ -48,6 +57,7 @@ export function CsClientCard({
   history: CsSignal[];
   weeks?: string[];
   ownerName: string;
+  sheet?: CsCardSheet;
   alerts?: CsCardAlert[];
   tags?: string[];
   slaDays?: number;
