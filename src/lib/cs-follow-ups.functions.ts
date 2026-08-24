@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  CS_FOLLOWUP_CHANNELS,
+  CS_FOLLOWUP_OUTCOMES,
+  CS_FOLLOWUP_OUTCOME_LABEL,
+} from "@/lib/cs-follow-up-types";
 
 export type CsFollowUpKind = "reuniao" | "alerta" | "jornada" | "sem_contato";
 
@@ -202,24 +207,6 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
     return { period: { from, to }, currentUserId: userId, owners, overdue, scheduled };
   });
 
-export const CS_FOLLOWUP_OUTCOMES = [
-  "atendimento_concluido",
-  "sem_resposta",
-  "reuniao_marcada",
-  "aguardando_cliente",
-  "sem_necessidade",
-] as const;
-export type CsFollowUpOutcome = (typeof CS_FOLLOWUP_OUTCOMES)[number];
-
-export const CS_FOLLOWUP_OUTCOME_LABEL: Record<string, string> = {
-  atendimento_concluido: "Atendimento concluído",
-  sem_resposta: "Tentativa sem resposta",
-  reuniao_marcada: "Reunião marcada",
-  aguardando_cliente: "Aguardando retorno do cliente",
-  sem_necessidade: "Sem necessidade de ação",
-};
-
-const CS_FOLLOWUP_CHANNELS = ["whatsapp", "email", "ligacao", "reuniao", "observacao"] as const;
 
 /** Marca um follow-up de CS como feito, registrando o resultado na timeline do cliente. */
 export const completeCsFollowUp = createServerFn({ method: "POST" })
