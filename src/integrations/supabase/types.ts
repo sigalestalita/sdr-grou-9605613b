@@ -159,6 +159,71 @@ export type Database = {
           },
         ]
       }
+      cs_calendly_events: {
+        Row: {
+          cancel_reason: string | null
+          client_uid: string | null
+          created_at: string
+          end_time: string | null
+          event_uri: string
+          id: string
+          invitee_email: string | null
+          invitee_name: string | null
+          location: string | null
+          meeting_url: string | null
+          name: string | null
+          raw: Json
+          start_time: string
+          status: string | null
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_reason?: string | null
+          client_uid?: string | null
+          created_at?: string
+          end_time?: string | null
+          event_uri: string
+          id?: string
+          invitee_email?: string | null
+          invitee_name?: string | null
+          location?: string | null
+          meeting_url?: string | null
+          name?: string | null
+          raw?: Json
+          start_time: string
+          status?: string | null
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_reason?: string | null
+          client_uid?: string | null
+          created_at?: string
+          end_time?: string | null
+          event_uri?: string
+          id?: string
+          invitee_email?: string | null
+          invitee_name?: string | null
+          location?: string | null
+          meeting_url?: string | null
+          name?: string | null
+          raw?: Json
+          start_time?: string
+          status?: string | null
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_calendly_events_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
       cs_client_tags: {
         Row: {
           client_uid: string
@@ -334,6 +399,74 @@ export type Database = {
           },
         ]
       }
+      cs_emails: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          cc_emails: string[]
+          client_uid: string | null
+          created_at: string
+          direction: string
+          from_email: string | null
+          from_name: string | null
+          id: string
+          mailbox: string | null
+          message_id: string | null
+          owner_user_id: string | null
+          raw: Json
+          received_at: string
+          snippet: string | null
+          subject: string | null
+          to_emails: string[]
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          cc_emails?: string[]
+          client_uid?: string | null
+          created_at?: string
+          direction?: string
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          mailbox?: string | null
+          message_id?: string | null
+          owner_user_id?: string | null
+          raw?: Json
+          received_at?: string
+          snippet?: string | null
+          subject?: string | null
+          to_emails?: string[]
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          cc_emails?: string[]
+          client_uid?: string | null
+          created_at?: string
+          direction?: string
+          from_email?: string | null
+          from_name?: string | null
+          id?: string
+          mailbox?: string | null
+          message_id?: string | null
+          owner_user_id?: string | null
+          raw?: Json
+          received_at?: string
+          snippet?: string | null
+          subject?: string | null
+          to_emails?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_emails_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
       cs_records: {
         Row: {
           author_id: string | null
@@ -477,6 +610,54 @@ export type Database = {
             referencedColumns: ["client_uid"]
           },
         ]
+      }
+      cs_user_integrations: {
+        Row: {
+          calendly_connected_at: string | null
+          calendly_email: string | null
+          calendly_last_error: string | null
+          calendly_last_sync_at: string | null
+          calendly_name: string | null
+          calendly_org_uri: string | null
+          calendly_token: string | null
+          calendly_user_uri: string | null
+          created_at: string
+          email_address: string | null
+          email_connected_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          calendly_connected_at?: string | null
+          calendly_email?: string | null
+          calendly_last_error?: string | null
+          calendly_last_sync_at?: string | null
+          calendly_name?: string | null
+          calendly_org_uri?: string | null
+          calendly_token?: string | null
+          calendly_user_uri?: string | null
+          created_at?: string
+          email_address?: string | null
+          email_connected_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          calendly_connected_at?: string | null
+          calendly_email?: string | null
+          calendly_last_error?: string | null
+          calendly_last_sync_at?: string | null
+          calendly_name?: string | null
+          calendly_org_uri?: string | null
+          calendly_token?: string | null
+          calendly_user_uri?: string | null
+          created_at?: string
+          email_address?: string | null
+          email_connected_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       icp_config: {
         Row: {
