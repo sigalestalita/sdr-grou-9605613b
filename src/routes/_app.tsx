@@ -75,6 +75,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
 
 function AppShell() {
   const { user, loading } = useAuth();
+  const role = useCurrentRole();
   const navigate = useNavigate();
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
@@ -113,6 +114,25 @@ function AppShell() {
 
   const currentPath = router.state.location.pathname;
   const initials = (user.email ?? "?").slice(0, 2).toUpperCase();
+
+  const canSee = (item: NavItem) => {
+    if (item.managerOnly) return role.canAccessAll;
+    return role.canAccessTeam(item.team ?? null);
+  };
+
+  const visibleGroups = role.loading
+    ? []
+    : NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
+        (g) => g.items.length > 0,
+      );
+
+  const paletteRoutes = visibleGroups.flatMap((g) =>
+    g.items.map((i) => ({ to: i.to, label: i.label, group: g.label })),
+  );
+
+  const currentTeam = teamForPath(currentPath) as AppTeam | null;
+  const blocked = !role.loading && !role.canAccessTeam(currentTeam);
+
 
   return (
     <div className="min-h-screen flex bg-surface">
