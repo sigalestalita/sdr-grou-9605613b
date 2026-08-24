@@ -6,9 +6,15 @@ const SPREADSHEET_ID = "191ZmqoIwCPrmtL2KxDMMSBpZ3_bSBuCp6_H6b8iRNmY";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
 
 function gatewayHeaders() {
+  const lovableKey = process.env.LOVABLE_API_KEY;
   const key = process.env.GOOGLE_SHEETS_API_KEY;
+  if (!lovableKey) throw new Error("LOVABLE_API_KEY ausente");
   if (!key) throw new Error("GOOGLE_SHEETS_API_KEY ausente — conecte o Google Sheets em Connectors");
-  return { Accept: "application/json", "X-Connection-Api-Key": key };
+  return {
+    Accept: "application/json",
+    Authorization: `Bearer ${lovableKey}`,
+    "X-Connection-Api-Key": key,
+  };
 }
 
 /** Títulos das abas, na ordem em que aparecem na planilha. */
