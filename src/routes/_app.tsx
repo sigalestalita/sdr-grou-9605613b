@@ -28,46 +28,46 @@ export const Route = createFileRoute("/_app")({
   component: AppShell,
 });
 
-const NAV_GROUPS: {
+type NavItem = {
+  to: string;
   label: string;
-  items: { to: string; label: string; icon: typeof KanbanIcon }[];
-}[] = [
+  icon: typeof KanbanIcon;
+  team?: AppTeam;
+  managerOnly?: boolean;
+};
+
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Principal",
+    label: "Comercial / SDR",
     items: [
-      { to: "/dashboard", label: "Visão geral", icon: BarChart3 },
-      { to: "/kanban", label: "Pipeline", icon: KanbanIcon },
-      { to: "/whatsapp", label: "Inbox", icon: MessageCircle },
+      { to: "/dashboard", label: "Visão geral", icon: BarChart3, team: "comercial" },
+      { to: "/kanban", label: "Pipeline", icon: KanbanIcon, team: "comercial" },
+      { to: "/whatsapp", label: "Inbox", icon: MessageCircle, team: "comercial" },
+      { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
+      { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
     ],
   },
   {
-    label: "Operação",
-    items: [
-      { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays },
-      { to: "/cadencia", label: "Cadência", icon: Activity },
-      { to: "/cs", label: "Customer Success", icon: HeartPulse },
-    ],
+    label: "Customer Success",
+    items: [{ to: "/cs", label: "Carteira CS", icon: HeartPulse, team: "cs" }],
   },
   {
     label: "Análise",
     items: [
-      { to: "/leads-analytics", label: "Performance", icon: LineChart },
-      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot },
+      { to: "/leads-analytics", label: "Performance", icon: LineChart, team: "comercial" },
+      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
     ],
   },
   {
     label: "Administração",
     items: [
-      { to: "/usuarios", label: "Usuários", icon: Users },
-      { to: "/configuracoes", label: "Configurações", icon: SettingsIcon },
+      { to: "/usuarios", label: "Usuários", icon: Users, managerOnly: true },
+      { to: "/configuracoes", label: "Configurações", icon: SettingsIcon, managerOnly: true },
       { to: "/novidades", label: "Novidades", icon: Sparkles },
     ],
   },
 ];
 
-const PALETTE_ROUTES = NAV_GROUPS.flatMap((g) =>
-  g.items.map((i) => ({ to: i.to, label: i.label, group: g.label })),
-);
 
 function AppShell() {
   const { user, loading } = useAuth();
