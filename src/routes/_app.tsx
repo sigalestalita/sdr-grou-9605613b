@@ -28,7 +28,7 @@ import { CommandPalette, useCommandPalette } from "@/components/app-shell/comman
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
 import { useCurrentRole } from "@/lib/use-role";
 import { TEAM_LABEL, teamForPath, type AppTeam } from "@/lib/teams";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, ChevronRight } from "lucide-react";
 
 
 export const Route = createFileRoute("/_app")({
@@ -90,6 +90,8 @@ function AppShell() {
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
   const palette = useCommandPalette();
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("sidebar:collapsed") === "1";
@@ -177,41 +179,66 @@ function AppShell() {
         )}
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">
-          {visibleGroups.map((group) => (
-            <div key={group.label} className="mb-4 last:mb-0">
-              {!collapsed && (
-                <p className="section-label px-2 pb-1.5">{group.label}</p>
-              )}
-              <div className="space-y-0.5">
-                {group.items.map((n) => {
-                  const Icon = n.icon;
-                  const active = currentPath === n.to || currentPath.startsWith(`${n.to}/`);
-                  return (
-                    <Link
-                      key={n.to}
-                      to={n.to}
-                      title={collapsed ? n.label : undefined}
-                      data-active={active || undefined}
-                      className={`group flex h-8 items-center gap-2 rounded-md text-[13px] transition-colors ${
-                        collapsed ? "justify-center px-0" : "px-2"
-                      } ${
-                        active
-                          ? "bg-sidebar-accent font-medium text-foreground"
-                          : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
-                      }`}
-                    >
-                      <Icon
-                        className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`}
-                        strokeWidth={1.75}
-                      />
-                      {!collapsed && <span className="truncate">{n.label}</span>}
-                    </Link>
-                  );
-                })}
+          {visibleGroups.map((group) => {
+            const groupActive = group.items.some(
+              (n) => currentPath === n.to || currentPath.startsWith(`${n.to}/`),
+            );
+            const open = collapsed ? true : (openGroups[group.label] ?? groupActive);
+            return (
+              <div key={group.label} className="mb-2 last:mb-0">
+                {!collapsed && (
+                  <button
+                    onClick={() =>
+                      setOpenGroups((prev) => ({ ...prev, [group.label]: !open }))
+                    }
+                    className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent/60"
+                  >
+                    <ChevronRight
+                      className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+                      strokeWidth={2}
+                    />
+                    <span className="section-label flex-1 truncate">{group.label}</span>
+                    {!open && (
+                      <span className="rounded bg-sidebar-accent px-1 text-[10px] text-muted-foreground">
+                        {group.items.length}
+                      </span>
+                    )}
+                  </button>
+                )}
+                {open && (
+                  <div className={`space-y-0.5 ${collapsed ? "" : "pl-2"}`}>
+                    {group.items.map((n) => {
+                      const Icon = n.icon;
+                      const active = currentPath === n.to || currentPath.startsWith(`${n.to}/`);
+                      return (
+                        <Link
+                          key={n.to}
+                          to={n.to}
+                          title={collapsed ? n.label : undefined}
+                          data-active={active || undefined}
+                          className={`group flex h-8 items-center gap-2 rounded-md text-[13px] transition-colors ${
+                            collapsed ? "justify-center px-0" : "px-2"
+                          } ${
+                            active
+                              ? "bg-sidebar-accent font-medium text-foreground"
+                              : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
+                          }`}
+                        >
+                          <Icon
+                            className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`}
+                            strokeWidth={1.75}
+                          />
+                          {!collapsed && <span className="truncate">{n.label}</span>}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
+
 
         <div className={`border-t border-sidebar-border py-2 ${collapsed ? "px-1.5" : "px-2"}`}>
           <div className={`flex items-center gap-2 rounded-md px-1 py-1.5 ${collapsed ? "justify-center" : ""}`}>
