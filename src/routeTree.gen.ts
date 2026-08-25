@@ -20,10 +20,12 @@ import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppCsPlaybookRouteImport } from './routes/_app.cs-playbook'
 import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integracoes'
 import { Route as AppCsFollowUpsRouteImport } from './routes/_app.cs-follow-ups'
 import { Route as AppCsEmailsRouteImport } from './routes/_app.cs-emails'
 import { Route as AppCsDashboardRouteImport } from './routes/_app.cs-dashboard'
+import { Route as AppCsCadenciaRouteImport } from './routes/_app.cs-cadencia'
 import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
 import { Route as AppCsRouteImport } from './routes/_app.cs'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
@@ -104,6 +106,11 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCsPlaybookRoute = AppCsPlaybookRouteImport.update({
+  id: '/cs-playbook',
+  path: '/cs-playbook',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCsIntegracoesRoute = AppCsIntegracoesRouteImport.update({
   id: '/cs-integracoes',
   path: '/cs-integracoes',
@@ -122,6 +129,11 @@ const AppCsEmailsRoute = AppCsEmailsRouteImport.update({
 const AppCsDashboardRoute = AppCsDashboardRouteImport.update({
   id: '/cs-dashboard',
   path: '/cs-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsCadenciaRoute = AppCsCadenciaRouteImport.update({
+  id: '/cs-cadencia',
+  path: '/cs-cadencia',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCsAgendaRoute = AppCsAgendaRouteImport.update({
@@ -265,10 +277,12 @@ export interface FileRoutesByFullPath {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
+  '/cs-cadencia': typeof AppCsCadenciaRoute
   '/cs-dashboard': typeof AppCsDashboardRoute
   '/cs-emails': typeof AppCsEmailsRoute
   '/cs-follow-ups': typeof AppCsFollowUpsRoute
   '/cs-integracoes': typeof AppCsIntegracoesRoute
+  '/cs-playbook': typeof AppCsPlaybookRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -306,10 +320,12 @@ export interface FileRoutesByTo {
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
+  '/cs-cadencia': typeof AppCsCadenciaRoute
   '/cs-dashboard': typeof AppCsDashboardRoute
   '/cs-emails': typeof AppCsEmailsRoute
   '/cs-follow-ups': typeof AppCsFollowUpsRoute
   '/cs-integracoes': typeof AppCsIntegracoesRoute
+  '/cs-playbook': typeof AppCsPlaybookRoute
   '/dashboard': typeof AppDashboardRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -348,10 +364,12 @@ export interface FileRoutesById {
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/cs': typeof AppCsRoute
   '/_app/cs-agenda': typeof AppCsAgendaRoute
+  '/_app/cs-cadencia': typeof AppCsCadenciaRoute
   '/_app/cs-dashboard': typeof AppCsDashboardRoute
   '/_app/cs-emails': typeof AppCsEmailsRoute
   '/_app/cs-follow-ups': typeof AppCsFollowUpsRoute
   '/_app/cs-integracoes': typeof AppCsIntegracoesRoute
+  '/_app/cs-playbook': typeof AppCsPlaybookRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/kanban': typeof AppKanbanRoute
   '/_app/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -391,10 +409,12 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/cs'
     | '/cs-agenda'
+    | '/cs-cadencia'
     | '/cs-dashboard'
     | '/cs-emails'
     | '/cs-follow-ups'
     | '/cs-integracoes'
+    | '/cs-playbook'
     | '/dashboard'
     | '/kanban'
     | '/leads-analytics'
@@ -432,10 +452,12 @@ export interface FileRouteTypes {
     | '/configuracoes'
     | '/cs'
     | '/cs-agenda'
+    | '/cs-cadencia'
     | '/cs-dashboard'
     | '/cs-emails'
     | '/cs-follow-ups'
     | '/cs-integracoes'
+    | '/cs-playbook'
     | '/dashboard'
     | '/kanban'
     | '/leads-analytics'
@@ -473,10 +495,12 @@ export interface FileRouteTypes {
     | '/_app/configuracoes'
     | '/_app/cs'
     | '/_app/cs-agenda'
+    | '/_app/cs-cadencia'
     | '/_app/cs-dashboard'
     | '/_app/cs-emails'
     | '/_app/cs-follow-ups'
     | '/_app/cs-integracoes'
+    | '/_app/cs-playbook'
     | '/_app/dashboard'
     | '/_app/kanban'
     | '/_app/leads-analytics'
@@ -598,6 +622,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/cs-playbook': {
+      id: '/_app/cs-playbook'
+      path: '/cs-playbook'
+      fullPath: '/cs-playbook'
+      preLoaderRoute: typeof AppCsPlaybookRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cs-integracoes': {
       id: '/_app/cs-integracoes'
       path: '/cs-integracoes'
@@ -624,6 +655,13 @@ declare module '@tanstack/react-router' {
       path: '/cs-dashboard'
       fullPath: '/cs-dashboard'
       preLoaderRoute: typeof AppCsDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-cadencia': {
+      id: '/_app/cs-cadencia'
+      path: '/cs-cadencia'
+      fullPath: '/cs-cadencia'
+      preLoaderRoute: typeof AppCsCadenciaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cs-agenda': {
@@ -861,10 +899,12 @@ interface AppRouteChildren {
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppCsRoute: typeof AppCsRoute
   AppCsAgendaRoute: typeof AppCsAgendaRoute
+  AppCsCadenciaRoute: typeof AppCsCadenciaRoute
   AppCsDashboardRoute: typeof AppCsDashboardRoute
   AppCsEmailsRoute: typeof AppCsEmailsRoute
   AppCsFollowUpsRoute: typeof AppCsFollowUpsRoute
   AppCsIntegracoesRoute: typeof AppCsIntegracoesRoute
+  AppCsPlaybookRoute: typeof AppCsPlaybookRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppKanbanRoute: typeof AppKanbanRoute
   AppLeadsAnalyticsRoute: typeof AppLeadsAnalyticsRoute
@@ -881,10 +921,12 @@ const AppRouteChildren: AppRouteChildren = {
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppCsRoute: AppCsRoute,
   AppCsAgendaRoute: AppCsAgendaRoute,
+  AppCsCadenciaRoute: AppCsCadenciaRoute,
   AppCsDashboardRoute: AppCsDashboardRoute,
   AppCsEmailsRoute: AppCsEmailsRoute,
   AppCsFollowUpsRoute: AppCsFollowUpsRoute,
   AppCsIntegracoesRoute: AppCsIntegracoesRoute,
+  AppCsPlaybookRoute: AppCsPlaybookRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppKanbanRoute: AppKanbanRoute,
   AppLeadsAnalyticsRoute: AppLeadsAnalyticsRoute,

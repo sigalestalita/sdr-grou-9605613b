@@ -585,6 +585,45 @@ export type Database = {
           },
         ]
       }
+      cs_playbook_blocks: {
+        Row: {
+          ativo: boolean
+          cor: string
+          corpo: string
+          created_at: string
+          created_by: string | null
+          id: string
+          ordem: number
+          tipo: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cor?: string
+          corpo: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ordem?: number
+          tipo: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cor?: string
+          corpo?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ordem?: number
+          tipo?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cs_records: {
         Row: {
           author_id: string | null

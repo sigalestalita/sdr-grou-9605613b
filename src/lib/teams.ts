@@ -25,6 +25,8 @@ export const TEAM_TONE: Record<AppTeam, string> = {
 const ROUTE_TEAMS: { prefix: string; team: AppTeam }[] = [
   { prefix: "/cs", team: "cs" },
   { prefix: "/cs-dashboard", team: "cs" },
+  { prefix: "/cs-cadencia", team: "cs" },
+  { prefix: "/cs-playbook", team: "cs" },
   { prefix: "/cs-agenda", team: "cs" },
   { prefix: "/cs-follow-ups", team: "cs" },
   { prefix: "/cs-emails", team: "cs" },
