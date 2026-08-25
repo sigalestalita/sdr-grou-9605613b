@@ -160,7 +160,17 @@ function CsKanbanPage() {
   });
 
   const mutation = useMutation({
-    mutationFn: (input: Parameters<typeof saveTask>[0]["data"]) => saveTask({ data: input }),
+    mutationFn: (input: {
+      clientUid: string;
+      weekStart: string;
+      weekday?: number;
+      ownerId?: string | null;
+      title?: string;
+      urgency?: string;
+      color?: string;
+      done?: boolean;
+      notes?: string | null;
+    }) => saveTask({ data: input }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cs-cadence-tasks", weekStart] }),
     onError: (e: Error) => toast.error(e.message),
   });
