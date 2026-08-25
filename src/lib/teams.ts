@@ -26,6 +26,7 @@ const ROUTE_TEAMS: { prefix: string; team: AppTeam }[] = [
   { prefix: "/cs", team: "cs" },
   { prefix: "/cs-dashboard", team: "cs" },
   { prefix: "/cs-cadencia", team: "cs" },
+  { prefix: "/cs-kanban", team: "cs" },
   { prefix: "/cs-playbook", team: "cs" },
   { prefix: "/cs-agenda", team: "cs" },
   { prefix: "/cs-follow-ups", team: "cs" },
