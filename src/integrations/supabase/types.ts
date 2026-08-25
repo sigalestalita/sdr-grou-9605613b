@@ -159,6 +159,68 @@ export type Database = {
           },
         ]
       }
+      cs_cadence_tasks: {
+        Row: {
+          client_uid: string
+          color: string
+          created_at: string
+          created_by: string | null
+          done: boolean
+          done_at: string | null
+          done_by: string | null
+          id: string
+          notes: string | null
+          owner_id: string | null
+          title: string
+          updated_at: string
+          urgency: string
+          week_start: string
+          weekday: number
+        }
+        Insert: {
+          client_uid: string
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          title?: string
+          updated_at?: string
+          urgency?: string
+          week_start: string
+          weekday?: number
+        }
+        Update: {
+          client_uid?: string
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          done?: boolean
+          done_at?: string | null
+          done_by?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          title?: string
+          updated_at?: string
+          urgency?: string
+          week_start?: string
+          weekday?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_cadence_tasks_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
       cs_calendly_events: {
         Row: {
           cancel_reason: string | null

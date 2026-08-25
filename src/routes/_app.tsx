@@ -64,6 +64,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/cs", label: "Carteira CS", icon: HeartPulse, team: "cs" },
       { to: "/cs-dashboard", label: "Dashboard CS", icon: BarChart3, team: "cs", managerOnly: true },
       { to: "/cs-cadencia", label: "Cadência CS", icon: Activity, team: "cs" },
+      { to: "/cs-kanban", label: "Kanban CS", icon: KanbanIcon, team: "cs" },
       { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
       { to: "/cs-agenda", label: "Agenda CS", icon: CalendarDays, team: "cs" },
       { to: "/cs-follow-ups", label: "Follow-ups CS", icon: CalendarClock, team: "cs" },
