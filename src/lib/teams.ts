@@ -39,6 +39,7 @@ const ROUTE_TEAMS: { prefix: string; team: AppTeam }[] = [
   { prefix: "/cadencia", team: "comercial" },
   { prefix: "/leads-analytics", team: "comercial" },
   { prefix: "/analytics-chat", team: "comercial" },
+  { prefix: "/playbook", team: "comercial" },
 ];
 
 
