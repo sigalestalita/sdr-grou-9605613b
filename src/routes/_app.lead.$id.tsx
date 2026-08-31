@@ -16,6 +16,8 @@ import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type
 import { ArrowLeft, MessageSquare, Linkedin, Globe, Sparkles, Wand2, Copy, Building2, ExternalLink, ArrowRight } from "lucide-react";
 import { LeadWhatsappTab } from "@/components/whatsapp/lead-whatsapp-tab";
 import { TouchSequence } from "@/components/leads/touch-sequence";
+import { CadenceJourney } from "@/components/leads/cadence-journey";
+import { BantPanel } from "@/components/leads/bant-panel";
 import { getTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, TOUCH_STAGE_SLUGS } from "@/lib/touch-types";
 
