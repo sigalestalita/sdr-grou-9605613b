@@ -16,6 +16,8 @@ import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type
 import { ArrowLeft, MessageSquare, Linkedin, Globe, Sparkles, Wand2, Copy, Building2, ExternalLink, ArrowRight } from "lucide-react";
 import { LeadWhatsappTab } from "@/components/whatsapp/lead-whatsapp-tab";
 import { TouchSequence } from "@/components/leads/touch-sequence";
+import { CadenceJourney } from "@/components/leads/cadence-journey";
+import { BantPanel } from "@/components/leads/bant-panel";
 import { getTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, TOUCH_STAGE_SLUGS } from "@/lib/touch-types";
 
@@ -441,9 +443,14 @@ function LeadDetailPage() {
         </div>
       </Card>
 
+      <CadenceJourney leadId={lead.id} />
+
+      <BantPanel leadId={lead.id} />
+
       {(TOUCH_STAGE_SLUGS.includes(currentStage?.slug ?? "") || (lead.touch_count ?? 0) > 0) && (
         <TouchSequence leadId={lead.id} />
       )}
+
 
       <Card className="p-5 space-y-3">
         <div className="flex items-center justify-between">

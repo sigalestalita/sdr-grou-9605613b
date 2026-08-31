@@ -16,6 +16,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
 import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
+import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
 import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
@@ -85,6 +86,11 @@ const AppWhatsappRoute = AppWhatsappRouteImport.update({
 const AppUsuariosRoute = AppUsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPlaybookRoute = AppPlaybookRouteImport.update({
+  id: '/playbook',
+  path: '/playbook',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNovidadesRoute = AppNovidadesRouteImport.update({
@@ -294,6 +300,7 @@ export interface FileRoutesByFullPath {
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/novidades': typeof AppNovidadesRoute
+  '/playbook': typeof AppPlaybookRoute
   '/usuarios': typeof AppUsuariosRoute
   '/whatsapp': typeof AppWhatsappRouteWithChildren
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
@@ -338,6 +345,7 @@ export interface FileRoutesByTo {
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/novidades': typeof AppNovidadesRoute
+  '/playbook': typeof AppPlaybookRoute
   '/usuarios': typeof AppUsuariosRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/lead/$id': typeof AppLeadIdRoute
@@ -383,6 +391,7 @@ export interface FileRoutesById {
   '/_app/kanban': typeof AppKanbanRoute
   '/_app/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/_app/novidades': typeof AppNovidadesRoute
+  '/_app/playbook': typeof AppPlaybookRoute
   '/_app/usuarios': typeof AppUsuariosRoute
   '/_app/whatsapp': typeof AppWhatsappRouteWithChildren
   '/_app/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
@@ -429,6 +438,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/leads-analytics'
     | '/novidades'
+    | '/playbook'
     | '/usuarios'
     | '/whatsapp'
     | '/analytics-chat/$threadId'
@@ -473,6 +483,7 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/leads-analytics'
     | '/novidades'
+    | '/playbook'
     | '/usuarios'
     | '/analytics-chat/$threadId'
     | '/lead/$id'
@@ -517,6 +528,7 @@ export interface FileRouteTypes {
     | '/_app/kanban'
     | '/_app/leads-analytics'
     | '/_app/novidades'
+    | '/_app/playbook'
     | '/_app/usuarios'
     | '/_app/whatsapp'
     | '/_app/analytics-chat/$threadId'
@@ -604,6 +616,13 @@ declare module '@tanstack/react-router' {
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof AppUsuariosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/playbook': {
+      id: '/_app/playbook'
+      path: '/playbook'
+      fullPath: '/playbook'
+      preLoaderRoute: typeof AppPlaybookRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/novidades': {
@@ -929,6 +948,7 @@ interface AppRouteChildren {
   AppKanbanRoute: typeof AppKanbanRoute
   AppLeadsAnalyticsRoute: typeof AppLeadsAnalyticsRoute
   AppNovidadesRoute: typeof AppNovidadesRoute
+  AppPlaybookRoute: typeof AppPlaybookRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
   AppWhatsappRoute: typeof AppWhatsappRouteWithChildren
   AppLeadIdRoute: typeof AppLeadIdRoute
@@ -952,6 +972,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppKanbanRoute: AppKanbanRoute,
   AppLeadsAnalyticsRoute: AppLeadsAnalyticsRoute,
   AppNovidadesRoute: AppNovidadesRoute,
+  AppPlaybookRoute: AppPlaybookRoute,
   AppUsuariosRoute: AppUsuariosRoute,
   AppWhatsappRoute: AppWhatsappRouteWithChildren,
   AppLeadIdRoute: AppLeadIdRoute,

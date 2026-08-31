@@ -56,6 +56,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/whatsapp", label: "Inbox", icon: MessageCircle, team: "comercial" },
       { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
       { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
+      { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
     ],
   },
   {
