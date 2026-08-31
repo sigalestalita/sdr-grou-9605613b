@@ -441,9 +441,14 @@ function LeadDetailPage() {
         </div>
       </Card>
 
+      <CadenceJourney leadId={lead.id} />
+
+      <BantPanel leadId={lead.id} />
+
       {(TOUCH_STAGE_SLUGS.includes(currentStage?.slug ?? "") || (lead.touch_count ?? 0) > 0) && (
         <TouchSequence leadId={lead.id} />
       )}
+
 
       <Card className="p-5 space-y-3">
         <div className="flex items-center justify-between">
