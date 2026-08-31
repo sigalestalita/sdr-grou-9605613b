@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getTouchMetrics, getTouchRules, saveTouchRules } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel } from "@/lib/touch-types";
+import { CadenceBoard } from "@/components/leads/cadence-board";
 import { Activity, AlertTriangle, Clock, Target, Users } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cadencia")({
