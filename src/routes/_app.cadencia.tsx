@@ -79,6 +79,10 @@ function CadenciaPage() {
         </select>
       </header>
 
+      <CadenceBoard />
+
+
+
       {isLoading || !op ? (
         <p className="text-sm text-muted-foreground">Carregando métricas…</p>
       ) : (
