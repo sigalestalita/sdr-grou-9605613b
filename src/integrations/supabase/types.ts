@@ -1161,6 +1161,10 @@ export type Database = {
           ad_name: string | null
           approach_result: string | null
           assigned_to: string | null
+          bant: Json
+          cadence_started_at: string | null
+          cadence_status: string
+          cadence_track: string | null
           campaign: string | null
           channel: string | null
           company_description: string | null
@@ -1213,6 +1217,10 @@ export type Database = {
           ad_name?: string | null
           approach_result?: string | null
           assigned_to?: string | null
+          bant?: Json
+          cadence_started_at?: string | null
+          cadence_status?: string
+          cadence_track?: string | null
           campaign?: string | null
           channel?: string | null
           company_description?: string | null
@@ -1265,6 +1273,10 @@ export type Database = {
           ad_name?: string | null
           approach_result?: string | null
           assigned_to?: string | null
+          bant?: Json
+          cadence_started_at?: string | null
+          cadence_status?: string
+          cadence_track?: string | null
           campaign?: string | null
           channel?: string | null
           company_description?: string | null
