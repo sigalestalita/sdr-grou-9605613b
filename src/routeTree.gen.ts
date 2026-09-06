@@ -45,7 +45,6 @@ import { Route as AppWhatsappAutomacoesRouteImport } from './routes/_app.whatsap
 import { Route as AppWhatsappAlertasRouteImport } from './routes/_app.whatsapp.alertas'
 import { Route as AppLeadIdRouteImport } from './routes/_app.lead.$id'
 import { Route as AppAnalyticsChatThreadIdRouteImport } from './routes/_app.analytics-chat.$threadId'
-import { Route as ApiPublicRdDiscoverRouteImport } from './routes/api/public/rd/discover'
 import { Route as ApiPublicRdCallbackRouteImport } from './routes/api/public/rd/callback'
 import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
@@ -235,11 +234,6 @@ const AppAnalyticsChatThreadIdRoute =
     path: '/$threadId',
     getParentRoute: () => AppAnalyticsChatRoute,
   } as any)
-const ApiPublicRdDiscoverRoute = ApiPublicRdDiscoverRouteImport.update({
-  id: '/api/public/rd/discover',
-  path: '/api/public/rd/discover',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicRdCallbackRoute = ApiPublicRdCallbackRouteImport.update({
   id: '/api/public/rd/callback',
   path: '/api/public/rd/callback',
@@ -326,7 +320,6 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
-  '/api/public/rd/discover': typeof ApiPublicRdDiscoverRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
 }
@@ -371,7 +364,6 @@ export interface FileRoutesByTo {
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
-  '/api/public/rd/discover': typeof ApiPublicRdDiscoverRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
 }
@@ -419,7 +411,6 @@ export interface FileRoutesById {
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
-  '/api/public/rd/discover': typeof ApiPublicRdDiscoverRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
 }
@@ -467,7 +458,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
     | '/api/public/rd/callback'
-    | '/api/public/rd/discover'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
   fileRoutesByTo: FileRoutesByTo
@@ -512,7 +502,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
     | '/api/public/rd/callback'
-    | '/api/public/rd/discover'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
   id:
@@ -559,7 +548,6 @@ export interface FileRouteTypes {
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-rd'
     | '/api/public/rd/callback'
-    | '/api/public/rd/discover'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
   fileRoutesById: FileRoutesById
@@ -575,7 +563,6 @@ export interface RootRouteChildren {
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
   ApiPublicHooksSyncRdRoute: typeof ApiPublicHooksSyncRdRoute
   ApiPublicRdCallbackRoute: typeof ApiPublicRdCallbackRoute
-  ApiPublicRdDiscoverRoute: typeof ApiPublicRdDiscoverRoute
   ApiPublicWhatsappAutomationsTickRoute: typeof ApiPublicWhatsappAutomationsTickRoute
   ApiPublicWhatsappWebhookAccountIdRoute: typeof ApiPublicWhatsappWebhookAccountIdRoute
 }
@@ -834,13 +821,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsChatThreadIdRouteImport
       parentRoute: typeof AppAnalyticsChatRoute
     }
-    '/api/public/rd/discover': {
-      id: '/api/public/rd/discover'
-      path: '/api/public/rd/discover'
-      fullPath: '/api/public/rd/discover'
-      preLoaderRoute: typeof ApiPublicRdDiscoverRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/rd/callback': {
       id: '/api/public/rd/callback'
       path: '/api/public/rd/callback'
@@ -1011,7 +991,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
   ApiPublicHooksSyncRdRoute: ApiPublicHooksSyncRdRoute,
   ApiPublicRdCallbackRoute: ApiPublicRdCallbackRoute,
-  ApiPublicRdDiscoverRoute: ApiPublicRdDiscoverRoute,
   ApiPublicWhatsappAutomationsTickRoute: ApiPublicWhatsappAutomationsTickRoute,
   ApiPublicWhatsappWebhookAccountIdRoute:
     ApiPublicWhatsappWebhookAccountIdRoute,
