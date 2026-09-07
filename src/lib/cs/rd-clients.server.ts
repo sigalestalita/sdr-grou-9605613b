@@ -174,7 +174,15 @@ export async function syncRdClientsToCs(opts?: { dryRun?: boolean }): Promise<Rd
     updated: 0,
     errors: [],
   };
-  if (opts?.dryRun) return result;
+  if (opts?.dryRun) {
+    const tally: Record<string, number> = {};
+    for (const o of orgs) {
+      const raw = readLifecycle(o) ?? "(vazio)";
+      tally[raw] = (tally[raw] ?? 0) + 1;
+    }
+    return { ...result, lifecycles: tally };
+  }
+
 
   const { data: existing, error: exErr } = await supabaseAdmin
     .from("cs_clients")
