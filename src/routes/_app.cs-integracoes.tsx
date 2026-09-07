@@ -15,7 +15,9 @@ import {
   saveCsMailbox,
   syncCsCalendly,
 } from "@/lib/cs-integrations.functions";
-import { CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
+import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
+import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
+
 
 export const Route = createFileRoute("/_app/cs-integracoes")({
   component: CsIntegrationsPage,
@@ -104,6 +106,31 @@ function CsIntegrationsPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
+
+  const rdSyncFn = useServerFn(syncRdCsClients);
+  const rdLogsFn = useServerFn(getRdCsSyncLogs);
+  const rdLogs = useQuery({
+    queryKey: ["cs-rd-sync-logs"],
+    queryFn: () => rdLogsFn(),
+    enabled: Boolean(data?.isManager),
+  });
+  const rdSync = useMutation({
+    mutationFn: (dryRun: boolean) => rdSyncFn({ data: { dryRun } }),
+    onSuccess: (r) => {
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(
+        `${r.matched} cliente(s) no RD · ${r.created} criado(s) · ${r.updated} atualizado(s)`,
+      );
+      if (r.errors.length) toast.error(r.errors[0]);
+      rdLogs.refetch();
+      qc.invalidateQueries({ queryKey: ["cs-clients"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
 
   if (error) {
     return (
@@ -262,6 +289,55 @@ function CsIntegrationsPage() {
               </Button>
             </div>
           </Card>
+
+          <Card className="space-y-3 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-semibold">Clientes do RD CRM</h2>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={rdSync.isPending}
+                  onClick={() => rdSync.mutate(true)}
+                >
+                  Prévia
+                </Button>
+                <Button size="sm" disabled={rdSync.isPending} onClick={() => rdSync.mutate(false)}>
+                  <RefreshCw className={`mr-1 h-4 w-4 ${rdSync.isPending ? "animate-spin" : ""}`} />
+                  {rdSync.isPending ? "Importando…" : "Importar / atualizar"}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Traz as empresas do RD CRM com ciclo de vida <strong>Cliente</strong>,{" "}
+              <strong>Cliente Inativo</strong> e <strong>Cliente de Partner</strong>. Cria os cards
+              que faltam e atualiza os que já existem (nome, CNPJ, site, setor, responsável e
+              situação), sem apagar sinaleira, health score nem histórico.
+            </p>
+            {(rdLogs.data?.logs ?? []).length > 0 && (
+              <div className="divide-y rounded-md border text-xs">
+                {(rdLogs.data?.logs ?? []).map((l) => {
+                  const d = (l.detail ?? {}) as Record<string, number | string[]>;
+                  return (
+                    <div key={l.id} className="flex flex-wrap gap-3 px-3 py-2">
+                      <span className="text-muted-foreground">
+                        {new Date(l.created_at).toLocaleString("pt-BR")}
+                      </span>
+                      <Badge variant={l.status === "ok" ? "secondary" : "outline"}>{l.status}</Badge>
+                      <span>
+                        {Number(d.matched ?? 0)} clientes · {Number(d.created ?? 0)} criados ·{" "}
+                        {Number(d.updated ?? 0)} atualizados
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+
 
           <Card className="p-0">
             <div className="border-b px-4 py-3">
