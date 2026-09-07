@@ -15,7 +15,9 @@ import {
   saveCsMailbox,
   syncCsCalendly,
 } from "@/lib/cs-integrations.functions";
-import { CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
+import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
+import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
+
 
 export const Route = createFileRoute("/_app/cs-integracoes")({
   component: CsIntegrationsPage,
