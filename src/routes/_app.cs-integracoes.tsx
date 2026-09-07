@@ -107,6 +107,31 @@ function CsIntegrationsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
+  const rdSyncFn = useServerFn(syncRdCsClients);
+  const rdLogsFn = useServerFn(getRdCsSyncLogs);
+  const rdLogs = useQuery({
+    queryKey: ["cs-rd-sync-logs"],
+    queryFn: () => rdLogsFn(),
+    enabled: Boolean(data?.isManager),
+  });
+  const rdSync = useMutation({
+    mutationFn: (dryRun: boolean) => rdSyncFn({ data: { dryRun } }),
+    onSuccess: (r) => {
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(
+        `${r.matched} cliente(s) no RD · ${r.created} criado(s) · ${r.updated} atualizado(s)`,
+      );
+      if (r.errors.length) toast.error(r.errors[0]);
+      rdLogs.refetch();
+      qc.invalidateQueries({ queryKey: ["cs-clients"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+
   if (error) {
     return (
       <div className="p-6">
