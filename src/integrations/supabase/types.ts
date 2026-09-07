@@ -345,6 +345,10 @@ export type Database = {
           origem: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid: string | null
           pda_consumo_pct: number | null
+          rd_lifecycle: string | null
+          rd_org_id: string | null
+          rd_owner: string | null
+          rd_synced_at: string | null
           setor: string | null
           site_url: string | null
           stage_entered_at: string
@@ -374,6 +378,10 @@ export type Database = {
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
+          rd_lifecycle?: string | null
+          rd_org_id?: string | null
+          rd_owner?: string | null
+          rd_synced_at?: string | null
           setor?: string | null
           site_url?: string | null
           stage_entered_at?: string
@@ -403,6 +411,10 @@ export type Database = {
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
+          rd_lifecycle?: string | null
+          rd_org_id?: string | null
+          rd_owner?: string | null
+          rd_synced_at?: string | null
           setor?: string | null
           site_url?: string | null
           stage_entered_at?: string
