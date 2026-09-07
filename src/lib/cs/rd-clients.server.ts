@@ -103,7 +103,7 @@ async function rdGet(path: string, params: Record<string, string>, token: string
 }
 
 /** Percorre /organizations paginando; o RD quebra depois de ~50 páginas, então usamos janelas por data. */
-export async function fetchRdOrganizations(token: string, maxPages = 45): Promise<RdOrganization[]> {
+export async function fetchRdOrganizations(token: string, maxPages = 50): Promise<RdOrganization[]> {
   const out: RdOrganization[] = [];
   const seen = new Set<string>();
   for (let page = 1; page <= maxPages; page++) {
