@@ -102,29 +102,46 @@ async function rdGet(path: string, params: Record<string, string>, token: string
   return (await res.json()) as Json;
 }
 
-/** Percorre /organizations paginando; o RD quebra depois de ~50 páginas, então usamos janelas por data. */
-export async function fetchRdOrganizations(token: string, maxPages = 50): Promise<RdOrganization[]> {
+/**
+ * Percorre /organizations. O RD trava a paginação em ~9.000 registros, então varremos
+ * a lista em ordem crescente e decrescente (por nome e por data) e juntamos sem duplicar.
+ */
+export async function fetchRdOrganizations(token: string, maxPages = 45): Promise<RdOrganization[]> {
   const out: RdOrganization[] = [];
   const seen = new Set<string>();
-  for (let page = 1; page <= maxPages; page++) {
-    let json: Json;
-    try {
-      json = await rdGet("/organizations", { page: String(page), limit: "200" }, token);
-    } catch {
-      break; // RD devolve 400 nas páginas mais profundas
+  const passes: Array<Record<string, string>> = [
+    { order: "name", direction: "asc" },
+    { order: "name", direction: "desc" },
+    { order: "created_at", direction: "asc" },
+    { order: "created_at", direction: "desc" },
+  ];
+
+  for (const pass of passes) {
+    for (let page = 1; page <= maxPages; page++) {
+      let json: Json;
+      try {
+        json = await rdGet("/organizations", { ...pass, page: String(page), limit: "200" }, token);
+      } catch {
+        break; // RD devolve 400 nas páginas mais profundas
+      }
+      const orgs = (json.organizations ?? []) as RdOrganization[];
+      if (orgs.length === 0) break;
+      let novos = 0;
+      for (const o of orgs) {
+        const id = o._id ?? o.id;
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        out.push(o);
+        novos++;
+      }
+      if (json.has_more === false) break;
+      // Passada já totalmente coberta por outra ordenação: não vale seguir paginando.
+      if (novos === 0 && page > 3) break;
     }
-    const orgs = (json.organizations ?? []) as RdOrganization[];
-    if (orgs.length === 0) break;
-    for (const o of orgs) {
-      const id = o._id ?? o.id;
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      out.push(o);
-    }
-    if (json.has_more === false) break;
   }
   return out;
 }
+
 
 export interface RdClientSyncResult {
   fetched: number;
