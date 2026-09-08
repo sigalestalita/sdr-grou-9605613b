@@ -68,7 +68,7 @@ function readCnpj(o: RdOrganization): string | null {
 
 function normalizeLifecycle(raw: string | null): RdLifecycle | null {
   if (!raw) return null;
-  const v = raw.trim().toLowerCase();
+  const v = raw.replace(/[\u200b-\u200f\ufeff]/g, "").trim().toLowerCase();
   if (v === "cliente") return "Cliente";
   if (v === "cliente inativo") return "Cliente Inativo";
   if (v === "cliente de partner") return "Cliente de Partner";
@@ -149,6 +149,9 @@ export interface RdClientSyncResult {
   created: number;
   updated: number;
   errors: string[];
+  /** Contagem por ciclo de vida do RD (apenas na prévia). */
+  lifecycles?: Record<string, number>;
+
 }
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -184,10 +187,16 @@ export async function syncRdClientsToCs(opts?: { dryRun?: boolean }): Promise<Rd
   }
 
 
-  const { data: existing, error: exErr } = await supabaseAdmin
-    .from("cs_clients")
-    .select("client_uid, nome_empresa, cnpj, rd_org_id");
-  if (exErr) throw new Error(exErr.message);
+  const { fetchAllRows } = await import("@/lib/cs/cs-core.server");
+  const existing = await fetchAllRows<{
+    client_uid: string;
+    nome_empresa: string;
+    cnpj: string | null;
+    rd_org_id: string | null;
+  }>((from, to) =>
+    supabaseAdmin.from("cs_clients").select("client_uid, nome_empresa, cnpj, rd_org_id").range(from, to),
+  );
+
 
   const byRd = new Map<string, string>();
   const byName = new Map<string, string>();
