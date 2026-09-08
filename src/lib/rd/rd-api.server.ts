@@ -25,6 +25,8 @@ export interface RdContactRaw {
   emails?: Array<{ email?: string }>;
   phones?: Array<{ phone?: string; type?: string }>;
   organization?: { _id?: string; id?: string; name?: string };
+  organization_id?: string;
+
   user?: { name?: string; email?: string };
   contact_custom_fields?: RdCustomField[];
   custom_fields?: RdCustomField[];
