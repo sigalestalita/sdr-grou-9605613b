@@ -288,5 +288,7 @@ export async function syncRdClientsToCs(opts?: {
     } as never,
   });
 
+  result.orgToClient = byRd;
   return result;
+
 }
