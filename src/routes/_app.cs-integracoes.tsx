@@ -16,6 +16,8 @@ import {
   syncCsCalendly,
 } from "@/lib/cs-integrations.functions";
 import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
+import { getRdAllSyncLogs, syncRdAll } from "@/lib/rd-master.functions";
+
 import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
 
 
@@ -127,6 +129,31 @@ function CsIntegrationsPage() {
       if (r.errors.length) toast.error(r.errors[0]);
       rdLogs.refetch();
       qc.invalidateQueries({ queryKey: ["cs-clients"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const rdAllFn = useServerFn(syncRdAll);
+  const rdAllLogsFn = useServerFn(getRdAllSyncLogs);
+  const rdAllLogs = useQuery({
+    queryKey: ["rd-all-sync-logs"],
+    queryFn: () => rdAllLogsFn(),
+    enabled: Boolean(data?.isManager),
+  });
+  const rdAll = useMutation({
+    mutationFn: (dryRun: boolean) => rdAllFn({ data: { dryRun } }),
+    onSuccess: (r) => {
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
+      toast.success(
+        `${r.organizations.fetched} empresas · ${r.contacts.fetched} contatos · ${r.deals.fetched} negócios do RD`,
+      );
+      if (r.errors.length) toast.error(r.errors[0]);
+      rdAllLogs.refetch();
+      qc.invalidateQueries({ queryKey: ["cs-clients"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
