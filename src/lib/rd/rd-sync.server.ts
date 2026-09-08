@@ -144,7 +144,7 @@ export async function syncRdEverything(opts?: { dryRun?: boolean }): Promise<RdF
     const prev = allContacts.get(id);
     allContacts.set(id, { c: { ...(prev?.c ?? {}), ...c }, orgId: orgId ?? prev?.orgId ?? null });
   };
-  for (const c of contacts) pushContact(c, rdId(c.organization ?? undefined));
+  for (const c of contacts) pushContact(c, rdId(c.organization ?? undefined) ?? c.organization_id ?? null);
   for (const o of orgs) for (const c of o.contacts ?? []) pushContact(c, rdId(o));
   for (const d of deals) for (const c of d.contacts ?? []) pushContact(c, rdId(d.organization ?? undefined));
 
