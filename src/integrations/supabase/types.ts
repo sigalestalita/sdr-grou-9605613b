@@ -434,6 +434,7 @@ export type Database = {
           modulos_vinculados: string[]
           nome: string
           origem_detecao: Database["public"]["Enums"]["cs_contact_origin"]
+          rd_contact_id: string | null
           updated_at: string
           whatsapp: string | null
         }
@@ -447,6 +448,7 @@ export type Database = {
           modulos_vinculados?: string[]
           nome: string
           origem_detecao?: Database["public"]["Enums"]["cs_contact_origin"]
+          rd_contact_id?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
@@ -460,6 +462,7 @@ export type Database = {
           modulos_vinculados?: string[]
           nome?: string
           origem_detecao?: Database["public"]["Enums"]["cs_contact_origin"]
+          rd_contact_id?: string | null
           updated_at?: string
           whatsapp?: string | null
         }
@@ -1215,8 +1218,11 @@ export type Database = {
           position: string | null
           priority: Database["public"]["Enums"]["lead_priority"]
           probable_pain: string | null
+          rd_contact_id: string | null
           rd_deal_id: string | null
+          rd_org_id: string | null
           rd_owner: string | null
+          rd_pipeline: string | null
           rd_status: string | null
           score: number
           source: string | null
@@ -1271,8 +1277,11 @@ export type Database = {
           position?: string | null
           priority?: Database["public"]["Enums"]["lead_priority"]
           probable_pain?: string | null
+          rd_contact_id?: string | null
           rd_deal_id?: string | null
+          rd_org_id?: string | null
           rd_owner?: string | null
+          rd_pipeline?: string | null
           rd_status?: string | null
           score?: number
           source?: string | null
@@ -1327,8 +1336,11 @@ export type Database = {
           position?: string | null
           priority?: Database["public"]["Enums"]["lead_priority"]
           probable_pain?: string | null
+          rd_contact_id?: string | null
           rd_deal_id?: string | null
+          rd_org_id?: string | null
           rd_owner?: string | null
+          rd_pipeline?: string | null
           rd_status?: string | null
           score?: number
           source?: string | null
@@ -1371,6 +1383,114 @@ export type Database = {
         }
         Relationships: []
       }
+      rd_contacts: {
+        Row: {
+          created_at: string
+          email: string | null
+          linkedin_url: string | null
+          name: string
+          owner_name: string | null
+          phone: string | null
+          position: string | null
+          raw: Json
+          rd_id: string
+          rd_org_id: string | null
+          rd_org_name: string | null
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          linkedin_url?: string | null
+          name: string
+          owner_name?: string | null
+          phone?: string | null
+          position?: string | null
+          raw?: Json
+          rd_id: string
+          rd_org_id?: string | null
+          rd_org_name?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          linkedin_url?: string | null
+          name?: string
+          owner_name?: string | null
+          phone?: string | null
+          position?: string | null
+          raw?: Json
+          rd_id?: string
+          rd_org_id?: string | null
+          rd_org_name?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rd_deals: {
+        Row: {
+          amount: number | null
+          campaign_name: string | null
+          created_at: string
+          name: string
+          owner_name: string | null
+          pipeline: string | null
+          raw: Json
+          rd_contact_id: string | null
+          rd_created_at: string | null
+          rd_id: string
+          rd_org_id: string | null
+          rd_org_name: string | null
+          source_name: string | null
+          stage: string | null
+          status: string | null
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          campaign_name?: string | null
+          created_at?: string
+          name: string
+          owner_name?: string | null
+          pipeline?: string | null
+          raw?: Json
+          rd_contact_id?: string | null
+          rd_created_at?: string | null
+          rd_id: string
+          rd_org_id?: string | null
+          rd_org_name?: string | null
+          source_name?: string | null
+          stage?: string | null
+          status?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          campaign_name?: string | null
+          created_at?: string
+          name?: string
+          owner_name?: string | null
+          pipeline?: string | null
+          raw?: Json
+          rd_contact_id?: string | null
+          rd_created_at?: string | null
+          rd_id?: string
+          rd_org_id?: string | null
+          rd_org_name?: string | null
+          source_name?: string | null
+          stage?: string | null
+          status?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rd_oauth_tokens: {
         Row: {
           access_token: string
@@ -1397,6 +1517,48 @@ export type Database = {
           expires_at?: string
           id?: boolean
           refresh_token?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rd_organizations: {
+        Row: {
+          cnpj: string | null
+          created_at: string
+          lifecycle: string | null
+          name: string
+          owner_name: string | null
+          raw: Json
+          rd_id: string
+          segment: string | null
+          site_url: string | null
+          synced_at: string
+          updated_at: string
+        }
+        Insert: {
+          cnpj?: string | null
+          created_at?: string
+          lifecycle?: string | null
+          name: string
+          owner_name?: string | null
+          raw?: Json
+          rd_id: string
+          segment?: string | null
+          site_url?: string | null
+          synced_at?: string
+          updated_at?: string
+        }
+        Update: {
+          cnpj?: string | null
+          created_at?: string
+          lifecycle?: string | null
+          name?: string
+          owner_name?: string | null
+          raw?: Json
+          rd_id?: string
+          segment?: string | null
+          site_url?: string | null
+          synced_at?: string
           updated_at?: string
         }
         Relationships: []
