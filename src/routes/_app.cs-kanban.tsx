@@ -123,6 +123,15 @@ function CadenceKanbanCard({
               </Badge>
             ) : null}
             {p.escalate ? <Badge variant="outline">Escalar: {p.escalate}</Badge> : null}
+            {row.masterclass ? (
+              <Badge
+                variant="outline"
+                className="border-primary/40 text-primary"
+                title={`${row.masterclass.moduleName} — ${row.masterclass.motivo}`}
+              >
+                MC módulo {row.masterclass.moduleId}
+              </Badge>
+            ) : null}
           </div>
           <div className="mt-2 flex flex-wrap gap-1">
             {[1, 2, 3, 4, 5].map((d) => (

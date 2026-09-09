@@ -1,3 +1,4 @@
+import { DIAG_CAUSES, DIAG_CAUSE_LABEL } from "@/lib/cs/masterclass";
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -98,6 +99,7 @@ export function ClientEditor({
     dg_ativo: Boolean(client.dg_ativo),
     tipo_servico: (client.tipo_servico as string) ?? "",
     tag_uso: (client.tag_uso as string) ?? "",
+    diagnostico_causa: (client.diagnostico_causa as string) ?? "",
   });
   const set = (k: keyof typeof form, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -140,6 +142,20 @@ export function ClientEditor({
             {CS_TAG_USO.map((t) => (
               <option key={t} value={t}>
                 {CS_TAG_USO_LABEL[t]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Causa do diagnóstico (vermelho)">
+          <select
+            value={form.diagnostico_causa}
+            onChange={(e) => set("diagnostico_causa", e.target.value)}
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="">—</option>
+            {DIAG_CAUSES.map((c) => (
+              <option key={c} value={c}>
+                {DIAG_CAUSE_LABEL[c]}
               </option>
             ))}
           </select>
@@ -202,6 +218,7 @@ export function ClientEditor({
               data_renovacao: form.data_renovacao || null,
               tipo_servico: form.tipo_servico || null,
               tag_uso: form.tag_uso || null,
+              diagnostico_causa: form.diagnostico_causa || null,
             })
           }
         >

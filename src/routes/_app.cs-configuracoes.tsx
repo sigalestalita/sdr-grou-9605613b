@@ -48,6 +48,7 @@ function CsSettingsPage() {
           dailyTarget={data?.dailyTarget}
           evidence={data?.evidence}
           escalation={data?.escalation}
+          masterclass={data?.masterclass}
           sla={data?.sla}
           routing={data?.routing}
           onSaved={() => qc.invalidateQueries({ queryKey: ["cs-board"] })}

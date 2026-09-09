@@ -35,6 +35,7 @@ import { SignalStrip } from "@/components/cs/signal-strip";
 import { CsMeetingsTab } from "@/components/cs/cs-meetings-tab";
 import { CsSalesTab } from "@/components/cs/cs-sales-tab";
 import { CsTasksPanel } from "@/components/cs/cs-tasks-panel";
+import { CsMasterclassPanel } from "@/components/cs/cs-masterclass-panel";
 import {
   ClientEditor,
   ContactsPanel,
@@ -273,6 +274,10 @@ function CompanyPage() {
               {client.pda_consumo_pct != null &&
                 ` · consumo ${Math.round((client.pda_consumo_pct ?? 0) * 100)}%`}
             </p>
+          </Panel>
+
+          <Panel title="Masterclasses">
+            <CsMasterclassPanel clientUid={clientUid} />
           </Panel>
 
           <Panel

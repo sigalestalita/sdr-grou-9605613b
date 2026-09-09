@@ -21,6 +21,8 @@ export type CsCadenceRow = {
   weeks: string[];
   tags: string[];
   plan: CadencePlan;
+  /** Masterclass a oferecer agora (regra de cor/tempo), se houver. */
+  masterclass: { moduleId: number; moduleName: string; motivo: string } | null;
 };
 
 export type CsCadenceData = {
@@ -62,12 +64,14 @@ export const getCsCadence = createServerFn({ method: "GET" })
     const weeks = lastNWeeks(data.weeks);
     const since240 = new Date(Date.now() - 240 * 86400000).toISOString();
 
-    const [clients, snapshots, timeline, tags, profilesRes] = await Promise.all([
+    const { getMasterclassConfig } = await import("@/lib/cs/cs-core.server");
+    const { suggestMasterclasses } = await import("@/lib/cs/masterclass");
+    const [clients, snapshots, timeline, tags, profilesRes, mcParts, mcCfg] = await Promise.all([
       fetchAllRows<Record<string, unknown>>((f, t) => {
         let q = supabase
           .from("cs_clients")
           .select(
-            "client_uid, nome_empresa, tipo_lead, journey_stage, health_score, aporte_valor, cs_responsavel_id, comercial_responsavel_id, data_inicio_contrato, data_renovacao, last_contact_at, current_signal, pda_consumo_pct, ativo",
+            "client_uid, nome_empresa, tipo_lead, journey_stage, health_score, aporte_valor, cs_responsavel_id, comercial_responsavel_id, data_inicio_contrato, data_renovacao, last_contact_at, current_signal, pda_consumo_pct, ativo, tag_uso, diagnostico_causa",
           )
           .eq("ativo", true);
         if (data.tipo !== "all") q = q.eq("tipo_lead", data.tipo);
@@ -94,7 +98,29 @@ export const getCsCadence = createServerFn({ method: "GET" })
         supabase.from("cs_client_tags").select("client_uid, tag").range(f, t),
       ),
       supabase.from("profiles").select("id, full_name, email"),
+      fetchAllRows<Record<string, unknown>>((f, t) =>
+        supabase
+          .from("cs_masterclass_participations")
+          .select("client_uid, module_id, held_at, used_in_project")
+          .range(f, t),
+      ),
+      getMasterclassConfig(supabase),
     ]);
+    const mcByClient = new Map<
+      string,
+      { module_id: number; held_at: string; used_in_project: boolean }[]
+    >();
+    for (const p of mcParts) {
+      const uid = String(p["client_uid"]);
+      mcByClient.set(uid, [
+        ...(mcByClient.get(uid) ?? []),
+        {
+          module_id: Number(p["module_id"]),
+          held_at: String(p["held_at"]),
+          used_in_project: Boolean(p["used_in_project"]),
+        },
+      ]);
+    }
 
     const nameById = new Map<string, string>();
     for (const p of profilesRes.data ?? []) {
@@ -185,6 +211,20 @@ export const getCsCadence = createServerFn({ method: "GET" })
         weeks,
         tags: tagsByClient.get(uid) ?? [],
         plan,
+        masterclass: (() => {
+          const s = suggestMasterclasses(
+            {
+              history: filled.map((f) => f.signal as string),
+              tagUso: c["tag_uso"] as string | null,
+              diagCause: c["diagnostico_causa"] as string | null,
+              contractStart: (c["data_inicio_contrato"] as string) ?? null,
+              now,
+            },
+            mcByClient.get(uid) ?? [],
+            mcCfg,
+          )[0];
+          return s ? { moduleId: s.moduleId, moduleName: s.moduleName, motivo: s.motivo } : null;
+        })(),
       };
     });
 

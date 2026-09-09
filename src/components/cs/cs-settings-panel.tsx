@@ -35,16 +35,28 @@ import {
   type StageSla,
 } from "@/lib/cs-types";
 import { fmtDate } from "@/components/cs/cs-client-sections";
+import { MasterclassSettings } from "@/components/cs/cs-masterclass-settings";
+import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
 import { Plus, Save, Trash2, Upload } from "lucide-react";
 
 type Profile = { id: string; full_name: string | null; email: string | null };
 
-const TABS = ["health", "metas", "evidencia", "sla", "roteamento", "carteira", "importar"] as const;
+const TABS = [
+  "health",
+  "metas",
+  "evidencia",
+  "masterclass",
+  "sla",
+  "roteamento",
+  "carteira",
+  "importar",
+] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   health: "Health score",
   metas: "Metas",
   evidencia: "Tarefas e evidência",
+  masterclass: "Masterclasses",
   sla: "SLA da jornada",
   roteamento: "Roteamento",
   carteira: "Carteira e delegações",
@@ -60,6 +72,7 @@ export function CsSettingsPanel({
   dailyTarget,
   evidence,
   escalation,
+  masterclass,
   sla,
   routing,
   onSaved,
@@ -71,6 +84,7 @@ export function CsSettingsPanel({
   dailyTarget?: DailyTarget;
   evidence?: EvidenceConfig;
   escalation?: EscalationConfig;
+  masterclass?: MasterclassConfig;
   sla?: StageSla;
   routing?: RoutingConfig;
   onSaved: () => void;
@@ -85,6 +99,7 @@ export function CsSettingsPanel({
   const [meta, setMeta] = useState<DailyTarget>(dailyTarget ?? DEFAULT_DAILY_TARGET);
   const [ev, setEv] = useState<EvidenceConfig>(evidence ?? DEFAULT_EVIDENCE_CONFIG);
   const [esc, setEsc] = useState<EscalationConfig>(escalation ?? DEFAULT_ESCALATION_CONFIG);
+  const [mc, setMc] = useState<MasterclassConfig>(masterclass ?? DEFAULT_MASTERCLASS_CONFIG);
   const [s, setS] = useState<StageSla>(sla ?? DEFAULT_STAGE_SLA);
   const [r, setR] = useState<RoutingConfig>(routing ?? DEFAULT_ROUTING);
   useEffect(() => {
@@ -106,6 +121,9 @@ export function CsSettingsPanel({
     if (escalation) setEsc(escalation);
   }, [escalation]);
   useEffect(() => {
+    if (masterclass) setMc(masterclass);
+  }, [masterclass]);
+  useEffect(() => {
     if (sla) setS(sla);
   }, [sla]);
   useEffect(() => {
@@ -122,6 +140,7 @@ export function CsSettingsPanel({
           dailyTarget: meta,
           evidence: ev,
           escalation: esc,
+          masterclass: mc,
           sla: s,
           routing: r,
         },
@@ -438,6 +457,13 @@ export function CsSettingsPanel({
                 Avisar a gestão por e-mail (diário)
               </label>
             </div>
+            {saveBar}
+          </>
+        )}
+
+        {tab === "masterclass" && (
+          <>
+            <MasterclassSettings value={mc} onChange={setMc} />
             {saveBar}
           </>
         )}

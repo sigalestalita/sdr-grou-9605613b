@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
+import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
 import {
   CS_AGENDA_TAG,
   DEFAULT_HEALTH_WEIGHTS,
@@ -73,6 +74,9 @@ export function getDailyTarget(db: DB) {
 }
 export function getEvidenceConfig(db: DB) {
   return getCsSetting<EvidenceConfig>(db, "evidence", DEFAULT_EVIDENCE_CONFIG);
+}
+export function getMasterclassConfig(db: DB) {
+  return getCsSetting<MasterclassConfig>(db, "masterclass", DEFAULT_MASTERCLASS_CONFIG);
 }
 export function getEscalationConfig(db: DB) {
   return getCsSetting<EscalationConfig>(db, "escalation", DEFAULT_ESCALATION_CONFIG);
@@ -199,7 +203,7 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
   ]);
   const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
 
-  const [clientRes, snapRes, eventsRes, tagsRes, contactsRes, salesRes] = await Promise.all([
+  const [clientRes, snapRes, eventsRes, tagsRes, contactsRes, salesRes, mcRes] = await Promise.all([
     db
       .from("cs_clients")
       .select("client_uid, tipo_lead, tipo_servico, login_pda, current_signal")
@@ -224,6 +228,7 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
       .eq("client_uid", clientUid)
       .eq("status", "em_negociacao")
       .limit(1),
+    db.from("cs_masterclass_participations").select("id").eq("client_uid", clientUid).limit(1),
   ]);
 
   if (!clientRes.data) return 0;
@@ -244,7 +249,9 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
       const meta = (e.metadata ?? {}) as Record<string, unknown>;
       return e.channel === channel && (meta["answered"] === true || meta["engajamento"] === true);
     });
-  const masterclass = (tagsRes.data ?? []).some((t) => /masterclass/i.test(t.tag));
+  // masterclass realizada: participação registrada (tag antiga ainda vale)
+  const masterclass =
+    (mcRes.data ?? []).length > 0 || (tagsRes.data ?? []).some((t) => /masterclass/i.test(t.tag));
   const analistaPda = (contactsRes.data ?? []).some(
     (k) => (k as Record<string, unknown>)["analista_pda"] === true && k.ativo_no_cliente !== false,
   );

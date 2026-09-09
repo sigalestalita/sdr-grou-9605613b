@@ -28,6 +28,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getRouting,
       getEvidenceConfig,
       getEscalationConfig,
+      getMasterclassConfig,
       fetchAllRows,
     } = await import("@/lib/cs/cs-core.server");
     const weeks = lastNWeeks(8);
@@ -46,6 +47,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       dailyTarget,
       evidence,
       escalation,
+      masterclass,
     ] = await Promise.all([
       fetchAllRows((f, t) =>
         supabase.from("cs_clients").select("*").order("nome_empresa").range(f, t),
@@ -73,6 +75,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getDailyTarget(supabase),
       getEvidenceConfig(supabase),
       getEscalationConfig(supabase),
+      getMasterclassConfig(supabase),
     ]);
 
     return {
@@ -90,6 +93,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       dailyTarget,
       evidence,
       escalation,
+      masterclass,
     };
   });
 
@@ -260,6 +264,9 @@ export const saveCsClient = createServerFn({ method: "POST" })
         ativo: z.boolean().default(true),
         tipo_servico: z.enum(CS_SERVICE_TYPES).nullish(),
         tag_uso: z.enum(CS_TAG_USO).nullish(),
+        diagnostico_causa: z
+          .enum(["analista_novo", "falta_projeto", "nao_ve_valor", "outro"])
+          .nullish(),
         produtos_ativos: z.array(z.string()).optional(),
       })
       .parse(d),
@@ -609,6 +616,45 @@ export const saveCsSettings = createServerFn({ method: "POST" })
             reuniao_exige_aceite: z.boolean().default(false),
           })
           .optional(),
+        masterclass: z
+          .object({
+            modulos: z.array(
+              z.object({
+                id: z.number().int().min(1).max(20),
+                nome: z.string().min(1).max(120),
+                descricao: z.string().max(500),
+                tag_uso: z.enum(["recrutamento", "desenvolvimento"]).optional(),
+              }),
+            ),
+            regras: z.array(
+              z.object({
+                id: z.string().min(1),
+                cor: z.enum(["verde", "amarelo", "vermelho", "qualquer"]),
+                semanas_min: z.number().int().min(0).optional(),
+                semanas_max: z.number().int().min(0).optional(),
+                causa: z
+                  .enum(["analista_novo", "falta_projeto", "nao_ve_valor", "outro"])
+                  .optional(),
+                mes_contrato: z.number().int().min(1).optional(),
+                modulos: z.array(z.number().int()),
+                usar_tag_uso: z.boolean().optional(),
+                motivo: z.string().max(200),
+              }),
+            ),
+            sucesso: z.object({
+              primeiro: z.object({
+                modulos: z.array(z.number().int()),
+                participacoes: z.number().int().min(1),
+                usos: z.number().int().min(0),
+              }),
+              segundo: z.object({
+                modulos: z.array(z.number().int()),
+                participacoes: z.number().int().min(1),
+                usos: z.number().int().min(0),
+              }),
+            }),
+          })
+          .optional(),
         escalation: z
           .object({
             dias_atraso: z.number().int().min(1).max(90),
@@ -648,6 +694,7 @@ export const saveCsSettings = createServerFn({ method: "POST" })
     if (data.dailyTarget) await saveCsSetting(supabase, "daily_contact_target", data.dailyTarget);
     if (data.evidence) await saveCsSetting(supabase, "evidence", data.evidence);
     if (data.escalation) await saveCsSetting(supabase, "escalation", data.escalation);
+    if (data.masterclass) await saveCsSetting(supabase, "masterclass", data.masterclass);
     if (data.sla) await saveCsSetting(supabase, "stage_sla_days", data.sla);
     if (data.routing) {
       const current = await getRouting(supabase);
