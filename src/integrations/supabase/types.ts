@@ -1058,6 +1058,75 @@ export type Database = {
           },
         ]
       }
+      cs_journey_emails: {
+        Row: {
+          client_uid: string
+          contact_id: string | null
+          created_at: string
+          due_at: string
+          email_id: string
+          error: string | null
+          id: string
+          note: string | null
+          sent_at: string | null
+          sent_by: string | null
+          status: string
+          subject: string | null
+          to_email: string | null
+          to_name: string | null
+          updated_at: string
+        }
+        Insert: {
+          client_uid: string
+          contact_id?: string | null
+          created_at?: string
+          due_at: string
+          email_id: string
+          error?: string | null
+          id?: string
+          note?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          subject?: string | null
+          to_email?: string | null
+          to_name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          client_uid?: string
+          contact_id?: string | null
+          created_at?: string
+          due_at?: string
+          email_id?: string
+          error?: string | null
+          id?: string
+          note?: string | null
+          sent_at?: string | null
+          sent_by?: string | null
+          status?: string
+          subject?: string | null
+          to_email?: string | null
+          to_name?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_journey_emails_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_journey_emails_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cs_masterclass_participations: {
         Row: {
           analista_id: string | null
