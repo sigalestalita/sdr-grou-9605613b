@@ -11,23 +11,35 @@ export const listKanbanData = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase } = context;
     const PAGE = 1000;
+    // Só as colunas que o Kanban usa: os campos longos (BANT, resumo da
+    // empresa, sinais de ICP, dor provável) ficam para a página do lead.
+    const KANBAN_COLUMNS =
+      "id, name, email, phone, company_name, company_segment, company_size, company_website, linkedin_url, job_title, position, stage_id, stage_entered_at, priority, score, source, campaign, ad_name, lead_type, assigned_to, enrichment_status, converted_at, created_at, meeting_at, next_follow_up_at, last_touch_at, last_touch_channel, last_touch_outcome, touch_count, lost_reason, demo_free, cadence_track, cadence_status, form_payload";
+    const filter = "source.is.null,source.neq.campaign_upload";
     async function fetchAllLeads() {
+      // Conta primeiro e busca as páginas em paralelo (o PostgREST devolve no
+      // máximo 1000 por requisição) — em vez de uma página por vez.
+      const { count, error: countErr } = await supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .or(filter);
+      if (countErr) throw new Error(countErr.message);
+      const total = Math.min(count ?? 0, 50000);
+      const pages = Math.max(1, Math.ceil(total / PAGE));
+      const results = await Promise.all(
+        Array.from({ length: pages }, (_, i) =>
+          supabase
+            .from("leads")
+            .select(KANBAN_COLUMNS)
+            .or(filter)
+            .order("created_at", { ascending: false })
+            .range(i * PAGE, i * PAGE + PAGE - 1),
+        ),
+      );
       const all: any[] = [];
-      let from = 0;
-      // paginar para contornar o limite default do PostgREST (1000)
-      while (true) {
-        const { data, error } = await supabase
-          .from("leads")
-          .select("*")
-          .or("source.is.null,source.neq.campaign_upload")
-          .order("created_at", { ascending: false })
-          .range(from, from + PAGE - 1);
-        if (error) throw new Error(error.message);
-        const batch = data ?? [];
-        all.push(...batch);
-        if (batch.length < PAGE) break;
-        from += PAGE;
-        if (from >= 50000) break; // hard safety cap
+      for (const r of results) {
+        if (r.error) throw new Error(r.error.message);
+        all.push(...(r.data ?? []));
       }
       return all;
     }
@@ -50,22 +62,23 @@ export const getLeadDetail = createServerFn({ method: "GET" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
-    const [leadRes, notesRes, interactionsRes, stagesRes, profilesRes, rolesRes] = await Promise.all([
-      supabase.from("leads").select("*").eq("id", data.id).maybeSingle(),
-      supabase
-        .from("lead_notes")
-        .select("*")
-        .eq("lead_id", data.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("lead_interactions")
-        .select("*")
-        .eq("lead_id", data.id)
-        .order("created_at", { ascending: false }),
-      supabase.from("stages").select("*").order("position"),
-      supabase.from("profiles").select("id, full_name, email"),
-      supabase.from("user_roles").select("user_id, role"),
-    ]);
+    const [leadRes, notesRes, interactionsRes, stagesRes, profilesRes, rolesRes] =
+      await Promise.all([
+        supabase.from("leads").select("*").eq("id", data.id).maybeSingle(),
+        supabase
+          .from("lead_notes")
+          .select("*")
+          .eq("lead_id", data.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("lead_interactions")
+          .select("*")
+          .eq("lead_id", data.id)
+          .order("created_at", { ascending: false }),
+        supabase.from("stages").select("*").order("position"),
+        supabase.from("profiles").select("id, full_name, email"),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
     if (leadRes.error) throw new Error(leadRes.error.message);
     if (!leadRes.data) throw new Error("Lead não encontrado");
     if (rolesRes.error) throw new Error(rolesRes.error.message);
@@ -73,8 +86,8 @@ export const getLeadDetail = createServerFn({ method: "GET" })
       new Set(
         (rolesRes.data ?? [])
           .filter((roleRow) => roleRow.role === "sdr")
-          .map((roleRow) => roleRow.user_id as string)
-      )
+          .map((roleRow) => roleRow.user_id as string),
+      ),
     );
 
     return {
@@ -105,7 +118,7 @@ export const registerLeadCardOpen = createServerFn({ method: "POST" })
 export const moveLeadStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ leadId: z.string().uuid(), stageId: z.string().uuid() }).parse(d)
+    z.object({ leadId: z.string().uuid(), stageId: z.string().uuid() }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -137,7 +150,10 @@ export const moveLeadStage = createServerFn({ method: "POST" })
       patch.first_approach_at = nowIso;
     }
 
-    const { error } = await supabase.from("leads").update(patch as never).eq("id", data.leadId);
+    const { error } = await supabase
+      .from("leads")
+      .update(patch as never)
+      .eq("id", data.leadId);
     if (error) throw new Error(error.message);
 
     const { error: interactionError } = await supabase.from("lead_interactions").insert({
@@ -168,7 +184,7 @@ export const updateLead = createServerFn({ method: "POST" })
         id: z.string().uuid(),
         patch: z.record(z.string(), z.unknown()),
       })
-      .parse(d)
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -204,12 +220,10 @@ export const updateLead = createServerFn({ method: "POST" })
     const nowIso = new Date().toISOString();
     const hasAssignedToPatch = Object.prototype.hasOwnProperty.call(allowed, "assigned_to");
     const hasStagePatch = Object.prototype.hasOwnProperty.call(allowed, "stage_id");
-    let currentLead:
-      | {
-          stage_id: string | null;
-          first_approach_at: string | null;
-        }
-      | null = null;
+    let currentLead: {
+      stage_id: string | null;
+      first_approach_at: string | null;
+    } | null = null;
     if (hasAssignedToPatch || hasStagePatch) {
       const { data: currentLeadData, error: currentLeadError } = await supabase
         .from("leads")
@@ -220,15 +234,13 @@ export const updateLead = createServerFn({ method: "POST" })
       currentLead = currentLeadData;
     }
 
-    let stageChange:
-      | {
-          fromStageId: string | null;
-          fromStageName: string | null;
-          toStageId: string | null;
-          toStageName: string | null;
-          toStageSlug: string | null;
-        }
-      | null = null;
+    let stageChange: {
+      fromStageId: string | null;
+      fromStageName: string | null;
+      toStageId: string | null;
+      toStageName: string | null;
+      toStageSlug: string | null;
+    } | null = null;
 
     if (hasStagePatch) {
       const previousStageId = currentLead?.stage_id ?? null;
@@ -264,7 +276,10 @@ export const updateLead = createServerFn({ method: "POST" })
 
     allowed.last_action_at = nowIso;
 
-    const { error } = await supabase.from("leads").update(allowed as never).eq("id", data.id);
+    const { error } = await supabase
+      .from("leads")
+      .update(allowed as never)
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
 
     if (stageChange) {
@@ -297,7 +312,9 @@ export const updateLead = createServerFn({ method: "POST" })
         lead_id: data.id,
         author_id: userId,
         type: "routing",
-        content: allowed.assigned_to ? "Responsável do lead alterado manualmente." : "Lead enviado para fila geral.",
+        content: allowed.assigned_to
+          ? "Responsável do lead alterado manualmente."
+          : "Lead enviado para fila geral.",
         metadata: {
           assignee_user_id: allowed.assigned_to ? String(allowed.assigned_to) : null,
           source: "lead_update",
@@ -314,7 +331,7 @@ export const updateLead = createServerFn({ method: "POST" })
 export const addLeadNote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ leadId: z.string().uuid(), content: z.string().min(1).max(2000) }).parse(d)
+    z.object({ leadId: z.string().uuid(), content: z.string().min(1).max(2000) }).parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -341,7 +358,11 @@ export const recalcLeadScore = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
     const rules = (icp?.rules ?? {}) as unknown as IcpRules;
-    const thresholds = (icp?.thresholds ?? { high: 70, medium: 40, low: 15 }) as unknown as IcpThresholds;
+    const thresholds = (icp?.thresholds ?? {
+      high: 70,
+      medium: 40,
+      low: 15,
+    }) as unknown as IcpThresholds;
     const { score, priority, signals } = calculateScore(lead, rules, thresholds);
     await supabase
       .from("leads")
@@ -350,7 +371,9 @@ export const recalcLeadScore = createServerFn({ method: "POST" })
     try {
       const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
       await maybeAlertHotLead(data.id);
-    } catch { /* alerts must never break score recalc */ }
+    } catch {
+      /* alerts must never break score recalc */
+    }
     return { score, priority };
   });
 
@@ -366,7 +389,7 @@ export const createManualLead = createServerFn({ method: "POST" })
         position: z.string().max(200).optional().or(z.literal("")),
         source: z.string().max(100).optional().or(z.literal("")),
       })
-      .parse(d)
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;

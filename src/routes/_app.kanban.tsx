@@ -14,8 +14,18 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LostReasonFilter } from "@/components/leads/lost-reason-filter";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
-import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, normalizeLeadType, type LeadType } from "@/lib/lead-type";
-import { DEMO_FREE_LABEL, DEMO_FREE_OPTIONS, DEMO_FREE_TONE, resolveDemoFree } from "@/lib/demo-free";
+import {
+  LEAD_TYPE_LABEL,
+  LEAD_TYPE_COLOR,
+  normalizeLeadType,
+  type LeadType,
+} from "@/lib/lead-type";
+import {
+  DEMO_FREE_LABEL,
+  DEMO_FREE_OPTIONS,
+  DEMO_FREE_TONE,
+  resolveDemoFree,
+} from "@/lib/demo-free";
 import { evaluateIcpFit } from "@/lib/icp-fit";
 import { getTouchRules, setFollowUpDone } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
@@ -23,7 +33,30 @@ import { TouchSequenceModal } from "@/components/leads/touch-sequence";
 import { useAuth } from "@/lib/use-auth";
 import { downloadCsv } from "@/lib/export-csv";
 import { toast } from "sonner";
-import { RefreshCw, Plus, Search, Calendar, Clock, Timer, Flame, Briefcase, Building2, ChevronLeft, ChevronRight, Pencil, Check, X, LinkedinIcon, MessageCircle, GraduationCap, Activity, AlertTriangle, CalendarClock, Download, SlidersHorizontal } from "lucide-react";
+import {
+  RefreshCw,
+  Plus,
+  Search,
+  Calendar,
+  Clock,
+  Timer,
+  Flame,
+  Briefcase,
+  Building2,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Check,
+  X,
+  LinkedinIcon,
+  MessageCircle,
+  GraduationCap,
+  Activity,
+  AlertTriangle,
+  CalendarClock,
+  Download,
+  SlidersHorizontal,
+} from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -99,13 +132,28 @@ function KanbanPage() {
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [lostReasons, setLostReasons] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(false);
-  const activeFilterCount = [priority, companySize, assigned, demoFree, leadTypeFilter, certificationFilter, adFilter, sourceFilter, touchAlert]
-    .filter((v) => v !== "all").length + (dateFrom || dateTo ? 1 : 0) + (lostReasons.length ? 1 : 0);
+  const activeFilterCount =
+    [
+      priority,
+      companySize,
+      assigned,
+      demoFree,
+      leadTypeFilter,
+      certificationFilter,
+      adFilter,
+      sourceFilter,
+      touchAlert,
+    ].filter((v) => v !== "all").length +
+    (dateFrom || dateTo ? 1 : 0) +
+    (lostReasons.length ? 1 : 0);
   const touchRulesFn = useServerFn(getTouchRules);
 
   const { data, isLoading } = useQuery({
     queryKey: ["kanban"],
     queryFn: () => fetchData(),
+    // Volta ao Pipeline sem tela em branco: mostra o que já tinha e atualiza atrás.
+    staleTime: 30_000,
+    placeholderData: (prev) => prev,
   });
 
   const { data: touchRulesData } = useQuery({
@@ -140,7 +188,9 @@ function KanbanPage() {
           try {
             const s = await sheetSyncFn({ data: {} });
             if (s?.inserted) changed += s.inserted;
-          } catch { /* silencioso */ }
+          } catch {
+            /* silencioso */
+          }
         }
         if (shouldRecalc) {
           recalcRunRef.current = true;
@@ -178,8 +228,13 @@ function KanbanPage() {
           ...prev,
           leads: prev.leads.map((l) =>
             l.id === vars.leadId
-              ? { ...l, stage_id: vars.stageId, stage_entered_at: new Date().toISOString(), last_action_at: new Date().toISOString() }
-              : l
+              ? {
+                  ...l,
+                  stage_id: vars.stageId,
+                  stage_entered_at: new Date().toISOString(),
+                  last_action_at: new Date().toISOString(),
+                }
+              : l,
           ),
         });
       }
@@ -221,12 +276,20 @@ function KanbanPage() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
       const tgt = e.target as HTMLElement | null;
-      if (tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || tgt.tagName === "SELECT" || tgt.isContentEditable)) return;
+      if (
+        tgt &&
+        (tgt.tagName === "INPUT" ||
+          tgt.tagName === "TEXTAREA" ||
+          tgt.tagName === "SELECT" ||
+          tgt.isContentEditable)
+      )
+        return;
       const stages = data?.stages ?? [];
       if (stages.length === 0) return;
       e.preventDefault();
       setFocusedCol((i) => {
-        const next = e.key === "ArrowLeft" ? Math.max(0, i - 1) : Math.min(stages.length - 1, i + 1);
+        const next =
+          e.key === "ArrowLeft" ? Math.max(0, i - 1) : Math.min(stages.length - 1, i + 1);
         const el = scrollerRef.current?.querySelector<HTMLElement>(`[data-col-index="${next}"]`);
         el?.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
         return next;
@@ -246,7 +309,8 @@ function KanbanPage() {
       const stage = data.stages.find((s) => s.id === l.stage_id) ?? null;
       const sinceTouch = daysSince(l.last_touch_at);
       const sinceStage = daysSince(l.stage_entered_at);
-      if (touchAlert === "sem_touch" && !((l.touch_count ?? 0) === 0 && !stage?.is_terminal)) return false;
+      if (touchAlert === "sem_touch" && !((l.touch_count ?? 0) === 0 && !stage?.is_terminal))
+        return false;
       if (
         touchAlert === "esquecido" &&
         !(
@@ -257,14 +321,20 @@ function KanbanPage() {
         )
       )
         return false;
-      if (touchAlert === "parado" && !(!stage?.is_terminal && sinceStage != null && sinceStage >= rules.staleStageDays))
+      if (
+        touchAlert === "parado" &&
+        !(!stage?.is_terminal && sinceStage != null && sinceStage >= rules.staleStageDays)
+      )
         return false;
       if (
         touchAlert === "fup_vencido" &&
         !(l.next_follow_up_at && new Date(l.next_follow_up_at).getTime() <= Date.now())
       )
         return false;
-      if (touchAlert === "abaixo_minimo" && !(stage?.is_terminal && (l.touch_count ?? 0) < rules.minTouchesBeforeDiscard))
+      if (
+        touchAlert === "abaixo_minimo" &&
+        !(stage?.is_terminal && (l.touch_count ?? 0) < rules.minTouchesBeforeDiscard)
+      )
         return false;
     }
     if (priority !== "all" && l.priority !== priority) return false;
@@ -342,7 +412,10 @@ function KanbanPage() {
       Cargo: l.job_title ?? "",
       Porte: l.company_size ?? "",
       Segmento: l.company_segment ?? "",
-      Tipo: (() => { const t = resolveLeadType(l); return t ? LEAD_TYPE_LABEL[t] : "Não informado"; })(),
+      Tipo: (() => {
+        const t = resolveLeadType(l);
+        return t ? LEAD_TYPE_LABEL[t] : "Não informado";
+      })(),
       Prioridade: l.priority ? (PRIORITY_LABEL[l.priority] ?? l.priority) : "",
       Etapa: stageName(l.stage_id),
       Responsavel: ownerName(l.assigned_to),
@@ -352,9 +425,14 @@ function KanbanPage() {
       "Motivo de descarte": l.lost_reason ?? "",
       Touches: l.touch_count ?? 0,
       "Ultimo touch": l.last_touch_at ? format(new Date(l.last_touch_at), "dd/MM/yyyy HH:mm") : "",
-      "Proximo FUP": l.next_follow_up_at ? format(new Date(l.next_follow_up_at), "dd/MM/yyyy HH:mm") : "",
+      "Proximo FUP": l.next_follow_up_at
+        ? format(new Date(l.next_follow_up_at), "dd/MM/yyyy HH:mm")
+        : "",
       "Data de conversao": (() => {
-        const raw = (l.form_payload as { submitted_at?: string } | null)?.submitted_at ?? l.converted_at ?? l.created_at;
+        const raw =
+          (l.form_payload as { submitted_at?: string } | null)?.submitted_at ??
+          l.converted_at ??
+          l.created_at;
         return raw ? format(new Date(raw), "dd/MM/yyyy HH:mm") : "";
       })(),
       LinkedIn: l.linkedin_url ?? "",
@@ -381,10 +459,10 @@ function KanbanPage() {
   const stageById = new Map(data.stages.map((s) => [s.id, s] as const));
   const funnelLeads = data.leads.filter((l) => leadInFunnel(l, funnel));
   const sizeOptions = Array.from(
-    new Set(funnelLeads.map((l) => (l.company_size ?? "").trim()).filter(Boolean))
+    new Set(funnelLeads.map((l) => (l.company_size ?? "").trim()).filter(Boolean)),
   ).sort();
   const assignedIds = new Set(
-    funnelLeads.map((l) => l.assigned_to).filter((v): v is string => !!v)
+    funnelLeads.map((l) => l.assigned_to).filter((v): v is string => !!v),
   );
   const adCounts = new Map<string, number>();
   for (const l of funnelLeads) {
@@ -393,7 +471,7 @@ function KanbanPage() {
     adCounts.set(ad, (adCounts.get(ad) ?? 0) + 1);
   }
   const adOptions = Array.from(adCounts.entries()).sort(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
   );
   const sourceCounts = new Map<string, number>();
   for (const l of funnelLeads) {
@@ -402,7 +480,7 @@ function KanbanPage() {
     sourceCounts.set(src, (sourceCounts.get(src) ?? 0) + 1);
   }
   const sourceOptions = Array.from(sourceCounts.entries()).sort(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
   );
   const disqualifiedStageId = data.stages.find((s) => s.slug === "desqualificado")?.id ?? null;
   const lostReasonCounts = new Map<string, number>();
@@ -417,7 +495,7 @@ function KanbanPage() {
     lostReasonCounts.set(reason, (lostReasonCounts.get(reason) ?? 0) + 1);
   }
   const lostReasonOptions = Array.from(lostReasonCounts.entries()).sort(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0])
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
   );
   const assigneeOptions = data.profiles
     .filter((p) => assignedIds.has(p.id))
@@ -452,10 +530,10 @@ function KanbanPage() {
         <div className="flex flex-wrap items-center gap-3">
           <h1 className="page-title">Pipeline</h1>
           <div className="flex items-center gap-0.5 rounded-md bg-secondary p-0.5">
-            {([
+            {[
               { id: "comercial" as Funnel, label: "Empresas & PF" },
               { id: "consultoria" as Funnel, label: "Consultorias" },
-            ]).map((t) => {
+            ].map((t) => {
               const count = data.leads.filter((l) => leadInFunnel(l, t.id)).length;
               const active = funnel === t.id;
               return (
@@ -473,12 +551,16 @@ function KanbanPage() {
                   }`}
                 >
                   {t.label}
-                  <span className="ml-1.5 font-mono text-[11px] text-muted-foreground">{count}</span>
+                  <span className="ml-1.5 font-mono text-[11px] text-muted-foreground">
+                    {count}
+                  </span>
                 </button>
               );
             })}
           </div>
-          <span className="text-[11px] text-muted-foreground">{filtered.length} leads no filtro atual</span>
+          <span className="text-[11px] text-muted-foreground">
+            {filtered.length} leads no filtro atual
+          </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="relative">
@@ -500,11 +582,23 @@ function KanbanPage() {
             <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
             Filtros{activeFilterCount ? ` (${activeFilterCount})` : ""}
           </Button>
-          <Button variant="outline" size="sm" className="h-8" onClick={exportFiltered} title="Exportar lista filtrada em CSV">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={exportFiltered}
+            title="Exportar lista filtrada em CSV"
+          >
             <Download className="mr-1 h-3.5 w-3.5" />
             Exportar
           </Button>
-          <Button variant="outline" size="sm" className="h-8" onClick={() => sync.mutate()} disabled={sync.isPending}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
             <RefreshCw className={`mr-1 h-3.5 w-3.5 ${sync.isPending ? "animate-spin" : ""}`} />
             Sincronizar RD
           </Button>
@@ -523,191 +617,218 @@ function KanbanPage() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                setPriority("all"); setCompanySize("all"); setAssigned("all"); setDemoFree("all");
-                setLeadTypeFilter("all"); setCertificationFilter("all"); setAdFilter("all");
-                setSourceFilter("all"); setLostReasons([]); setTouchAlert("all");
-                setDateFrom(""); setDateTo("");
+                setPriority("all");
+                setCompanySize("all");
+                setAssigned("all");
+                setDemoFree("all");
+                setLeadTypeFilter("all");
+                setCertificationFilter("all");
+                setAdFilter("all");
+                setSourceFilter("all");
+                setLostReasons([]);
+                setTouchAlert("all");
+                setDateFrom("");
+                setDateTo("");
               }}
             >
               Limpar filtros
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-          >
-            <option value="all">Todas prioridades</option>
-            <option value="alta">Alta</option>
-            <option value="media">Média</option>
-            <option value="baixa">Baixa</option>
-            <option value="fora_icp">Fora de ICP</option>
-            <option value="pendente">Pendente</option>
-          </select>
-          <select
-            value={companySize}
-            onChange={(e) => setCompanySize(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            title="Porte da empresa"
-          >
-            <option value="all">Todos os portes</option>
-            {sizeOptions.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <select
-            value={assigned}
-            onChange={(e) => setAssigned(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            title="Responsável"
-          >
-            <option value="all">Todos responsáveis</option>
-            <option value="none">Sem responsável</option>
-            {assigneeOptions.map((p) => (
-              <option key={p.id} value={p.id}>{p.label}</option>
-            ))}
-          </select>
-          <select
-            value={demoFree}
-            onChange={(e) => setDemoFree(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            title="Demo Free"
-          >
-            <option value="all">Demo Free: todos</option>
-            {DEMO_FREE_OPTIONS.map((k) => (
-              <option key={k} value={k}>{DEMO_FREE_LABEL[k]}</option>
-            ))}
-            <option value="nd">Demo Free: não informado</option>
-          </select>
-          {funnel === "comercial" && (
             <select
-              value={leadTypeFilter}
-              onChange={(e) => setLeadTypeFilter(e.target.value)}
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
               className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-              title="Tipo de lead"
             >
-              <option value="all">Tipo: todos</option>
-              <option value="empresa">Empresa</option>
-              <option value="pessoa_fisica">Pessoa física</option>
-              <option value="nd">Não informado</option>
+              <option value="all">Todas prioridades</option>
+              <option value="alta">Alta</option>
+              <option value="media">Média</option>
+              <option value="baixa">Baixa</option>
+              <option value="fora_icp">Fora de ICP</option>
+              <option value="pendente">Pendente</option>
             </select>
-          )}
-          <select
-            value={certificationFilter}
-            onChange={(e) => setCertificationFilter(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            title="Interesse em Certificação"
-          >
-            <option value="all">Interesse: todos</option>
-            <option value="certificacao">Somente Certificação</option>
-          </select>
-          <select
-            value={adFilter}
-            onChange={(e) => setAdFilter(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            title="Anúncio"
-          >
-            <option value="all">Anúncio: todos (melhor → pior)</option>
-            <option value="nd">Sem anúncio</option>
-            {adOptions.map(([ad, count]) => (
-              <option key={ad} value={ad}>{`${count} • ${ad}`}</option>
-            ))}
-          </select>
-          <select
-            value={sourceFilter}
-            onChange={(e) => setSourceFilter(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            title="Origem"
-          >
-            <option value="all">Origem: todas (melhor → pior)</option>
-            <option value="nd">Sem origem</option>
-            {sourceOptions.map(([src, count]) => (
-              <option key={src} value={src}>{`${count} • ${src}`}</option>
-            ))}
-          </select>
-          <select
-            value={touchAlert}
-            onChange={(e) => setTouchAlert(e.target.value)}
-            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-            title="Alertas de cadência"
-          >
-            <option value="all">Alertas: todos</option>
-            <option value="sem_touch">Sem nenhum touch</option>
-            <option value="esquecido">Sem touch há X dias</option>
-            <option value="parado">Parado na etapa há X dias</option>
-            <option value="fup_vencido">Follow-up vencido</option>
-            <option value="abaixo_minimo">Descartado abaixo do mínimo</option>
-          </select>
-          {lostReasonOptions.length === 0 && lostWithoutReason === 0 ? null : (
-            <LostReasonFilter
-              options={lostReasonOptions.map(([reason, count]) => ({ reason, count }))}
-              withoutReasonCount={lostWithoutReason}
-              value={lostReasons}
-              onChange={setLostReasons}
-              label="Motivo de descarte"
-            />
-          )}
-          <div className="flex flex-wrap items-center gap-1 sm:col-span-2">
             <select
-              value=""
-              onChange={(e) => {
-                const v = e.target.value;
-                if (!v) return;
-                const fmt = (d: Date) => {
-                  const y = d.getFullYear();
-                  const m = String(d.getMonth() + 1).padStart(2, "0");
-                  const day = String(d.getDate()).padStart(2, "0");
-                  return `${y}-${m}-${day}`;
-                };
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                let from = new Date(today);
-                let to = new Date(today);
-                if (v === "hoje") { /* same */ }
-                else if (v === "ontem") { from.setDate(from.getDate() - 1); to.setDate(to.getDate() - 1); }
-                else if (v === "7d") { from.setDate(from.getDate() - 6); }
-                else if (v === "15d") { from.setDate(from.getDate() - 14); }
-                else if (v === "mes") { from = new Date(today.getFullYear(), today.getMonth(), 1); }
-                else if (v === "mes_ant") {
-                  from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                  to = new Date(today.getFullYear(), today.getMonth(), 0);
-                }
-                setDateFrom(fmt(from));
-                setDateTo(fmt(to));
-              }}
+              value={companySize}
+              onChange={(e) => setCompanySize(e.target.value)}
               className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-              title="Período rápido"
+              title="Porte da empresa"
             >
-              <option value="">Período…</option>
-              <option value="hoje">Hoje</option>
-              <option value="ontem">Ontem</option>
-              <option value="7d">Últimos 7 dias</option>
-              <option value="15d">Últimos 15 dias</option>
-              <option value="mes">Este mês</option>
-              <option value="mes_ant">Mês anterior</option>
+              <option value="all">Todos os portes</option>
+              {sizeOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
-            <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="h-9 w-[140px]"
-              title="Conversão a partir de"
-            />
-            <span className="text-xs text-muted-foreground">até</span>
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="h-9 w-[140px]"
-              title="Conversão até"
-            />
-            {(dateFrom || dateTo) && (
-              <Button variant="ghost" size="sm" onClick={() => { setDateFrom(""); setDateTo(""); }}>
-                Limpar
-              </Button>
+            <select
+              value={assigned}
+              onChange={(e) => setAssigned(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              title="Responsável"
+            >
+              <option value="all">Todos responsáveis</option>
+              <option value="none">Sem responsável</option>
+              {assigneeOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={demoFree}
+              onChange={(e) => setDemoFree(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              title="Demo Free"
+            >
+              <option value="all">Demo Free: todos</option>
+              {DEMO_FREE_OPTIONS.map((k) => (
+                <option key={k} value={k}>
+                  {DEMO_FREE_LABEL[k]}
+                </option>
+              ))}
+              <option value="nd">Demo Free: não informado</option>
+            </select>
+            {funnel === "comercial" && (
+              <select
+                value={leadTypeFilter}
+                onChange={(e) => setLeadTypeFilter(e.target.value)}
+                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                title="Tipo de lead"
+              >
+                <option value="all">Tipo: todos</option>
+                <option value="empresa">Empresa</option>
+                <option value="pessoa_fisica">Pessoa física</option>
+                <option value="nd">Não informado</option>
+              </select>
             )}
-          </div>
+            <select
+              value={certificationFilter}
+              onChange={(e) => setCertificationFilter(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              title="Interesse em Certificação"
+            >
+              <option value="all">Interesse: todos</option>
+              <option value="certificacao">Somente Certificação</option>
+            </select>
+            <select
+              value={adFilter}
+              onChange={(e) => setAdFilter(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              title="Anúncio"
+            >
+              <option value="all">Anúncio: todos (melhor → pior)</option>
+              <option value="nd">Sem anúncio</option>
+              {adOptions.map(([ad, count]) => (
+                <option key={ad} value={ad}>{`${count} • ${ad}`}</option>
+              ))}
+            </select>
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              title="Origem"
+            >
+              <option value="all">Origem: todas (melhor → pior)</option>
+              <option value="nd">Sem origem</option>
+              {sourceOptions.map(([src, count]) => (
+                <option key={src} value={src}>{`${count} • ${src}`}</option>
+              ))}
+            </select>
+            <select
+              value={touchAlert}
+              onChange={(e) => setTouchAlert(e.target.value)}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+              title="Alertas de cadência"
+            >
+              <option value="all">Alertas: todos</option>
+              <option value="sem_touch">Sem nenhum touch</option>
+              <option value="esquecido">Sem touch há X dias</option>
+              <option value="parado">Parado na etapa há X dias</option>
+              <option value="fup_vencido">Follow-up vencido</option>
+              <option value="abaixo_minimo">Descartado abaixo do mínimo</option>
+            </select>
+            {lostReasonOptions.length === 0 && lostWithoutReason === 0 ? null : (
+              <LostReasonFilter
+                options={lostReasonOptions.map(([reason, count]) => ({ reason, count }))}
+                withoutReasonCount={lostWithoutReason}
+                value={lostReasons}
+                onChange={setLostReasons}
+                label="Motivo de descarte"
+              />
+            )}
+            <div className="flex flex-wrap items-center gap-1 sm:col-span-2">
+              <select
+                value=""
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  const fmt = (d: Date) => {
+                    const y = d.getFullYear();
+                    const m = String(d.getMonth() + 1).padStart(2, "0");
+                    const day = String(d.getDate()).padStart(2, "0");
+                    return `${y}-${m}-${day}`;
+                  };
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  let from = new Date(today);
+                  let to = new Date(today);
+                  if (v === "hoje") {
+                    /* same */
+                  } else if (v === "ontem") {
+                    from.setDate(from.getDate() - 1);
+                    to.setDate(to.getDate() - 1);
+                  } else if (v === "7d") {
+                    from.setDate(from.getDate() - 6);
+                  } else if (v === "15d") {
+                    from.setDate(from.getDate() - 14);
+                  } else if (v === "mes") {
+                    from = new Date(today.getFullYear(), today.getMonth(), 1);
+                  } else if (v === "mes_ant") {
+                    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                    to = new Date(today.getFullYear(), today.getMonth(), 0);
+                  }
+                  setDateFrom(fmt(from));
+                  setDateTo(fmt(to));
+                }}
+                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                title="Período rápido"
+              >
+                <option value="">Período…</option>
+                <option value="hoje">Hoje</option>
+                <option value="ontem">Ontem</option>
+                <option value="7d">Últimos 7 dias</option>
+                <option value="15d">Últimos 15 dias</option>
+                <option value="mes">Este mês</option>
+                <option value="mes_ant">Mês anterior</option>
+              </select>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-9 w-[140px]"
+                title="Conversão a partir de"
+              />
+              <span className="text-xs text-muted-foreground">até</span>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-9 w-[140px]"
+                title="Conversão até"
+              />
+              {(dateFrom || dateTo) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setDateFrom("");
+                    setDateTo("");
+                  }}
+                >
+                  Limpar
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -773,14 +894,21 @@ function KanbanPage() {
         </DragOverlay>
       </DndContext>
 
-      {showNew && <NewLeadDialog onClose={() => setShowNew(false)} onSubmit={async (d) => {
-        try {
-          await createFn({ data: d });
-          toast.success("Lead criado");
-          qc.invalidateQueries({ queryKey: ["kanban"] });
-          setShowNew(false);
-        } catch (e) { toast.error(e instanceof Error ? e.message : "Erro"); }
-      }} />}
+      {showNew && (
+        <NewLeadDialog
+          onClose={() => setShowNew(false)}
+          onSubmit={async (d) => {
+            try {
+              await createFn({ data: d });
+              toast.success("Lead criado");
+              qc.invalidateQueries({ queryKey: ["kanban"] });
+              setShowNew(false);
+            } catch (e) {
+              toast.error(e instanceof Error ? e.message : "Erro");
+            }
+          }}
+        />
+      )}
 
       {lostFor && (
         <LostReasonDialog
@@ -800,7 +928,23 @@ function KanbanPage() {
   );
 }
 
-function Column({ stageId, name, color, count, index, focused, children }: { stageId: string; name: string; color: string; count: number; index: number; focused: boolean; children: React.ReactNode }) {
+function Column({
+  stageId,
+  name,
+  color,
+  count,
+  index,
+  focused,
+  children,
+}: {
+  stageId: string;
+  name: string;
+  color: string;
+  count: number;
+  index: number;
+  focused: boolean;
+  children: React.ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: stageId });
   return (
     <div
@@ -847,7 +991,8 @@ function LeadCard({
   const sortedStages = [...stages].sort((a, b) => a.position - b.position);
   const currentIdx = sortedStages.findIndex((s) => s.id === lead.stage_id);
   const prevStage = currentIdx > 0 ? sortedStages[currentIdx - 1] : null;
-  const nextStage = currentIdx >= 0 && currentIdx < sortedStages.length - 1 ? sortedStages[currentIdx + 1] : null;
+  const nextStage =
+    currentIdx >= 0 && currentIdx < sortedStages.length - 1 ? sortedStages[currentIdx + 1] : null;
 
   const [editingReason, setEditingReason] = useState(false);
   const [reasonDraft, setReasonDraft] = useState(lead.lost_reason ?? "");
@@ -861,15 +1006,17 @@ function LeadCard({
   const convertedAt = lead.converted_at ? new Date(lead.converted_at) : null;
   const stageEnteredAt = lead.stage_entered_at ? new Date(lead.stage_entered_at) : null;
   const meetingAt = lead.meeting_at ? new Date(lead.meeting_at) : null;
-  const submittedRaw = (lead.form_payload as { submitted_at?: string } | null)?.submitted_at ?? null;
+  const submittedRaw =
+    (lead.form_payload as { submitted_at?: string } | null)?.submitted_at ?? null;
   const submittedAt = submittedRaw ? new Date(submittedRaw) : new Date(lead.created_at);
 
   const sinceConversion =
     convertedAt && stageEnteredAt
       ? formatDistanceToNow(convertedAt, { locale: ptBR }) // total tempo desde conversão
       : null;
-  const daysInStage =
-    stageEnteredAt ? Math.max(0, differenceInDays(new Date(), stageEnteredAt)) : null;
+  const daysInStage = stageEnteredAt
+    ? Math.max(0, differenceInDays(new Date(), stageEnteredAt))
+    : null;
 
   const formPayload = (lead.form_payload ?? null) as Record<string, unknown> | null;
   const formEntries =
@@ -916,17 +1063,12 @@ function LeadCard({
         isDragging ? "opacity-30" : ""
       } ${overlay ? "shadow-md" : ""} ${
         isHotIcp ? "ring-2 ring-amber-500/60 bg-amber-500/[0.04]" : ""
-      } ${
-        isCertification ? "kanban-certification-card pr-9" : ""
-      }`}
+      } ${isCertification ? "kanban-certification-card pr-9" : ""}`}
     >
       {isCertification && (
         <>
           <span className="kanban-certification-accent" aria-hidden="true" />
-          <span
-            className="kanban-certification-icon"
-            title="Lead com interesse em Certificação"
-          >
+          <span className="kanban-certification-icon" title="Lead com interesse em Certificação">
             <GraduationCap className="h-4 w-4" />
           </span>
         </>
@@ -945,7 +1087,10 @@ function LeadCard({
         <Badge
           variant="outline"
           className="h-[18px] shrink-0 px-1.5 text-[10px] font-medium"
-          style={{ borderColor: PRIORITY_COLOR[lead.priority], color: PRIORITY_COLOR[lead.priority] }}
+          style={{
+            borderColor: PRIORITY_COLOR[lead.priority],
+            color: PRIORITY_COLOR[lead.priority],
+          }}
         >
           {PRIORITY_LABEL[lead.priority]}
         </Badge>
@@ -963,7 +1108,10 @@ function LeadCard({
           {[lead.position, lead.company_size].filter(Boolean).join(" · ")}
         </p>
       )}
-      <p className="mt-1 truncate text-[11px] text-muted-foreground" title={assignedLabel ?? "Sem responsável"}>
+      <p
+        className="mt-1 truncate text-[11px] text-muted-foreground"
+        title={assignedLabel ?? "Sem responsável"}
+      >
         {assignedLabel ?? <span className="italic">não atribuído</span>}
       </p>
       {(() => {
@@ -986,7 +1134,11 @@ function LeadCard({
         }
         if (df && df !== "nao") {
           chips.push(
-            <Badge key="df" variant="outline" className={`h-[18px] px-1.5 text-[10px] font-medium ${DEMO_FREE_TONE[df]}`}>
+            <Badge
+              key="df"
+              variant="outline"
+              className={`h-[18px] px-1.5 text-[10px] font-medium ${DEMO_FREE_TONE[df]}`}
+            >
               {df === "sim" ? "Demo Free" : DEMO_FREE_LABEL[df]}
             </Badge>,
           );
@@ -1015,12 +1167,18 @@ function LeadCard({
         <div className="mt-2 space-y-1">
           <div className="flex flex-wrap gap-1">
             {icpFit.seniorPosition && (
-              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 gap-1">
+              <Badge
+                variant="outline"
+                className="text-[10px] border-emerald-500/40 text-emerald-600 gap-1"
+              >
                 <Briefcase className="h-3 w-3" /> Cargo decisor
               </Badge>
             )}
             {icpFit.bigCompany && (
-              <Badge variant="outline" className="text-[10px] border-emerald-500/40 text-emerald-600 gap-1">
+              <Badge
+                variant="outline"
+                className="text-[10px] border-emerald-500/40 text-emerald-600 gap-1"
+              >
                 <Building2 className="h-3 w-3" /> 200+ funcionários
               </Badge>
             )}
@@ -1030,7 +1188,10 @@ function LeadCard({
               </Badge>
             )}
             {lead.enrichment_status === "found" && !lead.linkedin_url && (
-              <Badge variant="outline" className="text-[10px] border-amber-500/40 text-amber-600 gap-1">
+              <Badge
+                variant="outline"
+                className="text-[10px] border-amber-500/40 text-amber-600 gap-1"
+              >
                 <LinkedinIcon className="h-3 w-3" /> Sem LinkedIn
               </Badge>
             )}
@@ -1099,10 +1260,16 @@ function LeadCard({
         <button
           type="button"
           onPointerDown={stopDrag}
-          onClick={(e) => { stopDrag(e); setShowTouches(true); }}
+          onClick={(e) => {
+            stopDrag(e);
+            setShowTouches(true);
+          }}
           title="Ver e registrar touches deste lead"
         >
-          <Badge variant="secondary" className="text-[10px] inline-flex items-center gap-1 hover:bg-secondary/80">
+          <Badge
+            variant="secondary"
+            className="text-[10px] inline-flex items-center gap-1 hover:bg-secondary/80"
+          >
             <Activity className="h-3 w-3" />
             {lead.touch_count ?? 0} {(lead.touch_count ?? 0) === 1 ? "touch" : "touches"}
           </Badge>
@@ -1126,7 +1293,9 @@ function LeadCard({
           <>
             <span
               className={`inline-flex items-center gap-1 ${
-                new Date(lead.next_follow_up_at).getTime() <= Date.now() ? "text-amber-600" : "text-muted-foreground"
+                new Date(lead.next_follow_up_at).getTime() <= Date.now()
+                  ? "text-amber-600"
+                  : "text-muted-foreground"
               }`}
             >
               {new Date(lead.next_follow_up_at).getTime() <= Date.now() ? (
@@ -1140,7 +1309,10 @@ function LeadCard({
               type="button"
               disabled={fupDone.isPending}
               onPointerDown={stopDrag}
-              onClick={(e) => { stopDrag(e); fupDone.mutate(); }}
+              onClick={(e) => {
+                stopDrag(e);
+                fupDone.mutate();
+              }}
               title="Marcar follow-up como feito"
               className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-600 hover:bg-emerald-500/20 disabled:opacity-50"
             >
@@ -1153,11 +1325,7 @@ function LeadCard({
       {stageSlug === "desqualificado" && (
         <div className="mt-2 text-[10px]">
           {editingReason ? (
-            <div
-              className="space-y-1"
-              onPointerDown={stopDrag}
-              onClick={stopDrag}
-            >
+            <div className="space-y-1" onPointerDown={stopDrag} onClick={stopDrag}>
               <select
                 value={reasonOptions.includes(reasonDraft) ? reasonDraft : "__custom"}
                 onChange={(e) => {
@@ -1167,7 +1335,9 @@ function LeadCard({
                 className="w-full h-7 rounded border bg-background px-1 text-[10px]"
               >
                 {reasonOptions.map((r) => (
-                  <option key={r} value={r}>{r}</option>
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
                 <option value="__custom">Outro…</option>
               </select>
@@ -1184,7 +1354,10 @@ function LeadCard({
                   size="sm"
                   variant="ghost"
                   className="h-6 px-2"
-                  onClick={() => { setEditingReason(false); setReasonDraft(lead.lost_reason ?? ""); }}
+                  onClick={() => {
+                    setEditingReason(false);
+                    setReasonDraft(lead.lost_reason ?? "");
+                  }}
                 >
                   <X className="h-3 w-3" />
                 </Button>
@@ -1205,7 +1378,11 @@ function LeadCard({
             <button
               type="button"
               onPointerDown={stopDrag}
-              onClick={(e) => { stopDrag(e); setReasonDraft(lead.lost_reason ?? ""); setEditingReason(true); }}
+              onClick={(e) => {
+                stopDrag(e);
+                setReasonDraft(lead.lost_reason ?? "");
+                setEditingReason(true);
+              }}
               className="inline-flex items-center gap-1 hover:opacity-80"
               title="Editar motivo"
             >
@@ -1230,7 +1407,10 @@ function LeadCard({
               type="button"
               disabled={openChat.isPending}
               onPointerDown={stopDrag}
-              onClick={(e) => { stopDrag(e); openChat.mutate(); }}
+              onClick={(e) => {
+                stopDrag(e);
+                openChat.mutate();
+              }}
               title="Abrir chat no WhatsApp"
               className="h-5 w-5 grid place-items-center rounded hover:bg-muted text-emerald-600 disabled:opacity-40"
             >
@@ -1241,7 +1421,10 @@ function LeadCard({
             <button
               type="button"
               disabled={!prevStage}
-              onClick={(e) => { stopDrag(e); if (prevStage) onMoveTo(lead.id, prevStage.id); }}
+              onClick={(e) => {
+                stopDrag(e);
+                if (prevStage) onMoveTo(lead.id, prevStage.id);
+              }}
               title={prevStage ? `Mover para ${prevStage.name}` : "Sem etapa anterior"}
               className="h-5 w-5 grid place-items-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
             >
@@ -1250,7 +1433,10 @@ function LeadCard({
             <button
               type="button"
               disabled={!nextStage}
-              onClick={(e) => { stopDrag(e); if (nextStage) onMoveTo(lead.id, nextStage.id); }}
+              onClick={(e) => {
+                stopDrag(e);
+                if (nextStage) onMoveTo(lead.id, nextStage.id);
+              }}
               title={nextStage ? `Mover para ${nextStage.name}` : "Sem próxima etapa"}
               className="h-5 w-5 grid place-items-center rounded hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
             >
@@ -1262,7 +1448,11 @@ function LeadCard({
       {/* unused but keep referenced to avoid lint */}
       <span className="hidden">{sinceConversion}</span>
       {showTouches && (
-        <TouchSequenceModal leadId={lead.id} leadName={lead.name} onClose={() => setShowTouches(false)} />
+        <TouchSequenceModal
+          leadId={lead.id}
+          leadName={lead.name}
+          onClose={() => setShowTouches(false)}
+        />
       )}
     </Card>
   );
@@ -1281,7 +1471,14 @@ function LostReasonDialog({
   onClose: () => void;
   onPick: (reason: string) => void;
 }) {
-  const reasons = ["Sem perfil", "Sem fit com soluções", "Sem contato", "Sem orçamento", "Timing inadequado", "Concorrência"];
+  const reasons = [
+    "Sem perfil",
+    "Sem fit com soluções",
+    "Sem contato",
+    "Sem orçamento",
+    "Timing inadequado",
+    "Concorrência",
+  ];
   const [selected, setSelected] = useState<string>(reasons[0]);
   const [custom, setCustom] = useState("");
   const isOther = selected === "__other";
@@ -1298,7 +1495,9 @@ function LostReasonDialog({
             className="h-9 w-full rounded-md border bg-background px-2 text-sm"
           >
             {reasons.map((r) => (
-              <option key={r} value={r}>{r}</option>
+              <option key={r} value={r}>
+                {r}
+              </option>
             ))}
             <option value="__other">Outros…</option>
           </select>
@@ -1312,7 +1511,9 @@ function LostReasonDialog({
           )}
         </div>
         <div className="mt-5 flex gap-2 justify-end">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancelar
+          </Button>
           <Button size="sm" disabled={!finalReason} onClick={() => onPick(finalReason)}>
             Salvar
           </Button>
@@ -1322,21 +1523,75 @@ function LostReasonDialog({
   );
 }
 
-function NewLeadDialog({ onClose, onSubmit }: { onClose: () => void; onSubmit: (d: { name: string; email: string; phone: string; company_name: string; position: string; source: string }) => void }) {
-  const [form, setForm] = useState({ name: "", email: "", phone: "", company_name: "", position: "", source: "manual" });
+function NewLeadDialog({
+  onClose,
+  onSubmit,
+}: {
+  onClose: () => void;
+  onSubmit: (d: {
+    name: string;
+    email: string;
+    phone: string;
+    company_name: string;
+    position: string;
+    source: string;
+  }) => void;
+}) {
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company_name: "",
+    position: "",
+    source: "manual",
+  });
   return (
     <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onClose}>
       <Card className="p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold mb-4">Novo lead manual</h2>
-        <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} className="space-y-3">
-          <Input placeholder="Nome *" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <Input placeholder="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-          <Input placeholder="WhatsApp" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <Input placeholder="Empresa" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
-          <Input placeholder="Cargo" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
-          <Input placeholder="Origem" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSubmit(form);
+          }}
+          className="space-y-3"
+        >
+          <Input
+            placeholder="Nome *"
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+          />
+          <Input
+            placeholder="Email"
+            type="email"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+          />
+          <Input
+            placeholder="WhatsApp"
+            value={form.phone}
+            onChange={(e) => setForm({ ...form, phone: e.target.value })}
+          />
+          <Input
+            placeholder="Empresa"
+            value={form.company_name}
+            onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+          />
+          <Input
+            placeholder="Cargo"
+            value={form.position}
+            onChange={(e) => setForm({ ...form, position: e.target.value })}
+          />
+          <Input
+            placeholder="Origem"
+            value={form.source}
+            onChange={(e) => setForm({ ...form, source: e.target.value })}
+          />
           <div className="flex gap-2 justify-end pt-2">
-            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
             <Button type="submit">Criar</Button>
           </div>
         </form>
