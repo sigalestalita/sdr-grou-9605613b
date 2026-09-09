@@ -439,12 +439,15 @@ export type EscalationConfig = {
   /** qualquer = atraso OU sem ação; ambos = atraso E sem ação. */
   criterio: "qualquer" | "atraso" | "sem_acao" | "ambos";
   notificar_email: boolean;
+  /** E-mails extras (diretoria) que recebem a lista "vermelho 6+ meses" e as escalações. */
+  diretoria_emails: string[];
 };
 export const DEFAULT_ESCALATION_CONFIG: EscalationConfig = {
   dias_atraso: 7,
   dias_sem_acao: 3,
   criterio: "qualquer",
   notificar_email: true,
+  diretoria_emails: [],
 };
 export const requiresEvidence = (cfg: EvidenceConfig, channel: string | null | undefined) =>
   cfg.exigir_evidencia && !!channel && (cfg.canais as string[]).includes(channel);

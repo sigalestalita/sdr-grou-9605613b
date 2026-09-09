@@ -56,6 +56,7 @@ import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/ho
 import { Route as ApiPublicHooksSyncAgendaRouteImport } from './routes/api/public/hooks/sync-agenda'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
+import { Route as ApiPublicHooksNotifyRedListRouteImport } from './routes/api/public/hooks/notify-red-list'
 import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
 import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
 import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
@@ -302,6 +303,12 @@ const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
   path: '/api/public/hooks/run-fups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksNotifyRedListRoute =
+  ApiPublicHooksNotifyRedListRouteImport.update({
+    id: '/api/public/hooks/notify-red-list',
+    path: '/api/public/hooks/notify-red-list',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksNotifyEscalationsRoute =
   ApiPublicHooksNotifyEscalationsRouteImport.update({
     id: '/api/public/hooks/notify-escalations',
@@ -379,6 +386,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
+  '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
@@ -432,6 +440,7 @@ export interface FileRoutesByTo {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
+  '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
@@ -488,6 +497,7 @@ export interface FileRoutesById {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
+  '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
@@ -544,6 +554,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
+    | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
@@ -597,6 +608,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
+    | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
@@ -652,6 +664,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
+    | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
@@ -673,6 +686,7 @@ export interface RootRouteChildren {
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicHooksMirrorRdRoute: typeof ApiPublicHooksMirrorRdRoute
   ApiPublicHooksNotifyEscalationsRoute: typeof ApiPublicHooksNotifyEscalationsRoute
+  ApiPublicHooksNotifyRedListRoute: typeof ApiPublicHooksNotifyRedListRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
   ApiPublicHooksSyncAgendaRoute: typeof ApiPublicHooksSyncAgendaRoute
@@ -1016,6 +1030,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRunFupsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/notify-red-list': {
+      id: '/api/public/hooks/notify-red-list'
+      path: '/api/public/hooks/notify-red-list'
+      fullPath: '/api/public/hooks/notify-red-list'
+      preLoaderRoute: typeof ApiPublicHooksNotifyRedListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/notify-escalations': {
       id: '/api/public/hooks/notify-escalations'
       path: '/api/public/hooks/notify-escalations'
@@ -1176,6 +1197,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicHooksMirrorRdRoute: ApiPublicHooksMirrorRdRoute,
   ApiPublicHooksNotifyEscalationsRoute: ApiPublicHooksNotifyEscalationsRoute,
+  ApiPublicHooksNotifyRedListRoute: ApiPublicHooksNotifyRedListRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
   ApiPublicHooksSyncAgendaRoute: ApiPublicHooksSyncAgendaRoute,

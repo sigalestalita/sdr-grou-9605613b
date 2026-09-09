@@ -113,6 +113,7 @@ export function ClientEditor({
     tipo_servico: (client.tipo_servico as string) ?? "",
     tag_uso: (client.tag_uso as string) ?? "",
     diagnostico_causa: (client.diagnostico_causa as string) ?? "",
+    pessoas_mapeadas: client.pessoas_mapeadas == null ? "" : String(client.pessoas_mapeadas),
   });
   const set = (k: keyof typeof form, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -173,6 +174,14 @@ export function ClientEditor({
             ))}
           </select>
         </Field>
+        <Field label="Pessoas mapeadas na plataforma">
+          <Input
+            type="number"
+            min={0}
+            value={form.pessoas_mapeadas}
+            onChange={(e) => set("pessoas_mapeadas", e.target.value)}
+          />
+        </Field>
         <Field label="Site">
           <Input value={form.site_url} onChange={(e) => set("site_url", e.target.value)} />
         </Field>
@@ -232,6 +241,7 @@ export function ClientEditor({
               tipo_servico: form.tipo_servico || null,
               tag_uso: form.tag_uso || null,
               diagnostico_causa: form.diagnostico_causa || null,
+              pessoas_mapeadas: form.pessoas_mapeadas === "" ? null : Number(form.pessoas_mapeadas),
             })
           }
         >

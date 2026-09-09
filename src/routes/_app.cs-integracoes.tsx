@@ -583,6 +583,10 @@ function CsIntegrationsPage() {
                   ["send-weekly-digest", "Resumo semanal por e-mail"],
                   ["sync-agenda", "Agendas (Calendly + Google) e reuniões realizadas"],
                   ["notify-escalations", "Escalações: aviso diário à gestão por e-mail"],
+                  [
+                    "notify-red-list",
+                    "Mensal: clientes em vermelho há 6+ meses para diretoria/admin",
+                  ],
                 ] as const
               ).map(([slug, label]) => {
                 const url =

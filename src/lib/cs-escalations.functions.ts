@@ -153,3 +153,24 @@ export const sendCsEscalationEmail = createServerFn({ method: "POST" })
     const { notifyEscalationsByEmail } = await import("@/lib/cs/escalations.server");
     return notifyEscalationsByEmail({ force: true });
   });
+
+/** Lista "vermelho 6+ meses" (gestão): prévia e envio para diretoria/admin. */
+export const getCsRedList = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: isManager } = await supabase.rpc("is_manager", { _user_id: userId });
+    if (!isManager) throw new Error("Apenas a gestão");
+    const { computeRedList } = await import("@/lib/cs/red-list.server");
+    return { rows: await computeRedList() };
+  });
+
+export const sendCsRedListEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: isManager } = await supabase.rpc("is_manager", { _user_id: userId });
+    if (!isManager) throw new Error("Apenas a gestão");
+    const { sendRedListEmail } = await import("@/lib/cs/red-list.server");
+    return sendRedListEmail({ force: true });
+  });

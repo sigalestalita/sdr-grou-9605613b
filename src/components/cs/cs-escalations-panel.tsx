@@ -11,8 +11,10 @@ import {
   ESCALATION_KIND_LABEL,
   ESCALATION_REASON_LABEL,
   listCsEscalations,
+  getCsRedList,
   reassignCsEscalation,
   sendCsEscalationEmail,
+  sendCsRedListEmail,
   type CsEscalation,
 } from "@/lib/cs-escalations.functions";
 import { AlertOctagon, Check, Mail, Undo2, UserRoundCog } from "lucide-react";
@@ -39,6 +41,21 @@ export function CsEscalationsPanel({
   const ackFn = useServerFn(acknowledgeCsEscalation);
   const reassignFn = useServerFn(reassignCsEscalation);
   const emailFn = useServerFn(sendCsEscalationEmail);
+  const redListFn = useServerFn(getCsRedList);
+  const redEmailFn = useServerFn(sendCsRedListEmail);
+  const redList = useQuery({
+    queryKey: ["cs-red-list"],
+    queryFn: () => redListFn(),
+    enabled: !compact,
+  });
+  const redEmail = useMutation({
+    mutationFn: () => redEmailFn({}),
+    onSuccess: (r) =>
+      toast.success(
+        r.sent ? `Lista enviada: ${r.clients} cliente(s)` : `Nada enviado: ${r.skipped}`,
+      ),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
   const qc = useQueryClient();
   const [owner, setOwner] = useState("");
   const [showAck, setShowAck] = useState(false);
@@ -120,6 +137,17 @@ export function CsEscalationsPanel({
               onClick={() => email.mutate()}
             >
               <Mail className="mr-1 h-3.5 w-3.5" /> Enviar e-mail agora
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8"
+              disabled={redEmail.isPending}
+              title="Clientes em vermelho há 6+ meses — lista para diretoria e admin"
+              onClick={() => redEmail.mutate()}
+            >
+              <Mail className="mr-1 h-3.5 w-3.5" /> Vermelho 6+ meses (
+              {redList.data?.rows.length ?? "…"})
             </Button>
           </div>
         )}

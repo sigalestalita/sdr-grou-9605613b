@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
+import { DEFAULT_FEATURES_CONFIG, type FeaturesConfig } from "@/lib/cs/features";
 import {
   CS_AGENDA_TAG,
   DEFAULT_HEALTH_WEIGHTS,
@@ -87,6 +88,9 @@ export function getEvidenceConfig(db: DB) {
 }
 export function getMasterclassConfig(db: DB) {
   return getCsSetting<MasterclassConfig>(db, "masterclass", DEFAULT_MASTERCLASS_CONFIG);
+}
+export function getFeaturesConfig(db: DB) {
+  return getCsSetting<FeaturesConfig>(db, "features", DEFAULT_FEATURES_CONFIG);
 }
 export function getEscalationConfig(db: DB) {
   return getCsSetting<EscalationConfig>(db, "escalation", DEFAULT_ESCALATION_CONFIG);

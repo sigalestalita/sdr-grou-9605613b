@@ -37,6 +37,8 @@ import {
 import { fmtDate } from "@/components/cs/cs-client-sections";
 import { MasterclassSettings } from "@/components/cs/cs-masterclass-settings";
 import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
+import { FeaturesSettings } from "@/components/cs/cs-features-settings";
+import { DEFAULT_FEATURES_CONFIG, type FeaturesConfig } from "@/lib/cs/features";
 import { Plus, Save, Trash2, Upload } from "lucide-react";
 
 type Profile = { id: string; full_name: string | null; email: string | null };
@@ -46,6 +48,7 @@ const TABS = [
   "metas",
   "evidencia",
   "masterclass",
+  "funcionalidades",
   "sla",
   "roteamento",
   "carteira",
@@ -57,6 +60,7 @@ const TAB_LABEL: Record<Tab, string> = {
   metas: "Metas",
   evidencia: "Tarefas e evidência",
   masterclass: "Masterclasses",
+  funcionalidades: "Funcionalidades",
   sla: "SLA da jornada",
   roteamento: "Roteamento",
   carteira: "Carteira e delegações",
@@ -73,6 +77,7 @@ export function CsSettingsPanel({
   evidence,
   escalation,
   masterclass,
+  features,
   sla,
   routing,
   onSaved,
@@ -85,6 +90,7 @@ export function CsSettingsPanel({
   evidence?: EvidenceConfig;
   escalation?: EscalationConfig;
   masterclass?: MasterclassConfig;
+  features?: FeaturesConfig;
   sla?: StageSla;
   routing?: RoutingConfig;
   onSaved: () => void;
@@ -100,6 +106,7 @@ export function CsSettingsPanel({
   const [ev, setEv] = useState<EvidenceConfig>(evidence ?? DEFAULT_EVIDENCE_CONFIG);
   const [esc, setEsc] = useState<EscalationConfig>(escalation ?? DEFAULT_ESCALATION_CONFIG);
   const [mc, setMc] = useState<MasterclassConfig>(masterclass ?? DEFAULT_MASTERCLASS_CONFIG);
+  const [feat, setFeat] = useState<FeaturesConfig>(features ?? DEFAULT_FEATURES_CONFIG);
   const [s, setS] = useState<StageSla>(sla ?? DEFAULT_STAGE_SLA);
   const [r, setR] = useState<RoutingConfig>(routing ?? DEFAULT_ROUTING);
   useEffect(() => {
@@ -124,6 +131,9 @@ export function CsSettingsPanel({
     if (masterclass) setMc(masterclass);
   }, [masterclass]);
   useEffect(() => {
+    if (features) setFeat(features);
+  }, [features]);
+  useEffect(() => {
     if (sla) setS(sla);
   }, [sla]);
   useEffect(() => {
@@ -141,6 +151,7 @@ export function CsSettingsPanel({
           evidence: ev,
           escalation: esc,
           masterclass: mc,
+          features: feat,
           sla: s,
           routing: r,
         },
@@ -456,6 +467,25 @@ export function CsSettingsPanel({
                 />
                 Avisar a gestão por e-mail (diário)
               </label>
+              <label className="block max-w-2xl space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  E-mails da diretoria (além da gestão), separados por vírgula — recebem a lista
+                  mensal "vermelho 6+ meses".
+                </span>
+                <Input
+                  value={(esc.diretoria_emails ?? []).join(", ")}
+                  onChange={(e) =>
+                    setEsc({
+                      ...esc,
+                      diretoria_emails: e.target.value
+                        .split(",")
+                        .map((x) => x.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                  placeholder="diretoria@grougp.com.br, admin@grougp.com.br"
+                />
+              </label>
             </div>
             {saveBar}
           </>
@@ -464,6 +494,13 @@ export function CsSettingsPanel({
         {tab === "masterclass" && (
           <>
             <MasterclassSettings value={mc} onChange={setMc} />
+            {saveBar}
+          </>
+        )}
+
+        {tab === "funcionalidades" && (
+          <>
+            <FeaturesSettings value={feat} onChange={setFeat} />
             {saveBar}
           </>
         )}
