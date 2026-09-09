@@ -16,7 +16,7 @@ import {
   syncCsCalendly,
 } from "@/lib/cs-integrations.functions";
 import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
-import { runRdTransform } from "@/lib/rd-master.functions";
+import { runRdTransform, syncRdAll } from "@/lib/rd-master.functions";
 import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs-integracoes")({
@@ -48,6 +48,7 @@ function CsIntegrationsPage() {
   const syncFn = useServerFn(syncCsCalendly);
   const rotateFn = useServerFn(rotateCsInboundToken);
   const transformFn = useServerFn(runRdTransform);
+  const mirrorFn = useServerFn(syncRdAll);
   const [transformOut, setTransformOut] = useState<Awaited<ReturnType<typeof transformFn>> | null>(
     null,
   );
@@ -117,6 +118,26 @@ function CsIntegrationsPage() {
     queryFn: () => rdLogsFn(),
     enabled: Boolean(data?.isManager),
   });
+  const rdMirror = useMutation({
+    mutationFn: () => mirrorFn({ data: { dryRun: false } }),
+    onSuccess: (r: {
+      ok?: boolean;
+      error?: string;
+      organizations?: { saved: number };
+      contacts?: { saved: number };
+      deals?: { saved: number };
+    }) => {
+      if (r.ok === false) {
+        toast.error(r.error ?? "Falha no espelho");
+        return;
+      }
+      toast.success(
+        `Espelho do RD: ${r.organizations?.saved ?? 0} empresas · ${r.contacts?.saved ?? 0} contatos · ${r.deals?.saved ?? 0} negócios`,
+      );
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
   const rdTransform = useMutation({
     mutationFn: (dryRun: boolean) => transformFn({ data: { dryRun } }),
     onSuccess: (r) => {
@@ -325,10 +346,21 @@ function CsIntegrationsPage() {
                 <Button
                   size="sm"
                   variant="outline"
+                  disabled={rdMirror.isPending}
+                  onClick={() => rdMirror.mutate()}
+                >
+                  <RefreshCw
+                    className={`mr-1 h-4 w-4 ${rdMirror.isPending ? "animate-spin" : ""}`}
+                  />
+                  {rdMirror.isPending ? "Espelhando…" : "1 · Espelhar RD"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
                   disabled={rdTransform.isPending}
                   onClick={() => rdTransform.mutate(true)}
                 >
-                  Prévia
+                  2 · Prévia
                 </Button>
                 <Button
                   size="sm"
@@ -338,7 +370,7 @@ function CsIntegrationsPage() {
                   <RefreshCw
                     className={`mr-1 h-4 w-4 ${rdTransform.isPending ? "animate-spin" : ""}`}
                   />
-                  {rdTransform.isPending ? "Transformando…" : "Transformar"}
+                  {rdTransform.isPending ? "Transformando…" : "3 · Transformar"}
                 </Button>
               </div>
             </div>
