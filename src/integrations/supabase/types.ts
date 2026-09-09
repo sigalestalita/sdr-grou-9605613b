@@ -522,8 +522,10 @@ export type Database = {
       }
       cs_calendly_events: {
         Row: {
+          attendees: Json
           cancel_reason: string | null
           client_uid: string | null
+          contact_id: string | null
           created_at: string
           end_time: string | null
           event_uri: string
@@ -533,15 +535,20 @@ export type Database = {
           location: string | null
           meeting_url: string | null
           name: string | null
+          organizer_email: string | null
+          provider: string
           raw: Json
+          settled_at: string | null
           start_time: string
           status: string | null
           synced_at: string
           user_id: string
         }
         Insert: {
+          attendees?: Json
           cancel_reason?: string | null
           client_uid?: string | null
+          contact_id?: string | null
           created_at?: string
           end_time?: string | null
           event_uri: string
@@ -551,15 +558,20 @@ export type Database = {
           location?: string | null
           meeting_url?: string | null
           name?: string | null
+          organizer_email?: string | null
+          provider?: string
           raw?: Json
+          settled_at?: string | null
           start_time: string
           status?: string | null
           synced_at?: string
           user_id: string
         }
         Update: {
+          attendees?: Json
           cancel_reason?: string | null
           client_uid?: string | null
+          contact_id?: string | null
           created_at?: string
           end_time?: string | null
           event_uri?: string
@@ -569,7 +581,10 @@ export type Database = {
           location?: string | null
           meeting_url?: string | null
           name?: string | null
+          organizer_email?: string | null
+          provider?: string
           raw?: Json
+          settled_at?: string | null
           start_time?: string
           status?: string | null
           synced_at?: string
@@ -582,6 +597,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_calendly_events_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1403,6 +1425,11 @@ export type Database = {
           created_at: string
           email_address: string | null
           email_connected_at: string | null
+          gcal_connected_at: string | null
+          gcal_email: string | null
+          gcal_ics_url: string | null
+          gcal_last_error: string | null
+          gcal_last_sync_at: string | null
           updated_at: string
           user_id: string
         }
@@ -1418,6 +1445,11 @@ export type Database = {
           created_at?: string
           email_address?: string | null
           email_connected_at?: string | null
+          gcal_connected_at?: string | null
+          gcal_email?: string | null
+          gcal_ics_url?: string | null
+          gcal_last_error?: string | null
+          gcal_last_sync_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1433,6 +1465,11 @@ export type Database = {
           created_at?: string
           email_address?: string | null
           email_connected_at?: string | null
+          gcal_connected_at?: string | null
+          gcal_email?: string | null
+          gcal_ics_url?: string | null
+          gcal_last_error?: string | null
+          gcal_last_sync_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3373,6 +3410,7 @@ export type Database = {
       }
       cs_gen_client_uid: { Args: never; Returns: string }
       cs_phone_digits: { Args: { _v: string }; Returns: string }
+      cs_settle_meetings: { Args: never; Returns: number }
       cs_stage_from_contract:
         | {
             Args: { _start: string }
