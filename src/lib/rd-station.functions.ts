@@ -146,7 +146,9 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
   const get = (k: string) => settings.get(k) ?? {};
   const pipelineName = (get("rd_pipeline").name as string | undefined) ?? "Leads - Empresas";
   const windowDays = Number((get("rd_sync_window_days").days as number | undefined) ?? 90);
-  const incrementalMinutes = Number((get("rd_sync_incremental_minutes").minutes as number | undefined) ?? 15);
+  const incrementalMinutes = Number(
+    (get("rd_sync_incremental_minutes").minutes as number | undefined) ?? 15,
+  );
   const importActivities = (get("rd_import_activities").enabled as boolean | undefined) !== false;
 
   let startDate: string | undefined;
@@ -156,7 +158,9 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
   } else {
     const lastSync = get("rd_last_sync_at").value as string | undefined;
     const fallbackMs = incrementalMinutes * 60 * 1000;
-    const fromMs = lastSync ? Math.min(new Date(lastSync).getTime(), Date.now() - fallbackMs) : Date.now() - fallbackMs;
+    const fromMs = lastSync
+      ? Math.min(new Date(lastSync).getTime(), Date.now() - fallbackMs)
+      : Date.now() - fallbackMs;
     startDate = new Date(fromMs - 60 * 1000).toISOString(); // 1min overlap
   }
 
@@ -167,10 +171,16 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
     .limit(1)
     .maybeSingle();
   const rules = (icp?.rules ?? {}) as unknown as IcpRules;
-  const thresholds = (icp?.thresholds ?? { high: 70, medium: 40, low: 15 }) as unknown as IcpThresholds;
+  const thresholds = (icp?.thresholds ?? {
+    high: 70,
+    medium: 40,
+    low: 15,
+  }) as unknown as IcpThresholds;
 
   const { data: stages } = await supabase.from("stages").select("id, slug");
-  const newStageId = (stages as Array<{ id: string; slug: string }> | null)?.find((s) => s.slug === "novo")?.id;
+  const newStageId = (stages as Array<{ id: string; slug: string }> | null)?.find(
+    (s) => s.slug === "novo",
+  )?.id;
 
   let deals: RdDeal[] = [];
   try {
@@ -195,7 +205,7 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
     const contact = d.contacts?.[0];
     const email = pickEmail(d);
     const phone = pickPhone(d);
-    const sourceName = typeof d.source === "string" ? d.source : d.source?.name ?? null;
+    const sourceName = typeof d.source === "string" ? d.source : (d.source?.name ?? null);
 
     const candidate = {
       rd_deal_id: dealId,
@@ -282,7 +292,10 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
             lead_id: leadId,
             type: "rd_activity",
             content: a.text ?? a.subject ?? null,
-            metadata: { kind: a.activity_kind ?? a.type, user: a.user?.name } as Record<string, unknown>,
+            metadata: { kind: a.activity_kind ?? a.type, user: a.user?.name } as Record<
+              string,
+              unknown
+            >,
             external_id: String(eid),
             created_at: a.created_at ?? new Date().toISOString(),
           });
@@ -300,9 +313,10 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
           });
         }
         if (rows.length > 0) {
-          const { error } = await supabase
-            .from("lead_interactions")
-            .upsert(rows as never, { onConflict: "lead_id,type,external_id", ignoreDuplicates: true });
+          const { error } = await supabase.from("lead_interactions").upsert(rows as never, {
+            onConflict: "lead_id,type,external_id",
+            ignoreDuplicates: true,
+          });
           if (!error) interactionsCount += rows.length;
         }
         await sleep(50);
@@ -320,17 +334,36 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
     provider: "rd_station",
     action: `sync_${mode}`,
     status: "ok",
-    detail: { fetched: deals.length, created, updated, interactions: interactionsCount, pipeline: pipelineName, startDate, endDate },
+    detail: {
+      fetched: deals.length,
+      created,
+      updated,
+      interactions: interactionsCount,
+      pipeline: pipelineName,
+      startDate,
+      endDate,
+    },
   });
 
-  return { fetched: deals.length, created, updated, interactions: interactionsCount, pipeline: pipelineName, mode };
+  return {
+    fetched: deals.length,
+    created,
+    updated,
+    interactions: interactionsCount,
+    pipeline: pipelineName,
+    mode,
+  };
 }
 
 export const syncRdLeads = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     try {
-      const result = await runRdSync(context.supabase as never, "full");
+      // Com o serviço: os leads do RD estão ocultos para a sessão (RLS) e a
+      // sincronização precisa enxergá-los para atualizar em vez de duplicar.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      void context;
+      const result = await runRdSync(supabaseAdmin as never, "full");
       return { ok: true, ...result };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
@@ -353,9 +386,12 @@ export const testRdConnection = createServerFn({ method: "POST" })
   .handler(async () => {
     const { token, source: tokenSource } = await getRdTokenInfo();
     if (!token) return { ok: false, message: "RD Station não conectado" };
-    const res = await fetch(`${RD_BASE}/deal_pipelines?${new URLSearchParams({ token }).toString()}`, {
-      headers: { Accept: "application/json" },
-    });
+    const res = await fetch(
+      `${RD_BASE}/deal_pipelines?${new URLSearchParams({ token }).toString()}`,
+      {
+        headers: { Accept: "application/json" },
+      },
+    );
     if (!res.ok) {
       const text = await res.text();
       return { ok: false, message: buildRdErrorMessage(res.status, text, tokenSource) };

@@ -98,13 +98,19 @@ async function getAiAgentSettings(): Promise<AiAgentSettings> {
     initialOutreachEnabled: value.initialOutreachEnabled === true,
     initialTemplateId: typeof value.initialTemplateId === "string" ? value.initialTemplateId : null,
     defaultAccountId: typeof value.defaultAccountId === "string" ? value.defaultAccountId : null,
-    consultoriaAccountId: typeof value.consultoriaAccountId === "string" ? value.consultoriaAccountId : null,
+    consultoriaAccountId:
+      typeof value.consultoriaAccountId === "string" ? value.consultoriaAccountId : null,
     consultoriaInitialTemplateId:
-      typeof value.consultoriaInitialTemplateId === "string" ? value.consultoriaInitialTemplateId : null,
+      typeof value.consultoriaInitialTemplateId === "string"
+        ? value.consultoriaInitialTemplateId
+        : null,
   };
 }
 
-async function executeRuleForLead(rule: RuleRow, lead: LeadLite): Promise<{ ok: boolean; error?: string }> {
+async function executeRuleForLead(
+  rule: RuleRow,
+  lead: LeadLite,
+): Promise<{ ok: boolean; error?: string }> {
   if (!lead.phone) return { ok: false, error: "Lead sem telefone" };
   if (!rule.template_id) return { ok: false, error: "Sem template" };
 
@@ -115,8 +121,7 @@ async function executeRuleForLead(rule: RuleRow, lead: LeadLite): Promise<{ ok: 
     .maybeSingle();
   if (!tmpl) return { ok: false, error: "Template inexistente" };
 
-  const account =
-    (await getAccountById(rule.account_id)) ?? (await getDefaultAccount());
+  const account = (await getAccountById(rule.account_id)) ?? (await getDefaultAccount());
   if (!account) return { ok: false, error: "Sem conta WhatsApp padrão" };
   if (!accountAllowsLead(account, lead.lead_type)) {
     return { ok: false, error: "Lead fora do escopo da conta WhatsApp da regra" };
@@ -212,7 +217,10 @@ async function executeRuleForLead(rule: RuleRow, lead: LeadLite): Promise<{ ok: 
   } catch (e) {
     const message = e instanceof Error ? e.message : "Falha";
     if (msg?.id) {
-      await supabaseAdmin.from("whatsapp_messages").update({ status: "failed", error: message }).eq("id", msg.id);
+      await supabaseAdmin
+        .from("whatsapp_messages")
+        .update({ status: "failed", error: message })
+        .eq("id", msg.id);
     }
     await supabaseAdmin.from("whatsapp_automation_logs").insert({
       rule_id: rule.id,
@@ -226,7 +234,9 @@ async function executeRuleForLead(rule: RuleRow, lead: LeadLite): Promise<{ ok: 
   }
 }
 
-async function executeAiInitialOutreachForLead(lead: LeadLite): Promise<{ ok: boolean; error?: string }> {
+async function executeAiInitialOutreachForLead(
+  lead: LeadLite,
+): Promise<{ ok: boolean; error?: string }> {
   if (!lead.phone) return { ok: false, error: "Lead sem telefone" };
   const settings = await getAiAgentSettings();
   if (!settings.enabled || !settings.initialOutreachEnabled) {
@@ -254,8 +264,7 @@ async function executeAiInitialOutreachForLead(lead: LeadLite): Promise<{ ok: bo
   const preferredAccountId = isConsultoria
     ? settings.consultoriaAccountId
     : settings.defaultAccountId;
-  const account =
-    (await getAccountById(preferredAccountId)) ?? (await getDefaultAccount());
+  const account = (await getAccountById(preferredAccountId)) ?? (await getDefaultAccount());
   if (!account) return { ok: false, error: "Sem conta WhatsApp configurada" };
   if (!accountAllowsLead(account, lead.lead_type)) {
     return { ok: false, error: "Conta WhatsApp não permite este tipo de lead" };
@@ -362,7 +371,10 @@ async function executeAiInitialOutreachForLead(lead: LeadLite): Promise<{ ok: bo
   } catch (e) {
     const message = e instanceof Error ? e.message : "Falha";
     if (msg?.id) {
-      await supabaseAdmin.from("whatsapp_messages").update({ status: "failed", error: message }).eq("id", msg.id);
+      await supabaseAdmin
+        .from("whatsapp_messages")
+        .update({ status: "failed", error: message })
+        .eq("id", msg.id);
     }
     return { ok: false, error: message };
   }
@@ -373,14 +385,18 @@ async function evalNewLead(rule: RuleRow): Promise<LeadLite[]> {
   const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
   const { data } = await supabaseAdmin
     .from("leads")
-    .select("id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at")
+    .select(
+      "id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at",
+    )
+    .eq("oculto_sdr", false) // leads do RD ficam fora até a migração
     .gte("created_at", since)
     .not("phone", "is", null)
     .limit(500);
   const delay = rule.delay_minutes ?? 0;
   const cutoff = Date.now() - delay * 60_000;
   return (data ?? []).filter(
-    (l) => passesCommonFilters(l, rule.trigger_config) && new Date(l.created_at).getTime() <= cutoff,
+    (l) =>
+      passesCommonFilters(l, rule.trigger_config) && new Date(l.created_at).getTime() <= cutoff,
   );
 }
 
@@ -392,7 +408,9 @@ async function evalStageChange(rule: RuleRow): Promise<LeadLite[]> {
   const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const { data } = await supabaseAdmin
     .from("leads")
-    .select("id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at,stage_entered_at")
+    .select(
+      "id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at,stage_entered_at",
+    )
     .eq("stage_id", stageId)
     .gte("stage_entered_at", since)
     .not("phone", "is", null)
@@ -414,7 +432,9 @@ async function evalNoReply(rule: RuleRow): Promise<LeadLite[]> {
   // Conversas abertas, última mensagem (do SDR) antes do cutoff e sem inbound mais recente
   const { data: convs } = await supabaseAdmin
     .from("whatsapp_conversations")
-    .select("id, lead_id, last_message_at, status, leads:lead_id(id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at)")
+    .select(
+      "id, lead_id, last_message_at, status, leads:lead_id(id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at)",
+    )
     .eq("status", "open")
     .lt("last_message_at", cutoff)
     .limit(500);
@@ -445,7 +465,9 @@ async function evalMeetingReminder(rule: RuleRow): Promise<LeadLite[]> {
   const windowEnd = new Date(now + (minutesBefore + 5) * 60_000).toISOString();
   const { data } = await supabaseAdmin
     .from("leads")
-    .select("id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at")
+    .select(
+      "id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at",
+    )
     .gte("meeting_at", windowStart)
     .lte("meeting_at", windowEnd)
     .not("phone", "is", null)

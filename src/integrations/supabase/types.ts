@@ -2249,6 +2249,7 @@ export type Database = {
           name: string
           next_action: string | null
           next_follow_up_at: string | null
+          oculto_sdr: boolean
           original_company_name: string | null
           phone: string | null
           position: string | null
@@ -2308,6 +2309,7 @@ export type Database = {
           name: string
           next_action?: string | null
           next_follow_up_at?: string | null
+          oculto_sdr?: boolean
           original_company_name?: string | null
           phone?: string | null
           position?: string | null
@@ -2367,6 +2369,7 @@ export type Database = {
           name?: string
           next_action?: string | null
           next_follow_up_at?: string | null
+          oculto_sdr?: boolean
           original_company_name?: string | null
           phone?: string | null
           position?: string | null

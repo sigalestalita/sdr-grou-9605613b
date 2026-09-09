@@ -48,14 +48,16 @@ function passesAudience(lead: LeadLite, f: Record<string, unknown> | null): bool
   const leadType = (f.leadType as string[] | undefined) ?? [];
   if (leadType.length && (!lead.lead_type || !leadType.includes(lead.lead_type))) return false;
   const companySizes = (f.companySizes as string[] | undefined) ?? [];
-  if (companySizes.length && (!lead.company_size || !companySizes.includes(lead.company_size))) return false;
+  if (companySizes.length && (!lead.company_size || !companySizes.includes(lead.company_size)))
+    return false;
   const demoFree = f.demoFree as "any" | "yes" | "no" | undefined;
   if (demoFree === "yes" && lead.demo_free !== true) return false;
   if (demoFree === "no" && lead.demo_free === true) return false;
   const emailDomains = (f.emailDomains as string[] | undefined) ?? [];
   if (emailDomains.length) {
     const e = (lead.email ?? "").toLowerCase();
-    if (!e || !emailDomains.some((d) => e.endsWith(`@${d.toLowerCase().replace(/^@+/, "")}`))) return false;
+    if (!e || !emailDomains.some((d) => e.endsWith(`@${d.toLowerCase().replace(/^@+/, "")}`)))
+      return false;
   }
   return true;
 }
@@ -97,6 +99,7 @@ async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
     const { data } = await supabaseAdmin
       .from("leads")
       .select(LEAD_COLS)
+      .eq("oculto_sdr", false)
       .gte("created_at", since)
       .not("phone", "is", null)
       .limit(500);
@@ -110,6 +113,7 @@ async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
     const { data } = await supabaseAdmin
       .from("leads")
       .select(LEAD_COLS)
+      .eq("oculto_sdr", false)
       .eq("stage_id", stageId)
       .gte("stage_entered_at", since)
       .not("phone", "is", null)
@@ -150,6 +154,7 @@ async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
     const { data } = await supabaseAdmin
       .from("leads")
       .select(LEAD_COLS)
+      .eq("oculto_sdr", false)
       .is("assigned_to", null)
       .gte("created_at", since)
       .not("phone", "is", null)
@@ -183,7 +188,10 @@ async function enrollEligible(seq: Sequence): Promise<number> {
     .from("whatsapp_fup_enrollments")
     .select("lead_id")
     .eq("sequence_id", seq.id)
-    .in("lead_id", filtered.map((l) => l.id));
+    .in(
+      "lead_id",
+      filtered.map((l) => l.id),
+    );
   const has = new Set((existing ?? []).map((r) => (r as { lead_id: string }).lead_id));
   const toEnroll = filtered.filter((l) => !has.has(l.id));
   if (!toEnroll.length) return 0;
@@ -200,7 +208,11 @@ async function enrollEligible(seq: Sequence): Promise<number> {
   return rows.length;
 }
 
-async function sendStep(seq: Sequence, step: Step, lead: LeadLite): Promise<{ ok: boolean; error?: string }> {
+async function sendStep(
+  seq: Sequence,
+  step: Step,
+  lead: LeadLite,
+): Promise<{ ok: boolean; error?: string }> {
   const { data: tmpl } = await supabaseAdmin
     .from("whatsapp_templates")
     .select("body")
@@ -230,7 +242,12 @@ async function sendStep(seq: Sequence, step: Step, lead: LeadLite): Promise<{ ok
   else {
     const { data: created } = await supabaseAdmin
       .from("whatsapp_conversations")
-      .insert({ lead_id: lead.id, account_id: account.id, assigned_user_id: lead.assigned_to, status: "open" })
+      .insert({
+        lead_id: lead.id,
+        account_id: account.id,
+        assigned_user_id: lead.assigned_to,
+        status: "open",
+      })
       .select("id")
       .single();
     convId = created?.id ?? null;
@@ -279,13 +296,20 @@ async function sendStep(seq: Sequence, step: Step, lead: LeadLite): Promise<{ ok
     }
     await supabaseAdmin
       .from("whatsapp_conversations")
-      .update({ last_message_at: new Date().toISOString(), last_preview: body.slice(0, 200), status: "open" })
+      .update({
+        last_message_at: new Date().toISOString(),
+        last_preview: body.slice(0, 200),
+        status: "open",
+      })
       .eq("id", convId);
     return { ok: result.status !== "failed", error: result.error };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Falha";
     if (msg?.id)
-      await supabaseAdmin.from("whatsapp_messages").update({ status: "failed", error: message }).eq("id", msg.id);
+      await supabaseAdmin
+        .from("whatsapp_messages")
+        .update({ status: "failed", error: message })
+        .eq("id", msg.id);
     return { ok: false, error: message };
   }
 }
@@ -308,14 +332,23 @@ async function processEnrollment(
   if (!lead) {
     await supabaseAdmin
       .from("whatsapp_fup_enrollments")
-      .update({ status: "failed", last_error: "Lead removido", completed_at: new Date().toISOString() })
+      .update({
+        status: "failed",
+        last_error: "Lead removido",
+        completed_at: new Date().toISOString(),
+      })
       .eq("id", enr.id);
     return "failed";
   }
   const leadLite = lead as LeadLite;
 
   // Stop por etapa
-  if (seq.stop_on_stage_ids && seq.stop_on_stage_ids.length && leadLite.stage_id && seq.stop_on_stage_ids.includes(leadLite.stage_id)) {
+  if (
+    seq.stop_on_stage_ids &&
+    seq.stop_on_stage_ids.length &&
+    leadLite.stage_id &&
+    seq.stop_on_stage_ids.includes(leadLite.stage_id)
+  ) {
     await supabaseAdmin
       .from("whatsapp_fup_enrollments")
       .update({ status: "stopped_stage", completed_at: new Date().toISOString() })
@@ -365,14 +398,19 @@ async function processEnrollment(
   if (!res.ok) {
     await supabaseAdmin
       .from("whatsapp_fup_enrollments")
-      .update({ last_error: res.error ?? "Falha", next_run_at: new Date(now.getTime() + 3600 * 1000).toISOString() })
+      .update({
+        last_error: res.error ?? "Falha",
+        next_run_at: new Date(now.getTime() + 3600 * 1000).toISOString(),
+      })
       .eq("id", enr.id);
     return "failed";
   }
 
   // Avança
   const upcoming = steps.find((s) => s.step_order === nextOrder + 1);
-  const next = upcoming ? new Date(now.getTime() + Number(upcoming.delay_hours) * 3600 * 1000).toISOString() : null;
+  const next = upcoming
+    ? new Date(now.getTime() + Number(upcoming.delay_hours) * 3600 * 1000).toISOString()
+    : null;
   await supabaseAdmin
     .from("whatsapp_fup_enrollments")
     .update({
