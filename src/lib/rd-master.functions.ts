@@ -42,7 +42,9 @@ export const runRdTransform = createServerFn({ method: "POST" })
     z
       .object({
         dryRun: z.boolean().default(false),
-        only: z.array(z.enum(["companies", "contacts", "deals"])).optional(),
+        only: z.array(z.enum(["companies", "contacts", "deals", "parents"])).optional(),
+        offset: z.number().int().min(0).optional(),
+        limit: z.number().int().min(1).max(5000).optional(),
       })
       .parse(d ?? {}),
   )
@@ -52,5 +54,10 @@ export const runRdTransform = createServerFn({ method: "POST" })
     });
     if (!isManager) throw new Error("Apenas a gestão pode rodar a transformação do RD");
     const { transformRdToObjects } = await import("@/lib/rd/rd-transform.server");
-    return transformRdToObjects({ dryRun: data.dryRun, only: data.only });
+    return transformRdToObjects({
+      dryRun: data.dryRun,
+      only: data.only,
+      offset: data.offset,
+      limit: data.limit,
+    });
   });

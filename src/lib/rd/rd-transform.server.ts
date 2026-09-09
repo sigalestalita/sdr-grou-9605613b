@@ -218,10 +218,16 @@ const RD_PIPELINE_TO_SLUG: Array<[RegExp, string]> = [
 
 export async function transformRdToObjects(opts?: {
   dryRun?: boolean;
-  only?: Array<"companies" | "contacts" | "deals">;
+  only?: Array<"companies" | "contacts" | "deals" | "parents">;
+  /** Fatia do staging (por recurso): pula offset linhas e processa até limit. */
+  offset?: number;
+  limit?: number;
 }): Promise<RdTransformResult> {
   const dryRun = !!opts?.dryRun;
-  const only = new Set(opts?.only ?? ["companies", "contacts", "deals"]);
+  const only = new Set(opts?.only ?? ["companies", "contacts", "deals", "parents"]);
+  const offset = Math.max(opts?.offset ?? 0, 0);
+  const limit = opts?.limit && opts.limit > 0 ? opts.limit : null;
+  const slice = <T>(rows: T[]) => (limit ? rows.slice(offset, offset + limit) : rows);
   const errors: string[] = [];
   const result: RdTransformResult = {
     companies: { total: 0, created: 0, updated: 0, linkedByKey: 0 },
@@ -256,10 +262,11 @@ export async function transformRdToObjects(opts?: {
   };
   existingCompanies.forEach(indexCompany);
 
-  const rdOrgs = await fetchAll(
-    "rd_organizations",
-    "rd_id, name, cnpj, site_url, segment, owner_name, raw",
-  );
+  const rdOrgs = only.has("companies")
+    ? slice(
+        await fetchAll("rd_organizations", "rd_id, name, cnpj, site_url, segment, owner_name, raw"),
+      )
+    : [];
   const orgToCompany = new Map<string, string>(); // rd_org_id -> companies.id
 
   if (only.has("companies")) {
@@ -362,7 +369,7 @@ export async function transformRdToObjects(opts?: {
   }
 
   // Candidatas a mãe → filha: "Sicredi Sul SC - 2604" tem mãe "Sicredi" quando ela existe.
-  if (only.has("companies") && !dryRun) {
+  if (only.has("parents") && !dryRun) {
     const all = await fetchAll("companies", "id, nome, nome_normalizado, parent_company_id");
     const exact = new Map(all.map((c) => [String(c.nome_normalizado), c]));
     const groups = new Map<string, Row[]>();
@@ -405,9 +412,11 @@ export async function transformRdToObjects(opts?: {
     const byRdC = new Map(
       existingContacts.filter((c) => c.rd_contact_id).map((c) => [String(c.rd_contact_id), c]),
     );
-    const rdContacts = await fetchAll(
-      "rd_contacts",
-      "rd_id, name, email, phone, position, linkedin_url, rd_org_id, owner_name, raw",
+    const rdContacts = slice(
+      await fetchAll(
+        "rd_contacts",
+        "rd_id, name, email, phone, position, linkedin_url, rd_org_id, owner_name, raw",
+      ),
     );
     result.contacts.total = rdContacts.length;
     const inserts: Row[] = [];
@@ -538,9 +547,11 @@ export async function transformRdToObjects(opts?: {
     );
     const existingProducts = await fetchAll("products", "id, nome");
     const productByName = new Map(existingProducts.map((p) => [norm(p.nome), String(p.id)]));
-    const rdDeals = await fetchAll(
-      "rd_deals",
-      "rd_id, name, pipeline, stage, amount, status, rd_org_id, rd_contact_id, owner_name, source_name, campaign_name, rd_created_at, raw",
+    const rdDeals = slice(
+      await fetchAll(
+        "rd_deals",
+        "rd_id, name, pipeline, stage, amount, status, rd_org_id, rd_contact_id, owner_name, source_name, campaign_name, rd_created_at, raw",
+      ),
     );
     result.deals.total = rdDeals.length;
 

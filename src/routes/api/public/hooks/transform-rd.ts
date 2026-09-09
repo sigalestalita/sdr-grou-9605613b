@@ -15,7 +15,12 @@ export const Route = createFileRoute("/api/public/hooks/transform-rd")({
         const { getInboundToken } = await import("@/lib/cs/integrations.server");
         const expected = await getInboundToken(false);
         if (!expected || token !== expected) return new Response("Unauthorized", { status: 401 });
-        let body: { dryRun?: boolean; only?: Array<"companies" | "contacts" | "deals"> } = {};
+        let body: {
+          dryRun?: boolean;
+          only?: Array<"companies" | "contacts" | "deals" | "parents">;
+          offset?: number;
+          limit?: number;
+        } = {};
         try {
           body = (await request.json()) as typeof body;
         } catch {
@@ -23,7 +28,12 @@ export const Route = createFileRoute("/api/public/hooks/transform-rd")({
         }
         const { transformRdToObjects } = await import("@/lib/rd/rd-transform.server");
         try {
-          const result = await transformRdToObjects({ dryRun: !!body.dryRun, only: body.only });
+          const result = await transformRdToObjects({
+            dryRun: !!body.dryRun,
+            only: body.only,
+            offset: body.offset,
+            limit: body.limit,
+          });
           return Response.json({ ok: true, ...result });
         } catch (e) {
           return Response.json(
