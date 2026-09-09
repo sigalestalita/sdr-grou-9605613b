@@ -29,6 +29,7 @@ import {
   CS_TAG_USO,
   CS_TAG_USO_LABEL,
   CS_SIGNAL_LABEL,
+  CS_PORTES,
 } from "@/lib/cs-types";
 import {
   History,
@@ -114,6 +115,8 @@ export function ClientEditor({
     tag_uso: (client.tag_uso as string) ?? "",
     diagnostico_causa: (client.diagnostico_causa as string) ?? "",
     pessoas_mapeadas: client.pessoas_mapeadas == null ? "" : String(client.pessoas_mapeadas),
+    porte: (client.porte as string) ?? "",
+    num_funcionarios: client.num_funcionarios == null ? "" : String(client.num_funcionarios),
   });
   const set = (k: keyof typeof form, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -173,6 +176,31 @@ export function ClientEditor({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Porte (faixa de funcionários)">
+          <select
+            value={form.porte}
+            onChange={(e) => set("porte", e.target.value)}
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="">—</option>
+            {CS_PORTES.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+            {form.porte && !(CS_PORTES as readonly string[]).includes(form.porte) && (
+              <option value={form.porte}>{form.porte}</option>
+            )}
+          </select>
+        </Field>
+        <Field label="Nº de funcionários">
+          <Input
+            type="number"
+            min={0}
+            value={form.num_funcionarios}
+            onChange={(e) => set("num_funcionarios", e.target.value)}
+          />
         </Field>
         <Field label="Pessoas mapeadas na plataforma">
           <Input
@@ -242,6 +270,8 @@ export function ClientEditor({
               tag_uso: form.tag_uso || null,
               diagnostico_causa: form.diagnostico_causa || null,
               pessoas_mapeadas: form.pessoas_mapeadas === "" ? null : Number(form.pessoas_mapeadas),
+              porte: form.porte || null,
+              num_funcionarios: form.num_funcionarios === "" ? null : Number(form.num_funcionarios),
             })
           }
         >

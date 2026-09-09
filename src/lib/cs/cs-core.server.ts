@@ -19,6 +19,7 @@ import {
   DEFAULT_HEALTH_OPTIONS,
   DEFAULT_DAILY_TARGET,
   DEFAULT_EVIDENCE_CONFIG,
+  employeesOf,
   DEFAULT_ESCALATION_CONFIG,
   type EscalationConfig,
   type EvidenceConfig,
@@ -50,7 +51,10 @@ export async function fetchAllRows<T>(
       if (!transient || attempt === 2) break;
       await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
     }
-    const { data, error } = result ?? { data: null, error: { message: "Falha ao consultar dados" } };
+    const { data, error } = result ?? {
+      data: null,
+      error: { message: "Falha ao consultar dados" },
+    };
     if (error) throw new Error(error.message);
     const rows = data ?? [];
     out.push(...rows);
@@ -106,13 +110,15 @@ export function getRouting(db: DB) {
   return getCsSetting<RoutingConfig>(db, "routing", DEFAULT_ROUTING);
 }
 
-/** Regras de roteamento por tipo/origem/aporte. Fixo no momento da entrada do cliente. */
+/** Regras de roteamento por tipo/origem/porte. Fixo no momento da entrada do cliente. */
 export async function resolveCsRouting(
   db: DB,
   input: {
     tipo_lead: string;
     origem: string;
-    aporte_valor: number;
+    /** Faixa de porte do RD e/ou nº de funcionários — decide CS × pool de executivos. */
+    porte?: string | null;
+    num_funcionarios?: number | null;
     comercial_fechou?: string | null;
   },
 ): Promise<{ cs_responsavel_id: string | null; comercial_responsavel_id: string | null }> {
@@ -140,7 +146,9 @@ export async function resolveCsRouting(
       rr_cursor: (routing.rr_cursor + 1) % pool.length,
     });
   }
-  const highTicket = Number(input.aporte_valor ?? 0) >= Number(routing.aporte_threshold ?? 500);
+  const employees = employeesOf(input.num_funcionarios, input.porte);
+  const highTicket =
+    employees != null && employees >= Number(routing.porte_min_funcionarios ?? 101);
   return {
     cs_responsavel_id: cs,
     comercial_responsavel_id: highTicket ? pickFrom(routing.comercial_high, routing.rr_cursor) : cs,

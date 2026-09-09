@@ -294,6 +294,8 @@ export const saveCsClient = createServerFn({ method: "POST" })
           .enum(["analista_novo", "falta_projeto", "nao_ve_valor", "outro"])
           .nullish(),
         pessoas_mapeadas: z.number().int().min(0).nullish(),
+        porte: z.string().max(40).nullish(),
+        num_funcionarios: z.number().int().min(0).nullish(),
         produtos_ativos: z.array(z.string()).optional(),
       })
       .parse(d),
@@ -326,7 +328,8 @@ export const saveCsClient = createServerFn({ method: "POST" })
       const routed = await resolveCsRouting(supabase, {
         tipo_lead: fields.tipo_lead,
         origem: fields.origem,
-        aporte_valor: fields.aporte_valor,
+        porte: fields.porte ?? null,
+        num_funcionarios: fields.num_funcionarios ?? null,
         comercial_fechou: comercial,
       });
       cs = cs ?? routed.cs_responsavel_id;
@@ -744,7 +747,7 @@ export const saveCsSettings = createServerFn({ method: "POST" })
           .optional(),
         routing: z
           .object({
-            aporte_threshold: z.number().min(0),
+            porte_min_funcionarios: z.number().int().min(1),
             consultoria_cs: z.string().uuid().nullable(),
             cs_round_robin: z.array(z.string().uuid()),
             comercial_high: z.array(z.string().uuid()),
@@ -838,7 +841,8 @@ export const importCsClients = createServerFn({ method: "POST" })
         const routed = await resolveCsRouting(supabase, {
           tipo_lead: row.tipo_lead,
           origem: row.origem,
-          aporte_valor: row.aporte_valor,
+          porte: (row as { porte?: string | null }).porte ?? null,
+          num_funcionarios: (row as { num_funcionarios?: number | null }).num_funcionarios ?? null,
           comercial_fechou: comercial,
         });
         cs = cs ?? routed.cs_responsavel_id;

@@ -286,8 +286,14 @@ export async function transformRdToObjects(opts?: {
       const raw = (o.raw ?? {}) as Json;
       const cf = customFields(raw);
       const proj = project(MAP.organization, cf);
-      if (proj.cs_clients && Object.keys(proj.cs_clients).length > 0)
-        csPatches.set(String(o.rd_id), proj.cs_clients);
+      {
+        const csFields: Row = { ...(proj.cs_clients ?? {}) };
+        // porte e funcionários decidem o roteamento do CS: espelha da empresa
+        if (proj.companies?.porte != null) csFields.porte = proj.companies.porte;
+        if (proj.companies?.num_funcionarios != null)
+          csFields.num_funcionarios = proj.companies.num_funcionarios;
+        if (Object.keys(csFields).length > 0) csPatches.set(String(o.rd_id), csFields);
+      }
       const fields: Row = {
         nome: clean(o.name),
         ...(proj.companies ?? {}),

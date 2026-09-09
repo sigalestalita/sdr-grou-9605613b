@@ -549,16 +549,20 @@ export function CsSettingsPanel({
         {tab === "roteamento" && (
           <>
             <p className="max-w-[70ch] text-[13px] text-muted-foreground">
-              Quem assume cada cliente novo. O porte (corte de aporte) decide se o comercial fica
-              com o próprio CS ou vai para o pool de executivos.
+              Quem assume cada cliente novo. O <strong>porte</strong> (faixa de funcionários do RD,
+              "[Grou] Porte") decide se o comercial fica com o próprio CS ou vai para o pool de
+              executivos.
             </p>
             <div className="grid gap-3 sm:grid-cols-3">
               <label className="block space-y-1">
-                <span className="text-xs text-muted-foreground">Corte de aporte (R$)</span>
+                <span className="text-xs text-muted-foreground">
+                  Corte de porte (nº de funcionários a partir do qual vai para executivo)
+                </span>
                 <Input
                   type="number"
-                  value={r.aporte_threshold}
-                  onChange={(e) => setR({ ...r, aporte_threshold: Number(e.target.value) })}
+                  min={1}
+                  value={r.porte_min_funcionarios}
+                  onChange={(e) => setR({ ...r, porte_min_funcionarios: Number(e.target.value) })}
                 />
               </label>
               <label className="block space-y-1">
@@ -615,7 +619,7 @@ export function CsSettingsPanel({
 
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">
-                Comercial para contas acima do corte de aporte
+                Comercial para contas a partir do corte de porte
               </p>
               <div className="flex flex-wrap gap-1">
                 {profiles.map((p) => (

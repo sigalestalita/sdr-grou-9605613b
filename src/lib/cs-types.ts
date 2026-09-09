@@ -220,8 +220,43 @@ export const DEFAULT_STAGE_SLA: StageSla = {
   sem_contato_dias: 45,
 };
 
+/** Faixas de porte do RD ("[Grou] Porte" = nº de funcionários). */
+export const CS_PORTES = [
+  "01",
+  "02 - 10",
+  "11 - 20",
+  "21 - 50",
+  "51 - 100",
+  "101 - 200",
+  "201 - 500",
+  "501 - 2.000",
+  "2.001 - 5.000",
+  "5.001 - 10.000",
+  "10.001 - 20.000",
+  "Acima de 20.001",
+] as const;
+
+/** Limite inferior da faixa em funcionários (null = não é faixa numérica, ex.: Consultoria). */
+export function porteMinEmployees(porte: string | null | undefined): number | null {
+  if (!porte) return null;
+  const m = porte.replace(/./g, "").match(/d+/);
+  return m ? Number(m[0]) : null;
+}
+
+/** Funcionários conhecidos: número informado, senão o início da faixa de porte. */
+export function employeesOf(
+  numFuncionarios: number | null | undefined,
+  porte: string | null | undefined,
+): number | null {
+  if (numFuncionarios != null && numFuncionarios > 0) return numFuncionarios;
+  return porteMinEmployees(porte);
+}
+
 export type RoutingConfig = {
-  aporte_threshold: number;
+  /** Corte de porte: a partir deste nº de funcionários o comercial vai para o pool de executivos. */
+  porte_min_funcionarios: number;
+  /** @deprecated substituído por porte_min_funcionarios; mantido para configs antigas. */
+  aporte_threshold?: number;
   consultoria_cs: string | null;
   cs_round_robin: string[];
   comercial_high: string[];
@@ -230,7 +265,7 @@ export type RoutingConfig = {
 };
 
 export const DEFAULT_ROUTING: RoutingConfig = {
-  aporte_threshold: 500,
+  porte_min_funcionarios: 101,
   consultoria_cs: null,
   cs_round_robin: [],
   comercial_high: [],

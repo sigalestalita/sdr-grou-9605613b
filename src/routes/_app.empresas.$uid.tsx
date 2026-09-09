@@ -365,6 +365,12 @@ function CompanyPage() {
                 <PropertyRow label="CNPJ">{client.cnpj || "—"}</PropertyRow>
                 <PropertyRow label="Login PDA">{client.login_pda || "—"}</PropertyRow>
                 <PropertyRow label="Setor">{client.setor || "—"}</PropertyRow>
+                <PropertyRow label="Porte">
+                  {client.porte || "—"}
+                  {client.num_funcionarios != null
+                    ? ` · ${client.num_funcionarios} funcionários`
+                    : ""}
+                </PropertyRow>
                 <PropertyRow label="Site">
                   {client.site_url ? (
                     <a
