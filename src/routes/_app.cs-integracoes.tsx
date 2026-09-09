@@ -40,6 +40,19 @@ export const Route = createFileRoute("/_app/cs-integracoes")({
   }),
 });
 
+/*
+ * Endereço público do app. No editor do Lovable a página roda no domínio de
+ * preview (*.lovableproject.com), que fica atrás do login do Lovable e não
+ * aceita chamadas de agendadores externos — os hooks só funcionam no domínio
+ * publicado (o mesmo que o pg_cron usa).
+ */
+const PUBLIC_APP_URL = "https://project--773e2ce3-3b97-4224-ac14-c22657fc102a.lovable.app";
+function publicOrigin() {
+  if (typeof window === "undefined") return PUBLIC_APP_URL;
+  const o = window.location.origin;
+  return /lovableproject\.com$|localhost|127\.0\.0\.1/.test(o) ? PUBLIC_APP_URL : o;
+}
+
 function CsIntegrationsPage() {
   const listFn = useServerFn(listCsIntegrations);
   const connectFn = useServerFn(connectCsCalendly);
@@ -180,7 +193,7 @@ function CsIntegrationsPage() {
   const mine = data?.mine;
   const inboundUrl =
     typeof window !== "undefined" && data?.inboundToken
-      ? `${window.location.origin}/api/public/cs/email-inbound?token=${data.inboundToken}`
+      ? `${publicOrigin()}/api/public/cs/email-inbound?token=${data.inboundToken}`
       : "";
 
   return (
@@ -421,7 +434,8 @@ function CsIntegrationsPage() {
               Todos exigem o mesmo token do endereço de recebimento. O sync incremental do RD já
               roda a cada 15 minutos pelo agendador do banco; os demais podem ser chamados por
               Zapier, Make ou cron externo com POST nestas URLs. Gerar um novo token invalida as
-              URLs antigas — atualize o agendador depois.
+              URLs antigas — atualize o agendador depois. As URLs apontam para a versão publicada do
+              app: depois de mudar código de hook, clique em Publicar no Lovable.
             </p>
             <div className="divide-y rounded-md border text-[11px]">
               {(
@@ -436,7 +450,7 @@ function CsIntegrationsPage() {
               ).map(([slug, label]) => {
                 const url =
                   typeof window !== "undefined" && data?.inboundToken
-                    ? `${window.location.origin}/api/public/hooks/${slug}?token=${data.inboundToken}`
+                    ? `${publicOrigin()}/api/public/hooks/${slug}?token=${data.inboundToken}`
                     : "";
                 return (
                   <div key={slug} className="flex items-center gap-2 px-3 py-2">
