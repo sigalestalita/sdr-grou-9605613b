@@ -289,5 +289,5 @@ export async function syncRdClientsToCs(opts?: {
     } as never,
   });
 
-  return result;
+  return { ...result, orgToClient: byRd };
 }
