@@ -18,7 +18,6 @@ import {
 import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
 import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
 
-
 export const Route = createFileRoute("/_app/cs-integracoes")({
   component: CsIntegrationsPage,
   head: () => ({
@@ -60,8 +59,7 @@ function CsIntegrationsPage() {
   const [mailbox, setMailbox] = useState("");
 
   const connect = useMutation({
-    mutationFn: () =>
-      connectFn({ data: { token, ...(targetUser ? { userId: targetUser } : {}) } }),
+    mutationFn: () => connectFn({ data: { token, ...(targetUser ? { userId: targetUser } : {}) } }),
     onSuccess: (r) => {
       toast.success(`Calendly conectado (${r.name ?? r.email}) — ${r.events} evento(s)`);
       setToken("");
@@ -131,7 +129,6 @@ function CsIntegrationsPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
-
   if (error) {
     return (
       <div className="p-6">
@@ -182,7 +179,12 @@ function CsIntegrationsPage() {
                 <p className="text-xs text-destructive">{mine.calendlyLastError}</p>
               )}
               <div className="flex gap-2">
-                <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate(false)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={sync.isPending}
+                  onClick={() => sync.mutate(false)}
+                >
                   <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
                   Sincronizar
                 </Button>
@@ -195,8 +197,8 @@ function CsIntegrationsPage() {
           {(!mine?.calendlyConnected || data?.isManager) && (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
-                Gere um token pessoal em calendly.com → Integrations → API &amp; Webhooks →
-                Personal access token e cole abaixo.
+                Gere um token pessoal em calendly.com → Integrations → API &amp; Webhooks → Personal
+                access token e cole abaixo.
               </p>
               <Input
                 placeholder="eyJraWQiOi..."
@@ -248,7 +250,11 @@ function CsIntegrationsPage() {
             value={mailbox}
             onChange={(e) => setMailbox(e.target.value)}
           />
-          <Button size="sm" disabled={!mailbox.trim() || saveMailbox.isPending} onClick={() => saveMailbox.mutate()}>
+          <Button
+            size="sm"
+            disabled={!mailbox.trim() || saveMailbox.isPending}
+            onClick={() => saveMailbox.mutate()}
+          >
             Salvar caixa
           </Button>
         </Card>
@@ -263,7 +269,12 @@ function CsIntegrationsPage() {
                 <Button size="sm" variant="outline" onClick={() => rotate.mutate()}>
                   Gerar novo
                 </Button>
-                <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate(true)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={sync.isPending}
+                  onClick={() => sync.mutate(true)}
+                >
                   <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
                   Sincronizar todas as agendas
                 </Button>
@@ -287,6 +298,50 @@ function CsIntegrationsPage() {
               >
                 <Copy className="h-4 w-4" />
               </Button>
+            </div>
+          </Card>
+
+          <Card className="space-y-3 p-4">
+            <h2 className="text-sm font-semibold">Hooks de automação (agendadores externos)</h2>
+            <p className="text-xs text-muted-foreground">
+              Todos exigem o mesmo token do endereço de recebimento. O sync incremental do RD já
+              roda a cada 15 minutos pelo agendador do banco; os demais podem ser chamados por
+              Zapier, Make ou cron externo com POST nestas URLs. Gerar um novo token invalida as
+              URLs antigas — atualize o agendador depois.
+            </p>
+            <div className="divide-y rounded-md border text-[11px]">
+              {(
+                [
+                  ["sync-rd", "Sync incremental do RD (agendado a cada 15 min)"],
+                  ["sync-rd-all", "Espelho completo do RD (empresas, contatos, negócios)"],
+                  ["transform-rd", "Onda 2: projeta o espelho em Empresas, Contatos e Negócios"],
+                  ["sync-rd-cs-clients", "Clientes do RD para o CS"],
+                  ["run-fups", "Disparo de FUPs e automações de WhatsApp"],
+                  ["send-weekly-digest", "Resumo semanal por e-mail"],
+                ] as const
+              ).map(([slug, label]) => {
+                const url =
+                  typeof window !== "undefined" && data?.inboundToken
+                    ? `${window.location.origin}/api/public/hooks/${slug}?token=${data.inboundToken}`
+                    : "";
+                return (
+                  <div key={slug} className="flex items-center gap-2 px-3 py-2">
+                    <span className="w-56 shrink-0 text-muted-foreground">{label}</span>
+                    <code className="min-w-0 flex-1 truncate">{url || "—"}</code>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7"
+                      onClick={() => {
+                        navigator.clipboard.writeText(url);
+                        toast.success("URL copiada");
+                      }}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           </Card>
 
@@ -326,7 +381,9 @@ function CsIntegrationsPage() {
                       <span className="text-muted-foreground">
                         {new Date(l.created_at).toLocaleString("pt-BR")}
                       </span>
-                      <Badge variant={l.status === "ok" ? "secondary" : "outline"}>{l.status}</Badge>
+                      <Badge variant={l.status === "ok" ? "secondary" : "outline"}>
+                        {l.status}
+                      </Badge>
                       <span>
                         {Number(d.matched ?? 0)} clientes · {Number(d.created ?? 0)} criados ·{" "}
                         {Number(d.updated ?? 0)} atualizados
@@ -338,7 +395,6 @@ function CsIntegrationsPage() {
             )}
           </Card>
 
-
           <Card className="p-0">
             <div className="border-b px-4 py-3">
               <h2 className="text-sm font-semibold">Status do time</h2>
@@ -348,7 +404,10 @@ function CsIntegrationsPage() {
             ) : (
               <div className="divide-y">
                 {(data?.users ?? []).map((u) => (
-                  <div key={u.userId} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
+                  <div
+                    key={u.userId}
+                    className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm"
+                  >
                     <span className="min-w-40 flex-1 truncate">{u.name}</span>
                     <Badge variant={u.calendlyConnected ? "secondary" : "outline"}>
                       {u.calendlyConnected ? "Calendly OK" : "Sem agenda"}
@@ -362,11 +421,7 @@ function CsIntegrationsPage() {
                         : "—"}
                     </span>
                     {u.calendlyConnected && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => disconnect.mutate(u.userId)}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => disconnect.mutate(u.userId)}>
                         <Unlink className="mr-1 h-4 w-4" /> Desvincular
                       </Button>
                     )}

@@ -14,6 +14,21 @@ export const Route = createFileRoute("/api/public/hooks/send-weekly-digest")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        // Token dos hooks públicos (Integrações CS). Sem ele o hook não roda.
+        const __url = new URL(request.url);
+        const __token =
+          __url.searchParams.get("token") ?? request.headers.get("x-cs-inbound-token") ?? "";
+        const { getInboundToken: __getTok } = await import("@/lib/cs/integrations.server");
+        const __expected = await __getTok(false);
+        if (!__expected || __token !== __expected) {
+          return Response.json(
+            {
+              ok: false,
+              error: "Unauthorized: informe ?token= (Integrações CS → token dos hooks)",
+            },
+            { status: 401 },
+          );
+        }
         let force = false;
         try {
           const body = (await request.json().catch(() => ({}))) as {
@@ -46,10 +61,7 @@ export const Route = createFileRoute("/api/public/hooks/send-weekly-digest")({
           const gen = await generateWeeklyDigestInternal({ weekStart, force });
 
           if (!("digestId" in gen) || !gen.digestId) {
-            return Response.json(
-              { ok: false, error: "Falha ao gerar prévia" },
-              { status: 500 },
-            );
+            return Response.json({ ok: false, error: "Falha ao gerar prévia" }, { status: 500 });
           }
 
           return Response.json({ ok: true, digestId: gen.digestId, draft: true });
