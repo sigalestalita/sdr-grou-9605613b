@@ -444,6 +444,7 @@ export type Database = {
       }
       cs_cadence_tasks: {
         Row: {
+          channel: string | null
           client_uid: string
           color: string
           created_at: string
@@ -453,7 +454,6 @@ export type Database = {
           done_by: string | null
           done_via: string | null
           evidence_event_id: string | null
-          channel: string | null
           id: string
           notes: string | null
           owner_id: string | null
@@ -464,6 +464,7 @@ export type Database = {
           weekday: number
         }
         Insert: {
+          channel?: string | null
           client_uid: string
           color?: string
           created_at?: string
@@ -473,7 +474,6 @@ export type Database = {
           done_by?: string | null
           done_via?: string | null
           evidence_event_id?: string | null
-          channel?: string | null
           id?: string
           notes?: string | null
           owner_id?: string | null
@@ -484,6 +484,7 @@ export type Database = {
           weekday?: number
         }
         Update: {
+          channel?: string | null
           client_uid?: string
           color?: string
           created_at?: string
@@ -493,7 +494,6 @@ export type Database = {
           done_by?: string | null
           done_via?: string | null
           evidence_event_id?: string | null
-          channel?: string | null
           id?: string
           notes?: string | null
           owner_id?: string | null
@@ -511,12 +511,21 @@ export type Database = {
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
           },
+          {
+            foreignKeyName: "cs_cadence_tasks_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "cs_timeline_events"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cs_calendly_events: {
         Row: {
+          attendees: Json
           cancel_reason: string | null
           client_uid: string | null
+          contact_id: string | null
           created_at: string
           end_time: string | null
           event_uri: string
@@ -524,8 +533,6 @@ export type Database = {
           invitee_email: string | null
           invitee_name: string | null
           location: string | null
-          attendees: Json
-          contact_id: string | null
           meeting_url: string | null
           name: string | null
           organizer_email: string | null
@@ -538,8 +545,10 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          attendees?: Json
           cancel_reason?: string | null
           client_uid?: string | null
+          contact_id?: string | null
           created_at?: string
           end_time?: string | null
           event_uri: string
@@ -547,8 +556,6 @@ export type Database = {
           invitee_email?: string | null
           invitee_name?: string | null
           location?: string | null
-          attendees?: Json
-          contact_id?: string | null
           meeting_url?: string | null
           name?: string | null
           organizer_email?: string | null
@@ -561,8 +568,10 @@ export type Database = {
           user_id: string
         }
         Update: {
+          attendees?: Json
           cancel_reason?: string | null
           client_uid?: string | null
+          contact_id?: string | null
           created_at?: string
           end_time?: string | null
           event_uri?: string
@@ -570,8 +579,6 @@ export type Database = {
           invitee_email?: string | null
           invitee_name?: string | null
           location?: string | null
-          attendees?: Json
-          contact_id?: string | null
           meeting_url?: string | null
           name?: string | null
           organizer_email?: string | null
@@ -590,6 +597,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_calendly_events_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1340,6 +1354,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_tasks_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "cs_timeline_events"
             referencedColumns: ["id"]
           },
         ]
@@ -3357,10 +3378,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cs_settle_meetings: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_access_module: {
         Args: {
@@ -3371,7 +3388,29 @@ export type Database = {
       }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
       cs_can_see_client: { Args: { _client_uid: string }; Returns: boolean }
+      cs_channel_requires_evidence: {
+        Args: { _channel: string }
+        Returns: boolean
+      }
+      cs_contact_for_phone: {
+        Args: { _phone: string }
+        Returns: {
+          client_uid: string
+          contact_id: string
+        }[]
+      }
+      cs_evidence_config: { Args: never; Returns: Json }
+      cs_find_evidence: {
+        Args: { _channel: string; _client_uid: string; _since: string }
+        Returns: {
+          event_id: string
+          occurred_at: string
+          title: string
+        }[]
+      }
       cs_gen_client_uid: { Args: never; Returns: string }
+      cs_phone_digits: { Args: { _v: string }; Returns: string }
+      cs_settle_meetings: { Args: never; Returns: number }
       cs_stage_from_contract:
         | {
             Args: { _start: string }
