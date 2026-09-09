@@ -444,6 +444,7 @@ export type Database = {
       }
       cs_cadence_tasks: {
         Row: {
+          channel: string | null
           client_uid: string
           color: string
           created_at: string
@@ -451,6 +452,8 @@ export type Database = {
           done: boolean
           done_at: string | null
           done_by: string | null
+          done_via: string | null
+          evidence_event_id: string | null
           id: string
           notes: string | null
           owner_id: string | null
@@ -461,6 +464,7 @@ export type Database = {
           weekday: number
         }
         Insert: {
+          channel?: string | null
           client_uid: string
           color?: string
           created_at?: string
@@ -468,6 +472,8 @@ export type Database = {
           done?: boolean
           done_at?: string | null
           done_by?: string | null
+          done_via?: string | null
+          evidence_event_id?: string | null
           id?: string
           notes?: string | null
           owner_id?: string | null
@@ -478,6 +484,7 @@ export type Database = {
           weekday?: number
         }
         Update: {
+          channel?: string | null
           client_uid?: string
           color?: string
           created_at?: string
@@ -485,6 +492,8 @@ export type Database = {
           done?: boolean
           done_at?: string | null
           done_by?: string | null
+          done_via?: string | null
+          evidence_event_id?: string | null
           id?: string
           notes?: string | null
           owner_id?: string | null
@@ -501,6 +510,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_cadence_tasks_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "cs_timeline_events"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1236,6 +1252,94 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_tasks: {
+        Row: {
+          client_uid: string
+          completed_via: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          done_at: string | null
+          done_by: string | null
+          due_at: string
+          evidence_at: string | null
+          evidence_event_id: string | null
+          id: string
+          notes: string | null
+          owner_id: string | null
+          source: string
+          source_ref: string | null
+          status: string
+          task_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_uid: string
+          completed_via?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_at?: string
+          evidence_at?: string | null
+          evidence_event_id?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          source?: string
+          source_ref?: string | null
+          status?: string
+          task_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_uid?: string
+          completed_via?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_at?: string
+          evidence_at?: string | null
+          evidence_event_id?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          source?: string
+          source_ref?: string | null
+          status?: string
+          task_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_tasks_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_tasks_evidence_event_id_fkey"
+            columns: ["evidence_event_id"]
+            isOneToOne: false
+            referencedRelation: "cs_timeline_events"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3247,7 +3351,28 @@ export type Database = {
       }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
       cs_can_see_client: { Args: { _client_uid: string }; Returns: boolean }
+      cs_channel_requires_evidence: {
+        Args: { _channel: string }
+        Returns: boolean
+      }
+      cs_contact_for_phone: {
+        Args: { _phone: string }
+        Returns: {
+          client_uid: string
+          contact_id: string
+        }[]
+      }
+      cs_evidence_config: { Args: never; Returns: Json }
+      cs_find_evidence: {
+        Args: { _channel: string; _client_uid: string; _since: string }
+        Returns: {
+          event_id: string
+          occurred_at: string
+          title: string
+        }[]
+      }
       cs_gen_client_uid: { Args: never; Returns: string }
+      cs_phone_digits: { Args: { _v: string }; Returns: string }
       cs_stage_from_contract:
         | {
             Args: { _start: string }
