@@ -670,6 +670,7 @@ export type Database = {
           pda_consumo_pct: number | null
           primeiro_sucesso_at: string | null
           produtos_ativos: string[]
+          provenance: Json
           rd_lifecycle: string | null
           rd_org_id: string | null
           rd_owner: string | null
@@ -710,6 +711,7 @@ export type Database = {
           pda_consumo_pct?: number | null
           primeiro_sucesso_at?: string | null
           produtos_ativos?: string[]
+          provenance?: Json
           rd_lifecycle?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
@@ -750,6 +752,7 @@ export type Database = {
           pda_consumo_pct?: number | null
           primeiro_sucesso_at?: string | null
           produtos_ativos?: string[]
+          provenance?: Json
           rd_lifecycle?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
