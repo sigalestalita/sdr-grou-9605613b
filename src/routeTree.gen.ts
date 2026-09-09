@@ -53,6 +53,7 @@ import { Route as ApiPublicHooksTransformRdRouteImport } from './routes/api/publ
 import { Route as ApiPublicHooksSyncRdCsClientsRouteImport } from './routes/api/public/hooks/sync-rd-cs-clients'
 import { Route as ApiPublicHooksSyncRdAllRouteImport } from './routes/api/public/hooks/sync-rd-all'
 import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
+import { Route as ApiPublicHooksSyncAgendaRouteImport } from './routes/api/public/hooks/sync-agenda'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
 import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
@@ -283,6 +284,12 @@ const ApiPublicHooksSyncRdRoute = ApiPublicHooksSyncRdRouteImport.update({
   path: '/api/public/hooks/sync-rd',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksSyncAgendaRoute =
+  ApiPublicHooksSyncAgendaRouteImport.update({
+    id: '/api/public/hooks/sync-agenda',
+    path: '/api/public/hooks/sync-agenda',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSendWeeklyDigestRoute =
   ApiPublicHooksSendWeeklyDigestRouteImport.update({
     id: '/api/public/hooks/send-weekly-digest',
@@ -366,6 +373,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
+  '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
@@ -417,6 +425,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
+  '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
@@ -471,6 +480,7 @@ export interface FileRoutesById {
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
+  '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
@@ -525,6 +535,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
+    | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
@@ -576,6 +587,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
+    | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
@@ -629,6 +641,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
+    | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
@@ -648,6 +661,7 @@ export interface RootRouteChildren {
   ApiPublicHooksMirrorRdRoute: typeof ApiPublicHooksMirrorRdRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
+  ApiPublicHooksSyncAgendaRoute: typeof ApiPublicHooksSyncAgendaRoute
   ApiPublicHooksSyncRdRoute: typeof ApiPublicHooksSyncRdRoute
   ApiPublicHooksSyncRdAllRoute: typeof ApiPublicHooksSyncRdAllRoute
   ApiPublicHooksSyncRdCsClientsRoute: typeof ApiPublicHooksSyncRdCsClientsRoute
@@ -967,6 +981,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSyncRdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-agenda': {
+      id: '/api/public/hooks/sync-agenda'
+      path: '/api/public/hooks/sync-agenda'
+      fullPath: '/api/public/hooks/sync-agenda'
+      preLoaderRoute: typeof ApiPublicHooksSyncAgendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/send-weekly-digest': {
       id: '/api/public/hooks/send-weekly-digest'
       path: '/api/public/hooks/send-weekly-digest'
@@ -1135,6 +1156,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksMirrorRdRoute: ApiPublicHooksMirrorRdRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
+  ApiPublicHooksSyncAgendaRoute: ApiPublicHooksSyncAgendaRoute,
   ApiPublicHooksSyncRdRoute: ApiPublicHooksSyncRdRoute,
   ApiPublicHooksSyncRdAllRoute: ApiPublicHooksSyncRdAllRoute,
   ApiPublicHooksSyncRdCsClientsRoute: ApiPublicHooksSyncRdCsClientsRoute,

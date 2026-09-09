@@ -26,9 +26,8 @@ export const connectCsCalendly = createServerFn({ method: "POST" })
     z.object({ token: z.string().min(10), userId: z.string().uuid().optional() }).parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { assertCsAccess, connectCalendly, syncCalendly } = await import(
-      "@/lib/cs/integrations.server"
-    );
+    const { assertCsAccess, connectCalendly, syncCalendly } =
+      await import("@/lib/cs/integrations.server");
     const access = await assertCsAccess(context.userId);
     // Gestor pode vincular o token em nome de outra pessoa do time.
     const targetId =
@@ -67,14 +66,50 @@ export const saveCsMailbox = createServerFn({ method: "POST" })
     return saveMailbox(context.userId, data.mailbox.trim().toLowerCase() || null);
   });
 
+/** Sincroniza Calendly + Google Agenda e liquida as reuniões terminadas. */
 export const syncCsCalendly = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { all?: boolean }) => z.object({ all: z.boolean().optional() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { assertCsAccess, syncCalendly } = await import("@/lib/cs/integrations.server");
+    const { assertCsAccess, syncAgendas } = await import("@/lib/cs/integrations.server");
     const access = await assertCsAccess(context.userId);
     const scope = data.all && access.isManager ? null : [context.userId];
-    return syncCalendly(scope);
+    return syncAgendas(scope);
+  });
+
+/** Vincula a Google Agenda (endereço iCal privado) ao login — o gestor pode fazer por outra pessoa. */
+export const connectCsGoogleCalendar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { icsUrl: string; userId?: string }) =>
+    z
+      .object({ icsUrl: z.string().min(20).max(500), userId: z.string().uuid().optional() })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { assertCsAccess, connectGoogleCalendar, syncAgendas } =
+      await import("@/lib/cs/integrations.server");
+    const access = await assertCsAccess(context.userId);
+    const targetId = data.userId && data.userId !== context.userId ? data.userId : context.userId;
+    if (targetId !== context.userId && !access.isManager)
+      throw new Error("Apenas gestores podem vincular a agenda de outra pessoa");
+    const r = await connectGoogleCalendar(targetId, data.icsUrl);
+    const sync = await syncAgendas([targetId]);
+    return { ...r, events: sync.events, settled: sync.settled };
+  });
+
+export const disconnectCsGoogleCalendar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { userId?: string } | undefined) =>
+    z.object({ userId: z.string().uuid().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { assertCsAccess, disconnectGoogleCalendar } =
+      await import("@/lib/cs/integrations.server");
+    const access = await assertCsAccess(context.userId);
+    const targetId = data.userId && data.userId !== context.userId ? data.userId : context.userId;
+    if (targetId !== context.userId && !access.isManager)
+      throw new Error("Apenas gestores podem desconectar a agenda de outra pessoa");
+    return disconnectGoogleCalendar(targetId);
   });
 
 export const rotateCsInboundToken = createServerFn({ method: "POST" })
@@ -134,7 +169,11 @@ export const listCsEmails = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { clientUid?: string; userId?: string; q?: string }) =>
     z
-      .object({ clientUid: z.string().optional(), userId: z.string().optional(), q: z.string().optional() })
+      .object({
+        clientUid: z.string().optional(),
+        userId: z.string().optional(),
+        q: z.string().optional(),
+      })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -148,8 +187,13 @@ export const listCsEmails = createServerFn({ method: "GET" })
     if (!access.isManager) q = q.eq("owner_user_id", context.userId);
     else if (data.userId) q = q.eq("owner_user_id", data.userId);
     if (data.clientUid) q = q.eq("client_uid", data.clientUid);
-    if (data.q) q = q.or(`subject.ilike.%${data.q}%,from_email.ilike.%${data.q}%,snippet.ilike.%${data.q}%`);
+    if (data.q)
+      q = q.or(`subject.ilike.%${data.q}%,from_email.ilike.%${data.q}%,snippet.ilike.%${data.q}%`);
     const { data: emails, error } = await q;
     if (error) throw new Error(error.message);
-    return { isManager: access.isManager, emails: emails ?? [], users: await listIntegrationStatus() };
+    return {
+      isManager: access.isManager,
+      emails: emails ?? [],
+      users: await listIntegrationStatus(),
+    };
   });

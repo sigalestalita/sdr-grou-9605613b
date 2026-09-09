@@ -314,7 +314,8 @@ export function CsSettingsPanel({
                 })}
               </div>
               <p className="text-[11px] text-muted-foreground">
-                Ligação e reunião não têm registro automático — se marcados, só a gestão conclui.
+                Reunião vem da agenda vinculada (Google/Calendly) quando o convite tem um contato da
+                empresa. Ligação não tem registro automático — se marcada, só a gestão conclui.
               </p>
             </div>
             <div className="grid max-w-lg gap-3 sm:grid-cols-2">
@@ -358,6 +359,14 @@ export function CsSettingsPanel({
                 onChange={(e) => setEv({ ...ev, conta_bot: e.target.checked })}
               />
               Mensagens de automação/IA no WhatsApp contam como envio do time
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={ev.reuniao_exige_aceite}
+                onChange={(e) => setEv({ ...ev, reuniao_exige_aceite: e.target.checked })}
+              />
+              Reunião da Google Agenda só conta se o contato aceitou o convite
             </label>
             {saveBar}
           </>

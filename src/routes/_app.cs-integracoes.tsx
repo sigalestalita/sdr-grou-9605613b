@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   connectCsCalendly,
+  connectCsGoogleCalendar,
   disconnectCsCalendly,
+  disconnectCsGoogleCalendar,
   listCsIntegrations,
   rotateCsInboundToken,
   saveCsMailbox,
@@ -63,6 +65,8 @@ function CsIntegrationsPage() {
   const listFn = useServerFn(listCsIntegrations);
   const connectFn = useServerFn(connectCsCalendly);
   const disconnectFn = useServerFn(disconnectCsCalendly);
+  const connectGcalFn = useServerFn(connectCsGoogleCalendar);
+  const disconnectGcalFn = useServerFn(disconnectCsGoogleCalendar);
   const mailboxFn = useServerFn(saveCsMailbox);
   const syncFn = useServerFn(syncCsCalendly);
   const rotateFn = useServerFn(rotateCsInboundToken);
@@ -126,6 +130,30 @@ function CsIntegrationsPage() {
   const [token, setToken] = useState("");
   const [targetUser, setTargetUser] = useState("");
   const [mailbox, setMailbox] = useState("");
+  const [icsUrl, setIcsUrl] = useState("");
+  const [gcalTarget, setGcalTarget] = useState("");
+
+  const connectGcal = useMutation({
+    mutationFn: () =>
+      connectGcalFn({ data: { icsUrl, ...(gcalTarget ? { userId: gcalTarget } : {}) } }),
+    onSuccess: (r) => {
+      toast.success(
+        `Google Agenda vinculada${r.email ? ` (${r.email})` : ""} — ${r.events} evento(s), ${r.settled} reunião(ões) realizada(s)`,
+      );
+      setIcsUrl("");
+      setGcalTarget("");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+  const disconnectGcal = useMutation({
+    mutationFn: (userId?: string) => disconnectGcalFn({ data: userId ? { userId } : {} }),
+    onSuccess: () => {
+      toast.success("Google Agenda desvinculada");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
 
   const connect = useMutation({
     mutationFn: () => connectFn({ data: { token, ...(targetUser ? { userId: targetUser } : {}) } }),
@@ -158,7 +186,9 @@ function CsIntegrationsPage() {
   const sync = useMutation({
     mutationFn: (all: boolean) => syncFn({ data: { all } }),
     onSuccess: (r) => {
-      toast.success(`${r.events} evento(s) sincronizado(s) de ${r.users} agenda(s)`);
+      toast.success(
+        `${r.events} evento(s) de ${r.users} agenda(s) · ${r.settled} reunião(ões) realizada(s)`,
+      );
       if (r.failures.length) toast.error(r.failures[0]);
       invalidate();
     },
@@ -299,6 +329,88 @@ function CsIntegrationsPage() {
                 onClick={() => connect.mutate()}
               >
                 {connect.isPending ? "Conectando…" : "Conectar Calendly"}
+              </Button>
+            </div>
+          )}
+        </Card>
+
+        <Card className="space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <CalendarClock className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Minha Google Agenda</h2>
+            {mine?.gcalConnected && <Badge variant="secondary">Vinculada</Badge>}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Reuniões da agenda vinculada contam sozinhas: quando um evento com um contato da empresa
+            no convite termina, vira “Reunião realizada” na ficha, conclui a tarefa de reunião e
+            entra no health score. O e-mail do convidado precisa ser o e-mail cadastrado no contato
+            da empresa.
+          </p>
+          {mine?.gcalConnected && (
+            <div className="space-y-2 text-sm">
+              <p className="text-muted-foreground">{mine.gcalEmail ?? "agenda vinculada"}</p>
+              <p className="text-xs text-muted-foreground">
+                Última sincronização:{" "}
+                {mine.gcalLastSyncAt
+                  ? new Date(mine.gcalLastSyncAt).toLocaleString("pt-BR")
+                  : "nunca"}
+              </p>
+              {mine.gcalLastError && (
+                <p className="text-xs text-destructive">{mine.gcalLastError}</p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={sync.isPending}
+                  onClick={() => sync.mutate(false)}
+                >
+                  <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />
+                  Sincronizar
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => disconnectGcal.mutate(undefined)}>
+                  <Unlink className="mr-1 h-4 w-4" /> Desvincular
+                </Button>
+              </div>
+            </div>
+          )}
+          {(!mine?.gcalConnected || data?.isManager) && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Na Google Agenda (web): Configurações → sua agenda → Integrar agenda → copie o{" "}
+                <strong>endereço secreto em formato iCal</strong> e cole abaixo. Só leitura, só
+                desta agenda; pode ser redefinido a qualquer momento nas configurações da Google.
+              </p>
+              <Input
+                placeholder="https://calendar.google.com/calendar/ical/…/private-…/basic.ics"
+                value={icsUrl}
+                onChange={(e) => setIcsUrl(e.target.value)}
+              />
+              {data?.isManager && (
+                <label className="block space-y-1 text-xs text-muted-foreground">
+                  Vincular em nome de
+                  <select
+                    className="w-full rounded-md border bg-background px-2 py-1.5 text-sm"
+                    value={gcalTarget}
+                    onChange={(e) => setGcalTarget(e.target.value)}
+                  >
+                    <option value="">Eu mesmo</option>
+                    {(data?.teamUsers ?? [])
+                      .filter((u) => u.userId !== mine?.userId)
+                      .map((u) => (
+                        <option key={u.userId} value={u.userId}>
+                          {u.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
+              <Button
+                size="sm"
+                disabled={!/basic\.ics$/i.test(icsUrl.trim()) || connectGcal.isPending}
+                onClick={() => connectGcal.mutate()}
+              >
+                {connectGcal.isPending ? "Vinculando…" : "Vincular Google Agenda"}
               </Button>
             </div>
           )}
@@ -473,6 +585,7 @@ function CsIntegrationsPage() {
                   ["sync-rd-cs-clients", "Clientes do RD para o CS"],
                   ["run-fups", "Disparo de FUPs e automações de WhatsApp"],
                   ["send-weekly-digest", "Resumo semanal por e-mail"],
+                  ["sync-agenda", "Agendas (Calendly + Google) e reuniões realizadas"],
                 ] as const
               ).map(([slug, label]) => {
                 const url =
@@ -565,7 +678,10 @@ function CsIntegrationsPage() {
                   >
                     <span className="min-w-40 flex-1 truncate">{u.name}</span>
                     <Badge variant={u.calendlyConnected ? "secondary" : "outline"}>
-                      {u.calendlyConnected ? "Calendly OK" : "Sem agenda"}
+                      {u.calendlyConnected ? "Calendly OK" : "Sem Calendly"}
+                    </Badge>
+                    <Badge variant={u.gcalConnected ? "secondary" : "outline"}>
+                      {u.gcalConnected ? "Google OK" : "Sem Google"}
                     </Badge>
                     <Badge variant={u.mailbox ? "secondary" : "outline"}>
                       {u.mailbox ?? "Sem e-mail"}
@@ -577,7 +693,16 @@ function CsIntegrationsPage() {
                     </span>
                     {u.calendlyConnected && (
                       <Button size="sm" variant="ghost" onClick={() => disconnect.mutate(u.userId)}>
-                        <Unlink className="mr-1 h-4 w-4" /> Desvincular
+                        <Unlink className="mr-1 h-4 w-4" /> Calendly
+                      </Button>
+                    )}
+                    {u.gcalConnected && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => disconnectGcal.mutate(u.userId)}
+                      >
+                        <Unlink className="mr-1 h-4 w-4" /> Google
                       </Button>
                     )}
                   </div>

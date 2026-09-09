@@ -25,6 +25,10 @@ export type IntegrationStatus = {
   calendlyEmail: string | null;
   calendlyLastSyncAt: string | null;
   calendlyLastError: string | null;
+  gcalConnected: boolean;
+  gcalEmail: string | null;
+  gcalLastSyncAt: string | null;
+  gcalLastError: string | null;
   mailbox: string | null;
 };
 
@@ -33,7 +37,7 @@ export async function listIntegrationStatus(userIds?: string[]): Promise<Integra
   let q = supabaseAdmin
     .from("cs_user_integrations")
     .select(
-      "user_id, calendly_user_uri, calendly_name, calendly_email, calendly_last_sync_at, calendly_last_error, email_address",
+      "user_id, calendly_user_uri, calendly_name, calendly_email, calendly_last_sync_at, calendly_last_error, email_address, gcal_ics_url, gcal_email, gcal_last_sync_at, gcal_last_error",
     );
   if (userIds?.length) q = q.in("user_id", userIds);
   const [{ data: rows, error }, { data: profiles }] = await Promise.all([
@@ -53,6 +57,10 @@ export async function listIntegrationStatus(userIds?: string[]): Promise<Integra
       calendlyEmail: r.calendly_email,
       calendlyLastSyncAt: r.calendly_last_sync_at,
       calendlyLastError: r.calendly_last_error,
+      gcalConnected: !!r.gcal_ics_url,
+      gcalEmail: r.gcal_email,
+      gcalLastSyncAt: r.gcal_last_sync_at,
+      gcalLastError: r.gcal_last_error,
       mailbox: r.email_address,
     };
   });
@@ -322,4 +330,134 @@ export async function storeInboundEmail(payload: InboundEmail) {
   );
   if (error) throw new Error(error.message);
   return { ok: true, clientUid, ownerUserId, direction: outbound ? "outbound" : "inbound" };
+}
+
+// ---------------------------------------------------------------------------
+// Google Agenda por usuário (endereço iCal privado)
+// ---------------------------------------------------------------------------
+
+export async function connectGoogleCalendar(userId: string, icsUrl: string) {
+  const { validateIcsUrl, emailFromIcsUrl, fetchGoogleCalendar } =
+    await import("@/lib/cs/gcal.server");
+  const url = validateIcsUrl(icsUrl);
+  // valida baixando uma vez
+  await fetchGoogleCalendar(url, new Date(Date.now() - 86400000), new Date(Date.now() + 86400000));
+  const email = emailFromIcsUrl(url);
+  const { error } = await supabaseAdmin.from("cs_user_integrations").upsert(
+    {
+      user_id: userId,
+      gcal_ics_url: url,
+      gcal_email: email,
+      gcal_connected_at: new Date().toISOString(),
+      gcal_last_error: null,
+    },
+    { onConflict: "user_id" },
+  );
+  if (error) throw new Error(error.message);
+  return { email };
+}
+
+export async function disconnectGoogleCalendar(userId: string) {
+  const { error } = await supabaseAdmin
+    .from("cs_user_integrations")
+    .update({
+      gcal_ics_url: null,
+      gcal_email: null,
+      gcal_connected_at: null,
+      gcal_last_sync_at: null,
+      gcal_last_error: null,
+    })
+    .eq("user_id", userId);
+  if (error) throw new Error(error.message);
+  await supabaseAdmin
+    .from("cs_calendly_events")
+    .delete()
+    .eq("user_id", userId)
+    .eq("provider", "google");
+  return { ok: true };
+}
+
+/** Baixa a agenda Google de cada pessoa e espelha em cs_calendly_events (provider google). */
+export async function syncGoogleCalendars(userIds: string[] | null, days = 60, pastDays = 120) {
+  const { fetchGoogleCalendar } = await import("@/lib/cs/gcal.server");
+  let q = supabaseAdmin
+    .from("cs_user_integrations")
+    .select("user_id, gcal_ics_url, gcal_email")
+    .not("gcal_ics_url", "is", null);
+  if (userIds?.length) q = q.in("user_id", userIds);
+  const { data: rows, error } = await q;
+  if (error) throw new Error(error.message);
+
+  const from = new Date(Date.now() - pastDays * 86400000);
+  const to = new Date(Date.now() + days * 86400000);
+  let events = 0;
+  const failures: string[] = [];
+  for (const row of rows ?? []) {
+    if (!row.gcal_ics_url) continue;
+    try {
+      const list = await fetchGoogleCalendar(row.gcal_ics_url, from, to);
+      const me = row.gcal_email?.toLowerCase() ?? null;
+      const prepared = list.map((e) => {
+        // convidado "principal": primeiro que não é o próprio analista nem organizador interno
+        const guest =
+          e.attendees.find((a) => a.email !== me && a.email !== e.organizer_email) ?? null;
+        return {
+          ...e,
+          provider: "google",
+          invitee_email: guest?.email ?? null,
+          invitee_name: guest?.name ?? null,
+          attendees: e.attendees as never,
+          raw: e.raw as never,
+          user_id: row.user_id,
+          synced_at: new Date().toISOString(),
+        };
+      });
+      for (let i = 0; i < prepared.length; i += 200) {
+        const { error: upErr } = await supabaseAdmin
+          .from("cs_calendly_events")
+          .upsert(prepared.slice(i, i + 200), { onConflict: "event_uri" });
+        if (upErr) throw new Error(upErr.message);
+      }
+      // eventos que sumiram da agenda (apagados) na janela: marca cancelados
+      const keep = new Set(prepared.map((p) => p.event_uri));
+      const { data: existing } = await supabaseAdmin
+        .from("cs_calendly_events")
+        .select("id, event_uri")
+        .eq("user_id", row.user_id)
+        .eq("provider", "google")
+        .gte("start_time", from.toISOString())
+        .lte("start_time", to.toISOString());
+      const gone = (existing ?? []).filter((x) => !keep.has(x.event_uri)).map((x) => x.id);
+      if (gone.length)
+        await supabaseAdmin
+          .from("cs_calendly_events")
+          .update({ status: "canceled" })
+          .in("id", gone);
+      events += prepared.length;
+      await supabaseAdmin
+        .from("cs_user_integrations")
+        .update({ gcal_last_sync_at: new Date().toISOString(), gcal_last_error: null })
+        .eq("user_id", row.user_id);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Erro desconhecido";
+      failures.push(msg);
+      await supabaseAdmin
+        .from("cs_user_integrations")
+        .update({ gcal_last_error: msg })
+        .eq("user_id", row.user_id);
+    }
+  }
+  return { users: (rows ?? []).length, events, failures };
+}
+
+/** Calendly + Google Agenda e, em seguida, liquida as reuniões já terminadas. */
+export async function syncAgendas(userIds: string[] | null) {
+  const [c, g] = await Promise.all([syncCalendly(userIds), syncGoogleCalendars(userIds)]);
+  const { data: settled } = await supabaseAdmin.rpc("cs_settle_meetings");
+  return {
+    users: c.users + g.users,
+    events: c.events + g.events,
+    failures: [...c.failures, ...g.failures],
+    settled: Number(settled ?? 0),
+  };
 }

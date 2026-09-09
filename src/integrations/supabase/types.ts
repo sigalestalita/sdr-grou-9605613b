@@ -524,9 +524,14 @@ export type Database = {
           invitee_email: string | null
           invitee_name: string | null
           location: string | null
+          attendees: Json
+          contact_id: string | null
           meeting_url: string | null
           name: string | null
+          organizer_email: string | null
+          provider: string
           raw: Json
+          settled_at: string | null
           start_time: string
           status: string | null
           synced_at: string
@@ -542,9 +547,14 @@ export type Database = {
           invitee_email?: string | null
           invitee_name?: string | null
           location?: string | null
+          attendees?: Json
+          contact_id?: string | null
           meeting_url?: string | null
           name?: string | null
+          organizer_email?: string | null
+          provider?: string
           raw?: Json
+          settled_at?: string | null
           start_time: string
           status?: string | null
           synced_at?: string
@@ -560,9 +570,14 @@ export type Database = {
           invitee_email?: string | null
           invitee_name?: string | null
           location?: string | null
+          attendees?: Json
+          contact_id?: string | null
           meeting_url?: string | null
           name?: string | null
+          organizer_email?: string | null
+          provider?: string
           raw?: Json
+          settled_at?: string | null
           start_time?: string
           status?: string | null
           synced_at?: string
@@ -1389,6 +1404,11 @@ export type Database = {
           created_at: string
           email_address: string | null
           email_connected_at: string | null
+          gcal_connected_at: string | null
+          gcal_email: string | null
+          gcal_ics_url: string | null
+          gcal_last_error: string | null
+          gcal_last_sync_at: string | null
           updated_at: string
           user_id: string
         }
@@ -1404,6 +1424,11 @@ export type Database = {
           created_at?: string
           email_address?: string | null
           email_connected_at?: string | null
+          gcal_connected_at?: string | null
+          gcal_email?: string | null
+          gcal_ics_url?: string | null
+          gcal_last_error?: string | null
+          gcal_last_sync_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1419,6 +1444,11 @@ export type Database = {
           created_at?: string
           email_address?: string | null
           email_connected_at?: string | null
+          gcal_connected_at?: string | null
+          gcal_email?: string | null
+          gcal_ics_url?: string | null
+          gcal_last_error?: string | null
+          gcal_last_sync_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3327,6 +3357,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cs_settle_meetings: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_access_module: {
         Args: {

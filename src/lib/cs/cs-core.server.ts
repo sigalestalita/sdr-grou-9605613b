@@ -230,7 +230,10 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
   const hasSinaleira =
     (c["tipo_servico"] == null || c["tipo_servico"] === "licenca_pda") && !!c["login_pda"];
   const events = eventsRes.data ?? [];
-  const agendaLast90d = events.filter((e) => e.event_type === "agenda").length;
+  // "agenda realizada": registro manual de agenda + reuniões liquidadas pela agenda vinculada
+  const agendaLast90d = events.filter(
+    (e) => e.event_type === "agenda" || e.event_type === "reuniao_realizada",
+  ).length;
   const answered = (channel: string) =>
     events.some((e) => {
       const meta = (e.metadata ?? {}) as Record<string, unknown>;

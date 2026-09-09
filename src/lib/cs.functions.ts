@@ -602,6 +602,7 @@ export const saveCsSettings = createServerFn({ method: "POST" })
             retroativo_horas: z.number().int().min(1).max(720),
             gestor_pode_concluir: z.boolean(),
             conta_bot: z.boolean(),
+            reuniao_exige_aceite: z.boolean().default(false),
           })
           .optional(),
         sla: z

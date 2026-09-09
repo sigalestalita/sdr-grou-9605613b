@@ -416,14 +416,17 @@ export type EvidenceConfig = {
   gestor_pode_concluir: boolean;
   /** Mensagens de automação/IA contam como envio do time. */
   conta_bot: boolean;
+  /** Reunião do Google só conta se o contato aceitou o convite. */
+  reuniao_exige_aceite: boolean;
 };
 export const DEFAULT_EVIDENCE_CONFIG: EvidenceConfig = {
   exigir_evidencia: true,
-  canais: ["email", "whatsapp"],
+  canais: ["email", "whatsapp", "reuniao"],
   antecedencia_horas: 72,
   retroativo_horas: 72,
   gestor_pode_concluir: true,
   conta_bot: false,
+  reuniao_exige_aceite: false,
 };
 export const requiresEvidence = (cfg: EvidenceConfig, channel: string | null | undefined) =>
   cfg.exigir_evidencia && !!channel && (cfg.canais as string[]).includes(channel);

@@ -75,13 +75,25 @@ export function CompletedBadge({
 
 /** Aviso, em tarefa de canal pendente, de que o check vem do próprio canal. */
 export function AwaitingEvidencePill({ type }: { type: string }) {
-  const label = type === "email" ? "e-mail" : "WhatsApp";
+  const text =
+    type === "reuniao"
+      ? {
+          short: "Conclui ao realizar a reunião",
+          title:
+            "Concluída automaticamente quando a reunião da agenda vinculada (com um contato desta empresa no convite) terminar.",
+        }
+      : type === "ligacao"
+        ? { short: "Só a gestão conclui", title: "Ligação não tem registro automático." }
+        : {
+            short: `Conclui ao enviar ${type === "email" ? "e-mail" : "WhatsApp"}`,
+            title: `Concluída automaticamente quando o ${type === "email" ? "e-mail" : "WhatsApp"} vinculado registrar o envio para este cliente.`,
+          };
   return (
     <span
       className="inline-flex items-center gap-1 rounded-md border border-dashed px-1.5 py-0.5 text-[11px] text-muted-foreground"
-      title={`Concluída automaticamente quando o ${label} vinculado registrar o envio para este cliente.`}
+      title={text.title}
     >
-      <ShieldCheck className="h-3 w-3" /> Conclui ao enviar {label}
+      <ShieldCheck className="h-3 w-3" /> {text.short}
     </span>
   );
 }
@@ -258,9 +270,10 @@ export function CsTaskDialog({
           {needsEvidence && (
             <p className="flex items-start gap-1.5 rounded-md bg-muted/60 p-2 text-[11px] text-muted-foreground">
               <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              Tarefa de {CS_TASK_TYPE_LABEL[type]} não tem check manual: é concluída sozinha quando
-              o {type === "email" ? "e-mail" : "WhatsApp"} vinculado registrar o envio para esta
-              empresa.
+              Tarefa de {CS_TASK_TYPE_LABEL[type]} não tem check manual:{" "}
+              {type === "reuniao"
+                ? "é concluída sozinha quando a reunião da agenda vinculada, com um contato desta empresa no convite, terminar."
+                : `é concluída sozinha quando o ${type === "email" ? "e-mail" : "WhatsApp"} vinculado registrar o envio para esta empresa.`}
             </p>
           )}
         </div>

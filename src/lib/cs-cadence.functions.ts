@@ -101,7 +101,10 @@ export const getCsCadence = createServerFn({ method: "GET" })
       nameById.set(p.id as string, (p.full_name as string) || (p.email as string) || "—");
     }
 
-    const snapsByClient = new Map<string, { week_start: string; signal: string; consumo_pct: number | null }[]>();
+    const snapsByClient = new Map<
+      string,
+      { week_start: string; signal: string; consumo_pct: number | null }[]
+    >();
     for (const s of snapshots) {
       const uid = s["client_uid"] as string;
       const arr = snapsByClient.get(uid) ?? [];
@@ -121,6 +124,7 @@ export const getCsCadence = createServerFn({ method: "GET" })
         meta["answered"] === true ||
         meta["engajamento"] === true ||
         e["event_type"] === "agenda" ||
+        e["event_type"] === "reuniao_realizada" ||
         e["event_type"] === "reuniao";
       if (!answered) continue;
       responsesByClient.set(uid, (responsesByClient.get(uid) ?? 0) + 1);
@@ -203,7 +207,8 @@ export const getCsCadence = createServerFn({ method: "GET" })
       byUrgency[r.plan.urgency] = (byUrgency[r.plan.urgency] ?? 0) + 1;
       if (r.plan.due) {
         due++;
-        byWeekday[String(r.plan.suggestedWeekday)] = (byWeekday[String(r.plan.suggestedWeekday)] ?? 0) + 1;
+        byWeekday[String(r.plan.suggestedWeekday)] =
+          (byWeekday[String(r.plan.suggestedWeekday)] ?? 0) + 1;
       }
       if (r.plan.inGrace) inGrace++;
       if (r.plan.goalAtRisk) goalAtRisk++;
@@ -216,7 +221,9 @@ export const getCsCadence = createServerFn({ method: "GET" })
 
     return {
       rows,
-      owners: [...ownerMap.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name)),
+      owners: [...ownerMap.entries()]
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
       totals: {
         clients: rows.length,
         due,
