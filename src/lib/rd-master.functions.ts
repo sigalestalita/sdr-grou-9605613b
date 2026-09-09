@@ -34,3 +34,23 @@ export const getRdAllSyncLogs = createServerFn({ method: "GET" })
       .limit(10);
     return { logs: data ?? [] };
   });
+
+/** Onda 2: projeta o staging do RD (rd_*) em Empresas, Contatos e Negócios. Só gestão. */
+export const runRdTransform = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        dryRun: z.boolean().default(false),
+        only: z.array(z.enum(["companies", "contacts", "deals"])).optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isManager } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isManager) throw new Error("Apenas a gestão pode rodar a transformação do RD");
+    const { transformRdToObjects } = await import("@/lib/rd/rd-transform.server");
+    return transformRdToObjects({ dryRun: data.dryRun, only: data.only });
+  });
