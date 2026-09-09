@@ -46,7 +46,7 @@ export const MIRROR_PASSES: Array<[string, string]> = [
   ["updated_at", "asc"],
   ["updated_at", "desc"],
 ];
-export const MIRROR_WINDOW = 4; // páginas por chamada (≈800 registros)
+export const MIRROR_WINDOW = 2; // páginas por chamada (≈400 registros)
 export const CONTACT_BUCKETS = "bcdfghjklmnpqrstvwxyz";
 export const TRANSFORM_LIMITS = { companies: 1000, contacts: 1500, deals: 800 } as const;
 
