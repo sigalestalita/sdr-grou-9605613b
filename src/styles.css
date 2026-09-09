@@ -657,3 +657,119 @@
 @media (prefers-reduced-transparency: reduce) {
   .glass-card, .glass-pill { backdrop-filter: none; -webkit-backdrop-filter: none; background: var(--card); }
 }
+
+/* ---------------------------------------------------------------------------
+ * Visual de vidro no sistema inteiro ([data-ui="glass"] no <html>).
+ * Mesma linguagem da tela de login: fundo líquido suave, cartões e campos
+ * translúcidos com brilho interno, botão primário com gradiente. Só CSS por
+ * cima dos tokens — nenhuma tela precisou mudar. O visual clássico continua
+ * disponível pela varinha no rodapé do menu.
+ * ------------------------------------------------------------------------- */
+[data-ui="glass"] {
+  --card: oklch(1 0 0 / 0.62);
+  --popover: oklch(1 0 0 / 0.86);
+  --surface: oklch(0.975 0.006 255 / 0.5);
+  --muted: oklch(0.28 0.035 262 / 0.05);
+  --border: oklch(0.28 0.035 262 / 0.12);
+  --input: oklch(0.28 0.035 262 / 0.16);
+}
+[data-ui="glass"].dark, [data-ui="glass"] .dark {
+  --card: oklch(1 0 0 / 0.065);
+  --popover: oklch(0.23 0.02 265 / 0.92);
+  --surface: oklch(0.19 0.018 265 / 0.4);
+  --muted: oklch(1 0 0 / 0.05);
+  --border: oklch(1 0 0 / 0.11);
+  --input: oklch(1 0 0 / 0.13);
+}
+/* fundo líquido: gradientes + duas bolhas lentas, atrás de tudo */
+[data-ui="glass"] .glass-bg { position: relative; isolation: isolate; }
+[data-ui="glass"] .glass-bg::before,
+[data-ui="glass"] .glass-bg::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  width: 55vw; height: 55vw; min-width: 480px; min-height: 480px;
+  border-radius: 58% 42% 55% 45% / 45% 55% 45% 55%;
+  filter: blur(90px);
+  opacity: 0.22;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+}
+[data-ui="glass"].dark .glass-bg::before, [data-ui="glass"].dark .glass-bg::after,
+[data-ui="glass"] .dark .glass-bg::before, [data-ui="glass"] .dark .glass-bg::after { mix-blend-mode: screen; opacity: 0.18; }
+[data-ui="glass"] .glass-bg::before { top: -20%; left: -15%; background: oklch(0.72 0.18 258); animation: liquidA 40s ease-in-out infinite; }
+[data-ui="glass"] .glass-bg::after { bottom: -25%; right: -15%; background: oklch(0.75 0.16 300); animation: liquidB 48s ease-in-out infinite; }
+
+/* cartões, painéis e menus flutuantes */
+[data-ui="glass"] .bg-card,
+[data-ui="glass"] .surface-panel {
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border-color: oklch(1 0 0 / 0.7);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.7), 0 12px 32px -20px oklch(0 0 0 / 0.25);
+}
+[data-ui="glass"].dark .bg-card, [data-ui="glass"].dark .surface-panel,
+[data-ui="glass"] .dark .bg-card, [data-ui="glass"] .dark .surface-panel {
+  border-color: oklch(1 0 0 / 0.14);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.12), 0 16px 40px -22px oklch(0 0 0 / 0.6);
+}
+[data-ui="glass"] .bg-popover {
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.5), 0 20px 50px -20px oklch(0 0 0 / 0.35);
+}
+
+/* campos: translúcidos, com foco na cor da marca */
+[data-ui="glass"] input.border-input,
+[data-ui="glass"] textarea,
+[data-ui="glass"] select {
+  background-color: oklch(1 0 0 / 0.5);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.7);
+  transition: box-shadow 150ms, border-color 150ms, background-color 150ms;
+}
+[data-ui="glass"].dark input.border-input, [data-ui="glass"].dark textarea, [data-ui="glass"].dark select,
+[data-ui="glass"] .dark input.border-input, [data-ui="glass"] .dark textarea, [data-ui="glass"] .dark select {
+  background-color: oklch(1 0 0 / 0.06);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.08);
+}
+[data-ui="glass"] input.border-input:focus-visible,
+[data-ui="glass"] textarea:focus-visible,
+[data-ui="glass"] select:focus-visible {
+  border-color: oklch(0.62 0.18 258);
+  box-shadow: 0 0 0 4px oklch(0.62 0.18 258 / 0.16), inset 0 1px 0 oklch(1 0 0 / 0.5);
+}
+
+/* botão primário: gradiente com reflexo, como no login */
+[data-ui="glass"] button.bg-primary,
+[data-ui="glass"] a.bg-primary {
+  background-image: linear-gradient(135deg, oklch(0.62 0.19 262), oklch(0.55 0.2 285));
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.3), 0 8px 24px -10px oklch(0.55 0.2 275 / 0.6);
+  transition: transform 150ms, box-shadow 150ms, filter 150ms;
+}
+[data-ui="glass"] button.bg-primary:hover, [data-ui="glass"] a.bg-primary:hover {
+  filter: saturate(112%);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.35), 0 12px 28px -10px oklch(0.55 0.2 275 / 0.7);
+}
+[data-ui="glass"] button.bg-primary:active, [data-ui="glass"] a.bg-primary:active { transform: translateY(0); }
+
+/* botões outline e "pílulas" de filtro */
+[data-ui="glass"] button.bg-background.border-input {
+  background-color: oklch(1 0 0 / 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.6);
+}
+[data-ui="glass"].dark button.bg-background.border-input, [data-ui="glass"] .dark button.bg-background.border-input {
+  background-color: oklch(1 0 0 / 0.06);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-ui="glass"] .glass-bg::before, [data-ui="glass"] .glass-bg::after { animation: none; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  [data-ui="glass"] .bg-card, [data-ui="glass"] .surface-panel, [data-ui="glass"] .bg-popover { backdrop-filter: none; -webkit-backdrop-filter: none; }
+  [data-ui="glass"] { --card: oklch(1 0 0); --popover: oklch(1 0 0); }
+  [data-ui="glass"].dark { --card: oklch(0.23 0.018 265); --popover: oklch(0.23 0.018 265); }
+}

@@ -175,15 +175,22 @@ function AppShell() {
       }
       return next;
     });
-  // Estilo do menu: clássico (colado na borda) ou flutuante "liquid glass".
+  // Visual do sistema: "flutuante" = vidro líquido no app inteiro (menu,
+  // cabeçalho, cartões, campos, botões — via [data-ui="glass"] no <html>);
+  // "classico" = o visual sólido de antes. Alternável na varinha do rodapé.
   const [navStyle, setNavStyle] = useState<NavStyle>(() => {
-    if (typeof window === "undefined") return "classico";
-    return (window.localStorage.getItem("sidebar:style") as NavStyle | null) ?? "classico";
+    if (typeof window === "undefined") return "flutuante";
+    return (window.localStorage.getItem("sidebar:style") as NavStyle | null) ?? "flutuante";
   });
   const glass = navStyle === "flutuante";
   useEffect(() => {
-    if (typeof window !== "undefined") window.localStorage.setItem("sidebar:style", navStyle);
-  }, [navStyle]);
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("sidebar:style", navStyle);
+    document.documentElement.dataset.ui = glass ? "glass" : "classic";
+    return () => {
+      delete document.documentElement.dataset.ui;
+    };
+  }, [navStyle, glass]);
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -371,7 +378,7 @@ function AppShell() {
           <div className={`mt-1 flex items-center gap-1 ${collapsed ? "flex-col" : ""}`}>
             <button
               onClick={() => setNavStyle(glass ? "classico" : "flutuante")}
-              title={glass ? "Usar menu clássico" : "Usar menu flutuante (liquid glass)"}
+              title={glass ? "Usar visual clássico" : "Usar visual de vidro (liquid glass)"}
               className="rounded-md px-1.5 py-1.5 text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               {glass ? (
