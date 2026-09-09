@@ -21,6 +21,7 @@ import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
 import { Route as AppInicioRouteImport } from './routes/_app.inicio'
+import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCsPlaybookRouteImport } from './routes/_app.cs-playbook'
 import { Route as AppCsKanbanRouteImport } from './routes/_app.cs-kanban'
@@ -122,6 +123,11 @@ const AppKanbanRoute = AppKanbanRouteImport.update({
 const AppInicioRoute = AppInicioRouteImport.update({
   id: '/inicio',
   path: '/inicio',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDiagnosticoRoute = AppDiagnosticoRouteImport.update({
+  id: '/diagnostico',
+  path: '/diagnostico',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
@@ -370,6 +376,7 @@ export interface FileRoutesByFullPath {
   '/cs-kanban': typeof AppCsKanbanRoute
   '/cs-playbook': typeof AppCsPlaybookRoute
   '/dashboard': typeof AppDashboardRoute
+  '/diagnostico': typeof AppDiagnosticoRoute
   '/inicio': typeof AppInicioRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -426,6 +433,7 @@ export interface FileRoutesByTo {
   '/cs-kanban': typeof AppCsKanbanRoute
   '/cs-playbook': typeof AppCsPlaybookRoute
   '/dashboard': typeof AppDashboardRoute
+  '/diagnostico': typeof AppDiagnosticoRoute
   '/inicio': typeof AppInicioRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -483,6 +491,7 @@ export interface FileRoutesById {
   '/_app/cs-kanban': typeof AppCsKanbanRoute
   '/_app/cs-playbook': typeof AppCsPlaybookRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/diagnostico': typeof AppDiagnosticoRoute
   '/_app/inicio': typeof AppInicioRoute
   '/_app/kanban': typeof AppKanbanRoute
   '/_app/leads-analytics': typeof AppLeadsAnalyticsRoute
@@ -541,6 +550,7 @@ export interface FileRouteTypes {
     | '/cs-kanban'
     | '/cs-playbook'
     | '/dashboard'
+    | '/diagnostico'
     | '/inicio'
     | '/kanban'
     | '/leads-analytics'
@@ -597,6 +607,7 @@ export interface FileRouteTypes {
     | '/cs-kanban'
     | '/cs-playbook'
     | '/dashboard'
+    | '/diagnostico'
     | '/inicio'
     | '/kanban'
     | '/leads-analytics'
@@ -653,6 +664,7 @@ export interface FileRouteTypes {
     | '/_app/cs-kanban'
     | '/_app/cs-playbook'
     | '/_app/dashboard'
+    | '/_app/diagnostico'
     | '/_app/inicio'
     | '/_app/kanban'
     | '/_app/leads-analytics'
@@ -797,6 +809,13 @@ declare module '@tanstack/react-router' {
       path: '/inicio'
       fullPath: '/inicio'
       preLoaderRoute: typeof AppInicioRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/diagnostico': {
+      id: '/_app/diagnostico'
+      path: '/diagnostico'
+      fullPath: '/diagnostico'
+      preLoaderRoute: typeof AppDiagnosticoRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/dashboard': {
@@ -1169,6 +1188,7 @@ interface AppRouteChildren {
   AppCsKanbanRoute: typeof AppCsKanbanRoute
   AppCsPlaybookRoute: typeof AppCsPlaybookRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDiagnosticoRoute: typeof AppDiagnosticoRoute
   AppInicioRoute: typeof AppInicioRoute
   AppKanbanRoute: typeof AppKanbanRoute
   AppLeadsAnalyticsRoute: typeof AppLeadsAnalyticsRoute
@@ -1196,6 +1216,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCsKanbanRoute: AppCsKanbanRoute,
   AppCsPlaybookRoute: AppCsPlaybookRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppDiagnosticoRoute: AppDiagnosticoRoute,
   AppInicioRoute: AppInicioRoute,
   AppKanbanRoute: AppKanbanRoute,
   AppLeadsAnalyticsRoute: AppLeadsAnalyticsRoute,
