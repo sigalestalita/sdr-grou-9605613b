@@ -60,7 +60,9 @@ type NavItem = {
  *    (Pipeline, Inbox, Agenda de FUPs, Cadência, Playbook SDR…).
  *  - Executivo (Comercial): além do SDR, os objetos Início, Empresas e Tarefas
  *    — a carteira que ele fechou e as tarefas que o CS aciona para ele.
- *  - CS: objetos + Canais + Customer Success + Playbook CS.
+ *  - CS: objetos + Canais + Customer Success.
+ *  - BI: as leituras analíticas de cada módulo (Performance SDR, Dashboard CS, Chat Analytics).
+ *  - Administração: sistema (usuários, configurações) + referência de cada módulo (playbooks, novidades).
  *  - Gestão: tudo (itens repetidos entre módulos aparecem uma vez).
  */
 const NAV_OBJECTS: NavItem[] = [
@@ -85,14 +87,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/whatsapp", label: "Inbox", icon: Inbox, team: "comercial" },
       { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
       { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
-      { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
-    ],
-  },
-  {
-    label: "Análise",
-    items: [
-      { to: "/leads-analytics", label: "Performance", icon: LineChart, team: "comercial" },
-      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
     ],
   },
   {
@@ -108,13 +102,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/cs-kanban", label: "Kanban semanal", icon: KanbanIcon, team: "cs" },
       { to: "/cs-cadencia", label: "Cadência e sinaleira", icon: Activity, team: "cs" },
-      {
-        to: "/cs-dashboard",
-        label: "Dashboard CS",
-        icon: BarChart3,
-        team: "cs",
-        managerOnly: true,
-      },
       { to: "/cs-integracoes", label: "Integrações", icon: Link2, team: "cs" },
       {
         to: "/cs-configuracoes",
@@ -126,17 +113,29 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: "Referência",
+    // BI: leitura analítica de todos os módulos
+    label: "BI",
     items: [
-      { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
-      { to: "/novidades", label: "Novidades", icon: Sparkles },
+      { to: "/leads-analytics", label: "Performance SDR", icon: LineChart, team: "comercial" },
+      {
+        to: "/cs-dashboard",
+        label: "Dashboard CS",
+        icon: BarChart3,
+        team: "cs",
+        managerOnly: true,
+      },
+      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
     ],
   },
   {
+    // Administração: sistema + referência de cada módulo (playbooks, novidades)
     label: "Administração",
     items: [
       { to: "/usuarios", label: "Usuários", icon: Users, managerOnly: true },
       { to: "/configuracoes", label: "Configurações", icon: SettingsIcon, managerOnly: true },
+      { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
+      { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
+      { to: "/novidades", label: "Novidades", icon: Sparkles },
     ],
   },
 ];
