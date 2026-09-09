@@ -16,8 +16,6 @@ import {
   syncCsCalendly,
 } from "@/lib/cs-integrations.functions";
 import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
-import { getRdAllSyncLogs, syncRdAll } from "@/lib/rd-master.functions";
-
 import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
 
 
@@ -129,31 +127,6 @@ function CsIntegrationsPage() {
       if (r.errors.length) toast.error(r.errors[0]);
       rdLogs.refetch();
       qc.invalidateQueries({ queryKey: ["cs-clients"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
-  });
-
-  const rdAllFn = useServerFn(syncRdAll);
-  const rdAllLogsFn = useServerFn(getRdAllSyncLogs);
-  const rdAllLogs = useQuery({
-    queryKey: ["rd-all-sync-logs"],
-    queryFn: () => rdAllLogsFn(),
-    enabled: Boolean(data?.isManager),
-  });
-  const rdAll = useMutation({
-    mutationFn: (dryRun: boolean) => rdAllFn({ data: { dryRun } }),
-    onSuccess: (r) => {
-      if (!r.ok) {
-        toast.error(r.error);
-        return;
-      }
-      toast.success(
-        `${r.organizations.fetched} empresas · ${r.contacts.fetched} contatos · ${r.deals.fetched} negócios do RD`,
-      );
-      if (r.errors.length) toast.error(r.errors[0]);
-      rdAllLogs.refetch();
-      qc.invalidateQueries({ queryKey: ["cs-clients"] });
-      qc.invalidateQueries({ queryKey: ["leads"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
@@ -357,50 +330,6 @@ function CsIntegrationsPage() {
                       <span>
                         {Number(d.matched ?? 0)} clientes · {Number(d.created ?? 0)} criados ·{" "}
                         {Number(d.updated ?? 0)} atualizados
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Card>
-
-          <Card className="space-y-3 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold">Base completa do RD CRM</h2>
-              </div>
-              <Button size="sm" disabled={rdAll.isPending} onClick={() => rdAll.mutate(false)}>
-                <RefreshCw className={`mr-1 h-4 w-4 ${rdAll.isPending ? "animate-spin" : ""}`} />
-                {rdAll.isPending ? "Sincronizando…" : "Sincronizar tudo"}
-              </Button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Traz <strong>empresas, contatos e negócios</strong> de todos os funis do RD CRM e usa
-              isso como base do sistema: clientes e contatos do CS, cards do Kanban e etapa de cada
-              negócio. O RD manda nos dados cadastrais; sinaleira, health score, touchpoints e notas
-              continuam nossos.
-            </p>
-            {(rdAllLogs.data?.logs ?? []).length > 0 && (
-              <div className="divide-y rounded-md border text-xs">
-                {(rdAllLogs.data?.logs ?? []).map((l) => {
-                  const d = (l.detail ?? {}) as {
-                    organizations?: { fetched?: number };
-                    contacts?: { fetched?: number };
-                    deals?: { fetched?: number; leadsCreated?: number; leadsUpdated?: number };
-                  };
-                  return (
-                    <div key={l.id} className="flex flex-wrap gap-3 px-3 py-2">
-                      <span className="text-muted-foreground">
-                        {new Date(l.created_at).toLocaleString("pt-BR")}
-                      </span>
-                      <Badge variant={l.status === "ok" ? "secondary" : "outline"}>{l.status}</Badge>
-                      <span>
-                        {Number(d.organizations?.fetched ?? 0)} empresas ·{" "}
-                        {Number(d.contacts?.fetched ?? 0)} contatos ·{" "}
-                        {Number(d.deals?.fetched ?? 0)} negócios · {Number(d.deals?.leadsCreated ?? 0)}{" "}
-                        leads novos · {Number(d.deals?.leadsUpdated ?? 0)} leads atualizados
                       </span>
                     </div>
                   );

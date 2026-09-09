@@ -611,12 +611,7 @@ export const getCampaignFilterMeta = createServerFn({ method: "GET" })
       supabase.from("leads").select("lost_reason").not("lost_reason", "is", null).limit(5000),
     ]);
     const leadTypes = Array.from(
-      new Set([
-        "empresa",
-        "consultoria",
-        "pessoa_fisica",
-        ...((types ?? []).map((r) => (r as { lead_type: string | null }).lead_type).filter(Boolean) as string[]),
-      ]),
+      new Set((types ?? []).map((r) => (r as { lead_type: string | null }).lead_type).filter(Boolean) as string[]),
     );
     const companySizes = Array.from(
       new Set((sizes ?? []).map((r) => (r as { company_size: string | null }).company_size).filter(Boolean) as string[]),
