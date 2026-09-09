@@ -16,6 +16,7 @@ import {
   syncCsCalendly,
 } from "@/lib/cs-integrations.functions";
 import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
+import { runRdTransform } from "@/lib/rd-master.functions";
 import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs-integracoes")({
@@ -46,6 +47,10 @@ function CsIntegrationsPage() {
   const mailboxFn = useServerFn(saveCsMailbox);
   const syncFn = useServerFn(syncCsCalendly);
   const rotateFn = useServerFn(rotateCsInboundToken);
+  const transformFn = useServerFn(runRdTransform);
+  const [transformOut, setTransformOut] = useState<Awaited<ReturnType<typeof transformFn>> | null>(
+    null,
+  );
   const qc = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
@@ -112,6 +117,18 @@ function CsIntegrationsPage() {
     queryFn: () => rdLogsFn(),
     enabled: Boolean(data?.isManager),
   });
+  const rdTransform = useMutation({
+    mutationFn: (dryRun: boolean) => transformFn({ data: { dryRun } }),
+    onSuccess: (r) => {
+      setTransformOut(r);
+      toast.success(
+        `${r.dryRun ? "Prévia" : "Transformação"}: ${r.companies.created + r.companies.updated} empresas · ${r.contacts.created + r.contacts.updated} contatos · ${r.deals.created + r.deals.updated} negócios`,
+      );
+      if (r.errors.length) toast.error(r.errors[0]);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
   const rdSync = useMutation({
     mutationFn: (dryRun: boolean) => rdSyncFn({ data: { dryRun } }),
     onSuccess: (r) => {
@@ -299,6 +316,71 @@ function CsIntegrationsPage() {
                 <Copy className="h-4 w-4" />
               </Button>
             </div>
+          </Card>
+
+          <Card className="space-y-3 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Onda 2 — Empresas, Contatos e Negócios</h2>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={rdTransform.isPending}
+                  onClick={() => rdTransform.mutate(true)}
+                >
+                  Prévia
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={rdTransform.isPending}
+                  onClick={() => rdTransform.mutate(false)}
+                >
+                  <RefreshCw
+                    className={`mr-1 h-4 w-4 ${rdTransform.isPending ? "animate-spin" : ""}`}
+                  />
+                  {rdTransform.isPending ? "Transformando…" : "Transformar"}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Projeta o espelho do RD (rd_organizations, rd_contacts, rd_deals) nos objetos
+              compartilhados segundo docs/rd-field-map.json. Idempotente: rodar de novo só atualiza,
+              e nunca sobrescreve campos editados à mão. Rode o espelho completo (sync-rd-all)
+              antes. Exige a migration da onda 2 aplicada.
+            </p>
+            {transformOut && (
+              <div className="grid gap-2 rounded-md border p-3 text-xs sm:grid-cols-4">
+                <div>
+                  <span className="text-muted-foreground">Empresas</span>
+                  <br />
+                  {transformOut.companies.created} novas · {transformOut.companies.updated}{" "}
+                  atualizadas · {transformOut.companies.linkedByKey} ligadas por chave
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Contatos</span>
+                  <br />
+                  {transformOut.contacts.created} novos · {transformOut.contacts.updated}{" "}
+                  atualizados · {transformOut.contacts.semEmpresa} sem empresa
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Negócios</span>
+                  <br />
+                  {transformOut.deals.created} novos · {transformOut.deals.updated} atualizados ·{" "}
+                  {transformOut.deals.wonFromStage} marcados como ganhos
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Revisão</span>
+                  <br />
+                  {transformOut.dedupe.parent} vínculos mãe → filha sugeridos ·{" "}
+                  {transformOut.products} produtos
+                </div>
+                {transformOut.errors.length > 0 && (
+                  <div className="text-destructive sm:col-span-4">
+                    {transformOut.errors.slice(0, 3).join(" · ")}
+                  </div>
+                )}
+              </div>
+            )}
           </Card>
 
           <Card className="space-y-3 p-4">
