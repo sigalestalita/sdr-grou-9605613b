@@ -12,7 +12,8 @@ import {
   saveCsMasterclassParticipation,
   type CsMasterclassParticipation,
 } from "@/lib/cs-masterclass.functions";
-import { Award, GraduationCap, Lightbulb, Plus, Trash2 } from "lucide-react";
+import { CS_TAG_USO_LABEL } from "@/lib/cs-types";
+import { AlertTriangle, Award, GraduationCap, Lightbulb, Plus, Trash2 } from "lucide-react";
 
 const fmt = (d: string | null) =>
   d ? new Date(`${d.slice(0, 10)}T12:00:00`).toLocaleDateString("pt-BR") : "—";
@@ -129,6 +130,20 @@ export function CsMasterclassPanel({ clientUid }: { clientUid: string }) {
           <Plus className="mr-1 h-3.5 w-3.5" /> Registrar
         </Button>
       </div>
+
+      <p className="text-[11px] text-muted-foreground">
+        Uso do PDA (tag_uso):{" "}
+        {d.tagUso ? (
+          <span className="font-medium text-foreground">
+            {CS_TAG_USO_LABEL[d.tagUso] ?? d.tagUso}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-amber-600">
+            <AlertTriangle className="h-3 w-3" /> não definido — edite em “Sobre esta empresa”; sem
+            isso as regras “módulo da tag_uso” não disparam
+          </span>
+        )}
+      </p>
 
       {d.suggestions.length > 0 ? (
         <div className="space-y-1 rounded-md border border-primary/30 bg-primary/5 p-2">

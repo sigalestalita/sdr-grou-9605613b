@@ -19,12 +19,7 @@ import {
 } from "@/lib/cs-integrations.functions";
 import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
 import { runRdMirrorSlice, runRdTransform } from "@/lib/rd-master.functions";
-import {
-  Aborted,
-  driveMirror,
-  driveTransform,
-  type TransformSlice,
-} from "@/lib/rd/rd-drive";
+import { Aborted, driveMirror, driveTransform, type TransformSlice } from "@/lib/rd/rd-drive";
 import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs-integracoes")({
@@ -538,7 +533,8 @@ function CsIntegrationsPage() {
                   <span className="text-muted-foreground">Empresas</span>
                   <br />
                   {transformOut.companies.created} novas · {transformOut.companies.updated}{" "}
-                  atualizadas · {transformOut.companies.linkedByKey ?? 0} ligadas por chave
+                  atualizadas · {transformOut.companies.linkedByKey ?? 0} ligadas por chave ·{" "}
+                  {transformOut.companies.csClientsUpdated ?? 0} clientes CS com campos do RD
                 </div>
                 <div>
                   <span className="text-muted-foreground">Contatos</span>

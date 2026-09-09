@@ -32,7 +32,14 @@ type FieldMap = { organization: MapEntry[]; contact: MapEntry[]; deal: MapEntry[
 const MAP = fieldMap as unknown as FieldMap;
 
 export interface RdTransformResult {
-  companies: { total: number; created: number; updated: number; linkedByKey: number };
+  companies: {
+    total: number;
+    created: number;
+    updated: number;
+    linkedByKey: number;
+    /** Clientes de CS (cs_clients) que receberam campos do RD (ex.: tag_uso). */
+    csClientsUpdated: number;
+  };
   contacts: { total: number; created: number; updated: number; semEmpresa: number };
   deals: { total: number; created: number; updated: number; wonFromStage: number };
   products: number;
@@ -230,7 +237,7 @@ export async function transformRdToObjects(opts?: {
   const slice = <T>(rows: T[]) => (limit ? rows.slice(offset, offset + limit) : rows);
   const errors: string[] = [];
   const result: RdTransformResult = {
-    companies: { total: 0, created: 0, updated: 0, linkedByKey: 0 },
+    companies: { total: 0, created: 0, updated: 0, linkedByKey: 0, csClientsUpdated: 0 },
     contacts: { total: 0, created: 0, updated: 0, semEmpresa: 0 },
     deals: { total: 0, created: 0, updated: 0, wonFromStage: 0 },
     products: 0,
@@ -273,10 +280,14 @@ export async function transformRdToObjects(opts?: {
     result.companies.total = rdOrgs.length;
     const inserts: Row[] = [];
     const updates: Array<{ id: string; patch: Row }> = [];
+    // campos do mapa com destino cs_clients.* (tag_uso, produtos_ativos…), por organização do RD
+    const csPatches = new Map<string, Row>();
     for (const o of rdOrgs) {
       const raw = (o.raw ?? {}) as Json;
       const cf = customFields(raw);
       const proj = project(MAP.organization, cf);
+      if (proj.cs_clients && Object.keys(proj.cs_clients).length > 0)
+        csPatches.set(String(o.rd_id), proj.cs_clients);
       const fields: Row = {
         nome: clean(o.name),
         ...(proj.companies ?? {}),
@@ -362,6 +373,31 @@ export async function transformRdToObjects(opts?: {
     } else {
       result.companies.created = inserts.length;
       result.companies.updated = updates.length;
+    }
+
+    // Projeta em cs_clients (ligado por rd_org_id) respeitando provenance 'manual':
+    // o que foi editado na ficha não é sobrescrito pelo RD.
+    if (csPatches.size > 0) {
+      const cols = new Set<string>();
+      for (const p of csPatches.values()) for (const k of Object.keys(p)) cols.add(k);
+      const csRows = await fetchAll(
+        "cs_clients",
+        ["client_uid", "rd_org_id", "provenance", ...cols].join(", "),
+      );
+      for (const c of csRows) {
+        const p = c.rd_org_id ? csPatches.get(String(c.rd_org_id)) : undefined;
+        if (!p) continue;
+        const patch = applyWithProvenance(c, p);
+        if (Object.keys(patch).length === 0) continue;
+        result.companies.csClientsUpdated++;
+        if (!dryRun) {
+          const { error } = await supabaseAdmin
+            .from("cs_clients")
+            .update(patch as never)
+            .eq("client_uid", String(c.client_uid));
+          if (error) errors.push(`cs_clients ${c.client_uid}: ${error.message}`);
+        }
+      }
     }
   } else {
     for (const c of existingCompanies)

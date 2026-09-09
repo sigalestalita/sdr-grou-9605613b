@@ -160,6 +160,7 @@ export const getCsMasterclass = createServerFn({ method: "GET" })
       },
       computed: computeMilestones(parts as unknown as Participation[], cfg),
       diagCause: client?.diagnostico_causa ?? null,
+      tagUso: client?.tag_uso ?? null,
     };
   });
 
