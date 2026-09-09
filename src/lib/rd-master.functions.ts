@@ -61,3 +61,36 @@ export const runRdTransform = createServerFn({ method: "POST" })
       limit: data.limit,
     });
   });
+
+/** Onda 2: uma fatia do espelho do RD (ou a contagem do staging). Só gestão. */
+export const runRdMirrorSlice = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .union([
+        z.object({ counts: z.literal(true) }),
+        z.object({
+          resource: z.enum(["organizations", "contacts"]),
+          order: z.string().optional(),
+          direction: z.enum(["asc", "desc"]).optional(),
+          q: z.string().max(3).optional(),
+          from: z.number().int().min(1).max(50).optional(),
+          to: z.number().int().min(1).max(50).optional(),
+        }),
+        z.object({
+          resource: z.literal("deals"),
+          next: z.string().nullable().optional(),
+          pages: z.number().int().min(1).max(25).optional(),
+        }),
+      ])
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isManager } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isManager) throw new Error("Apenas a gestão pode espelhar o RD");
+    const { mirrorSlice, mirrorCounts } = await import("@/lib/rd/rd-mirror.server");
+    if ("counts" in data) return { counts: await mirrorCounts() };
+    return mirrorSlice(data);
+  });
