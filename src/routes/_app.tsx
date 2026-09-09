@@ -68,7 +68,8 @@ const NAV_OBJECTS: NavItem[] = [
  * Grupos por intenção, poucos itens em cada um. Só o grupo da página atual
  * abre por padrão; o que a pessoa abrir/fechar fica lembrado no navegador.
  * Canais = onde a conversa acontece · CS/Comercial = o trabalho de cada time ·
- * Referência = leitura · Administração = quem configura.
+ * Referência = leitura · Administração = o sistema como um todo (usuários, geral).
+ * O que é do CS — inclusive suas configurações e integrações — fica no grupo do CS.
  */
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
@@ -88,6 +89,14 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         to: "/cs-dashboard",
         label: "Dashboard CS",
         icon: BarChart3,
+        team: "cs",
+        managerOnly: true,
+      },
+      { to: "/cs-integracoes", label: "Integrações", icon: Link2, team: "cs" },
+      {
+        to: "/cs-configuracoes",
+        label: "Configurações CS",
+        icon: SlidersHorizontal,
         team: "cs",
         managerOnly: true,
       },
@@ -116,13 +125,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/usuarios", label: "Usuários", icon: Users, managerOnly: true },
       { to: "/configuracoes", label: "Configurações", icon: SettingsIcon, managerOnly: true },
-      {
-        to: "/cs-configuracoes",
-        label: "Configurações CS",
-        icon: SlidersHorizontal,
-        managerOnly: true,
-      },
-      { to: "/cs-integracoes", label: "Integrações CS", icon: Link2, team: "cs" },
     ],
   },
 ];
