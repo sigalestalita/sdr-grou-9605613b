@@ -109,8 +109,8 @@ describe("CS — health score e sinaleira", () => {
     );
     expect(top).toBe(100);
     expect(bottom).toBe(0);
-    // pesos padrão somam 90; amarelo vale 20 dos 40 da sinaleira → 70/90 = 78
-    expect(computeHealthScore({ signal: "amarelo", ...full }, DEFAULT_HEALTH_WEIGHTS)).toBe(78);
+    // amarelo vale 20 dos 40 pontos da sinaleira → 80/100
+    expect(computeHealthScore({ signal: "amarelo", ...full }, DEFAULT_HEALTH_WEIGHTS)).toBe(80);
     // sem sinaleira (certificação/DG) renormaliza sobre os 60 pontos restantes
     expect(
       computeHealthScore(
@@ -125,7 +125,7 @@ describe("CS — health score e sinaleira", () => {
       computeHealthScore({ signal: "preto", ...full }, DEFAULT_HEALTH_WEIGHTS, undefined, {
         renormalizar_sem_sinaleira: false,
       }),
-    ).toBe(56);
+    ).toBe(60);
     expect(healthLabel(top).label).toBe("Saudável");
     expect(healthLabel(bottom).label).toBe("Risco");
     expect(healthLabel(55).label).toBe("Atenção");

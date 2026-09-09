@@ -177,10 +177,10 @@ export type HealthWeights = {
   analista_pda: number;
 };
 
-/** Fórmula da Marcela: 40 sinaleira · 10 agenda · 10 WhatsApp · 10 proposta · 10 masterclass · 10 analista. */
+/** Fórmula da Marcela: 40 sinaleira · 20 agenda realizada · 10 WhatsApp · 10 proposta · 10 masterclass · 10 analista = 100. */
 export const DEFAULT_HEALTH_WEIGHTS: HealthWeights = {
   sinaleira: 40,
-  agenda: 10,
+  agenda: 20,
   whatsapp: 10,
   proposta_aberta: 10,
   masterclass: 10,
