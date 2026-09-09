@@ -934,6 +934,71 @@ export type Database = {
           },
         ]
       }
+      cs_escalation_notices: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          acted: boolean
+          client_uid: string
+          days_late: number
+          due_at: string
+          first_seen_at: string
+          kind: string
+          last_seen_at: string
+          note: string | null
+          notified_at: string | null
+          owner_id: string | null
+          reason: string
+          ref_id: string
+          resolved_at: string | null
+          title: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acted?: boolean
+          client_uid: string
+          days_late?: number
+          due_at: string
+          first_seen_at?: string
+          kind: string
+          last_seen_at?: string
+          note?: string | null
+          notified_at?: string | null
+          owner_id?: string | null
+          reason?: string
+          ref_id: string
+          resolved_at?: string | null
+          title: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          acted?: boolean
+          client_uid?: string
+          days_late?: number
+          due_at?: string
+          first_seen_at?: string
+          kind?: string
+          last_seen_at?: string
+          note?: string | null
+          notified_at?: string | null
+          owner_id?: string | null
+          reason?: string
+          ref_id?: string
+          resolved_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_escalation_notices_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
       cs_meeting_categories: {
         Row: {
           ativo: boolean
@@ -3399,6 +3464,22 @@ export type Database = {
           contact_id: string
         }[]
       }
+      cs_escalation_config: { Args: never; Returns: Json }
+      cs_escalations: {
+        Args: never
+        Returns: {
+          acted: boolean
+          client_uid: string
+          days_late: number
+          due_at: string
+          kind: string
+          last_action_at: string
+          owner_id: string
+          reason: string
+          ref_id: string
+          title: string
+        }[]
+      }
       cs_evidence_config: { Args: never; Returns: Json }
       cs_find_evidence: {
         Args: { _channel: string; _client_uid: string; _since: string }
@@ -3410,6 +3491,7 @@ export type Database = {
       }
       cs_gen_client_uid: { Args: never; Returns: string }
       cs_phone_digits: { Args: { _v: string }; Returns: string }
+      cs_refresh_escalations: { Args: never; Returns: number }
       cs_settle_meetings: { Args: never; Returns: number }
       cs_stage_from_contract:
         | {
