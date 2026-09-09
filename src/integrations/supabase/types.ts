@@ -2421,11 +2421,11 @@ export type Database = {
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr"
       app_team: "comercial" | "cs"
-      cs_client_type: "empresa" | "consultoria"
+      cs_client_type: "empresa" | "consultoria" | "pessoa_fisica"
       cs_contact_origin: "manual" | "email_bcc" | "pda_api" | "linkedin"
       cs_journey_stage: "onboarding" | "ativacao" | "renovacao"
       cs_origin: "marketing" | "indicacao" | "outbound" | "renovacao"
-      cs_signal: "verde" | "amarelo" | "vermelho" | "sem_dado"
+      cs_signal: "verde" | "amarelo" | "vermelho" | "sem_dado" | "preto"
       enrichment_status: "pending" | "found" | "not_found" | "manual"
       lead_priority: "alta" | "media" | "baixa" | "fora_icp" | "pendente"
     }
@@ -2557,11 +2557,11 @@ export const Constants = {
     Enums: {
       app_role: ["super_admin", "gestao", "executivo", "sdr"],
       app_team: ["comercial", "cs"],
-      cs_client_type: ["empresa", "consultoria"],
+      cs_client_type: ["empresa", "consultoria", "pessoa_fisica"],
       cs_contact_origin: ["manual", "email_bcc", "pda_api", "linkedin"],
       cs_journey_stage: ["onboarding", "ativacao", "renovacao"],
       cs_origin: ["marketing", "indicacao", "outbound", "renovacao"],
-      cs_signal: ["verde", "amarelo", "vermelho", "sem_dado"],
+      cs_signal: ["verde", "amarelo", "vermelho", "sem_dado", "preto"],
       enrichment_status: ["pending", "found", "not_found", "manual"],
       lead_priority: ["alta", "media", "baixa", "fora_icp", "pendente"],
     },
