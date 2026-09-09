@@ -27,6 +27,7 @@ import {
   BookOpen,
   ShieldAlert,
   ChevronRight,
+  Wand2,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -58,21 +59,31 @@ type NavItem = {
  */
 const NAV_OBJECTS: NavItem[] = [
   { to: "/inicio", label: "Início", icon: Home },
-  { to: "/whatsapp", label: "Caixa de entrada", icon: Inbox },
   { to: "/cs", label: "Empresas", icon: Building2, team: "cs", also: ["/empresas"] },
   { to: "/kanban", label: "Negócios", icon: Handshake, team: "comercial", also: ["/lead"] },
   { to: "/cs-follow-ups", label: "Tarefas", icon: ListChecks, team: "cs" },
 ];
 
+/*
+ * Grupos por intenção, poucos itens em cada um. Só o grupo da página atual
+ * abre por padrão; o que a pessoa abrir/fechar fica lembrado no navegador.
+ * Canais = onde a conversa acontece · CS/Comercial = o trabalho de cada time ·
+ * Referência = leitura · Administração = quem configura.
+ */
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Canais",
+    items: [
+      { to: "/whatsapp", label: "Caixa de entrada", icon: Inbox },
+      { to: "/cs-emails", label: "E-mails", icon: Mail, team: "cs" },
+      { to: "/cs-agenda", label: "Agenda", icon: CalendarDays, team: "cs" },
+    ],
+  },
   {
     label: "Customer Success",
     items: [
       { to: "/cs-kanban", label: "Kanban semanal", icon: KanbanIcon, team: "cs" },
       { to: "/cs-cadencia", label: "Cadência e sinaleira", icon: Activity, team: "cs" },
-      { to: "/cs-agenda", label: "Agenda", icon: CalendarDays, team: "cs" },
-      { to: "/cs-emails", label: "E-mails", icon: Mail, team: "cs" },
-      { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
       {
         to: "/cs-dashboard",
         label: "Dashboard CS",
@@ -80,7 +91,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         team: "cs",
         managerOnly: true,
       },
-      { to: "/cs-integracoes", label: "Integrações", icon: Link2, team: "cs" },
     ],
   },
   {
@@ -89,9 +99,16 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/dashboard", label: "Visão geral", icon: BarChart3, team: "comercial" },
       { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
       { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
-      { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
       { to: "/leads-analytics", label: "Performance", icon: LineChart, team: "comercial" },
       { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
+    ],
+  },
+  {
+    label: "Referência",
+    items: [
+      { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
+      { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
+      { to: "/novidades", label: "Novidades", icon: Sparkles },
     ],
   },
   {
@@ -105,10 +122,12 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         icon: SlidersHorizontal,
         managerOnly: true,
       },
-      { to: "/novidades", label: "Novidades", icon: Sparkles },
+      { to: "/cs-integracoes", label: "Integrações CS", icon: Link2, team: "cs" },
     ],
   },
 ];
+
+type NavStyle = "classico" | "flutuante";
 
 function isActive(item: NavItem, currentPath: string) {
   const prefixes = [item.to, ...(item.also ?? [])];
@@ -122,7 +141,36 @@ function AppShell() {
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
   const palette = useCommandPalette();
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {};
+    try {
+      return JSON.parse(window.localStorage.getItem("sidebar:groups") ?? "{}") as Record<
+        string,
+        boolean
+      >;
+    } catch {
+      return {};
+    }
+  });
+  const toggleGroup = (label: string, open: boolean) =>
+    setOpenGroups((prev) => {
+      const next = { ...prev, [label]: !open };
+      try {
+        window.localStorage.setItem("sidebar:groups", JSON.stringify(next));
+      } catch {
+        /* sem storage */
+      }
+      return next;
+    });
+  // Estilo do menu: clássico (colado na borda) ou flutuante "liquid glass".
+  const [navStyle, setNavStyle] = useState<NavStyle>(() => {
+    if (typeof window === "undefined") return "flutuante";
+    return (window.localStorage.getItem("sidebar:style") as NavStyle | null) ?? "flutuante";
+  });
+  const glass = navStyle === "flutuante";
+  useEffect(() => {
+    if (typeof window !== "undefined") window.localStorage.setItem("sidebar:style", navStyle);
+  }, [navStyle]);
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -194,7 +242,7 @@ function AppShell() {
           collapsed ? "justify-center px-0" : "px-2.5"
         } ${
           active
-            ? "bg-sidebar-accent font-medium text-sidebar-foreground"
+            ? `font-medium text-sidebar-foreground ${glass ? "glass-item-active rounded-lg" : "bg-sidebar-accent"}`
             : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
         }`}
       >
@@ -205,9 +253,13 @@ function AppShell() {
   };
 
   return (
-    <div className="min-h-screen flex bg-surface">
+    <div className={`min-h-screen flex bg-surface ${glass ? "glass-bg" : ""}`}>
       <aside
-        className={`${collapsed ? "w-[52px]" : "w-[228px]"} shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-[width] duration-150`}
+        className={`${collapsed ? "w-[52px]" : "w-[228px]"} shrink-0 text-sidebar-foreground flex flex-col transition-[width] duration-150 ${
+          glass
+            ? "glass-nav sticky top-3 m-3 mr-0 h-[calc(100vh-1.5rem)] self-start rounded-2xl"
+            : "border-r border-sidebar-border bg-sidebar"
+        }`}
       >
         <div
           className={`h-12 shrink-0 flex items-center justify-between gap-2 border-b border-sidebar-border ${collapsed ? "px-2" : "px-3"}`}
@@ -257,7 +309,7 @@ function AppShell() {
               <div key={group.label} className="mb-2 last:mb-0">
                 {!collapsed && (
                   <button
-                    onClick={() => setOpenGroups((prev) => ({ ...prev, [group.label]: !open }))}
+                    onClick={() => toggleGroup(group.label, open)}
                     className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent/60"
                   >
                     <ChevronRight
@@ -298,6 +350,17 @@ function AppShell() {
             )}
           </div>
           <div className={`mt-1 flex items-center gap-1 ${collapsed ? "flex-col" : ""}`}>
+            <button
+              onClick={() => setNavStyle(glass ? "classico" : "flutuante")}
+              title={glass ? "Usar menu clássico" : "Usar menu flutuante (liquid glass)"}
+              className="rounded-md px-1.5 py-1.5 text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              {glass ? (
+                <PanelLeft className="h-4 w-4" strokeWidth={1.75} />
+              ) : (
+                <Wand2 className="h-4 w-4" strokeWidth={1.75} />
+              )}
+            </button>
             <ThemeToggle
               showLabel={false}
               className="px-1.5 text-sidebar-foreground/70 hover:text-sidebar-foreground"
@@ -317,7 +380,13 @@ function AppShell() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-4">
+        <header
+          className={`flex h-12 shrink-0 items-center gap-3 px-4 ${
+            glass
+              ? "glass-bar sticky top-3 z-10 mx-3 mt-3 rounded-full"
+              : "border-b border-border bg-background"
+          }`}
+        >
           <button
             onClick={() => palette.setOpen(true)}
             className="flex h-8 w-full max-w-md items-center gap-2 rounded-full border border-border bg-surface px-3 text-[13px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
@@ -333,7 +402,7 @@ function AppShell() {
             {role.canAccessTeam("cs") && <CsFollowUpNotifier />}
           </div>
         </header>
-        <main className="min-h-0 flex-1 overflow-auto">
+        <main className={`min-h-0 flex-1 overflow-auto ${glass ? "px-3 pb-3 pt-3" : ""}`}>
           {blocked ? (
             <div className="grid min-h-full place-items-center p-8">
               <div className="max-w-md rounded-lg border border-border bg-background p-6 text-center">
