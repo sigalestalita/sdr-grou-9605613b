@@ -29,7 +29,11 @@ describe("CS — rota carrega", () => {
   it("expõe a rota /_app/cs com componente e metadados próprios", async () => {
     const mod = await import("@/routes/_app.cs");
     expect(mod.Route).toBeTruthy();
-    const opts = (mod.Route as unknown as { options: { component?: unknown; head?: () => { meta: Array<Record<string, string>> } } }).options;
+    const opts = (
+      mod.Route as unknown as {
+        options: { component?: unknown; head?: () => { meta: Array<Record<string, string>> } };
+      }
+    ).options;
     expect(typeof opts.component).toBe("function");
     const meta = opts.head?.().meta ?? [];
     expect(meta.some((m) => m.title?.includes("Customer Success"))).toBe(true);
@@ -69,7 +73,9 @@ describe("CS — importação CSV da carteira", () => {
 
   it("aceita CSV com vírgula e ignora origem inválida", () => {
     const rows = parseCsvClients("nome_empresa,tipo_lead,origem\nGama Ltda,empresa,xpto");
-    expect(rows).toEqual([expect.objectContaining({ nome_empresa: "Gama Ltda", origem: "marketing", aporte_valor: 0 })]);
+    expect(rows).toEqual([
+      expect.objectContaining({ nome_empresa: "Gama Ltda", origem: "marketing", aporte_valor: 0 }),
+    ]);
   });
 
   it("retorna vazio sem linhas de dados", () => {
@@ -80,16 +86,46 @@ describe("CS — importação CSV da carteira", () => {
 
 describe("CS — health score e sinaleira", () => {
   it("calcula health score e rótulo coerentes com o engajamento", () => {
-    const top = computeHealthScore(
-      { signal: "verde", agendaLast90d: 2, whatsappAnswered: true, emailAnswered: true, csPlatformUse: true },
-      DEFAULT_HEALTH_WEIGHTS,
-    );
+    const full = {
+      hasSinaleira: true,
+      agendaLast90d: 2,
+      whatsappAnswered: true,
+      propostaAberta: true,
+      masterclass: true,
+      analistaPda: true,
+    };
+    const top = computeHealthScore({ signal: "verde", ...full }, DEFAULT_HEALTH_WEIGHTS);
     const bottom = computeHealthScore(
-      { signal: "vermelho", agendaLast90d: 0, whatsappAnswered: false, emailAnswered: false, csPlatformUse: false },
+      {
+        signal: "vermelho",
+        hasSinaleira: true,
+        agendaLast90d: 0,
+        whatsappAnswered: false,
+        propostaAberta: false,
+        masterclass: false,
+        analistaPda: false,
+      },
       DEFAULT_HEALTH_WEIGHTS,
     );
     expect(top).toBe(100);
-    expect(bottom).toBeLessThan(40);
+    expect(bottom).toBe(0);
+    // pesos padrão somam 90; amarelo vale 20 dos 40 da sinaleira → 70/90 = 78
+    expect(computeHealthScore({ signal: "amarelo", ...full }, DEFAULT_HEALTH_WEIGHTS)).toBe(78);
+    // sem sinaleira (certificação/DG) renormaliza sobre os 60 pontos restantes
+    expect(
+      computeHealthScore(
+        { signal: "sem_dado", ...full, hasSinaleira: false },
+        DEFAULT_HEALTH_WEIGHTS,
+      ),
+    ).toBe(100);
+    // preto (licença vencida) sai do cálculo, como cliente sem sinaleira
+    expect(computeHealthScore({ signal: "preto", ...full }, DEFAULT_HEALTH_WEIGHTS)).toBe(100);
+    // com renormalização desligada, os 40 pontos da sinaleira ficam perdidos
+    expect(
+      computeHealthScore({ signal: "preto", ...full }, DEFAULT_HEALTH_WEIGHTS, undefined, {
+        renormalizar_sem_sinaleira: false,
+      }),
+    ).toBe(56);
     expect(healthLabel(top).label).toBe("Saudável");
     expect(healthLabel(bottom).label).toBe("Risco");
     expect(healthLabel(55).label).toBe("Atenção");
@@ -109,7 +145,16 @@ describe("CS — health score e sinaleira", () => {
 
 describe("CS — card do cliente", () => {
   const weeks = lastNWeeks(8, new Date("2026-08-24T00:00:00Z"));
-  const history: CsSignal[] = ["verde", "verde", "amarelo", "verde", "verde", "verde", "verde", "vermelho"];
+  const history: CsSignal[] = [
+    "verde",
+    "verde",
+    "amarelo",
+    "verde",
+    "verde",
+    "verde",
+    "verde",
+    "vermelho",
+  ];
 
   const client = {
     client_uid: "A1B2",
@@ -176,7 +221,13 @@ describe("CS — card do cliente", () => {
   it("mostra oportunidade de expansão em sequência verde", () => {
     render(
       <CsClientCard
-        client={{ ...client, client_uid: "C3D4", current_signal: "verde", health_score: 88, tipo_lead: "empresa" }}
+        client={{
+          ...client,
+          client_uid: "C3D4",
+          current_signal: "verde",
+          health_score: 88,
+          tipo_lead: "empresa",
+        }}
         history={["verde", "verde", "verde", "verde", "verde"]}
         weeks={weeks.slice(3)}
         ownerName="Camila Mattie"

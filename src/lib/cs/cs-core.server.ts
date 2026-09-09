@@ -12,13 +12,22 @@ import {
   type HealthWeights,
   type RoutingConfig,
   type StageSla,
+  DEFAULT_HEALTH_SIGNAL_POINTS,
+  DEFAULT_HEALTH_OPTIONS,
+  DEFAULT_DAILY_TARGET,
+  type HealthSignalPoints,
+  type HealthOptions,
+  type DailyTarget,
 } from "@/lib/cs-types";
 
 type DB = SupabaseClient<Database>;
 
 /** Busca todas as linhas de uma query, contornando o limite de 1000 do Data API. */
 export async function fetchAllRows<T>(
-  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  build: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
   pageSize = 1000,
 ): Promise<T[]> {
   const out: T[] = [];
@@ -49,6 +58,15 @@ export async function saveCsSetting(db: DB, key: string, value: unknown) {
 export function getHealthWeights(db: DB) {
   return getCsSetting<HealthWeights>(db, "health_weights", DEFAULT_HEALTH_WEIGHTS);
 }
+export function getHealthSignalPoints(db: DB) {
+  return getCsSetting<HealthSignalPoints>(db, "health_signal_points", DEFAULT_HEALTH_SIGNAL_POINTS);
+}
+export function getHealthOptions(db: DB) {
+  return getCsSetting<HealthOptions>(db, "health_options", DEFAULT_HEALTH_OPTIONS);
+}
+export function getDailyTarget(db: DB) {
+  return getCsSetting<DailyTarget>(db, "daily_contact_target", DEFAULT_DAILY_TARGET);
+}
 export function getStageSla(db: DB) {
   return getCsSetting<StageSla>(db, "stage_sla_days", DEFAULT_STAGE_SLA);
 }
@@ -59,7 +77,12 @@ export function getRouting(db: DB) {
 /** Regras de roteamento por tipo/origem/aporte. Fixo no momento da entrada do cliente. */
 export async function resolveCsRouting(
   db: DB,
-  input: { tipo_lead: string; origem: string; aporte_valor: number; comercial_fechou?: string | null },
+  input: {
+    tipo_lead: string;
+    origem: string;
+    aporte_valor: number;
+    comercial_fechou?: string | null;
+  },
 ): Promise<{ cs_responsavel_id: string | null; comercial_responsavel_id: string | null }> {
   const routing = await getRouting(db);
 
@@ -80,7 +103,10 @@ export async function resolveCsRouting(
   const pool = routing.cs_round_robin ?? [];
   const cs = pickFrom(pool, routing.rr_cursor);
   if (pool.length > 0) {
-    await saveCsSetting(db, "routing", { ...routing, rr_cursor: (routing.rr_cursor + 1) % pool.length });
+    await saveCsSetting(db, "routing", {
+      ...routing,
+      rr_cursor: (routing.rr_cursor + 1) % pool.length,
+    });
   }
   const highTicket = Number(input.aporte_valor ?? 0) >= Number(routing.aporte_threshold ?? 500);
   return {
@@ -122,7 +148,12 @@ export async function logTimeline(
 /** Tag acumulativa na empresa, sem duplicar a mesma tag no mesmo dia. */
 export async function addClientTag(
   db: DB,
-  input: { client_uid: string; tag: string; origem_agenda_id?: string | null; created_by?: string | null },
+  input: {
+    client_uid: string;
+    tag: string;
+    origem_agenda_id?: string | null;
+    created_by?: string | null;
+  },
 ) {
   const since = new Date(Date.now() - 86400000).toISOString();
   const { data: existing } = await db
@@ -145,13 +176,25 @@ export function tagForAgenda(agendaType: string): string {
   return CS_AGENDA_TAG[agendaType] ?? agendaType;
 }
 
-/** Recalcula health score de um cliente a partir de sinaleira + engajamento registrado. */
+/**
+ * Recalcula o health score (fórmula v2): sinaleira por cor, agenda em 90 dias,
+ * WhatsApp respondido, proposta em aberto, masterclass realizada e analista PDA
+ * certificado. Cliente sem sinaleira é renormalizado sobre os demais critérios.
+ */
 export async function recomputeHealth(db: DB, clientUid: string): Promise<number> {
-  const weights = await getHealthWeights(db);
+  const [weights, points, options] = await Promise.all([
+    getHealthWeights(db),
+    getHealthSignalPoints(db),
+    getHealthOptions(db),
+  ]);
   const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
 
-  const [clientRes, snapRes, eventsRes, tagsRes] = await Promise.all([
-    db.from("cs_clients").select("client_uid, tipo_lead, current_signal").eq("client_uid", clientUid).maybeSingle(),
+  const [clientRes, snapRes, eventsRes, tagsRes, contactsRes, salesRes] = await Promise.all([
+    db
+      .from("cs_clients")
+      .select("client_uid, tipo_lead, tipo_servico, login_pda, current_signal")
+      .eq("client_uid", clientUid)
+      .maybeSingle(),
     db
       .from("cs_signal_snapshots")
       .select("signal, week_start")
@@ -163,18 +206,24 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
       .select("event_type, channel, metadata, occurred_at")
       .eq("client_uid", clientUid)
       .gte("occurred_at", since90),
+    db.from("cs_client_tags").select("tag, data_criacao").eq("client_uid", clientUid),
+    db.from("cs_contacts").select("analista_pda, ativo_no_cliente").eq("client_uid", clientUid),
     db
-      .from("cs_client_tags")
-      .select("tag, data_criacao")
+      .from("cs_sales")
+      .select("id")
       .eq("client_uid", clientUid)
-      .gte("data_criacao", new Date(Date.now() - 180 * 86400000).toISOString()),
+      .eq("status", "em_negociacao")
+      .limit(1),
   ]);
 
   if (!clientRes.data) return 0;
+  const c = clientRes.data as Record<string, unknown>;
   // Consultoria é isolada das métricas gerenciais.
-  if (clientRes.data.tipo_lead === "consultoria") return 0;
+  if (c["tipo_lead"] === "consultoria") return 0;
 
-  const signal = (snapRes.data?.[0]?.signal ?? clientRes.data.current_signal ?? "sem_dado") as CsSignal;
+  const signal = (snapRes.data?.[0]?.signal ?? c["current_signal"] ?? "sem_dado") as CsSignal;
+  const hasSinaleira =
+    (c["tipo_servico"] == null || c["tipo_servico"] === "licenca_pda") && !!c["login_pda"];
   const events = eventsRes.data ?? [];
   const agendaLast90d = events.filter((e) => e.event_type === "agenda").length;
   const answered = (channel: string) =>
@@ -182,21 +231,30 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
       const meta = (e.metadata ?? {}) as Record<string, unknown>;
       return e.channel === channel && (meta["answered"] === true || meta["engajamento"] === true);
     });
-  const csTags = new Set(["ninebox", "ppa", "pdi", "construcao_cargo"]);
-  const csPlatformUse = (tagsRes.data ?? []).some((t) => csTags.has(t.tag));
+  const masterclass = (tagsRes.data ?? []).some((t) => /masterclass/i.test(t.tag));
+  const analistaPda = (contactsRes.data ?? []).some(
+    (k) => (k as Record<string, unknown>)["analista_pda"] === true && k.ativo_no_cliente !== false,
+  );
 
   const score = computeHealthScore(
     {
       signal,
+      hasSinaleira,
       agendaLast90d,
       whatsappAnswered: answered("whatsapp"),
-      emailAnswered: answered("email"),
-      csPlatformUse,
+      propostaAberta: (salesRes.data ?? []).length > 0,
+      masterclass,
+      analistaPda,
     },
     weights,
+    points,
+    options,
   );
 
-  await db.from("cs_clients").update({ health_score: score, current_signal: signal }).eq("client_uid", clientUid);
+  await db
+    .from("cs_clients")
+    .update({ health_score: score, current_signal: signal })
+    .eq("client_uid", clientUid);
   return score;
 }
 
@@ -207,7 +265,9 @@ export async function generateCsAlerts(db: DB): Promise<{ created: number }> {
 
   const { data: clients } = await db
     .from("cs_clients")
-    .select("client_uid, nome_empresa, tipo_lead, journey_stage, stage_entered_at, last_contact_at, ativo")
+    .select(
+      "client_uid, nome_empresa, tipo_lead, journey_stage, stage_entered_at, last_contact_at, ativo",
+    )
     .eq("ativo", true)
     .neq("tipo_lead", "consultoria");
   if (!clients?.length) return { created: 0 };
@@ -240,6 +300,15 @@ export async function generateCsAlerts(db: DB): Promise<{ created: number }> {
 
   const now = Date.now();
   for (const c of clients) {
+    const hist = byClient.get(c.client_uid) ?? [];
+    if (hist[hist.length - 1] === "preto") {
+      pending.push({
+        client_uid: c.client_uid,
+        alert_type: "licenca_vencida",
+        reason: "Licença vencida ou conta inativa — entrar na fila de reativação com o Executivo.",
+        severity: "media",
+      });
+    }
     const trend = analyzeSignalTrend(byClient.get(c.client_uid) ?? []);
     if (trend.kind === "critico") {
       pending.push({

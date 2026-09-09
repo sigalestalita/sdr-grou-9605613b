@@ -11,6 +11,10 @@ import {
   CS_CONTACT_MODULES,
   CS_CONTACT_MODULE_LABEL,
   CS_CONTACT_ORIGIN_LABEL,
+  CS_SERVICE_TYPES,
+  CS_SERVICE_TYPE_LABEL,
+  CS_TAG_USO,
+  CS_TAG_USO_LABEL,
 } from "@/lib/cs-types";
 import {
   History,
@@ -92,6 +96,8 @@ export function ClientEditor({
     data_inicio_contrato: ((client.data_inicio_contrato as string) ?? "").slice(0, 10),
     data_renovacao: ((client.data_renovacao as string) ?? "").slice(0, 10),
     dg_ativo: Boolean(client.dg_ativo),
+    tipo_servico: (client.tipo_servico as string) ?? "",
+    tag_uso: (client.tag_uso as string) ?? "",
   });
   const set = (k: keyof typeof form, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -109,6 +115,34 @@ export function ClientEditor({
         </Field>
         <Field label="Setor">
           <Input value={form.setor} onChange={(e) => set("setor", e.target.value)} />
+        </Field>
+        <Field label="Serviço principal">
+          <select
+            value={form.tipo_servico}
+            onChange={(e) => set("tipo_servico", e.target.value)}
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="">—</option>
+            {CS_SERVICE_TYPES.map((t) => (
+              <option key={t} value={t}>
+                {CS_SERVICE_TYPE_LABEL[t]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Uso do PDA (tag_uso)">
+          <select
+            value={form.tag_uso}
+            onChange={(e) => set("tag_uso", e.target.value)}
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="">—</option>
+            {CS_TAG_USO.map((t) => (
+              <option key={t} value={t}>
+                {CS_TAG_USO_LABEL[t]}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Site">
           <Input value={form.site_url} onChange={(e) => set("site_url", e.target.value)} />
@@ -166,6 +200,8 @@ export function ClientEditor({
               setor: form.setor || null,
               data_inicio_contrato: form.data_inicio_contrato || null,
               data_renovacao: form.data_renovacao || null,
+              tipo_servico: form.tipo_servico || null,
+              tag_uso: form.tag_uso || null,
             })
           }
         >
@@ -193,6 +229,7 @@ export function ContactsPanel({
     whatsapp: "",
     cargo: "",
     modulos_vinculados: [] as string[],
+    analista_pda: false,
   };
   const [form, setForm] = useState(empty);
   const [adding, setAdding] = useState(false);
@@ -216,6 +253,7 @@ export function ContactsPanel({
               <p className="flex items-center gap-1.5 text-[13px] font-medium">
                 <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 <span className="truncate">{c.nome}</span>
+                {c.analista_pda === true && <Badge className="text-[10px]">Analista PDA</Badge>}
                 {c.ativo_no_cliente === false && (
                   <Badge variant="outline" className="text-[10px]">
                     inativo
@@ -280,6 +318,14 @@ export function ContactsPanel({
               />
             </Field>
           </div>
+          <label className="flex items-center gap-2 text-[12px]">
+            <input
+              type="checkbox"
+              checked={form.analista_pda}
+              onChange={(e) => setForm({ ...form, analista_pda: e.target.checked })}
+            />
+            Analista PDA certificado
+          </label>
           <div className="flex flex-wrap gap-1">
             {CS_CONTACT_MODULES.map((m) => (
               <button
@@ -318,6 +364,7 @@ export function ContactsPanel({
                   whatsapp: form.whatsapp || null,
                   modulos_vinculados: form.modulos_vinculados,
                   origem_detecao: "manual",
+                  analista_pda: form.analista_pda,
                 });
                 setForm(empty);
                 setAdding(false);

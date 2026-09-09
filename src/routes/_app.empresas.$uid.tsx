@@ -18,8 +18,11 @@ import {
   setCsOwner,
 } from "@/lib/cs.functions";
 import {
+  CS_ALERT_TYPE_LABEL,
   CS_CLIENT_TYPE_LABEL,
   CS_ORIGIN_LABEL,
+  CS_SERVICE_TYPE_LABEL,
+  CS_TAG_USO_LABEL,
   CS_SIGNAL_CLASS,
   CS_SIGNAL_LABEL,
   CS_STAGES,
@@ -329,6 +332,14 @@ function CompanyPage() {
                 <PropertyRow label="Origem">
                   {CS_ORIGIN_LABEL[client.origem] ?? client.origem}
                 </PropertyRow>
+                <PropertyRow label="Serviço">
+                  {client.tipo_servico
+                    ? (CS_SERVICE_TYPE_LABEL[client.tipo_servico] ?? client.tipo_servico)
+                    : "—"}
+                </PropertyRow>
+                <PropertyRow label="Uso do PDA">
+                  {client.tag_uso ? (CS_TAG_USO_LABEL[client.tag_uso] ?? client.tag_uso) : "—"}
+                </PropertyRow>
                 <PropertyRow label="CNPJ">{client.cnpj || "—"}</PropertyRow>
                 <PropertyRow label="Login PDA">{client.login_pda || "—"}</PropertyRow>
                 <PropertyRow label="Setor">{client.setor || "—"}</PropertyRow>
@@ -535,7 +546,9 @@ function CompanyPage() {
                 {(data?.alerts ?? []).slice(0, 8).map((a) => (
                   <div key={a.id} className="rounded border px-2 py-1.5 text-[12px]">
                     <p className="flex items-center justify-between gap-2">
-                      <span className="truncate font-medium">{a.alert_type}</span>
+                      <span className="truncate font-medium">
+                        {CS_ALERT_TYPE_LABEL[a.alert_type] ?? a.alert_type}
+                      </span>
                       <Badge
                         variant={a.status === "open" ? "default" : "outline"}
                         className="text-[10px]"

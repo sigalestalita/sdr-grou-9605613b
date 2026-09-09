@@ -9,7 +9,8 @@ function gatewayHeaders() {
   const lovableKey = process.env.LOVABLE_API_KEY;
   const key = process.env.GOOGLE_SHEETS_API_KEY;
   if (!lovableKey) throw new Error("LOVABLE_API_KEY ausente");
-  if (!key) throw new Error("GOOGLE_SHEETS_API_KEY ausente — conecte o Google Sheets em Connectors");
+  if (!key)
+    throw new Error("GOOGLE_SHEETS_API_KEY ausente — conecte o Google Sheets em Connectors");
   return {
     Accept: "application/json",
     Authorization: `Bearer ${lovableKey}`,
@@ -74,7 +75,8 @@ function parseSignal(raw: unknown, consumo: number | null): CsSignal {
   }
   if (/verde|green|\bok\b|bom/.test(v)) return "verde";
   if (/amarel|yellow|atencao|medio/.test(v)) return "amarelo";
-  if (/vermelh|red|critic|ruim|preto|black/.test(v)) return "vermelho";
+  if (/preto|black|inativ|vencid|desabilit|cancelad/.test(v)) return "preto";
+  if (/vermelh|red|critic|ruim/.test(v)) return "vermelho";
   if (consumo != null) {
     if (consumo >= 0.7) return "verde";
     if (consumo >= 0.3) return "amarelo";
@@ -85,7 +87,12 @@ function parseSignal(raw: unknown, consumo: number | null): CsSignal {
 
 /** Número em formato pt-BR ("1.234,5" -> 1234.5). */
 function parseNum(raw: unknown): number | null {
-  const s = String(raw ?? "").replace(/%/g, "").replace(/\s/g, "").replace(/\./g, "").replace(",", ".").trim();
+  const s = String(raw ?? "")
+    .replace(/%/g, "")
+    .replace(/\s/g, "")
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .trim();
   if (!s) return null;
   const n = Number(s);
   return Number.isFinite(n) ? n : null;
@@ -178,10 +185,10 @@ export async function syncSignalFromSheet(opts?: {
       return `${y}-${String(Number(m[2])).padStart(2, "0")}-${String(Number(m[1])).padStart(2, "0")}`;
     };
 
-
     const loadClients = async () => {
       // Paginação obrigatória: o Data API limita a 1000 linhas por consulta.
-      const data: Array<{ client_uid: string; nome_empresa: string; login_pda: string | null }> = [];
+      const data: Array<{ client_uid: string; nome_empresa: string; login_pda: string | null }> =
+        [];
       const PAGE = 1000;
       for (let from = 0; ; from += PAGE) {
         const { data: page, error } = await supabaseAdmin
@@ -294,14 +301,26 @@ export async function syncSignalFromSheet(opts?: {
         login_pda: login || null,
         ...(dominio ? { site_url: dominio } : {}),
         ...(expCred ? { data_renovacao: expCred } : {}),
-        ...(tipoLeadRaw ? { tipo_lead: /consultoria/.test(tipoLeadRaw) ? "consultoria" : "empresa" } : {}),
-        ...(colDesabilitada >= 0 ? { dg_ativo: !/^sim$/i.test(txt(row, colDesabilitada) ?? "") } : {}),
+        ...(tipoLeadRaw
+          ? { tipo_lead: /consultoria/.test(tipoLeadRaw) ? "consultoria" : "empresa" }
+          : {}),
+        ...(colDesabilitada >= 0
+          ? { dg_ativo: !/^sim$/i.test(txt(row, colDesabilitada) ?? "") }
+          : {}),
       });
 
       rows.push({
         client_uid: clientUid,
         week_start: weekStart,
-        signal: parseSignal(colSignal >= 0 ? row[colSignal] : null, consumo),
+        // Conta desabilitada ou expirada = preto, independente da leitura de consumo.
+        signal:
+          /^sim$/i.test(txt(row, colDesabilitada) ?? "") ||
+          (() => {
+            const exp = parseDateBr(row[colExpConta]);
+            return !!exp && exp < new Date().toISOString().slice(0, 10);
+          })()
+            ? "preto"
+            : parseSignal(colSignal >= 0 ? row[colSignal] : null, consumo),
         consumo_pct: consumo,
         source: `planilha:${tab}`,
         metadata: {
@@ -355,12 +374,17 @@ export async function syncSignalFromSheet(opts?: {
       }
     }
 
-
     await supabaseAdmin.from("integration_logs").insert({
       provider: "cs_signal",
       action: "sheet_sync",
       status: "success",
-      detail: { tab, weekStart, created, matched: rows.length, unmatched: unmatched.slice(0, 50) } as never,
+      detail: {
+        tab,
+        weekStart,
+        created,
+        matched: rows.length,
+        unmatched: unmatched.slice(0, 50),
+      } as never,
     });
 
     return {

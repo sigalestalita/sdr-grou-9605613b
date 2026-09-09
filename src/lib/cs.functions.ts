@@ -8,7 +8,9 @@ import {
   CS_CONTACT_ORIGINS,
   CS_CONTACT_TYPES,
   CS_ORIGINS,
+  CS_SERVICE_TYPES,
   CS_STAGES,
+  CS_TAG_USO,
 } from "@/lib/cs-types";
 
 /** Carteira completa de CS + snapshots das últimas 8 semanas + alertas abertos. */
@@ -17,34 +19,55 @@ export const listCsBoard = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { lastNWeeks, DEFAULT_STAGE_SLA } = await import("@/lib/cs-types");
-    const { getStageSla, getHealthWeights, getRouting, fetchAllRows } =
-      await import("@/lib/cs/cs-core.server");
+    const {
+      getStageSla,
+      getHealthWeights,
+      getHealthSignalPoints,
+      getHealthOptions,
+      getDailyTarget,
+      getRouting,
+      fetchAllRows,
+    } = await import("@/lib/cs/cs-core.server");
     const weeks = lastNWeeks(8);
 
-    const [clients, snapshots, alerts, tags, profilesRes, sla, weights, routing] =
-      await Promise.all([
-        fetchAllRows((f, t) =>
-          supabase.from("cs_clients").select("*").order("nome_empresa").range(f, t),
-        ),
-        fetchAllRows((f, t) =>
-          supabase
-            .from("cs_signal_snapshots")
-            .select("client_uid, week_start, signal, consumo_pct, metadata")
-            .gte("week_start", weeks[0])
-            .order("week_start")
-            .range(f, t),
-        ),
-        fetchAllRows((f, t) =>
-          supabase.from("cs_alerts").select("*").eq("status", "open").range(f, t),
-        ),
-        fetchAllRows((f, t) =>
-          supabase.from("cs_client_tags").select("client_uid, tag, data_criacao").range(f, t),
-        ),
-        supabase.from("profiles").select("id, full_name, email"),
-        getStageSla(supabase),
-        getHealthWeights(supabase),
-        getRouting(supabase),
-      ]);
+    const [
+      clients,
+      snapshots,
+      alerts,
+      tags,
+      profilesRes,
+      sla,
+      weights,
+      routing,
+      signalPoints,
+      options,
+      dailyTarget,
+    ] = await Promise.all([
+      fetchAllRows((f, t) =>
+        supabase.from("cs_clients").select("*").order("nome_empresa").range(f, t),
+      ),
+      fetchAllRows((f, t) =>
+        supabase
+          .from("cs_signal_snapshots")
+          .select("client_uid, week_start, signal, consumo_pct, metadata")
+          .gte("week_start", weeks[0])
+          .order("week_start")
+          .range(f, t),
+      ),
+      fetchAllRows((f, t) =>
+        supabase.from("cs_alerts").select("*").eq("status", "open").range(f, t),
+      ),
+      fetchAllRows((f, t) =>
+        supabase.from("cs_client_tags").select("client_uid, tag, data_criacao").range(f, t),
+      ),
+      supabase.from("profiles").select("id, full_name, email"),
+      getStageSla(supabase),
+      getHealthWeights(supabase),
+      getRouting(supabase),
+      getHealthSignalPoints(supabase),
+      getHealthOptions(supabase),
+      getDailyTarget(supabase),
+    ]);
 
     return {
       clients,
@@ -56,6 +79,9 @@ export const listCsBoard = createServerFn({ method: "GET" })
       sla: sla ?? DEFAULT_STAGE_SLA,
       weights,
       routing,
+      signalPoints,
+      options,
+      dailyTarget,
     };
   });
 
@@ -216,6 +242,9 @@ export const saveCsClient = createServerFn({ method: "POST" })
         dg_ativo: z.boolean().default(false),
         journey_stage: z.enum(CS_STAGES).default("onboarding"),
         ativo: z.boolean().default(true),
+        tipo_servico: z.enum(CS_SERVICE_TYPES).nullish(),
+        tag_uso: z.enum(CS_TAG_USO).nullish(),
+        produtos_ativos: z.array(z.string()).optional(),
       })
       .parse(d),
   )
@@ -345,6 +374,8 @@ export const saveCsContact = createServerFn({ method: "POST" })
         modulos_vinculados: z.array(z.enum(CS_CONTACT_MODULES)).default([]),
         origem_detecao: z.enum(CS_CONTACT_ORIGINS).default("manual"),
         ativo_no_cliente: z.boolean().default(true),
+        analista_pda: z.boolean().default(false),
+        analista_certificado_em: z.string().nullish(),
       })
       .parse(d),
   )
@@ -534,13 +565,23 @@ export const saveCsSettings = createServerFn({ method: "POST" })
       .object({
         weights: z
           .object({
-            sinaleira_pda: z.number().min(0).max(100),
-            agenda_90d: z.number().min(0).max(100),
-            whatsapp_respondido: z.number().min(0).max(100),
-            email_respondido: z.number().min(0).max(100),
-            uso_plataforma_cs: z.number().min(0).max(100),
+            sinaleira: z.number().min(0).max(100),
+            agenda: z.number().min(0).max(100),
+            whatsapp: z.number().min(0).max(100),
+            proposta_aberta: z.number().min(0).max(100),
+            masterclass: z.number().min(0).max(100),
+            analista_pda: z.number().min(0).max(100),
           })
           .optional(),
+        signalPoints: z
+          .object({
+            verde: z.number().min(0).max(100),
+            amarelo: z.number().min(0).max(100),
+            vermelho: z.number().min(0).max(100),
+          })
+          .optional(),
+        options: z.object({ renormalizar_sem_sinaleira: z.boolean() }).optional(),
+        dailyTarget: z.object({ contatos_por_dia: z.number().int().min(0).max(100) }).optional(),
         sla: z
           .object({
             onboarding: z.number().int().min(1).max(400),
@@ -567,6 +608,9 @@ export const saveCsSettings = createServerFn({ method: "POST" })
     const { data: isManager } = await supabase.rpc("is_manager", { _user_id: userId });
     if (!isManager) throw new Error("Apenas a gestão pode alterar as configurações de CS");
     if (data.weights) await saveCsSetting(supabase, "health_weights", data.weights);
+    if (data.signalPoints) await saveCsSetting(supabase, "health_signal_points", data.signalPoints);
+    if (data.options) await saveCsSetting(supabase, "health_options", data.options);
+    if (data.dailyTarget) await saveCsSetting(supabase, "daily_contact_target", data.dailyTarget);
     if (data.sla) await saveCsSetting(supabase, "stage_sla_days", data.sla);
     if (data.routing) {
       const current = await getRouting(supabase);
@@ -898,27 +942,38 @@ export const getCsHome = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const [profile, clients, alerts, events, profiles] = await Promise.all([
-      supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle(),
-      supabase
-        .from("cs_clients")
-        .select(
-          "client_uid, nome_empresa, current_signal, health_score, cs_responsavel_id, comercial_responsavel_id",
-        )
-        .eq("ativo", true),
-      supabase
-        .from("cs_alerts")
-        .select("id, client_uid, alert_type, reason, severity, created_at")
-        .eq("status", "open")
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("cs_timeline_events")
-        .select("id, client_uid, event_type, channel, title, description, author_id, occurred_at")
-        .order("occurred_at", { ascending: false })
-        .limit(30),
-      supabase.from("profiles").select("id, full_name, email"),
-    ]);
+    const { getDailyTarget } = await import("@/lib/cs/cs-core.server");
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const [profile, clients, alerts, events, profiles, todayEvents, dailyTarget] =
+      await Promise.all([
+        supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle(),
+        supabase
+          .from("cs_clients")
+          .select(
+            "client_uid, nome_empresa, current_signal, health_score, cs_responsavel_id, comercial_responsavel_id",
+          )
+          .eq("ativo", true),
+        supabase
+          .from("cs_alerts")
+          .select("id, client_uid, alert_type, reason, severity, created_at")
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("cs_timeline_events")
+          .select("id, client_uid, event_type, channel, title, description, author_id, occurred_at")
+          .order("occurred_at", { ascending: false })
+          .limit(30),
+        supabase.from("profiles").select("id, full_name, email"),
+        supabase
+          .from("cs_timeline_events")
+          .select("id, channel")
+          .eq("author_id", userId)
+          .gte("occurred_at", startOfDay.toISOString())
+          .in("channel", ["ligacao", "whatsapp", "email", "reuniao", "presencial"]),
+        getDailyTarget(supabase),
+      ]);
 
     const all = clients.data ?? [];
     const names = new Map(all.map((c) => [c.client_uid, c.nome_empresa]));
@@ -930,6 +985,8 @@ export const getCsHome = createServerFn({ method: "GET" })
 
     return {
       me: { id: userId, name: profile.data?.full_name || profile.data?.email || "" },
+      contatosHoje: (todayEvents.data ?? []).length,
+      metaDiaria: dailyTarget.contatos_por_dia,
       carteira: {
         total: all.length,
         mine: mine.length,
@@ -948,4 +1005,61 @@ export const getCsHome = createServerFn({ method: "GET" })
       })),
       profiles: profiles.data ?? [],
     };
+  });
+
+/** Delegações de carteira (cobertura de férias/afastamento). Gestão vê todas; analista vê as suas. */
+export const listCsDelegations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("cs_delegations")
+      .select("*")
+      .order("starts_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const saveCsDelegation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid().optional(),
+        from_user_id: z.string().uuid(),
+        to_user_id: z.string().uuid(),
+        starts_at: z.string().min(10),
+        ends_at: z.string().nullish(),
+        reason: z.string().nullish(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (data.from_user_id === data.to_user_id)
+      throw new Error("Origem e destino precisam ser pessoas diferentes");
+    const { id, ...fields } = data;
+    if (id) {
+      const { error } = await supabase
+        .from("cs_delegations")
+        .update(fields as never)
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+      return { id };
+    }
+    const { data: created, error } = await supabase
+      .from("cs_delegations")
+      .insert({ ...fields, created_by: userId } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: created.id };
+  });
+
+export const deleteCsDelegation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("cs_delegations").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

@@ -1,29 +1,45 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { parseCsvClients } from "@/lib/cs-import";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { importCsClients, saveCsSettings } from "@/lib/cs.functions";
 import {
+  deleteCsDelegation,
+  importCsClients,
+  listCsDelegations,
+  saveCsDelegation,
+  saveCsSettings,
+} from "@/lib/cs.functions";
+import {
+  DEFAULT_DAILY_TARGET,
+  DEFAULT_HEALTH_OPTIONS,
+  DEFAULT_HEALTH_SIGNAL_POINTS,
   DEFAULT_HEALTH_WEIGHTS,
   DEFAULT_ROUTING,
   DEFAULT_STAGE_SLA,
+  HEALTH_CRITERIA_LABEL,
+  type DailyTarget,
+  type HealthOptions,
+  type HealthSignalPoints,
   type HealthWeights,
   type RoutingConfig,
   type StageSla,
 } from "@/lib/cs-types";
-import { Save, Upload } from "lucide-react";
+import { fmtDate } from "@/components/cs/cs-client-sections";
+import { Plus, Save, Trash2, Upload } from "lucide-react";
 
 type Profile = { id: string; full_name: string | null; email: string | null };
 
-const TABS = ["health", "sla", "roteamento", "importar"] as const;
+const TABS = ["health", "metas", "sla", "roteamento", "carteira", "importar"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   health: "Health score",
+  metas: "Metas",
   sla: "SLA da jornada",
   roteamento: "Roteamento",
+  carteira: "Carteira e delegações",
   importar: "Importar carteira",
 };
 
@@ -31,12 +47,18 @@ const TAB_LABEL: Record<Tab, string> = {
 export function CsSettingsPanel({
   profiles,
   weights,
+  signalPoints,
+  options,
+  dailyTarget,
   sla,
   routing,
   onSaved,
 }: {
   profiles: Profile[];
   weights?: HealthWeights;
+  signalPoints?: HealthSignalPoints;
+  options?: HealthOptions;
+  dailyTarget?: DailyTarget;
   sla?: StageSla;
   routing?: RoutingConfig;
   onSaved: () => void;
@@ -46,11 +68,23 @@ export function CsSettingsPanel({
   const [tab, setTab] = useState<Tab>("health");
 
   const [w, setW] = useState<HealthWeights>(weights ?? DEFAULT_HEALTH_WEIGHTS);
+  const [pts, setPts] = useState<HealthSignalPoints>(signalPoints ?? DEFAULT_HEALTH_SIGNAL_POINTS);
+  const [opt, setOpt] = useState<HealthOptions>(options ?? DEFAULT_HEALTH_OPTIONS);
+  const [meta, setMeta] = useState<DailyTarget>(dailyTarget ?? DEFAULT_DAILY_TARGET);
   const [s, setS] = useState<StageSla>(sla ?? DEFAULT_STAGE_SLA);
   const [r, setR] = useState<RoutingConfig>(routing ?? DEFAULT_ROUTING);
   useEffect(() => {
     if (weights) setW(weights);
   }, [weights]);
+  useEffect(() => {
+    if (signalPoints) setPts(signalPoints);
+  }, [signalPoints]);
+  useEffect(() => {
+    if (options) setOpt(options);
+  }, [options]);
+  useEffect(() => {
+    if (dailyTarget) setMeta(dailyTarget);
+  }, [dailyTarget]);
   useEffect(() => {
     if (sla) setS(sla);
   }, [sla]);
@@ -59,7 +93,17 @@ export function CsSettingsPanel({
   }, [routing]);
 
   const save = useMutation({
-    mutationFn: () => saveFn({ data: { weights: w, sla: s, routing: r } }),
+    mutationFn: () =>
+      saveFn({
+        data: {
+          weights: w,
+          signalPoints: pts,
+          options: opt,
+          dailyTarget: meta,
+          sla: s,
+          routing: r,
+        },
+      }),
     onSuccess: () => {
       toast.success("Configurações de CS salvas");
       onSaved();
@@ -81,7 +125,7 @@ export function CsSettingsPanel({
   });
 
   const totalWeight = Object.values(w).reduce((a, b) => a + b, 0);
-  const weightOk = totalWeight === 100;
+  const pointsOk = pts.verde <= w.sinaleira && pts.amarelo <= w.sinaleira;
 
   const toggleList = (key: "cs_round_robin" | "comercial_high", id: string) =>
     setR((cur) => ({
@@ -89,12 +133,12 @@ export function CsSettingsPanel({
       [key]: cur[key].includes(id) ? cur[key].filter((x) => x !== id) : [...cur[key], id],
     }));
 
-  const SaveBar = () => (
+  const saveBar = (
     <div className="flex items-center justify-end gap-3 border-t pt-3">
       {tab === "health" && (
-        <span className={`text-[12px] ${weightOk ? "text-success" : "text-warning"}`}>
-          Soma dos pesos: {totalWeight}
-          {weightOk ? " ✓" : " — o ideal é 100"}
+        <span className={`text-[12px] ${pointsOk ? "text-muted-foreground" : "text-warning"}`}>
+          Soma dos pesos: {totalWeight} — o score é normalizado sobre a soma
+          {!pointsOk && " · pontos por cor não podem passar do peso da sinaleira"}
         </span>
       )}
       <Button size="sm" disabled={save.isPending} onClick={() => save.mutate()}>
@@ -126,24 +170,90 @@ export function CsSettingsPanel({
         {tab === "health" && (
           <>
             <p className="max-w-[70ch] text-[13px] text-muted-foreground">
-              O score é a média ponderada dos sinais de engajamento do cliente — engajamento, não
-              resultado. Ajuste os pesos para que a soma seja 100.
+              O score mede engajamento, não resultado. A sinaleira contribui com pontos por cor; os
+              demais critérios valem o peso inteiro quando presentes.
             </p>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {(Object.keys(w) as Array<keyof HealthWeights>).map((k) => (
-                <label key={k} className="block space-y-1">
-                  <span className="text-xs text-muted-foreground">{WEIGHT_LABEL[k]}</span>
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={w[k]}
-                    onChange={(e) => setW({ ...w, [k]: Number(e.target.value) })}
+            <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
+              <div>
+                <p className="section-label mb-2">Pesos</p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(Object.keys(w) as Array<keyof HealthWeights>).map((k) => (
+                    <label key={k} className="block space-y-1">
+                      <span className="text-xs text-muted-foreground">
+                        {HEALTH_CRITERIA_LABEL[k]}
+                      </span>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={w[k]}
+                        onChange={(e) => setW({ ...w, [k]: Number(e.target.value) })}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="section-label mb-2">Pontos por cor da sinaleira</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["verde", "amarelo", "vermelho"] as const).map((c) => (
+                      <label key={c} className="block space-y-1">
+                        <span className="text-xs capitalize text-muted-foreground">{c}</span>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={pts[c]}
+                          onChange={(e) => setPts({ ...pts, [c]: Number(e.target.value) })}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    Preto (licença vencida) fica fora do cálculo e entra na fila de reativação.
+                  </p>
+                </div>
+                <label className="flex items-start gap-2 rounded-md border p-2.5 text-[12px]">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={opt.renormalizar_sem_sinaleira}
+                    onChange={(e) =>
+                      setOpt({ ...opt, renormalizar_sem_sinaleira: e.target.checked })
+                    }
                   />
+                  <span>
+                    <b className="font-medium">Renormalizar cliente sem sinaleira.</b>{" "}
+                    <span className="text-muted-foreground">
+                      Certificação, DG e compra avulsa são pontuados de 0 a 100 sobre os critérios
+                      restantes, em vez de perderem os {w.sinaleira} pontos da sinaleira.
+                    </span>
+                  </span>
                 </label>
-              ))}
+              </div>
             </div>
-            <SaveBar />
+            {saveBar}
+          </>
+        )}
+
+        {tab === "metas" && (
+          <>
+            <p className="max-w-[70ch] text-[13px] text-muted-foreground">
+              Volume mínimo de contatos por analista, por dia. Aparece no Início e no Kanban semanal
+              como "n de {meta.contatos_por_dia} hoje".
+            </p>
+            <label className="block max-w-xs space-y-1">
+              <span className="text-xs text-muted-foreground">Contatos por dia (por analista)</span>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={meta.contatos_por_dia}
+                onChange={(e) => setMeta({ contatos_por_dia: Number(e.target.value) })}
+              />
+            </label>
+            {saveBar}
           </>
         )}
 
@@ -166,7 +276,7 @@ export function CsSettingsPanel({
                 </label>
               ))}
             </div>
-            <SaveBar />
+            {saveBar}
           </>
         )}
 
@@ -258,9 +368,11 @@ export function CsSettingsPanel({
                 ))}
               </div>
             </div>
-            <SaveBar />
+            {saveBar}
           </>
         )}
+
+        {tab === "carteira" && <DelegationsTab profiles={profiles} />}
 
         {tab === "importar" && (
           <>
@@ -300,13 +412,184 @@ export function CsSettingsPanel({
   );
 }
 
-const WEIGHT_LABEL: Record<keyof HealthWeights, string> = {
-  sinaleira_pda: "Sinaleira PDA",
-  agenda_90d: "Agendas em 90 dias",
-  whatsapp_respondido: "WhatsApp respondido",
-  email_respondido: "E-mail respondido",
-  uso_plataforma_cs: "Uso da plataforma",
-};
+/** Quem cobre a carteira de quem, e até quando. Gestão cria para qualquer pessoa; analista só para si. */
+function DelegationsTab({ profiles }: { profiles: Profile[] }) {
+  const listFn = useServerFn(listCsDelegations);
+  const saveFn = useServerFn(saveCsDelegation);
+  const delFn = useServerFn(deleteCsDelegation);
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({ queryKey: ["cs-delegations"], queryFn: () => listFn({}) });
+  const name = useMemo(() => {
+    const m = new Map(profiles.map((p) => [p.id, p.full_name || p.email || p.id]));
+    return (id: string) => m.get(id) ?? id;
+  }, [profiles]);
+
+  const [form, setForm] = useState({
+    from_user_id: "",
+    to_user_id: "",
+    starts_at: new Date().toISOString().slice(0, 10),
+    ends_at: "",
+    reason: "",
+  });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ["cs-delegations"] });
+  const save = useMutation({
+    mutationFn: () =>
+      saveFn({
+        data: {
+          from_user_id: form.from_user_id,
+          to_user_id: form.to_user_id,
+          starts_at: form.starts_at,
+          ends_at: form.ends_at || null,
+          reason: form.reason || null,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Delegação criada");
+      setForm({ ...form, to_user_id: "", ends_at: "", reason: "" });
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => delFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Delegação removida");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const isActive = (d: { starts_at: string; ends_at: string | null }) =>
+    d.starts_at <= today && (!d.ends_at || d.ends_at >= today);
+
+  return (
+    <div className="space-y-4">
+      <p className="max-w-[70ch] text-[13px] text-muted-foreground">
+        Cada pessoa enxerga a própria carteira. Uma delegação dá a quem cobre acesso à carteira de
+        quem está fora, pelo período informado. A gestão sempre vê tudo.
+      </p>
+
+      <div className="grid gap-2 rounded-md border p-3 sm:grid-cols-5">
+        <label className="block space-y-1">
+          <span className="text-xs text-muted-foreground">Carteira de</span>
+          <select
+            value={form.from_user_id}
+            onChange={(e) => setForm({ ...form, from_user_id: e.target.value })}
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="">—</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.full_name || p.email}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs text-muted-foreground">Coberta por</span>
+          <select
+            value={form.to_user_id}
+            onChange={(e) => setForm({ ...form, to_user_id: e.target.value })}
+            className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+          >
+            <option value="">—</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.full_name || p.email}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs text-muted-foreground">De</span>
+          <Input
+            type="date"
+            value={form.starts_at}
+            onChange={(e) => setForm({ ...form, starts_at: e.target.value })}
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs text-muted-foreground">Até (opcional)</span>
+          <Input
+            type="date"
+            value={form.ends_at}
+            onChange={(e) => setForm({ ...form, ends_at: e.target.value })}
+          />
+        </label>
+        <div className="flex items-end">
+          <Button
+            size="sm"
+            className="w-full"
+            disabled={
+              save.isPending ||
+              !form.from_user_id ||
+              !form.to_user_id ||
+              form.from_user_id === form.to_user_id
+            }
+            onClick={() => save.mutate()}
+          >
+            <Plus className="mr-1 h-4 w-4" /> Delegar
+          </Button>
+        </div>
+        <Input
+          className="sm:col-span-5"
+          placeholder="Motivo (férias, afastamento…)"
+          value={form.reason}
+          onChange={(e) => setForm({ ...form, reason: e.target.value })}
+        />
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Carregando…</p>
+      ) : (data ?? []).length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma delegação cadastrada.</p>
+      ) : (
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Carteira de</th>
+              <th>Coberta por</th>
+              <th>Período</th>
+              <th>Motivo</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data ?? []).map((d) => (
+              <tr key={d.id}>
+                <td>{name(d.from_user_id)}</td>
+                <td>{name(d.to_user_id)}</td>
+                <td className="whitespace-nowrap">
+                  {fmtDate(d.starts_at)} → {d.ends_at ? fmtDate(d.ends_at) : "sem fim"}
+                </td>
+                <td className="text-muted-foreground">{d.reason || "—"}</td>
+                <td>
+                  <span
+                    className={`text-[11px] ${isActive(d) ? "text-success" : "text-muted-foreground"}`}
+                  >
+                    {isActive(d) ? "ativa" : d.starts_at > today ? "agendada" : "encerrada"}
+                  </span>
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    title="Remover"
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => remove.mutate(d.id)}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
 
 const SLA_LABEL: Record<keyof StageSla, string> = {
   onboarding: "Onboarding",

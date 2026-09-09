@@ -10,7 +10,7 @@ export type CsOwnerPerformance = {
   clientsConsultoria: number;
   aporte: number;
   healthAvg: number;
-  signals: { verde: number; amarelo: number; vermelho: number; sem_dado: number };
+  signals: { verde: number; amarelo: number; vermelho: number; preto: number; sem_dado: number };
   alertsOpen: number;
   alertsResolved: number;
   meetingsHeld: number;
@@ -30,7 +30,7 @@ export type CsDashboardData = {
     clientsConsultoria: number;
     aporte: number;
     healthAvg: number;
-    signals: { verde: number; amarelo: number; vermelho: number; sem_dado: number };
+    signals: { verde: number; amarelo: number; vermelho: number; preto: number; sem_dado: number };
     stages: { onboarding: number; ativacao: number; renovacao: number };
     alertsOpen: number;
     alertsResolved: number;
@@ -43,16 +43,24 @@ export type CsDashboardData = {
     staleClients: number;
   };
   owners: CsOwnerPerformance[];
-  signalTrend: { week: string; verde: number; amarelo: number; vermelho: number; sem_dado: number }[];
+  signalTrend: {
+    week: string;
+    verde: number;
+    amarelo: number;
+    vermelho: number;
+    sem_dado: number;
+  }[];
   activityByDay: { day: string; touches: number; meetings: number }[];
 };
 
-const emptySignals = () => ({ verde: 0, amarelo: 0, vermelho: 0, sem_dado: 0 });
+const emptySignals = () => ({ verde: 0, amarelo: 0, vermelho: 0, preto: 0, sem_dado: 0 });
 
 /** Métricas consolidadas do time de CS + desempenho por liderado (somente gestão). */
 export const getCsDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ days: z.number().int().min(7).max(180).default(30) }).parse(d ?? {}))
+  .inputValidator((d) =>
+    z.object({ days: z.number().int().min(7).max(180).default(30) }).parse(d ?? {}),
+  )
   .handler(async ({ data, context }): Promise<CsDashboardData> => {
     const { supabase, userId } = context;
     const { data: isManager } = await supabase.rpc("is_manager", { _user_id: userId });
@@ -298,7 +306,10 @@ export const getCsDashboard = createServerFn({ method: "GET" })
       totals.salesTotal += v;
     }
 
-    const trendMap = new Map<string, { verde: number; amarelo: number; vermelho: number; sem_dado: number }>();
+    const trendMap = new Map<
+      string,
+      { verde: number; amarelo: number; vermelho: number; preto: number; sem_dado: number }
+    >();
     for (const s of snapshots) {
       const week = String(s["week_start"]);
       const cur = trendMap.get(week) ?? emptySignals();

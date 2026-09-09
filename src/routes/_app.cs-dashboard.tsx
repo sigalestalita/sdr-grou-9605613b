@@ -6,7 +6,13 @@ import { getCsDashboard, type CsOwnerPerformance } from "@/lib/cs-dashboard.func
 import { useCurrentRole } from "@/lib/use-role";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   ResponsiveContainer,
   BarChart,
@@ -81,11 +87,13 @@ function Kpi({
 }
 
 function SignalBar({ s }: { s: CsOwnerPerformance["signals"] }) {
-  const total = s.verde + s.amarelo + s.vermelho + s.sem_dado || 1;
+  const total = s.verde + s.amarelo + s.vermelho + s.preto + s.sem_dado || 1;
   const seg = [
     { k: "verde", v: s.verde, cls: "bg-emerald-500" },
     { k: "amarelo", v: s.amarelo, cls: "bg-amber-400" },
     { k: "vermelho", v: s.vermelho, cls: "bg-red-500" },
+    { k: "preto", v: s.preto, cls: "bg-zinc-700" },
+    { k: "preto", v: s.preto, cls: "bg-zinc-700" },
     { k: "sem_dado", v: s.sem_dado, cls: "bg-muted" },
   ];
   return (
@@ -227,9 +235,27 @@ function CsDashboardPage() {
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <Area type="monotone" dataKey="verde" stackId="1" stroke="#10b981" fill="#10b981" />
-                    <Area type="monotone" dataKey="amarelo" stackId="1" stroke="#fbbf24" fill="#fbbf24" />
-                    <Area type="monotone" dataKey="vermelho" stackId="1" stroke="#ef4444" fill="#ef4444" />
+                    <Area
+                      type="monotone"
+                      dataKey="verde"
+                      stackId="1"
+                      stroke="#10b981"
+                      fill="#10b981"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="amarelo"
+                      stackId="1"
+                      stroke="#fbbf24"
+                      fill="#fbbf24"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="vermelho"
+                      stackId="1"
+                      stroke="#ef4444"
+                      fill="#ef4444"
+                    />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -256,7 +282,10 @@ function CsDashboardPage() {
           <Card className="p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Desempenho por liderado de CS</h2>
-              <Select value={String(sort)} onValueChange={(v) => setSort(v as keyof CsOwnerPerformance)}>
+              <Select
+                value={String(sort)}
+                onValueChange={(v) => setSort(v as keyof CsOwnerPerformance)}
+              >
                 <SelectTrigger className="h-8 w-48 text-xs">
                   <SelectValue />
                 </SelectTrigger>
@@ -320,7 +349,9 @@ function CsDashboardPage() {
                         </Badge>
                       </td>
                       <td className="py-2 pr-3">
-                        <span className={o.alertsOpen > 0 ? "text-red-500" : ""}>{o.alertsOpen}</span>
+                        <span className={o.alertsOpen > 0 ? "text-red-500" : ""}>
+                          {o.alertsOpen}
+                        </span>
                         <span className="ml-1 text-[10px] text-muted-foreground">
                           / {o.alertsResolved} resolv.
                         </span>

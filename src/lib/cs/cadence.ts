@@ -89,7 +89,10 @@ function diffDays(from: string | null | undefined, now: Date): number | null {
 }
 
 /** Base da licença: início do contrato ou renovação − 12 meses. */
-export function licenseStart(contractStart?: string | null, renewal?: string | null): string | null {
+export function licenseStart(
+  contractStart?: string | null,
+  renewal?: string | null,
+): string | null {
   if (contractStart) return contractStart;
   if (!renewal) return null;
   const d = new Date(renewal);
@@ -100,7 +103,7 @@ export function licenseStart(contractStart?: string | null, renewal?: string | n
 
 /** Tendência a partir das últimas 4 semanas do histórico de sinaleira. */
 export function computeTrend(history: CsSignal[]): CadenceTrend {
-  const h = history.filter((s) => s !== "sem_dado").slice(-4);
+  const h = history.filter((s) => s !== "sem_dado" && s !== "preto").slice(-4);
   if (h.length < 2) return "estavel";
   const distinct = new Set(h);
   if (distinct.size === 1) return "estavel";
@@ -158,7 +161,8 @@ function redRule(weeks: number, trend: CadenceTrend): Rule {
       intervalDays: 14,
       urgency: "urgente",
       reason: "Alternando entre vermelho e amarelo — cliente instável.",
-      action: "Contato a cada 14 dias para mapear o padrão (projeto sazonal? processo específico?).",
+      action:
+        "Contato a cada 14 dias para mapear o padrão (projeto sazonal? processo específico?).",
     };
   if (weeks >= 24)
     return {
@@ -291,7 +295,10 @@ function greenRule(weeks: number, trend: CadenceTrend, consumo: number | null): 
     return {
       intervalDays: 21,
       urgency: "normal",
-      reason: trend === "subindo" ? "3ª semana verde após subida do amarelo." : "3ª semana verde consecutiva.",
+      reason:
+        trend === "subindo"
+          ? "3ª semana verde após subida do amarelo."
+          : "3ª semana verde consecutiva.",
       action: "Check-in de sucesso: o que está puxando o crescimento de uso?",
     };
   return {
@@ -340,6 +347,13 @@ export function computeCadence(input: CadenceInput): CadencePlan {
   if (color === "vermelho") rule = redRule(weeks, trend);
   else if (color === "amarelo") rule = yellowRule(weeks, trend);
   else if (color === "verde") rule = greenRule(weeks, trend, consumoPct);
+  else if (color === "preto")
+    rule = {
+      intervalDays: null,
+      urgency: "nenhuma",
+      reason: "Licença vencida / conta inativa — fora da cadência de sinaleira.",
+      action: "Fila de reativação: tratar como recompra com o Executivo, não como uso baixo.",
+    };
   else
     rule = {
       intervalDays: null,
@@ -349,7 +363,13 @@ export function computeCadence(input: CadenceInput): CadencePlan {
     };
 
   // Renovação ≤ 60 dias com cliente fora do verde exige contato imediato.
-  if (daysToRenewal !== null && daysToRenewal <= 60 && daysToRenewal >= 0 && color !== "verde") {
+  if (
+    daysToRenewal !== null &&
+    daysToRenewal <= 60 &&
+    daysToRenewal >= 0 &&
+    color !== "verde" &&
+    color !== "preto"
+  ) {
     rule = {
       intervalDays: 0,
       urgency: color === "vermelho" ? "crise" : "urgente",
@@ -358,7 +378,7 @@ export function computeCadence(input: CadenceInput): CadencePlan {
         color === "vermelho"
           ? "Modo crise: conversa de CS + Executivo antes de abrir a renovação."
           : "Contato imediato independente do histórico — preparar renovação.",
-      escalate: color === "vermelho" ? "executivo" : rule.escalate ?? null,
+      escalate: color === "vermelho" ? "executivo" : (rule.escalate ?? null),
     };
   }
 
@@ -406,7 +426,8 @@ export function computeCadence(input: CadenceInput): CadencePlan {
   // Meta de 4 contatos com resposta dentro de uma janela de 8 meses.
   const goalAtRisk =
     contactsWithResponse < 4 &&
-    ((daysToRenewal !== null && daysToRenewal <= 120) || (licenseDays !== null && licenseDays >= 180));
+    ((daysToRenewal !== null && daysToRenewal <= 120) ||
+      (licenseDays !== null && licenseDays >= 180));
 
   return {
     color,

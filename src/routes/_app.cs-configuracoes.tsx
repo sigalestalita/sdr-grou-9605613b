@@ -43,6 +43,9 @@ function CsSettingsPage() {
         <CsSettingsPanel
           profiles={data?.profiles ?? []}
           weights={data?.weights}
+          signalPoints={data?.signalPoints}
+          options={data?.options}
+          dailyTarget={data?.dailyTarget}
           sla={data?.sla}
           routing={data?.routing}
           onSaved={() => qc.invalidateQueries({ queryKey: ["cs-board"] })}

@@ -48,6 +48,7 @@ const SIGNAL_DOT: Record<string, string> = {
   verde: "bg-emerald-500",
   amarelo: "bg-amber-400",
   vermelho: "bg-red-500",
+  preto: "bg-zinc-700",
   sem_dado: "bg-muted-foreground/30",
 };
 

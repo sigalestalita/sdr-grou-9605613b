@@ -91,7 +91,7 @@ type Filters = {
   signal: string;
   stage: string;
   tag: string;
-  tipo: "" | "empresa" | "consultoria";
+  tipo: string;
   ativo: "ativos" | "todos";
   /** Só a carteira do usuário logado (CS ou executivo). */
   mine: boolean;
@@ -535,7 +535,7 @@ function CsPage() {
             label="Tipo"
             value={filters.tipo}
             options={CS_CLIENT_TYPES.map((t) => ({ value: t, label: CS_CLIENT_TYPE_LABEL[t] }))}
-            onChange={(v) => set("tipo", v as Filters["tipo"])}
+            onChange={(v) => set("tipo", v)}
           />
           <FilterChip
             label="Status"
