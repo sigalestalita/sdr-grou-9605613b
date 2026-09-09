@@ -665,10 +665,12 @@ export type Database = {
           linkedin_url: string | null
           login_pda: string | null
           nome_empresa: string
+          num_funcionarios: number | null
           origem: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid: string | null
           pda_consumo_pct: number | null
           pessoas_mapeadas: number | null
+          porte: string | null
           primeiro_sucesso_at: string | null
           produtos_ativos: string[]
           provenance: Json
@@ -707,10 +709,12 @@ export type Database = {
           linkedin_url?: string | null
           login_pda?: string | null
           nome_empresa: string
+          num_funcionarios?: number | null
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
           pessoas_mapeadas?: number | null
+          porte?: string | null
           primeiro_sucesso_at?: string | null
           produtos_ativos?: string[]
           provenance?: Json
@@ -749,10 +753,12 @@ export type Database = {
           linkedin_url?: string | null
           login_pda?: string | null
           nome_empresa?: string
+          num_funcionarios?: number | null
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
           pessoas_mapeadas?: number | null
+          porte?: string | null
           primeiro_sucesso_at?: string | null
           produtos_ativos?: string[]
           provenance?: Json
@@ -2243,6 +2249,7 @@ export type Database = {
           name: string
           next_action: string | null
           next_follow_up_at: string | null
+          oculto_sdr: boolean
           original_company_name: string | null
           phone: string | null
           position: string | null
@@ -2302,6 +2309,7 @@ export type Database = {
           name: string
           next_action?: string | null
           next_follow_up_at?: string | null
+          oculto_sdr?: boolean
           original_company_name?: string | null
           phone?: string | null
           position?: string | null
@@ -2361,6 +2369,7 @@ export type Database = {
           name?: string
           next_action?: string | null
           next_follow_up_at?: string | null
+          oculto_sdr?: boolean
           original_company_name?: string | null
           phone?: string | null
           position?: string | null
