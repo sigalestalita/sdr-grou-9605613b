@@ -39,6 +39,8 @@ import { MasterclassSettings } from "@/components/cs/cs-masterclass-settings";
 import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
 import { FeaturesSettings } from "@/components/cs/cs-features-settings";
 import { DEFAULT_FEATURES_CONFIG, type FeaturesConfig } from "@/lib/cs/features";
+import { JourneySettings } from "@/components/cs/cs-journey-settings";
+import { DEFAULT_JOURNEY_CONFIG, type JourneyConfig } from "@/lib/cs/journey";
 import { Plus, Save, Trash2, Upload } from "lucide-react";
 
 type Profile = { id: string; full_name: string | null; email: string | null };
@@ -49,6 +51,7 @@ const TABS = [
   "evidencia",
   "masterclass",
   "funcionalidades",
+  "jornadas",
   "sla",
   "roteamento",
   "carteira",
@@ -61,6 +64,7 @@ const TAB_LABEL: Record<Tab, string> = {
   evidencia: "Tarefas e evidência",
   masterclass: "Masterclasses",
   funcionalidades: "Funcionalidades",
+  jornadas: "Jornadas Reais",
   sla: "SLA da jornada",
   roteamento: "Roteamento",
   carteira: "Carteira e delegações",
@@ -78,6 +82,7 @@ export function CsSettingsPanel({
   escalation,
   masterclass,
   features,
+  journey,
   sla,
   routing,
   onSaved,
@@ -91,6 +96,7 @@ export function CsSettingsPanel({
   escalation?: EscalationConfig;
   masterclass?: MasterclassConfig;
   features?: FeaturesConfig;
+  journey?: JourneyConfig;
   sla?: StageSla;
   routing?: RoutingConfig;
   onSaved: () => void;
@@ -107,6 +113,7 @@ export function CsSettingsPanel({
   const [esc, setEsc] = useState<EscalationConfig>(escalation ?? DEFAULT_ESCALATION_CONFIG);
   const [mc, setMc] = useState<MasterclassConfig>(masterclass ?? DEFAULT_MASTERCLASS_CONFIG);
   const [feat, setFeat] = useState<FeaturesConfig>(features ?? DEFAULT_FEATURES_CONFIG);
+  const [jour, setJour] = useState<JourneyConfig>(journey ?? DEFAULT_JOURNEY_CONFIG);
   const [s, setS] = useState<StageSla>(sla ?? DEFAULT_STAGE_SLA);
   const [r, setR] = useState<RoutingConfig>(routing ?? DEFAULT_ROUTING);
   useEffect(() => {
@@ -134,6 +141,9 @@ export function CsSettingsPanel({
     if (features) setFeat(features);
   }, [features]);
   useEffect(() => {
+    if (journey) setJour(journey);
+  }, [journey]);
+  useEffect(() => {
     if (sla) setS(sla);
   }, [sla]);
   useEffect(() => {
@@ -152,6 +162,7 @@ export function CsSettingsPanel({
           escalation: esc,
           masterclass: mc,
           features: feat,
+          journey: jour,
           sla: s,
           routing: r,
         },
@@ -501,6 +512,13 @@ export function CsSettingsPanel({
         {tab === "funcionalidades" && (
           <>
             <FeaturesSettings value={feat} onChange={setFeat} />
+            {saveBar}
+          </>
+        )}
+
+        {tab === "jornadas" && (
+          <>
+            <JourneySettings value={jour} onChange={setJour} />
             {saveBar}
           </>
         )}

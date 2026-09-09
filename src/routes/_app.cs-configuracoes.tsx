@@ -50,6 +50,7 @@ function CsSettingsPage() {
           escalation={data?.escalation}
           masterclass={data?.masterclass}
           features={data?.features}
+          journey={data?.journey}
           sla={data?.sla}
           routing={data?.routing}
           onSaved={() => qc.invalidateQueries({ queryKey: ["cs-board"] })}

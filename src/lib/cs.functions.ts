@@ -30,6 +30,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getEscalationConfig,
       getMasterclassConfig,
       getFeaturesConfig,
+      getJourneyConfigDb,
       fetchAllRows,
     } = await import("@/lib/cs/cs-core.server");
     const weeks = lastNWeeks(8);
@@ -50,6 +51,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       escalation,
       masterclass,
       features,
+      journey,
     ] = await Promise.all([
       fetchAllRows((f, t) =>
         supabase.from("cs_clients").select("*").order("nome_empresa").range(f, t),
@@ -79,6 +81,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getEscalationConfig(supabase),
       getMasterclassConfig(supabase),
       getFeaturesConfig(supabase),
+      getJourneyConfigDb(supabase),
     ]);
 
     return {
@@ -98,6 +101,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       escalation,
       masterclass,
       features,
+      journey,
     };
   });
 
@@ -688,6 +692,26 @@ export const saveCsSettings = createServerFn({ method: "POST" })
             diretoria_emails: z.array(z.string().email()).default([]),
           })
           .optional(),
+        journey: z
+          .object({
+            modo: z.enum(["aprovacao", "automatico"]),
+            assinatura: z.string().min(1).max(60),
+            responder_para_responsavel: z.boolean(),
+            janela_dias: z.number().int().min(0).max(120),
+            emails: z.array(
+              z.object({
+                id: z.string().min(1),
+                dia: z.number().int().min(1).max(730),
+                titulo: z.string().max(120),
+                assunto: z.string().max(200),
+                tag_uso: z.array(z.string()),
+                para_quem: z.string().max(300),
+                corpo: z.string().max(6000),
+                ativo: z.boolean(),
+              }),
+            ),
+          })
+          .optional(),
         features: z
           .object({
             reoferta_dias: z.number().int().min(1).max(730),
@@ -743,6 +767,7 @@ export const saveCsSettings = createServerFn({ method: "POST" })
     if (data.escalation) await saveCsSetting(supabase, "escalation", data.escalation);
     if (data.masterclass) await saveCsSetting(supabase, "masterclass", data.masterclass);
     if (data.features) await saveCsSetting(supabase, "features", data.features);
+    if (data.journey) await saveCsSetting(supabase, "journey_emails", data.journey);
     if (data.sla) await saveCsSetting(supabase, "stage_sla_days", data.sla);
     if (data.routing) {
       const current = await getRouting(supabase);

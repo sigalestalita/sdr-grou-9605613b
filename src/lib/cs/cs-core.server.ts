@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
 import { DEFAULT_FEATURES_CONFIG, type FeaturesConfig } from "@/lib/cs/features";
+import { DEFAULT_JOURNEY_CONFIG, type JourneyConfig } from "@/lib/cs/journey";
 import {
   CS_AGENDA_TAG,
   DEFAULT_HEALTH_WEIGHTS,
@@ -88,6 +89,9 @@ export function getEvidenceConfig(db: DB) {
 }
 export function getMasterclassConfig(db: DB) {
   return getCsSetting<MasterclassConfig>(db, "masterclass", DEFAULT_MASTERCLASS_CONFIG);
+}
+export function getJourneyConfigDb(db: DB) {
+  return getCsSetting<JourneyConfig>(db, "journey_emails", DEFAULT_JOURNEY_CONFIG);
 }
 export function getFeaturesConfig(db: DB) {
   return getCsSetting<FeaturesConfig>(db, "features", DEFAULT_FEATURES_CONFIG);

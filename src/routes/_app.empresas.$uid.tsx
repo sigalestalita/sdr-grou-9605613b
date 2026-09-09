@@ -37,6 +37,7 @@ import { CsSalesTab } from "@/components/cs/cs-sales-tab";
 import { CsTasksPanel } from "@/components/cs/cs-tasks-panel";
 import { CsMasterclassPanel } from "@/components/cs/cs-masterclass-panel";
 import { CsFeaturesPanel } from "@/components/cs/cs-features-panel";
+import { CsJourneyPanel } from "@/components/cs/cs-journey-panel";
 import {
   ClientEditor,
   ContactsPanel,
@@ -289,6 +290,10 @@ function CompanyPage() {
 
           <Panel title="Funcionalidades da plataforma">
             <CsFeaturesPanel clientUid={clientUid} />
+          </Panel>
+
+          <Panel title="Jornadas Reais (e-mails por marco)">
+            <CsJourneyPanel clientUid={clientUid} />
           </Panel>
 
           <Panel

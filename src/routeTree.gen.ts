@@ -55,6 +55,7 @@ import { Route as ApiPublicHooksSyncRdAllRouteImport } from './routes/api/public
 import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
 import { Route as ApiPublicHooksSyncAgendaRouteImport } from './routes/api/public/hooks/sync-agenda'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
+import { Route as ApiPublicHooksSendJourneyEmailsRouteImport } from './routes/api/public/hooks/send-journey-emails'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
 import { Route as ApiPublicHooksNotifyRedListRouteImport } from './routes/api/public/hooks/notify-red-list'
 import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
@@ -298,6 +299,12 @@ const ApiPublicHooksSendWeeklyDigestRoute =
     path: '/api/public/hooks/send-weekly-digest',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksSendJourneyEmailsRoute =
+  ApiPublicHooksSendJourneyEmailsRouteImport.update({
+    id: '/api/public/hooks/send-journey-emails',
+    path: '/api/public/hooks/send-journey-emails',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
   id: '/api/public/hooks/run-fups',
   path: '/api/public/hooks/run-fups',
@@ -388,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
+  '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -442,6 +450,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
+  '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -499,6 +508,7 @@ export interface FileRoutesById {
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
+  '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
@@ -556,6 +566,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/run-fups'
+    | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-rd'
@@ -610,6 +621,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/run-fups'
+    | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-rd'
@@ -666,6 +678,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/run-fups'
+    | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-rd'
@@ -688,6 +701,7 @@ export interface RootRouteChildren {
   ApiPublicHooksNotifyEscalationsRoute: typeof ApiPublicHooksNotifyEscalationsRoute
   ApiPublicHooksNotifyRedListRoute: typeof ApiPublicHooksNotifyRedListRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
+  ApiPublicHooksSendJourneyEmailsRoute: typeof ApiPublicHooksSendJourneyEmailsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
   ApiPublicHooksSyncAgendaRoute: typeof ApiPublicHooksSyncAgendaRoute
   ApiPublicHooksSyncRdRoute: typeof ApiPublicHooksSyncRdRoute
@@ -1023,6 +1037,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSendWeeklyDigestRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/send-journey-emails': {
+      id: '/api/public/hooks/send-journey-emails'
+      path: '/api/public/hooks/send-journey-emails'
+      fullPath: '/api/public/hooks/send-journey-emails'
+      preLoaderRoute: typeof ApiPublicHooksSendJourneyEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/run-fups': {
       id: '/api/public/hooks/run-fups'
       path: '/api/public/hooks/run-fups'
@@ -1199,6 +1220,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksNotifyEscalationsRoute: ApiPublicHooksNotifyEscalationsRoute,
   ApiPublicHooksNotifyRedListRoute: ApiPublicHooksNotifyRedListRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
+  ApiPublicHooksSendJourneyEmailsRoute: ApiPublicHooksSendJourneyEmailsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
   ApiPublicHooksSyncAgendaRoute: ApiPublicHooksSyncAgendaRoute,
   ApiPublicHooksSyncRdRoute: ApiPublicHooksSyncRdRoute,

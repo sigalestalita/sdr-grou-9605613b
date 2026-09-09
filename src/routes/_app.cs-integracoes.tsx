@@ -587,6 +587,10 @@ function CsIntegrationsPage() {
                     "notify-red-list",
                     "Mensal: clientes em vermelho há 6+ meses para diretoria/admin",
                   ],
+                  [
+                    "send-journey-emails",
+                    "Diário: Jornadas Reais — agenda os marcos e envia (modo automático)",
+                  ],
                 ] as const
               ).map(([slug, label]) => {
                 const url =
