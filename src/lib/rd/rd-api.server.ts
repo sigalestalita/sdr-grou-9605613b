@@ -82,7 +82,11 @@ export function fieldLabel(f: RdCustomField): string {
 export function fieldValue(f: RdCustomField): string {
   const v = f.value;
   if (v == null) return "";
-  if (Array.isArray(v)) return v.map((x) => String(x)).join(", ").trim();
+  if (Array.isArray(v))
+    return v
+      .map((x) => String(x))
+      .join(", ")
+      .trim();
   if (typeof v === "object") return String((v as Json).name ?? "").trim();
   return String(v).trim();
 }
@@ -106,36 +110,54 @@ export async function rdGet(path: string, params: Record<string, string>, token:
   return (await res.json()) as Json;
 }
 
+/*
+ * O RD limita cada consulta a 50 páginas × 200 = 10.000 registros. Para ir além,
+ * a coleção é varrida em várias ordenações (cada uma alcança um "lado" diferente
+ * do conjunto) e os registros são deduplicados por id. Contatos que sobrarem são
+ * buscados por letra (`q`), que o RD casa por substring. Negócios têm cursor
+ * (`next_page`) e não precisam de nada disso.
+ */
 const PASSES: Array<Record<string, string>> = [
-  { order: "name", direction: "asc" },
-  { order: "name", direction: "desc" },
   { order: "created_at", direction: "asc" },
   { order: "created_at", direction: "desc" },
+  { order: "name", direction: "asc" },
+  { order: "name", direction: "desc" },
+  { order: "updated_at", direction: "asc" },
+  { order: "updated_at", direction: "desc" },
 ];
+
+const RD_PAGE_CAP = 50;
+const Q_BUCKETS = "bcdfghjklmnpqrstvwxyz".split("");
 
 /** Varredura completa de uma coleção paginada do RD, sem duplicar registros. */
 export async function fetchAllRd<T extends { _id?: string; id?: string }>(
   path: string,
   collectionKey: string,
   token: string,
-  opts?: { maxPages?: number; extraParams?: Record<string, string> },
+  opts?: {
+    maxPages?: number;
+    extraParams?: Record<string, string>;
+    onProgress?: (n: number, total: number | null) => void;
+  },
 ): Promise<T[]> {
-  const maxPages = opts?.maxPages ?? 45;
+  const maxPages = Math.min(opts?.maxPages ?? RD_PAGE_CAP, RD_PAGE_CAP);
   const out: T[] = [];
   const seen = new Set<string>();
+  let total: number | null = null;
 
-  for (const pass of PASSES) {
+  const sweep = async (params: Record<string, string>) => {
     for (let page = 1; page <= maxPages; page++) {
       let json: Json;
       try {
         json = await rdGet(
           path,
-          { ...(opts?.extraParams ?? {}), ...pass, page: String(page), limit: "200" },
+          { ...(opts?.extraParams ?? {}), ...params, page: String(page), limit: "200" },
           token,
         );
       } catch {
-        break; // páginas profundas devolvem erro no RD
+        break; // além do teto o RD responde 400
       }
+      if (typeof json.total === "number") total = json.total as number;
       const rows = (json[collectionKey] ?? []) as T[];
       if (rows.length === 0) break;
       let novos = 0;
@@ -146,24 +168,79 @@ export async function fetchAllRd<T extends { _id?: string; id?: string }>(
         out.push(r);
         novos++;
       }
+      opts?.onProgress?.(out.length, total);
       if (json.has_more === false) break;
+      if (total !== null && out.length >= total) break;
       if (novos === 0 && page > 3) break;
+    }
+  };
+
+  const complete = () => total !== null && out.length >= total;
+
+  // Negócios: cursor sem teto.
+  if (collectionKey === "deals") {
+    let next: string | null = null;
+    for (let i = 0; i < 1000; i++) {
+      let json: Json;
+      try {
+        json = await rdGet(
+          path,
+          {
+            ...(opts?.extraParams ?? {}),
+            ...(next ? { next_page: next } : { page: "1" }),
+            limit: "200",
+          },
+          token,
+        );
+      } catch {
+        break;
+      }
+      if (typeof json.total === "number") total = json.total as number;
+      const rows = (json[collectionKey] ?? []) as T[];
+      for (const r of rows) {
+        const id = rdId(r);
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        out.push(r);
+      }
+      opts?.onProgress?.(out.length, total);
+      if (!json.next_page || rows.length === 0 || complete()) break;
+      next = String(json.next_page);
+    }
+    return out;
+  }
+
+  for (const pass of PASSES) {
+    await sweep(pass);
+    if (complete()) return out;
+  }
+
+  // Contatos que ficaram no "meio" de todas as ordenações: busca por letra.
+  if (collectionKey === "contacts" && !complete()) {
+    for (const q of Q_BUCKETS) {
+      await sweep({ q });
+      if (complete()) break;
     }
   }
   return out;
 }
 
-export const fetchRdOrganizations = (token: string, maxPages = 45) =>
+export const fetchRdOrganizations = (token: string, maxPages = RD_PAGE_CAP) =>
   fetchAllRd<RdOrganizationRaw>("/organizations", "organizations", token, { maxPages });
 
-export const fetchRdContacts = (token: string, maxPages = 45) =>
+export const fetchRdContacts = (token: string, maxPages = RD_PAGE_CAP) =>
   fetchAllRd<RdContactRaw>("/contacts", "contacts", token, { maxPages });
 
-export const fetchRdDeals = (token: string, maxPages = 45) =>
+export const fetchRdDeals = (token: string, maxPages = RD_PAGE_CAP) =>
   fetchAllRd<RdDealRaw>("/deals", "deals", token, { maxPages });
 
 export function contactEmail(c: RdContactRaw): string | null {
-  return c.emails?.find((e) => e.email)?.email?.trim().toLowerCase() ?? null;
+  return (
+    c.emails
+      ?.find((e) => e.email)
+      ?.email?.trim()
+      .toLowerCase() ?? null
+  );
 }
 
 export function contactPhone(c: RdContactRaw): string | null {
