@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CsClientModal } from "@/components/cs/cs-client-modal";
 import { CsClientCard } from "@/components/cs/cs-client-card";
 import { CsAlertModal } from "@/components/cs/cs-alert-modal";
 import { CsSettingsPanel } from "@/components/cs/cs-settings-panel";
@@ -31,14 +30,7 @@ import {
   CS_STAGE_LABEL,
   type CsSignal,
 } from "@/lib/cs-types";
-import {
-  Bell,
-  HeartPulse,
-  Plus,
-  RefreshCw,
-  Search,
-  Settings2,
-} from "lucide-react";
+import { Bell, HeartPulse, Plus, RefreshCw, Search, Settings2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs")({
   component: CsPage,
@@ -71,7 +63,11 @@ function CsPage() {
   const qc = useQueryClient();
 
   const [view, setView] = useState<ViewTab>("kanban");
-  const [openClient, setOpenClient] = useState<string | null>(null);
+  const navigate = useNavigate();
+  // Abre a página da empresa (substitui o antigo modal).
+  const setOpenClient = (uid: string | null) => {
+    if (uid) navigate({ to: "/empresas/$uid", params: { uid } });
+  };
   const [openAlert, setOpenAlert] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -89,7 +85,6 @@ function CsPage() {
     enabled: !!user,
   });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["cs-board"] });
-
 
   const scan = useMutation({
     mutationFn: () => scanFn({}),
@@ -172,7 +167,6 @@ function CsPage() {
     return out;
   }, [data?.snapshots]);
 
-
   const alertsOf = useMemo(() => {
     const map = new Map<string, NonNullable<typeof data>["alerts"]>();
     for (const a of data?.alerts ?? []) {
@@ -216,12 +210,15 @@ function CsPage() {
 
   const profileName = useMemo(() => {
     const map = new Map((data?.profiles ?? []).map((p) => [p.id, p.full_name || p.email || p.id]));
-    return (id: string | null | undefined) => (id ? map.get(id) ?? "—" : "Sem responsável");
+    return (id: string | null | undefined) => (id ? (map.get(id) ?? "—") : "Sem responsável");
   }, [data?.profiles]);
 
   const clients = (data?.clients ?? []).filter((c) => {
     if (!c.ativo) return false;
-    if (q && !`${c.nome_empresa} ${c.client_uid} ${c.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase()))
+    if (
+      q &&
+      !`${c.nome_empresa} ${c.client_uid} ${c.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase())
+    )
       return false;
     if (fOwner && c.cs_responsavel_id !== fOwner) return false;
     if (fExec && c.comercial_responsavel_id !== fExec) return false;
@@ -252,7 +249,10 @@ function CsPage() {
   const signalCounts = useMemo(() => {
     const base = (data?.clients ?? []).filter((c) => {
       if (!c.ativo) return false;
-      if (q && !`${c.nome_empresa} ${c.client_uid} ${c.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase()))
+      if (
+        q &&
+        !`${c.nome_empresa} ${c.client_uid} ${c.cnpj ?? ""}`.toLowerCase().includes(q.toLowerCase())
+      )
         return false;
       if (fOwner && c.cs_responsavel_id !== fOwner) return false;
       if (fExec && c.comercial_responsavel_id !== fExec) return false;
@@ -278,10 +278,21 @@ function CsPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate()}>
-            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} /> Sincronizar sinaleira
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={sync.isPending}
+            onClick={() => sync.mutate()}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />{" "}
+            Sincronizar sinaleira
           </Button>
-          <Button size="sm" variant="outline" disabled={scan.isPending} onClick={() => scan.mutate()}>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={scan.isPending}
+            onClick={() => scan.mutate()}
+          >
             <Bell className="h-4 w-4 mr-1" /> Gerar alertas
           </Button>
           <Button size="sm" onClick={() => setNewOpen(true)}>
@@ -297,7 +308,9 @@ function CsPage() {
             type="button"
             onClick={() => setView(t)}
             className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px ${
-              view === t ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"
+              view === t
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
             }`}
           >
             {t === "kanban" ? "Funil" : "Configurações"}
@@ -316,10 +329,12 @@ function CsPage() {
       ) : (
         <>
           <div className="flex gap-2">
-            {([
-              ["empresa", `Empresas (${funnelCounts.empresa})`],
-              ["consultoria", `Consultorias (${funnelCounts.consultoria})`],
-            ] as const).map(([key, label]) => (
+            {(
+              [
+                ["empresa", `Empresas (${funnelCounts.empresa})`],
+                ["consultoria", `Consultorias (${funnelCounts.consultoria})`],
+              ] as const
+            ).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
@@ -377,36 +392,71 @@ function CsPage() {
           <Card className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="Buscar empresa ou código" value={q} onChange={(e) => setQ(e.target.value)} />
+              <Input
+                className="pl-8"
+                placeholder="Buscar empresa ou código"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
             </div>
-            <select value={fOwner} onChange={(e) => setFOwner(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+            <select
+              value={fOwner}
+              onChange={(e) => setFOwner(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
               <option value="">Todos os CS</option>
               {csOptions.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
-            <select value={fSignal} onChange={(e) => setFSignal(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+            <select
+              value={fSignal}
+              onChange={(e) => setFSignal(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
               <option value="">Toda sinaleira</option>
               {CS_SIGNALS.map((s) => (
-                <option key={s} value={s}>{CS_SIGNAL_LABEL[s]}</option>
+                <option key={s} value={s}>
+                  {CS_SIGNAL_LABEL[s]}
+                </option>
               ))}
             </select>
-            <select value={fExec} onChange={(e) => setFExec(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+            <select
+              value={fExec}
+              onChange={(e) => setFExec(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
               <option value="">Todos os executivos</option>
               {execOptions.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
               ))}
             </select>
-            <select value={fTag} onChange={(e) => setFTag(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+            <select
+              value={fTag}
+              onChange={(e) => setFTag(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
               <option value="">Todas as tags</option>
               {tagOptions.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <option key={t} value={t}>
+                  {t}
+                </option>
               ))}
             </select>
-            <select value={fStage} onChange={(e) => setFStage(e.target.value)} className="h-9 rounded-md border bg-background px-2 text-sm">
+            <select
+              value={fStage}
+              onChange={(e) => setFStage(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
               <option value="">Todas as etapas</option>
               {CS_STAGES.map((s) => (
-                <option key={s} value={s}>{CS_STAGE_LABEL[s]}</option>
+                <option key={s} value={s}>
+                  {CS_STAGE_LABEL[s]}
+                </option>
               ))}
             </select>
           </Card>
@@ -421,9 +471,13 @@ function CsPage() {
                   <div key={stage} className="rounded-xl border bg-muted/20 p-3 space-y-2">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-semibold">{CS_STAGE_LABEL[stage]}</p>
-                      <Badge variant="secondary" className="text-[10px]">{col.length}</Badge>
+                      <Badge variant="secondary" className="text-[10px]">
+                        {col.length}
+                      </Badge>
                     </div>
-                    {col.length === 0 && <p className="text-xs text-muted-foreground">Nenhum cliente nesta etapa.</p>}
+                    {col.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Nenhum cliente nesta etapa.</p>
+                    )}
                     {col.map((c) => (
                       <CsClientCard
                         key={c.client_uid}
@@ -450,7 +504,6 @@ function CsPage() {
         </>
       )}
 
-      {openClient && <CsClientModal clientUid={openClient} onClose={() => setOpenClient(null)} />}
       {openAlert && (
         <CsAlertModal
           alertId={openAlert}
@@ -538,53 +591,122 @@ function NewClientModal({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-[9998] bg-background/90 backdrop-blur-md grid place-items-center p-4 overflow-y-auto" onClick={onClose}>
-      <Card className="w-full max-w-lg p-6 space-y-4 bg-popover shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[9998] bg-background/90 backdrop-blur-md grid place-items-center p-4 overflow-y-auto"
+      onClick={onClose}
+    >
+      <Card
+        className="w-full max-w-lg p-6 space-y-4 bg-popover shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div>
           <h2 className="text-lg font-bold">Novo cliente de CS</h2>
           <p className="text-xs text-muted-foreground">
-            O código do cliente (4 caracteres) é gerado automaticamente. Sem responsável informado, o roteamento automático decide.
+            O código do cliente (4 caracteres) é gerado automaticamente. Sem responsável informado,
+            o roteamento automático decide.
           </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
-          <L label="Empresa"><Input value={form.nome_empresa} onChange={(e) => setForm({ ...form, nome_empresa: e.target.value })} /></L>
-          <L label="CNPJ"><Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} /></L>
+          <L label="Empresa">
+            <Input
+              value={form.nome_empresa}
+              onChange={(e) => setForm({ ...form, nome_empresa: e.target.value })}
+            />
+          </L>
+          <L label="CNPJ">
+            <Input value={form.cnpj} onChange={(e) => setForm({ ...form, cnpj: e.target.value })} />
+          </L>
           <L label="Tipo">
-            <select value={form.tipo_lead} onChange={(e) => setForm({ ...form, tipo_lead: e.target.value })} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-              {CS_CLIENT_TYPES.map((t) => <option key={t} value={t}>{CS_CLIENT_TYPE_LABEL[t]}</option>)}
+            <select
+              value={form.tipo_lead}
+              onChange={(e) => setForm({ ...form, tipo_lead: e.target.value })}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
+              {CS_CLIENT_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {CS_CLIENT_TYPE_LABEL[t]}
+                </option>
+              ))}
             </select>
           </L>
           <L label="Origem">
-            <select value={form.origem} onChange={(e) => setForm({ ...form, origem: e.target.value })} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
-              {CS_ORIGINS.map((o) => <option key={o} value={o}>{CS_ORIGIN_LABEL[o]}</option>)}
+            <select
+              value={form.origem}
+              onChange={(e) => setForm({ ...form, origem: e.target.value })}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
+              {CS_ORIGINS.map((o) => (
+                <option key={o} value={o}>
+                  {CS_ORIGIN_LABEL[o]}
+                </option>
+              ))}
             </select>
           </L>
           <L label="Aporte (R$)">
-            <Input type="number" value={form.aporte_valor} onChange={(e) => setForm({ ...form, aporte_valor: Number(e.target.value) })} />
+            <Input
+              type="number"
+              value={form.aporte_valor}
+              onChange={(e) => setForm({ ...form, aporte_valor: Number(e.target.value) })}
+            />
           </L>
-          <L label="Login PDA"><Input value={form.login_pda} onChange={(e) => setForm({ ...form, login_pda: e.target.value })} /></L>
+          <L label="Login PDA">
+            <Input
+              value={form.login_pda}
+              onChange={(e) => setForm({ ...form, login_pda: e.target.value })}
+            />
+          </L>
           <L label="Início contrato">
-            <Input type="date" value={form.data_inicio_contrato} onChange={(e) => setForm({ ...form, data_inicio_contrato: e.target.value })} />
+            <Input
+              type="date"
+              value={form.data_inicio_contrato}
+              onChange={(e) => setForm({ ...form, data_inicio_contrato: e.target.value })}
+            />
           </L>
           <L label="Renovação">
-            <Input type="date" value={form.data_renovacao} onChange={(e) => setForm({ ...form, data_renovacao: e.target.value })} />
+            <Input
+              type="date"
+              value={form.data_renovacao}
+              onChange={(e) => setForm({ ...form, data_renovacao: e.target.value })}
+            />
           </L>
           <L label="Responsável CS (opcional)">
-            <select value={form.cs_responsavel_id} onChange={(e) => setForm({ ...form, cs_responsavel_id: e.target.value })} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+            <select
+              value={form.cs_responsavel_id}
+              onChange={(e) => setForm({ ...form, cs_responsavel_id: e.target.value })}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
               <option value="">Roteamento automático</option>
-              {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name || p.email}
+                </option>
+              ))}
             </select>
           </L>
           <L label="Comercial que fechou (opcional)">
-            <select value={form.comercial_responsavel_id} onChange={(e) => setForm({ ...form, comercial_responsavel_id: e.target.value })} className="h-9 w-full rounded-md border bg-background px-2 text-sm">
+            <select
+              value={form.comercial_responsavel_id}
+              onChange={(e) => setForm({ ...form, comercial_responsavel_id: e.target.value })}
+              className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+            >
               <option value="">Roteamento automático</option>
-              {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name || p.email}</option>)}
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.full_name || p.email}
+                </option>
+              ))}
             </select>
           </L>
         </div>
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" disabled={create.isPending || !form.nome_empresa.trim()} onClick={() => create.mutate()}>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            disabled={create.isPending || !form.nome_empresa.trim()}
+            onClick={() => create.mutate()}
+          >
             {create.isPending ? "Criando…" : "Criar cliente"}
           </Button>
         </div>

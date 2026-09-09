@@ -10,20 +10,21 @@ import {
   PanelLeftClose,
   PanelLeft,
   Sparkles,
-  MessageCircle,
+  Inbox,
+  Building2,
+  Handshake,
+  ListChecks,
   LineChart,
   Bot,
   Activity,
   CalendarDays,
-  CalendarClock,
   Search,
   Users,
-  HeartPulse,
   Mail,
   Link2,
   BookOpen,
-
-
+  ShieldAlert,
+  ChevronRight,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -32,8 +33,6 @@ import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
 import { CsFollowUpNotifier } from "@/components/app-shell/cs-followup-notifier";
 import { useCurrentRole } from "@/lib/use-role";
 import { TEAM_LABEL, teamForPath, type AppTeam } from "@/lib/teams";
-import { ShieldAlert, ChevronRight } from "lucide-react";
-
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
@@ -45,39 +44,49 @@ type NavItem = {
   icon: typeof KanbanIcon;
   team?: AppTeam;
   managerOnly?: boolean;
+  /** Outros prefixos de rota que mantêm o item ativo (ex.: página de registro). */
+  also?: string[];
 };
+
+/*
+ * Navegação no padrão HubSpot: os objetos compartilhados ficam no topo, sem
+ * grupo, e cada área só lista o que é exclusivo dela. Enquanto Empresas e
+ * Negócios ainda vivem em tabelas separadas (cs_clients / leads), cada item
+ * aponta para a tela que hoje representa aquele objeto.
+ */
+const NAV_OBJECTS: NavItem[] = [
+  { to: "/whatsapp", label: "Caixa de entrada", icon: Inbox },
+  { to: "/cs", label: "Empresas", icon: Building2, team: "cs", also: ["/empresas"] },
+  { to: "/kanban", label: "Negócios", icon: Handshake, team: "comercial", also: ["/lead"] },
+  { to: "/cs-follow-ups", label: "Tarefas", icon: ListChecks, team: "cs" },
+];
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
-    label: "Comercial / SDR",
+    label: "Customer Success",
+    items: [
+      { to: "/cs-kanban", label: "Kanban semanal", icon: KanbanIcon, team: "cs" },
+      { to: "/cs-cadencia", label: "Cadência e sinaleira", icon: Activity, team: "cs" },
+      { to: "/cs-agenda", label: "Agenda", icon: CalendarDays, team: "cs" },
+      { to: "/cs-emails", label: "E-mails", icon: Mail, team: "cs" },
+      { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
+      {
+        to: "/cs-dashboard",
+        label: "Dashboard CS",
+        icon: BarChart3,
+        team: "cs",
+        managerOnly: true,
+      },
+      { to: "/cs-integracoes", label: "Integrações", icon: Link2, team: "cs" },
+    ],
+  },
+  {
+    label: "Comercial",
     items: [
       { to: "/dashboard", label: "Visão geral", icon: BarChart3, team: "comercial" },
-      { to: "/kanban", label: "Pipeline", icon: KanbanIcon, team: "comercial" },
-      { to: "/whatsapp", label: "Inbox", icon: MessageCircle, team: "comercial" },
       { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
       { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
       { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
-    ],
-  },
-  {
-    label: "Customer Success",
-    items: [
-      { to: "/cs", label: "Carteira CS", icon: HeartPulse, team: "cs" },
-      { to: "/cs-dashboard", label: "Dashboard CS", icon: BarChart3, team: "cs", managerOnly: true },
-      { to: "/cs-cadencia", label: "Cadência CS", icon: Activity, team: "cs" },
-      { to: "/cs-kanban", label: "Kanban CS", icon: KanbanIcon, team: "cs" },
-      { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
-      { to: "/cs-agenda", label: "Agenda CS", icon: CalendarDays, team: "cs" },
-      { to: "/cs-follow-ups", label: "Follow-ups CS", icon: CalendarClock, team: "cs" },
-      { to: "/cs-emails", label: "E-mails CS", icon: Mail, team: "cs" },
-      { to: "/whatsapp", label: "Inbox / Disparos CS", icon: MessageCircle, team: "cs" },
-      { to: "/cs-integracoes", label: "Integrações CS", icon: Link2, team: "cs" },
-    ],
-  },
-
-  {
-    label: "Análise",
-    items: [
       { to: "/leads-analytics", label: "Performance", icon: LineChart, team: "comercial" },
       { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
     ],
@@ -92,6 +101,10 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
+function isActive(item: NavItem, currentPath: string) {
+  const prefixes = [item.to, ...(item.also ?? [])];
+  return prefixes.some((p) => currentPath === p || currentPath.startsWith(`${p}/`));
+}
 
 function AppShell() {
   const { user, loading } = useAuth();
@@ -142,19 +155,45 @@ function AppShell() {
     return role.canAccessTeam(item.team ?? null);
   };
 
+  const visibleObjects = role.loading ? [] : NAV_OBJECTS.filter(canSee);
   const visibleGroups = role.loading
     ? []
     : NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
         (g) => g.items.length > 0,
       );
 
-  const paletteRoutes = visibleGroups.flatMap((g) =>
-    g.items.map((i) => ({ to: i.to, label: i.label, group: g.label })),
-  );
+  const paletteRoutes = [
+    ...visibleObjects.map((i) => ({ to: i.to, label: i.label, group: "Objetos" })),
+    ...visibleGroups.flatMap((g) =>
+      g.items.map((i) => ({ to: i.to, label: i.label, group: g.label })),
+    ),
+  ];
 
   const currentTeam = teamForPath(currentPath) as AppTeam | null;
   const blocked = !role.loading && !role.canAccessTeam(currentTeam);
 
+  const renderItem = (n: NavItem) => {
+    const Icon = n.icon;
+    const active = isActive(n, currentPath);
+    return (
+      <Link
+        key={n.to}
+        to={n.to}
+        title={collapsed ? n.label : undefined}
+        data-active={active || undefined}
+        className={`group flex h-8 items-center gap-2.5 rounded-md text-[13px] transition-colors ${
+          collapsed ? "justify-center px-0" : "px-2.5"
+        } ${
+          active
+            ? "bg-sidebar-accent font-medium text-sidebar-foreground"
+            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+        }`}
+      >
+        <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
+        {!collapsed && <span className="truncate">{n.label}</span>}
+      </Link>
+    );
+  };
 
   return (
     <div className="min-h-screen flex bg-surface">
@@ -165,18 +204,18 @@ function AppShell() {
           className={`h-12 shrink-0 flex items-center justify-between gap-2 border-b border-sidebar-border ${collapsed ? "px-2" : "px-3"}`}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <span className="flex min-w-0 items-center rounded bg-foreground px-1.5 py-1 dark:bg-transparent dark:px-0 dark:py-0">
-              <img src={lidiLogo} alt="Grou" className={collapsed ? "h-5 w-auto" : "h-6 w-auto"} />
-            </span>
+            <img src={lidiLogo} alt="Grou" className={collapsed ? "h-5 w-auto" : "h-6 w-auto"} />
             {!collapsed && (
-              <span className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">compass</span>
+              <span className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
+                compass
+              </span>
             )}
           </div>
           {!collapsed && (
             <button
               onClick={() => setCollapsed(true)}
               title="Recolher menu"
-              className="rounded p-1 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+              className="rounded p-1 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -187,66 +226,48 @@ function AppShell() {
           <button
             onClick={() => setCollapsed(false)}
             title="Expandir menu"
-            className="mx-auto mt-2 rounded p-1.5 text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground"
+            className="mx-auto mt-2 rounded p-1.5 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
           >
             <PanelLeft className="h-4 w-4" />
           </button>
         )}
 
         <nav className="flex-1 overflow-y-auto px-2 py-3">
+          {/* Objetos compartilhados */}
+          {visibleObjects.length > 0 && (
+            <div className="mb-3 space-y-0.5 border-b border-sidebar-border pb-3">
+              {visibleObjects.map(renderItem)}
+            </div>
+          )}
+
+          {/* Áreas */}
           {visibleGroups.map((group) => {
-            const groupActive = group.items.some(
-              (n) => currentPath === n.to || currentPath.startsWith(`${n.to}/`),
-            );
+            const groupActive = group.items.some((n) => isActive(n, currentPath));
             const open = collapsed ? true : (openGroups[group.label] ?? groupActive);
             return (
               <div key={group.label} className="mb-2 last:mb-0">
                 {!collapsed && (
                   <button
-                    onClick={() =>
-                      setOpenGroups((prev) => ({ ...prev, [group.label]: !open }))
-                    }
+                    onClick={() => setOpenGroups((prev) => ({ ...prev, [group.label]: !open }))}
                     className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent/60"
                   >
                     <ChevronRight
-                      className={`h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-90" : ""}`}
+                      className={`h-3.5 w-3.5 shrink-0 text-sidebar-foreground/50 transition-transform ${open ? "rotate-90" : ""}`}
                       strokeWidth={2}
                     />
-                    <span className="section-label flex-1 truncate">{group.label}</span>
+                    <span className="section-label flex-1 truncate text-sidebar-foreground/50">
+                      {group.label}
+                    </span>
                     {!open && (
-                      <span className="rounded bg-sidebar-accent px-1 text-[10px] text-muted-foreground">
+                      <span className="rounded bg-sidebar-accent px-1 text-[10px] text-sidebar-foreground/60">
                         {group.items.length}
                       </span>
                     )}
                   </button>
                 )}
                 {open && (
-                  <div className={`space-y-0.5 ${collapsed ? "" : "pl-2"}`}>
-                    {group.items.map((n) => {
-                      const Icon = n.icon;
-                      const active = currentPath === n.to || currentPath.startsWith(`${n.to}/`);
-                      return (
-                        <Link
-                          key={n.to}
-                          to={n.to}
-                          title={collapsed ? n.label : undefined}
-                          data-active={active || undefined}
-                          className={`group flex h-8 items-center gap-2 rounded-md text-[13px] transition-colors ${
-                            collapsed ? "justify-center px-0" : "px-2"
-                          } ${
-                            active
-                              ? "bg-sidebar-accent font-medium text-foreground"
-                              : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
-                          }`}
-                        >
-                          <Icon
-                            className={`h-4 w-4 shrink-0 ${active ? "text-primary" : ""}`}
-                            strokeWidth={1.75}
-                          />
-                          {!collapsed && <span className="truncate">{n.label}</span>}
-                        </Link>
-                      );
-                    })}
+                  <div className={`space-y-0.5 ${collapsed ? "" : "pl-1"}`}>
+                    {group.items.map(renderItem)}
                   </div>
                 )}
               </div>
@@ -254,22 +275,28 @@ function AppShell() {
           })}
         </nav>
 
-
         <div className={`border-t border-sidebar-border py-2 ${collapsed ? "px-1.5" : "px-2"}`}>
-          <div className={`flex items-center gap-2 rounded-md px-1 py-1.5 ${collapsed ? "justify-center" : ""}`}>
-            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/12 text-[10px] font-semibold text-primary">
+          <div
+            className={`flex items-center gap-2 rounded-md px-1 py-1.5 ${collapsed ? "justify-center" : ""}`}
+          >
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sidebar-accent text-[10px] font-semibold text-sidebar-foreground">
               {initials}
             </span>
             {!collapsed && (
-              <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">{user.email}</span>
+              <span className="min-w-0 flex-1 truncate text-[11px] text-sidebar-foreground/60">
+                {user.email}
+              </span>
             )}
           </div>
           <div className={`mt-1 flex items-center gap-1 ${collapsed ? "flex-col" : ""}`}>
-            <ThemeToggle showLabel={false} className="px-1.5" />
+            <ThemeToggle
+              showLabel={false}
+              className="px-1.5 text-sidebar-foreground/70 hover:text-sidebar-foreground"
+            />
             <button
               onClick={signOut}
               title="Sair"
-              className={`flex h-8 items-center gap-2 rounded-md px-2 text-[13px] text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground ${
+              className={`flex h-8 items-center gap-2 rounded-md px-2 text-[13px] text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground ${
                 collapsed ? "" : "flex-1"
               }`}
             >
@@ -284,10 +311,10 @@ function AppShell() {
         <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-4">
           <button
             onClick={() => palette.setOpen(true)}
-            className="flex h-8 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-[13px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            className="flex h-8 w-full max-w-md items-center gap-2 rounded-full border border-border bg-surface px-3 text-[13px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
           >
             <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>Buscar leads, empresas, páginas…</span>
+            <span>Encontrar ou perguntar</span>
             <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               ⌘K
             </kbd>

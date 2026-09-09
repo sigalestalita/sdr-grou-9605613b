@@ -130,14 +130,15 @@
   --chart-4: oklch(0.68 0.14 75);
   --chart-5: oklch(0.55 0.2 25);
 
-  --sidebar: oklch(0.985 0.004 255);
-  --sidebar-foreground: oklch(0.28 0.035 262);
-  --sidebar-primary: var(--brand);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.28 0.035 262 / 0.05);
-  --sidebar-accent-foreground: oklch(0.28 0.035 262);
-  --sidebar-border: oklch(0.28 0.035 262 / 0.09);
-  --sidebar-ring: var(--brand);
+  /* Sidebar navy fixa (padrão HubSpot), independente do tema da página */
+  --sidebar: oklch(0.27 0.035 255);
+  --sidebar-foreground: oklch(0.95 0.008 255);
+  --sidebar-primary: oklch(0.72 0.14 258);
+  --sidebar-primary-foreground: oklch(0.16 0.02 265);
+  --sidebar-accent: oklch(1 0 0 / 0.1);
+  --sidebar-accent-foreground: oklch(0.99 0 0);
+  --sidebar-border: oklch(1 0 0 / 0.09);
+  --sidebar-ring: oklch(0.72 0.14 258);
 
   --success: oklch(0.5 0.12 160);
   --warning: oklch(0.62 0.14 75);
