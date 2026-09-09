@@ -345,6 +345,7 @@ export type Database = {
           origem: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid: string | null
           pda_consumo_pct: number | null
+          produtos_ativos: string[]
           rd_lifecycle: string | null
           rd_org_id: string | null
           rd_owner: string | null
@@ -352,7 +353,9 @@ export type Database = {
           setor: string | null
           site_url: string | null
           stage_entered_at: string
+          tag_uso: string | null
           tipo_lead: Database["public"]["Enums"]["cs_client_type"]
+          tipo_servico: string | null
           updated_at: string
         }
         Insert: {
@@ -378,6 +381,7 @@ export type Database = {
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
+          produtos_ativos?: string[]
           rd_lifecycle?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
@@ -385,7 +389,9 @@ export type Database = {
           setor?: string | null
           site_url?: string | null
           stage_entered_at?: string
+          tag_uso?: string | null
           tipo_lead?: Database["public"]["Enums"]["cs_client_type"]
+          tipo_servico?: string | null
           updated_at?: string
         }
         Update: {
@@ -411,6 +417,7 @@ export type Database = {
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
+          produtos_ativos?: string[]
           rd_lifecycle?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
@@ -418,13 +425,17 @@ export type Database = {
           setor?: string | null
           site_url?: string | null
           stage_entered_at?: string
+          tag_uso?: string | null
           tipo_lead?: Database["public"]["Enums"]["cs_client_type"]
+          tipo_servico?: string | null
           updated_at?: string
         }
         Relationships: []
       }
       cs_contacts: {
         Row: {
+          analista_certificado_em: string | null
+          analista_pda: boolean
           ativo_no_cliente: boolean
           cargo: string | null
           client_uid: string
@@ -439,6 +450,8 @@ export type Database = {
           whatsapp: string | null
         }
         Insert: {
+          analista_certificado_em?: string | null
+          analista_pda?: boolean
           ativo_no_cliente?: boolean
           cargo?: string | null
           client_uid: string
@@ -453,6 +466,8 @@ export type Database = {
           whatsapp?: string | null
         }
         Update: {
+          analista_certificado_em?: string | null
+          analista_pda?: boolean
           ativo_no_cliente?: boolean
           cargo?: string | null
           client_uid?: string
@@ -475,6 +490,39 @@ export type Database = {
             referencedColumns: ["client_uid"]
           },
         ]
+      }
+      cs_delegations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          from_user_id: string
+          id: string
+          reason: string | null
+          starts_at: string
+          to_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          from_user_id: string
+          id?: string
+          reason?: string | null
+          starts_at?: string
+          to_user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          from_user_id?: string
+          id?: string
+          reason?: string | null
+          starts_at?: string
+          to_user_id?: string
+        }
+        Relationships: []
       }
       cs_emails: {
         Row: {
@@ -2391,6 +2439,7 @@ export type Database = {
         Returns: boolean
       }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
+      cs_can_see_client: { Args: { _client_uid: string }; Returns: boolean }
       cs_gen_client_uid: { Args: never; Returns: string }
       cs_stage_from_contract:
         | {
@@ -2421,11 +2470,11 @@ export type Database = {
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr"
       app_team: "comercial" | "cs"
-      cs_client_type: "empresa" | "consultoria"
+      cs_client_type: "empresa" | "consultoria" | "pessoa_fisica"
       cs_contact_origin: "manual" | "email_bcc" | "pda_api" | "linkedin"
       cs_journey_stage: "onboarding" | "ativacao" | "renovacao"
       cs_origin: "marketing" | "indicacao" | "outbound" | "renovacao"
-      cs_signal: "verde" | "amarelo" | "vermelho" | "sem_dado"
+      cs_signal: "verde" | "amarelo" | "vermelho" | "sem_dado" | "preto"
       enrichment_status: "pending" | "found" | "not_found" | "manual"
       lead_priority: "alta" | "media" | "baixa" | "fora_icp" | "pendente"
     }
@@ -2557,11 +2606,11 @@ export const Constants = {
     Enums: {
       app_role: ["super_admin", "gestao", "executivo", "sdr"],
       app_team: ["comercial", "cs"],
-      cs_client_type: ["empresa", "consultoria"],
+      cs_client_type: ["empresa", "consultoria", "pessoa_fisica"],
       cs_contact_origin: ["manual", "email_bcc", "pda_api", "linkedin"],
       cs_journey_stage: ["onboarding", "ativacao", "renovacao"],
       cs_origin: ["marketing", "indicacao", "outbound", "renovacao"],
-      cs_signal: ["verde", "amarelo", "vermelho", "sem_dado"],
+      cs_signal: ["verde", "amarelo", "vermelho", "sem_dado", "preto"],
       enrichment_status: ["pending", "found", "not_found", "manual"],
       lead_priority: ["alta", "media", "baixa", "fora_icp", "pendente"],
     },

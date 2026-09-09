@@ -151,7 +151,8 @@ export interface RdClientSyncResult {
   errors: string[];
   /** Contagem por ciclo de vida do RD (apenas na prévia). */
   lifecycles?: Record<string, number>;
-
+  /** rd_org_id -> client_uid, para projetar contatos nos clientes de CS. */
+  orgToClient?: Map<string, string>;
 }
 
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
@@ -159,16 +160,23 @@ const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, " ");
 /**
  * Sincroniza as organizações do RD com ciclo de vida de cliente para os cards de CS.
  * Cria o que falta e atualiza o que já existe (sem apagar health score/sinaleira).
+ * `orgs` permite reaproveitar as organizações já buscadas pela sincronização geral.
  */
-export async function syncRdClientsToCs(opts?: { dryRun?: boolean }): Promise<RdClientSyncResult> {
-  const { token } = await getRdTokenInfo();
-  if (!token) throw new Error("RD Station não conectado. Conecte em Configurações.");
-
-  const orgs = await fetchRdOrganizations(token);
+export async function syncRdClientsToCs(opts?: {
+  dryRun?: boolean;
+  orgs?: RdOrganization[];
+}): Promise<RdClientSyncResult> {
+  let orgs = opts?.orgs;
+  if (!orgs) {
+    const { token } = await getRdTokenInfo();
+    if (!token) throw new Error("RD Station não conectado. Conecte em Configurações.");
+    orgs = await fetchRdOrganizations(token);
+  }
   const candidates = orgs
     .map((o) => ({ o, lifecycle: normalizeLifecycle(readLifecycle(o)) }))
     .filter((c): c is { o: RdOrganization; lifecycle: RdLifecycle } => c.lifecycle !== null)
     .filter((c) => (c.o.name ?? "").trim().length > 0);
+
 
   const result: RdClientSyncResult = {
     fetched: orgs.length,
@@ -281,5 +289,5 @@ export async function syncRdClientsToCs(opts?: { dryRun?: boolean }): Promise<Rd
     } as never,
   });
 
-  return result;
+  return { ...result, orgToClient: byRd };
 }
