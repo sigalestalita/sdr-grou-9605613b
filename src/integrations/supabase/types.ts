@@ -451,9 +451,6 @@ export type Database = {
           done: boolean
           done_at: string | null
           done_by: string | null
-          done_via: string | null
-          evidence_event_id: string | null
-          channel: string | null
           id: string
           notes: string | null
           owner_id: string | null
@@ -471,9 +468,6 @@ export type Database = {
           done?: boolean
           done_at?: string | null
           done_by?: string | null
-          done_via?: string | null
-          evidence_event_id?: string | null
-          channel?: string | null
           id?: string
           notes?: string | null
           owner_id?: string | null
@@ -491,9 +485,6 @@ export type Database = {
           done?: boolean
           done_at?: string | null
           done_by?: string | null
-          done_via?: string | null
-          evidence_event_id?: string | null
-          channel?: string | null
           id?: string
           notes?: string | null
           owner_id?: string | null
@@ -524,14 +515,9 @@ export type Database = {
           invitee_email: string | null
           invitee_name: string | null
           location: string | null
-          attendees: Json
-          contact_id: string | null
           meeting_url: string | null
           name: string | null
-          organizer_email: string | null
-          provider: string
           raw: Json
-          settled_at: string | null
           start_time: string
           status: string | null
           synced_at: string
@@ -547,14 +533,9 @@ export type Database = {
           invitee_email?: string | null
           invitee_name?: string | null
           location?: string | null
-          attendees?: Json
-          contact_id?: string | null
           meeting_url?: string | null
           name?: string | null
-          organizer_email?: string | null
-          provider?: string
           raw?: Json
-          settled_at?: string | null
           start_time: string
           status?: string | null
           synced_at?: string
@@ -570,14 +551,9 @@ export type Database = {
           invitee_email?: string | null
           invitee_name?: string | null
           location?: string | null
-          attendees?: Json
-          contact_id?: string | null
           meeting_url?: string | null
           name?: string | null
-          organizer_email?: string | null
-          provider?: string
           raw?: Json
-          settled_at?: string | null
           start_time?: string
           status?: string | null
           synced_at?: string
@@ -1263,87 +1239,6 @@ export type Database = {
           },
         ]
       }
-      cs_tasks: {
-        Row: {
-          client_uid: string
-          completed_via: string | null
-          contact_id: string | null
-          created_at: string
-          created_by: string | null
-          done_at: string | null
-          done_by: string | null
-          due_at: string
-          evidence_at: string | null
-          evidence_event_id: string | null
-          id: string
-          notes: string | null
-          owner_id: string | null
-          source: string
-          source_ref: string | null
-          status: string
-          task_type: string
-          title: string
-          updated_at: string
-        }
-        Insert: {
-          client_uid: string
-          completed_via?: string | null
-          contact_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          done_at?: string | null
-          done_by?: string | null
-          due_at?: string
-          evidence_at?: string | null
-          evidence_event_id?: string | null
-          id?: string
-          notes?: string | null
-          owner_id?: string | null
-          source?: string
-          source_ref?: string | null
-          status?: string
-          task_type?: string
-          title: string
-          updated_at?: string
-        }
-        Update: {
-          client_uid?: string
-          completed_via?: string | null
-          contact_id?: string | null
-          created_at?: string
-          created_by?: string | null
-          done_at?: string | null
-          done_by?: string | null
-          due_at?: string
-          evidence_at?: string | null
-          evidence_event_id?: string | null
-          id?: string
-          notes?: string | null
-          owner_id?: string | null
-          source?: string
-          source_ref?: string | null
-          status?: string
-          task_type?: string
-          title?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cs_tasks_client_uid_fkey"
-            columns: ["client_uid"]
-            isOneToOne: false
-            referencedRelation: "cs_clients"
-            referencedColumns: ["client_uid"]
-          },
-          {
-            foreignKeyName: "cs_tasks_contact_id_fkey"
-            columns: ["contact_id"]
-            isOneToOne: false
-            referencedRelation: "cs_contacts"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       cs_timeline_events: {
         Row: {
           author_id: string | null
@@ -1404,11 +1299,6 @@ export type Database = {
           created_at: string
           email_address: string | null
           email_connected_at: string | null
-          gcal_connected_at: string | null
-          gcal_email: string | null
-          gcal_ics_url: string | null
-          gcal_last_error: string | null
-          gcal_last_sync_at: string | null
           updated_at: string
           user_id: string
         }
@@ -1424,11 +1314,6 @@ export type Database = {
           created_at?: string
           email_address?: string | null
           email_connected_at?: string | null
-          gcal_connected_at?: string | null
-          gcal_email?: string | null
-          gcal_ics_url?: string | null
-          gcal_last_error?: string | null
-          gcal_last_sync_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1444,11 +1329,6 @@ export type Database = {
           created_at?: string
           email_address?: string | null
           email_connected_at?: string | null
-          gcal_connected_at?: string | null
-          gcal_email?: string | null
-          gcal_ics_url?: string | null
-          gcal_last_error?: string | null
-          gcal_last_sync_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -3357,10 +3237,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cs_settle_meetings: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_access_module: {
         Args: {
