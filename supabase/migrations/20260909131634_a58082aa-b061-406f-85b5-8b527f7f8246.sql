@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.cs_clients_mark_manual() FROM PUBLIC, anon, authenticated;

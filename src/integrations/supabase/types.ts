@@ -669,8 +669,8 @@ export type Database = {
           parent_client_uid: string | null
           pda_consumo_pct: number | null
           primeiro_sucesso_at: string | null
-          provenance: Json
           produtos_ativos: string[]
+          provenance: Json
           rd_lifecycle: string | null
           rd_org_id: string | null
           rd_owner: string | null
@@ -710,8 +710,8 @@ export type Database = {
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
           primeiro_sucesso_at?: string | null
-          provenance?: Json
           produtos_ativos?: string[]
+          provenance?: Json
           rd_lifecycle?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
@@ -751,8 +751,8 @@ export type Database = {
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
           primeiro_sucesso_at?: string | null
-          provenance?: Json
           produtos_ativos?: string[]
+          provenance?: Json
           rd_lifecycle?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
@@ -1067,6 +1067,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_masterclass_participations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
