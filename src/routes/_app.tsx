@@ -35,7 +35,7 @@ import { CommandPalette, useCommandPalette } from "@/components/app-shell/comman
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
 import { CsFollowUpNotifier } from "@/components/app-shell/cs-followup-notifier";
 import { useCurrentRole } from "@/lib/use-role";
-import { TEAM_LABEL, teamForPath, type AppTeam } from "@/lib/teams";
+import { TEAM_LABEL, teamForPath, type AppRole, type AppTeam } from "@/lib/teams";
 
 export const Route = createFileRoute("/_app")({
   component: AppShell,
@@ -45,37 +45,60 @@ type NavItem = {
   to: string;
   label: string;
   icon: typeof KanbanIcon;
+  /** Time que vê o item (gestão vê tudo). */
   team?: AppTeam;
+  /** Papéis que também veem o item, mesmo fora do time (ex.: executivo). */
+  roles?: AppRole[];
   managerOnly?: boolean;
   /** Outros prefixos de rota que mantêm o item ativo (ex.: página de registro). */
   also?: string[];
 };
 
 /*
- * Navegação no padrão HubSpot: os objetos compartilhados ficam no topo, sem
- * grupo, e cada área só lista o que é exclusivo dela. Enquanto Empresas e
- * Negócios ainda vivem em tabelas separadas (cs_clients / leads), cada item
- * aponta para a tela que hoje representa aquele objeto.
+ * Menu por módulo. O que cada pessoa vê depende do time/papel:
+ *  - SDR: grupos "SDR" e "Análise" — o menu original, com os mesmos nomes
+ *    (Pipeline, Inbox, Agenda de FUPs, Cadência, Playbook SDR…).
+ *  - Executivo (Comercial): além do SDR, os objetos Início, Empresas e Tarefas
+ *    — a carteira que ele fechou e as tarefas que o CS aciona para ele.
+ *  - CS: objetos + Canais + Customer Success + Playbook CS.
+ *  - Gestão: tudo (itens repetidos entre módulos aparecem uma vez).
  */
 const NAV_OBJECTS: NavItem[] = [
-  { to: "/inicio", label: "Início", icon: Home },
-  { to: "/cs", label: "Empresas", icon: Building2, team: "cs", also: ["/empresas"] },
-  { to: "/kanban", label: "Negócios", icon: Handshake, team: "comercial", also: ["/lead"] },
-  { to: "/cs-follow-ups", label: "Tarefas", icon: ListChecks, team: "cs" },
+  { to: "/inicio", label: "Início", icon: Home, team: "cs", roles: ["executivo"] },
+  {
+    to: "/cs",
+    label: "Empresas",
+    icon: Building2,
+    team: "cs",
+    roles: ["executivo"],
+    also: ["/empresas"],
+  },
+  { to: "/cs-follow-ups", label: "Tarefas", icon: ListChecks, team: "cs", roles: ["executivo"] },
 ];
 
-/*
- * Grupos por intenção, poucos itens em cada um. Só o grupo da página atual
- * abre por padrão; o que a pessoa abrir/fechar fica lembrado no navegador.
- * Canais = onde a conversa acontece · CS/Comercial = o trabalho de cada time ·
- * Referência = leitura · Administração = o sistema como um todo (usuários, geral).
- * O que é do CS — inclusive suas configurações e integrações — fica no grupo do CS.
- */
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "SDR",
+    items: [
+      { to: "/dashboard", label: "Visão geral", icon: BarChart3, team: "comercial" },
+      { to: "/kanban", label: "Pipeline", icon: KanbanIcon, team: "comercial", also: ["/lead"] },
+      { to: "/whatsapp", label: "Inbox", icon: Inbox, team: "comercial" },
+      { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
+      { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
+      { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
+    ],
+  },
+  {
+    label: "Análise",
+    items: [
+      { to: "/leads-analytics", label: "Performance", icon: LineChart, team: "comercial" },
+      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
+    ],
+  },
   {
     label: "Canais",
     items: [
-      { to: "/whatsapp", label: "Caixa de entrada", icon: Inbox },
+      { to: "/whatsapp", label: "Caixa de entrada", icon: Inbox, team: "cs" },
       { to: "/cs-emails", label: "E-mails", icon: Mail, team: "cs" },
       { to: "/cs-agenda", label: "Agenda", icon: CalendarDays, team: "cs" },
     ],
@@ -103,20 +126,9 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: "Comercial",
-    items: [
-      { to: "/dashboard", label: "Visão geral", icon: BarChart3, team: "comercial" },
-      { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
-      { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
-      { to: "/leads-analytics", label: "Performance", icon: LineChart, team: "comercial" },
-      { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
-    ],
-  },
-  {
     label: "Referência",
     items: [
       { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
-      { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
       { to: "/novidades", label: "Novidades", icon: Sparkles },
     ],
   },
@@ -166,8 +178,8 @@ function AppShell() {
     });
   // Estilo do menu: clássico (colado na borda) ou flutuante "liquid glass".
   const [navStyle, setNavStyle] = useState<NavStyle>(() => {
-    if (typeof window === "undefined") return "flutuante";
-    return (window.localStorage.getItem("sidebar:style") as NavStyle | null) ?? "flutuante";
+    if (typeof window === "undefined") return "classico";
+    return (window.localStorage.getItem("sidebar:style") as NavStyle | null) ?? "classico";
   });
   const glass = navStyle === "flutuante";
   useEffect(() => {
@@ -209,15 +221,21 @@ function AppShell() {
   const currentPath = router.state.location.pathname;
   const initials = (user.email ?? "?").slice(0, 2).toUpperCase();
 
-  const canSee = (item: NavItem) => {
-    if (item.managerOnly) return role.canAccessAll;
-    return role.canAccessTeam(item.team ?? null);
-  };
+  const canSee = (item: NavItem) => role.canSee(item);
 
-  const visibleObjects = role.loading ? [] : NAV_OBJECTS.filter(canSee);
+  // Um item por rota: quem vê dois módulos (gestão) não vê "Inbox" e
+  // "Caixa de entrada" apontando para o mesmo lugar.
+  const seen = new Set<string>();
+  const dedupe = (items: NavItem[]) =>
+    items.filter((i) => {
+      if (seen.has(i.to)) return false;
+      seen.add(i.to);
+      return true;
+    });
+  const visibleObjects = role.loading ? [] : dedupe(NAV_OBJECTS.filter(canSee));
   const visibleGroups = role.loading
     ? []
-    : NAV_GROUPS.map((g) => ({ ...g, items: g.items.filter(canSee) })).filter(
+    : NAV_GROUPS.map((g) => ({ ...g, items: dedupe(g.items.filter(canSee)) })).filter(
         (g) => g.items.length > 0,
       );
 
@@ -229,7 +247,7 @@ function AppShell() {
   ];
 
   const currentTeam = teamForPath(currentPath) as AppTeam | null;
-  const blocked = !role.loading && !role.canAccessTeam(currentTeam);
+  const blocked = !role.loading && !role.canAccessPath(currentPath);
 
   const renderItem = (n: NavItem) => {
     const Icon = n.icon;
