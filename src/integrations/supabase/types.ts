@@ -3687,6 +3687,10 @@ export type Database = {
       cs_phone_digits: { Args: { _v: string }; Returns: string }
       cs_refresh_escalations: { Args: never; Returns: number }
       cs_settle_meetings: { Args: never; Returns: number }
+      cs_signal_context: {
+        Args: { _at: string; _client_uid: string }
+        Returns: Json
+      }
       cs_stage_from_contract:
         | {
             Args: { _start: string }
