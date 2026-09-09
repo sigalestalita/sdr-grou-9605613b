@@ -1,24 +1,29 @@
-import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import lidiLogo from "@/assets/lidi-logo-white.png";
+import grouLogo from "@/assets/grou-logo.png";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useTheme } from "@/lib/use-theme";
+import { ArrowRight, Loader2, Lock, Mail, User } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Entrar — SDR GROU" }] }),
+  head: () => ({ meta: [{ title: "Entrar — Compass CRM · Grou" }] }),
   component: LoginPage,
 });
 
+/*
+ * Tela de entrada do Compass CRM: fundo "líquido" (bolhas de cor em movimento
+ * lento sobre o vídeo), cartão de vidro transparente com brilho que atravessa
+ * devagar, e o formulário de sempre — login, cadastro restrito ao domínio da
+ * Grou e recuperação de senha. Respeita "reduzir movimento" do sistema.
+ */
 function LoginPage() {
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -27,7 +32,7 @@ function LoginPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/kanban" });
+      if (data.session) navigate({ to: "/" });
     });
   }, [navigate]);
 
@@ -39,7 +44,14 @@ function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Bem-vindo!");
-        navigate({ to: "/kanban" });
+        navigate({ to: "/" });
+      } else if (mode === "reset") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        toast.success("Se o e-mail existir, você receberá o link para redefinir a senha.");
+        setMode("login");
       } else {
         if (!/@grougp\.com\.br$/i.test(email.trim())) {
           throw new Error("Cadastro restrito a emails @grougp.com.br");
@@ -48,7 +60,7 @@ function LoginPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/kanban`,
+            emailRedirectTo: `${window.location.origin}/`,
             data: { full_name: name, role },
           },
         });
@@ -62,9 +74,12 @@ function LoginPage() {
     }
   }
 
+  const dark = theme === "dark";
+  const title = mode === "login" ? "Entrar" : mode === "signup" ? "Criar conta" : "Recuperar senha";
+
   return (
-    <div className="relative min-h-screen grid place-items-center px-4 overflow-hidden bg-background">
-      {/* Video background */}
+    <div className="liquid-page relative grid min-h-screen place-items-center overflow-hidden px-4 py-10">
+      {/* Vídeo de fundo, bem discreto, sob as bolhas */}
       <video
         aria-hidden
         autoPlay
@@ -72,75 +87,145 @@ function LoginPage() {
         loop
         playsInline
         preload="auto"
-        className="pointer-events-none absolute inset-0 -z-10 h-full w-full object-cover opacity-30 dark:opacity-90"
+        className="pointer-events-none absolute inset-0 -z-30 h-full w-full object-cover opacity-20 dark:opacity-50"
         src="/login-bg.mp4"
       />
-      {/* Aurora background (fallback + extra depth) */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 mix-blend-screen">
-        <div className="absolute -top-40 -left-40 h-[55vw] w-[55vw] rounded-full blur-[140px] opacity-60 animate-[aurora1_14s_ease-in-out_infinite] bg-[oklch(0.55_0.22_260/0.55)]" />
-        <div className="absolute -bottom-40 -right-40 h-[55vw] w-[55vw] rounded-full blur-[140px] opacity-50 animate-[aurora2_18s_ease-in-out_infinite] bg-[oklch(0.78_0.13_215/0.45)]" />
-        <div className="absolute top-1/3 left-1/2 h-[35vw] w-[35vw] -translate-x-1/2 rounded-full blur-[120px] opacity-40 animate-[aurora3_22s_ease-in-out_infinite] bg-[oklch(0.65_0.22_310/0.35)]" />
+      {/* Bolhas líquidas */}
+      <div aria-hidden className="liquid-blobs pointer-events-none absolute inset-0 -z-20">
+        <span className="liquid-blob liquid-blob-1" />
+        <span className="liquid-blob liquid-blob-2" />
+        <span className="liquid-blob liquid-blob-3" />
+        <span className="liquid-blob liquid-blob-4" />
       </div>
-      {/* Darken overlay for form contrast */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-background/60 dark:bg-black/40" />
-      {/* Theme chooser */}
-      <div className="absolute top-4 right-4 flex items-center gap-1 rounded-full border border-border bg-card/80 p-1 backdrop-blur-xl">
-        {([
-          { v: "light" as const, label: "Claro" },
-          { v: "dark" as const, label: "Escuro" },
-        ]).map((opt) => (
+      <div aria-hidden className="liquid-grain pointer-events-none absolute inset-0 -z-10" />
+
+      {/* Tema */}
+      <div className="glass-pill absolute top-4 right-4 flex items-center gap-1 rounded-full p-1">
+        {(
+          [
+            { v: "light" as const, label: "Claro" },
+            { v: "dark" as const, label: "Escuro" },
+          ] as const
+        ).map((opt) => (
           <button
             key={opt.v}
             type="button"
             onClick={() => setTheme(opt.v)}
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               theme === opt.v
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
+                ? "bg-primary text-primary-foreground shadow"
+                : "text-foreground/70 hover:text-foreground"
             }`}
           >
             {opt.label}
           </button>
         ))}
       </div>
-      <Card className="relative w-full max-w-md p-8 border-border bg-card/90 backdrop-blur-2xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.35)] animate-[loginIn_700ms_cubic-bezier(0.22,1,0.36,1)_both]">
-        <div className="flex flex-col items-center text-center gap-2 mb-8">
-          <div className="flex flex-col items-center gap-2">
-            <span className="rounded-xl bg-foreground px-4 py-2 dark:bg-transparent dark:px-0 dark:py-0">
-              <img src={lidiLogo} alt="Grou" className="h-12 w-auto" />
-            </span>
-            <span className="text-2xl font-semibold tracking-tight text-foreground">compass</span>
-          </div>
 
-          <p className="text-xs text-muted-foreground">Grou Compass · CRM</p>
+      <div className="glass-card liquid-float relative w-full max-w-md rounded-[28px] p-8 sm:p-10">
+        {/* Marca */}
+        <div className="liquid-rise mb-8 flex flex-col items-center gap-3 text-center">
+          <img
+            src={dark ? lidiLogo : grouLogo}
+            alt="Grou"
+            className="h-11 w-auto drop-shadow-[0_6px_20px_rgba(0,0,0,0.25)]"
+          />
+          <div className="flex flex-col items-center gap-1">
+            <span className="wordmark text-[13px] font-semibold uppercase tracking-[0.42em] text-foreground">
+              Compass CRM
+            </span>
+            <span className="text-xs text-foreground/60">
+              O sistema da Grou — SDR, Comercial e Customer Success
+            </span>
+          </div>
         </div>
-        <form onSubmit={submit} className="space-y-4">
+
+        <form
+          onSubmit={submit}
+          className="liquid-rise space-y-4"
+          style={{ animationDelay: "120ms" }}
+        >
+          <h1 className="sr-only">{title}</h1>
           {mode === "signup" && (
-            <div>
-              <Label htmlFor="name">Nome completo</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+            <div className="space-y-1.5">
+              <Label htmlFor="name" className="text-foreground/80">
+                Nome completo
+              </Label>
+              <div className="glass-input flex items-center gap-2 rounded-xl px-3">
+                <User className="h-4 w-4 shrink-0 text-foreground/50" strokeWidth={1.75} />
+                <input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-foreground/40"
+                  placeholder="Como aparece para o time"
+                />
+              </div>
             </div>
           )}
-          <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <div className="space-y-1.5">
+            <Label htmlFor="email" className="text-foreground/80">
+              E-mail
+            </Label>
+            <div className="glass-input flex items-center gap-2 rounded-xl px-3">
+              <Mail className="h-4 w-4 shrink-0 text-foreground/50" strokeWidth={1.75} />
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-foreground/40"
+                placeholder="voce@grougp.com.br"
+              />
+            </div>
             {mode === "signup" && (
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-foreground/55">
                 Cadastro restrito ao time Grou (@grougp.com.br)
               </p>
             )}
           </div>
-          <div>
-            <Label htmlFor="password">Senha</Label>
-            <Input id="password" type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required />
-          </div>
+          {mode !== "reset" && (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password" className="text-foreground/80">
+                  Senha
+                </Label>
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    onClick={() => setMode("reset")}
+                    className="text-xs text-foreground/60 transition-colors hover:text-foreground"
+                  >
+                    Esqueci minha senha
+                  </button>
+                )}
+              </div>
+              <div className="glass-input flex items-center gap-2 rounded-xl px-3">
+                <Lock className="h-4 w-4 shrink-0 text-foreground/50" strokeWidth={1.75} />
+                <input
+                  id="password"
+                  type="password"
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-foreground/40"
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+          )}
           {mode === "signup" && (
-            <div>
-              <Label>Qual é o seu papel?</Label>
+            <div className="space-y-1.5">
+              <Label className="text-foreground/80">Qual é o seu papel?</Label>
               <RadioGroup
                 value={role}
                 onValueChange={(v) => setRole(v as "sdr" | "executivo" | "gestao")}
-                className="mt-2 grid grid-cols-3 gap-2"
+                className="grid grid-cols-3 gap-2"
               >
                 {[
                   { v: "sdr", label: "SDR" },
@@ -149,10 +234,8 @@ function LoginPage() {
                 ].map((opt) => (
                   <label
                     key={opt.v}
-                    className={`flex items-center gap-2 rounded-md border px-3 py-2 cursor-pointer text-sm ${
-                      role === opt.v
-                        ? "border-primary bg-primary/10 text-foreground"
-                        : "border-border text-muted-foreground hover:border-input"
+                    className={`glass-input flex cursor-pointer items-center gap-2 rounded-xl px-3 py-2 text-sm ${
+                      role === opt.v ? "ring-2 ring-primary/60" : ""
                     }`}
                   >
                     <RadioGroupItem value={opt.v} id={`role-${opt.v}`} />
@@ -162,17 +245,69 @@ function LoginPage() {
               </RadioGroup>
             </div>
           )}
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
-          </Button>
-        </form>
-        <p className="text-xs text-center text-muted-foreground mt-4">
-          {mode === "login" ? "Sem conta? " : "Já tem conta? "}
-          <button onClick={() => setMode(mode === "login" ? "signup" : "login")} className="text-primary font-semibold hover:underline">
-            {mode === "login" ? "Cadastre-se" : "Entre"}
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="glass-button group relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-xl text-sm font-semibold text-white disabled:opacity-70"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                {title}
+                <ArrowRight
+                  className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                  strokeWidth={2}
+                />
+              </>
+            )}
           </button>
+        </form>
+
+        <p
+          className="liquid-rise mt-5 text-center text-xs text-foreground/60"
+          style={{ animationDelay: "220ms" }}
+        >
+          {mode === "login" && (
+            <>
+              Sem conta?{" "}
+              <button
+                onClick={() => setMode("signup")}
+                className="font-semibold text-primary hover:underline"
+              >
+                Cadastre-se
+              </button>
+            </>
+          )}
+          {mode === "signup" && (
+            <>
+              Já tem conta?{" "}
+              <button
+                onClick={() => setMode("login")}
+                className="font-semibold text-primary hover:underline"
+              >
+                Entre
+              </button>
+            </>
+          )}
+          {mode === "reset" && (
+            <>
+              Lembrou a senha?{" "}
+              <button
+                onClick={() => setMode("login")}
+                className="font-semibold text-primary hover:underline"
+              >
+                Voltar para entrar
+              </button>
+            </>
+          )}
         </p>
-      </Card>
+      </div>
+
+      <p className="absolute bottom-4 left-0 right-0 text-center text-[11px] tracking-[0.2em] text-foreground/40 uppercase">
+        Grou Compass CRM
+      </p>
     </div>
   );
 }
