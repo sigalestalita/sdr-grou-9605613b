@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getCsDashboard, type CsOwnerPerformance } from "@/lib/cs-dashboard.functions";
+import { CsEscalationsPanel } from "@/components/cs/cs-escalations-panel";
 import { useCurrentRole } from "@/lib/use-role";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -224,6 +225,37 @@ function CsDashboardPage() {
             />
           </div>
 
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Kpi
+              icon={AlertTriangle}
+              label="Escalações ativas"
+              value={t.escalations}
+              tone={t.escalations > 0 ? "text-red-500" : "text-foreground"}
+              hint="ações atrasadas além do limite ou sem retorno"
+            />
+            <Kpi
+              icon={CalendarCheck}
+              label="Tarefas concluídas"
+              value={t.tasksDone}
+              hint={`${t.tasksDone ? Math.round((t.tasksByEvidence / t.tasksDone) * 100) : 0}% por evidência do canal`}
+            />
+            <Kpi
+              icon={Clock}
+              label="Tarefas atrasadas"
+              value={t.tasksOverdue}
+              tone={t.tasksOverdue > 0 ? "text-amber-500" : "text-foreground"}
+              hint={`${t.tasksPending} pendentes`}
+            />
+            <Kpi
+              icon={Activity}
+              label="Cadência cumprida"
+              value={
+                t.cadencePlanned ? `${Math.round((t.cadenceDone / t.cadencePlanned) * 100)}%` : "—"
+              }
+              hint={`${t.cadenceDone}/${t.cadencePlanned} ações · ${t.emailsSent} e-mails · ${t.whatsappSent} whats · ${t.meetingsAuto} reuniões`}
+            />
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-2">
             <Card className="p-4">
               <h2 className="mb-3 text-sm font-semibold">Evolução da sinaleira (semanal)</h2>
@@ -279,6 +311,13 @@ function CsDashboardPage() {
             </Card>
           </div>
 
+          <CsEscalationsPanel
+            owners={(data?.owners ?? [])
+              .filter((o) => o.ownerId)
+              .map((o) => ({ id: o.ownerId as string, name: o.ownerName }))}
+            onChanged={() => refetch()}
+          />
+
           <Card className="p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold">Desempenho por liderado de CS</h2>
@@ -296,6 +335,9 @@ function CsDashboardPage() {
                   <SelectItem value="meetingsHeld">Ordenar por reuniões</SelectItem>
                   <SelectItem value="touches">Ordenar por interações</SelectItem>
                   <SelectItem value="followUpsOverdue">Ordenar por FUPs atrasados</SelectItem>
+                  <SelectItem value="tasksOverdue">Ordenar por tarefas atrasadas</SelectItem>
+                  <SelectItem value="escalations">Ordenar por escalações</SelectItem>
+                  <SelectItem value="contactsPerDay">Ordenar por contatos/dia</SelectItem>
                   <SelectItem value="salesTotal">Ordenar por vendas</SelectItem>
                 </SelectContent>
               </Select>
@@ -312,6 +354,11 @@ function CsDashboardPage() {
                     <th className="py-2 pr-3">Reuniões</th>
                     <th className="py-2 pr-3">Interações</th>
                     <th className="py-2 pr-3">FUPs</th>
+                    <th className="py-2 pr-3">Tarefas</th>
+                    <th className="py-2 pr-3">Escaladas</th>
+                    <th className="py-2 pr-3">Canais</th>
+                    <th className="py-2 pr-3">Cadência</th>
+                    <th className="py-2 pr-3">Contatos/dia</th>
                     <th className="py-2 pr-3">Sem contato 30d</th>
                     <th className="py-2 pr-3">Vendas</th>
                   </tr>
@@ -373,13 +420,52 @@ function CsDashboardPage() {
                           </span>
                         )}
                       </td>
+                      <td className="py-2 pr-3">
+                        <span title="Concluídas no período (por evidência do canal)">
+                          {o.tasksDone}
+                          <span className="ml-1 text-[10px] text-emerald-600">
+                            {o.tasksDone ? Math.round((o.tasksByEvidence / o.tasksDone) * 100) : 0}%
+                            evid.
+                          </span>
+                        </span>
+                        <span className="ml-1 text-[10px] text-muted-foreground">
+                          · {o.tasksPending} pend.
+                        </span>
+                        {o.tasksOverdue > 0 && (
+                          <span className="ml-1 text-[10px] text-amber-500">
+                            {o.tasksOverdue} atras.
+                          </span>
+                        )}
+                        {o.avgDelayDays > 0 && (
+                          <span className="ml-1 text-[10px] text-muted-foreground">
+                            (atraso médio {o.avgDelayDays}d)
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-3">
+                        <span className={o.escalations > 0 ? "font-semibold text-red-500" : ""}>
+                          {o.escalations}
+                        </span>
+                      </td>
+                      <td className="py-2 pr-3 whitespace-nowrap text-[11px]">
+                        {o.emailsSent} e-mail · {o.whatsappSent} whats · {o.meetingsAuto} reun.
+                      </td>
+                      <td className="py-2 pr-3">
+                        {o.cadenceDone}/{o.cadencePlanned}
+                        {o.cadencePlanned > 0 && (
+                          <span className="ml-1 text-[10px] text-muted-foreground">
+                            ({Math.round((o.cadenceDone / o.cadencePlanned) * 100)}%)
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2 pr-3">{o.contactsPerDay}</td>
                       <td className="py-2 pr-3">{o.staleClients}</td>
                       <td className="py-2 pr-3">{brl(o.salesTotal)}</td>
                     </tr>
                   ))}
                   {owners.length === 0 && (
                     <tr>
-                      <td colSpan={10} className="py-6 text-center text-muted-foreground">
+                      <td colSpan={15} className="py-6 text-center text-muted-foreground">
                         Nenhum dado no período.
                       </td>
                     </tr>

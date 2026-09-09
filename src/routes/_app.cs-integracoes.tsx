@@ -586,6 +586,7 @@ function CsIntegrationsPage() {
                   ["run-fups", "Disparo de FUPs e automações de WhatsApp"],
                   ["send-weekly-digest", "Resumo semanal por e-mail"],
                   ["sync-agenda", "Agendas (Calendly + Google) e reuniões realizadas"],
+                  ["notify-escalations", "Escalações: aviso diário à gestão por e-mail"],
                 ] as const
               ).map(([slug, label]) => {
                 const url =

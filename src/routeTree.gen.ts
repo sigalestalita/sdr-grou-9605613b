@@ -56,6 +56,7 @@ import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/ho
 import { Route as ApiPublicHooksSyncAgendaRouteImport } from './routes/api/public/hooks/sync-agenda'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
+import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
 import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
 import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
 import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
@@ -301,6 +302,12 @@ const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
   path: '/api/public/hooks/run-fups',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksNotifyEscalationsRoute =
+  ApiPublicHooksNotifyEscalationsRouteImport.update({
+    id: '/api/public/hooks/notify-escalations',
+    path: '/api/public/hooks/notify-escalations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksMirrorRdRoute = ApiPublicHooksMirrorRdRouteImport.update({
   id: '/api/public/hooks/mirror-rd',
   path: '/api/public/hooks/mirror-rd',
@@ -371,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
+  '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
@@ -423,6 +431,7 @@ export interface FileRoutesByTo {
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
+  '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
@@ -478,6 +487,7 @@ export interface FileRoutesById {
   '/_app/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
+  '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
@@ -533,6 +543,7 @@ export interface FileRouteTypes {
     | '/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
     | '/api/public/hooks/mirror-rd'
+    | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
@@ -585,6 +596,7 @@ export interface FileRouteTypes {
     | '/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
     | '/api/public/hooks/mirror-rd'
+    | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
@@ -639,6 +651,7 @@ export interface FileRouteTypes {
     | '/_app/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
     | '/api/public/hooks/mirror-rd'
+    | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
@@ -659,6 +672,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicHooksMirrorRdRoute: typeof ApiPublicHooksMirrorRdRoute
+  ApiPublicHooksNotifyEscalationsRoute: typeof ApiPublicHooksNotifyEscalationsRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
   ApiPublicHooksSyncAgendaRoute: typeof ApiPublicHooksSyncAgendaRoute
@@ -1002,6 +1016,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRunFupsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/notify-escalations': {
+      id: '/api/public/hooks/notify-escalations'
+      path: '/api/public/hooks/notify-escalations'
+      fullPath: '/api/public/hooks/notify-escalations'
+      preLoaderRoute: typeof ApiPublicHooksNotifyEscalationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/mirror-rd': {
       id: '/api/public/hooks/mirror-rd'
       path: '/api/public/hooks/mirror-rd'
@@ -1154,6 +1175,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicHooksMirrorRdRoute: ApiPublicHooksMirrorRdRoute,
+  ApiPublicHooksNotifyEscalationsRoute: ApiPublicHooksNotifyEscalationsRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
   ApiPublicHooksSyncAgendaRoute: ApiPublicHooksSyncAgendaRoute,

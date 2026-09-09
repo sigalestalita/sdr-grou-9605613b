@@ -428,5 +428,21 @@ export const DEFAULT_EVIDENCE_CONFIG: EvidenceConfig = {
   conta_bot: false,
   reuniao_exige_aceite: false,
 };
+/** cs_settings.escalation — quando uma ação com a empresa é escalada ao gestor. */
+export type EscalationConfig = {
+  /** Dias de atraso a partir dos quais escala. */
+  dias_atraso: number;
+  /** Dias de atraso sem nenhuma ação com a empresa a partir dos quais escala. */
+  dias_sem_acao: number;
+  /** qualquer = atraso OU sem ação; ambos = atraso E sem ação. */
+  criterio: "qualquer" | "atraso" | "sem_acao" | "ambos";
+  notificar_email: boolean;
+};
+export const DEFAULT_ESCALATION_CONFIG: EscalationConfig = {
+  dias_atraso: 7,
+  dias_sem_acao: 3,
+  criterio: "qualquer",
+  notificar_email: true,
+};
 export const requiresEvidence = (cfg: EvidenceConfig, channel: string | null | undefined) =>
   cfg.exigir_evidencia && !!channel && (cfg.canais as string[]).includes(channel);

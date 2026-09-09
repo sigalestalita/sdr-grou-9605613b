@@ -16,6 +16,8 @@ import {
   DEFAULT_HEALTH_OPTIONS,
   DEFAULT_DAILY_TARGET,
   DEFAULT_EVIDENCE_CONFIG,
+  DEFAULT_ESCALATION_CONFIG,
+  type EscalationConfig,
   type EvidenceConfig,
   type HealthSignalPoints,
   type HealthOptions,
@@ -71,6 +73,9 @@ export function getDailyTarget(db: DB) {
 }
 export function getEvidenceConfig(db: DB) {
   return getCsSetting<EvidenceConfig>(db, "evidence", DEFAULT_EVIDENCE_CONFIG);
+}
+export function getEscalationConfig(db: DB) {
+  return getCsSetting<EscalationConfig>(db, "escalation", DEFAULT_ESCALATION_CONFIG);
 }
 export function getStageSla(db: DB) {
   return getCsSetting<StageSla>(db, "stage_sla_days", DEFAULT_STAGE_SLA);

@@ -20,6 +20,25 @@ export type CsOwnerPerformance = {
   followUpsOverdue: number;
   salesTotal: number;
   staleClients: number;
+  /** Tarefas (cs_tasks) no período */
+  tasksDone: number;
+  tasksByEvidence: number;
+  tasksByManager: number;
+  tasksPending: number;
+  tasksOverdue: number;
+  /** Atraso médio (dias) das tarefas concluídas no período */
+  avgDelayDays: number;
+  /** Escalações ativas para a gestão */
+  escalations: number;
+  /** Interações por canal (registro automático) */
+  emailsSent: number;
+  whatsappSent: number;
+  meetingsAuto: number;
+  /** Cadência semanal: ações feitas / planejadas no período */
+  cadenceDone: number;
+  cadencePlanned: number;
+  /** Contatos por dia útil no período (interações do time) */
+  contactsPerDay: number;
 };
 
 export type CsDashboardData = {
@@ -41,6 +60,16 @@ export type CsDashboardData = {
     salesTotal: number;
     renewalsNext60: number;
     staleClients: number;
+    tasksDone: number;
+    tasksByEvidence: number;
+    tasksPending: number;
+    tasksOverdue: number;
+    escalations: number;
+    emailsSent: number;
+    whatsappSent: number;
+    meetingsAuto: number;
+    cadenceDone: number;
+    cadencePlanned: number;
   };
   owners: CsOwnerPerformance[];
   signalTrend: {
@@ -72,7 +101,18 @@ export const getCsDashboard = createServerFn({ method: "GET" })
     const fromIso = from.toISOString();
     const nowIso = now.toISOString();
 
-    const [clients, alerts, meetings, timeline, sales, snapshots, profilesRes] = await Promise.all([
+    const [
+      clients,
+      alerts,
+      meetings,
+      timeline,
+      sales,
+      snapshots,
+      profilesRes,
+      tasks,
+      cadence,
+      escalations,
+    ] = await Promise.all([
       fetchAllRows<Record<string, unknown>>((f, t) =>
         supabase
           .from("cs_clients")
@@ -98,7 +138,7 @@ export const getCsDashboard = createServerFn({ method: "GET" })
       fetchAllRows<Record<string, unknown>>((f, t) =>
         supabase
           .from("cs_timeline_events")
-          .select("client_uid, author_id, event_type, occurred_at")
+          .select("client_uid, author_id, event_type, channel, occurred_at")
           .gte("occurred_at", fromIso)
           .range(f, t),
       ),
@@ -113,7 +153,32 @@ export const getCsDashboard = createServerFn({ method: "GET" })
           .range(f, t),
       ),
       supabase.from("profiles").select("id, full_name, email"),
+      fetchAllRows<Record<string, unknown>>((f, t) =>
+        supabase
+          .from("cs_tasks")
+          .select("client_uid, owner_id, status, due_at, done_at, completed_via")
+          .neq("status", "cancelada")
+          .or(`status.eq.pendente,done_at.gte.${fromIso}`)
+          .range(f, t),
+      ),
+      fetchAllRows<Record<string, unknown>>((f, t) =>
+        supabase
+          .from("cs_cadence_tasks")
+          .select("client_uid, owner_id, done, week_start")
+          .gte("week_start", fromIso.slice(0, 10))
+          .range(f, t),
+      ),
+      supabase
+        .from("cs_escalation_notices")
+        .select("owner_id")
+        .is("resolved_at", null)
+        .is("acknowledged_at", null),
     ]);
+    // dias úteis do período (contatos/dia)
+    let businessDays = 0;
+    for (let d = new Date(from); d <= now; d.setDate(d.getDate() + 1))
+      if (d.getDay() !== 0 && d.getDay() !== 6) businessDays++;
+    businessDays = Math.max(businessDays, 1);
 
     const profiles = profilesRes.data ?? [];
     const nameOf = (id: string | null) => {
@@ -145,6 +210,19 @@ export const getCsDashboard = createServerFn({ method: "GET" })
           followUpsOverdue: 0,
           salesTotal: 0,
           staleClients: 0,
+          tasksDone: 0,
+          tasksByEvidence: 0,
+          tasksByManager: 0,
+          tasksPending: 0,
+          tasksOverdue: 0,
+          avgDelayDays: 0,
+          escalations: 0,
+          emailsSent: 0,
+          whatsappSent: 0,
+          meetingsAuto: 0,
+          cadenceDone: 0,
+          cadencePlanned: 0,
+          contactsPerDay: 0,
         };
         buckets.set(id, b);
       }
@@ -168,6 +246,16 @@ export const getCsDashboard = createServerFn({ method: "GET" })
       salesTotal: 0,
       renewalsNext60: 0,
       staleClients: 0,
+      tasksDone: 0,
+      tasksByEvidence: 0,
+      tasksPending: 0,
+      tasksOverdue: 0,
+      escalations: 0,
+      emailsSent: 0,
+      whatsappSent: 0,
+      meetingsAuto: 0,
+      cadenceDone: 0,
+      cadencePlanned: 0,
     };
 
     const healthSum = new Map<string | null, { sum: number; n: number }>();
@@ -276,6 +364,8 @@ export const getCsDashboard = createServerFn({ method: "GET" })
       }
     }
 
+    const contactChannels = new Set(["ligacao", "whatsapp", "email", "reuniao", "presencial"]);
+    const contactsByOwner = new Map<string | null, number>();
     for (const t of timeline) {
       const occurred = String(t["occurred_at"]);
       if (occurred > nowIso) continue; // futuro = follow-up agendado
@@ -285,6 +375,69 @@ export const getCsDashboard = createServerFn({ method: "GET" })
       b.touches++;
       totals.touches++;
       bumpDay(occurred, "touches");
+      const type = String(t["event_type"] ?? "");
+      if (type === "email_enviado") {
+        b.emailsSent++;
+        totals.emailsSent++;
+      } else if (type === "whatsapp_enviado") {
+        b.whatsappSent++;
+        totals.whatsappSent++;
+      } else if (type === "reuniao_realizada") {
+        b.meetingsAuto++;
+        totals.meetingsAuto++;
+      }
+      if (t["author_id"] && contactChannels.has(String(t["channel"] ?? "")))
+        contactsByOwner.set(owner, (contactsByOwner.get(owner) ?? 0) + 1);
+    }
+    for (const [owner, n] of contactsByOwner)
+      ensure(owner).contactsPerDay = Math.round((n / businessDays) * 10) / 10;
+
+    // Tarefas: concluídas no período (por evidência / gestão), pendentes e atrasadas
+    const delay = new Map<string | null, { sum: number; n: number }>();
+    for (const tk of tasks) {
+      const owner =
+        (tk["owner_id"] as string | null) ?? ownerOfClient.get(String(tk["client_uid"])) ?? null;
+      const b = ensure(owner);
+      if (tk["status"] === "concluida") {
+        b.tasksDone++;
+        totals.tasksDone++;
+        if (tk["completed_via"] === "evidencia") {
+          b.tasksByEvidence++;
+          totals.tasksByEvidence++;
+        } else if (tk["completed_via"] === "gestor") b.tasksByManager++;
+        const late =
+          (new Date(String(tk["done_at"])).getTime() - new Date(String(tk["due_at"])).getTime()) /
+          86400000;
+        const d = delay.get(owner) ?? { sum: 0, n: 0 };
+        d.sum += Math.max(0, late);
+        d.n++;
+        delay.set(owner, d);
+      } else if (tk["status"] === "pendente") {
+        b.tasksPending++;
+        totals.tasksPending++;
+        if (String(tk["due_at"]) < nowIso) {
+          b.tasksOverdue++;
+          totals.tasksOverdue++;
+        }
+      }
+    }
+    for (const [owner, d] of delay)
+      ensure(owner).avgDelayDays = d.n ? Math.round((d.sum / d.n) * 10) / 10 : 0;
+
+    for (const k of cadence) {
+      const owner =
+        (k["owner_id"] as string | null) ?? ownerOfClient.get(String(k["client_uid"])) ?? null;
+      const b = ensure(owner);
+      b.cadencePlanned++;
+      totals.cadencePlanned++;
+      if (k["done"]) {
+        b.cadenceDone++;
+        totals.cadenceDone++;
+      }
+    }
+    for (const e of escalations.data ?? []) {
+      ensure((e.owner_id as string | null) ?? null).escalations++;
+      totals.escalations++;
     }
     for (const t of timeline) {
       if (String(t["occurred_at"]) <= nowIso) continue;
@@ -319,7 +472,7 @@ export const getCsDashboard = createServerFn({ method: "GET" })
     }
 
     const owners = [...buckets.values()]
-      .filter((o) => o.clients > 0 || o.touches > 0 || o.meetingsHeld > 0)
+      .filter((o) => o.clients > 0 || o.touches > 0 || o.meetingsHeld > 0 || o.tasksDone > 0)
       .sort((a, b) => b.clients - a.clients);
 
     return {

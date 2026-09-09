@@ -16,6 +16,7 @@ import {
   CS_TASK_TYPES,
   CS_TASK_TYPE_LABEL,
   DEFAULT_DAILY_TARGET,
+  DEFAULT_ESCALATION_CONFIG,
   DEFAULT_EVIDENCE_CONFIG,
   DEFAULT_HEALTH_OPTIONS,
   DEFAULT_HEALTH_SIGNAL_POINTS,
@@ -25,6 +26,7 @@ import {
   HEALTH_CRITERIA_LABEL,
   type CsTaskType,
   type DailyTarget,
+  type EscalationConfig,
   type EvidenceConfig,
   type HealthOptions,
   type HealthSignalPoints,
@@ -57,6 +59,7 @@ export function CsSettingsPanel({
   options,
   dailyTarget,
   evidence,
+  escalation,
   sla,
   routing,
   onSaved,
@@ -67,6 +70,7 @@ export function CsSettingsPanel({
   options?: HealthOptions;
   dailyTarget?: DailyTarget;
   evidence?: EvidenceConfig;
+  escalation?: EscalationConfig;
   sla?: StageSla;
   routing?: RoutingConfig;
   onSaved: () => void;
@@ -80,6 +84,7 @@ export function CsSettingsPanel({
   const [opt, setOpt] = useState<HealthOptions>(options ?? DEFAULT_HEALTH_OPTIONS);
   const [meta, setMeta] = useState<DailyTarget>(dailyTarget ?? DEFAULT_DAILY_TARGET);
   const [ev, setEv] = useState<EvidenceConfig>(evidence ?? DEFAULT_EVIDENCE_CONFIG);
+  const [esc, setEsc] = useState<EscalationConfig>(escalation ?? DEFAULT_ESCALATION_CONFIG);
   const [s, setS] = useState<StageSla>(sla ?? DEFAULT_STAGE_SLA);
   const [r, setR] = useState<RoutingConfig>(routing ?? DEFAULT_ROUTING);
   useEffect(() => {
@@ -98,6 +103,9 @@ export function CsSettingsPanel({
     if (evidence) setEv(evidence);
   }, [evidence]);
   useEffect(() => {
+    if (escalation) setEsc(escalation);
+  }, [escalation]);
+  useEffect(() => {
     if (sla) setS(sla);
   }, [sla]);
   useEffect(() => {
@@ -113,6 +121,7 @@ export function CsSettingsPanel({
           options: opt,
           dailyTarget: meta,
           evidence: ev,
+          escalation: esc,
           sla: s,
           routing: r,
         },
@@ -368,6 +377,67 @@ export function CsSettingsPanel({
               />
               Reunião da Google Agenda só conta se o contato aceitou o convite
             </label>
+
+            <div className="space-y-3 border-t pt-4">
+              <div>
+                <h3 className="text-sm font-semibold">Escalação ao gestor</h3>
+                <p className="max-w-[80ch] text-[13px] text-muted-foreground">
+                  Tarefas, ações de cadência, próximos passos de reunião e tratativas de alerta que
+                  passarem do limite aparecem para a gestão no Início e no Dashboard CS, e por
+                  e-mail uma vez por dia. "Sem ação" = nenhum contato registrado com a empresa desde
+                  que a ação venceu.
+                </p>
+              </div>
+              <div className="grid max-w-2xl gap-3 sm:grid-cols-3">
+                <label className="block space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    Escalar após (dias de atraso)
+                  </span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={90}
+                    value={esc.dias_atraso}
+                    onChange={(e) => setEsc({ ...esc, dias_atraso: Number(e.target.value) })}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs text-muted-foreground">
+                    Sem ação: escalar após (dias)
+                  </span>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={90}
+                    value={esc.dias_sem_acao}
+                    onChange={(e) => setEsc({ ...esc, dias_sem_acao: Number(e.target.value) })}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-xs text-muted-foreground">Critério</span>
+                  <select
+                    value={esc.criterio}
+                    onChange={(e) =>
+                      setEsc({ ...esc, criterio: e.target.value as EscalationConfig["criterio"] })
+                    }
+                    className="h-9 w-full rounded-md border bg-background px-2 text-sm"
+                  >
+                    <option value="qualquer">Atraso OU sem ação</option>
+                    <option value="ambos">Atraso E sem ação</option>
+                    <option value="atraso">Só atraso</option>
+                    <option value="sem_acao">Só sem ação</option>
+                  </select>
+                </label>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={esc.notificar_email}
+                  onChange={(e) => setEsc({ ...esc, notificar_email: e.target.checked })}
+                />
+                Avisar a gestão por e-mail (diário)
+              </label>
+            </div>
             {saveBar}
           </>
         )}

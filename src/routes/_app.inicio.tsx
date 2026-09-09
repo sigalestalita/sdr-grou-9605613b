@@ -9,6 +9,8 @@ import { getCsHome } from "@/lib/cs.functions";
 import { getCsFollowUpAgenda, type CsFollowUpItem } from "@/lib/cs-follow-ups.functions";
 import { followUpNeedsEvidence } from "@/lib/cs-follow-up-types";
 import { AwaitingEvidencePill } from "@/components/cs/cs-task-dialog";
+import { CsEscalationsPanel } from "@/components/cs/cs-escalations-panel";
+import { useCurrentRole } from "@/lib/use-role";
 import { getCsCadence, type CsCadenceRow } from "@/lib/cs-cadence.functions";
 import { CsFollowUpActionModal } from "@/components/cs/cs-followup-action-modal";
 import { CS_SIGNAL_CLASS } from "@/lib/cs-types";
@@ -62,6 +64,7 @@ function greeting(d: Date) {
  */
 function HomePage() {
   const { user } = useAuth();
+  const role = useCurrentRole();
   const homeFn = useServerFn(getCsHome);
   const agendaFn = useServerFn(getCsFollowUpAgenda);
   const cadenceFn = useServerFn(getCsCadence);
@@ -266,6 +269,17 @@ function HomePage() {
         </div>
 
         <div className="space-y-4">
+          {/* Escalações (gestão) */}
+          {!role.loading && role.canAccessAll && (
+            <CsEscalationsPanel
+              compact
+              owners={(home.data?.profiles ?? []).map((p) => ({
+                id: p.id,
+                name: p.full_name || p.email || "—",
+              }))}
+            />
+          )}
+
           {/* Alertas */}
           <Section icon={Bell} title="Alertas da minha carteira" to="/cs" toLabel="Ver carteira">
             {home.isLoading ? (

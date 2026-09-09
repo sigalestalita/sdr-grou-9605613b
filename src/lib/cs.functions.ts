@@ -27,6 +27,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getDailyTarget,
       getRouting,
       getEvidenceConfig,
+      getEscalationConfig,
       fetchAllRows,
     } = await import("@/lib/cs/cs-core.server");
     const weeks = lastNWeeks(8);
@@ -44,6 +45,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       options,
       dailyTarget,
       evidence,
+      escalation,
     ] = await Promise.all([
       fetchAllRows((f, t) =>
         supabase.from("cs_clients").select("*").order("nome_empresa").range(f, t),
@@ -70,6 +72,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getHealthOptions(supabase),
       getDailyTarget(supabase),
       getEvidenceConfig(supabase),
+      getEscalationConfig(supabase),
     ]);
 
     return {
@@ -86,6 +89,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       options,
       dailyTarget,
       evidence,
+      escalation,
     };
   });
 
@@ -605,6 +609,14 @@ export const saveCsSettings = createServerFn({ method: "POST" })
             reuniao_exige_aceite: z.boolean().default(false),
           })
           .optional(),
+        escalation: z
+          .object({
+            dias_atraso: z.number().int().min(1).max(90),
+            dias_sem_acao: z.number().int().min(0).max(90),
+            criterio: z.enum(["qualquer", "atraso", "sem_acao", "ambos"]),
+            notificar_email: z.boolean(),
+          })
+          .optional(),
         sla: z
           .object({
             onboarding: z.number().int().min(1).max(400),
@@ -635,6 +647,7 @@ export const saveCsSettings = createServerFn({ method: "POST" })
     if (data.options) await saveCsSetting(supabase, "health_options", data.options);
     if (data.dailyTarget) await saveCsSetting(supabase, "daily_contact_target", data.dailyTarget);
     if (data.evidence) await saveCsSetting(supabase, "evidence", data.evidence);
+    if (data.escalation) await saveCsSetting(supabase, "escalation", data.escalation);
     if (data.sla) await saveCsSetting(supabase, "stage_sla_days", data.sla);
     if (data.routing) {
       const current = await getRouting(supabase);
