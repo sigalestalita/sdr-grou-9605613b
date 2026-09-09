@@ -97,6 +97,13 @@ export const listCsBoard = createServerFn({ method: "GET" })
     };
   });
 
+const mondayOfDate = (d: Date) => {
+  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const dow = x.getUTCDay();
+  x.setUTCDate(x.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
+  return x.toISOString().slice(0, 10);
+};
+
 /** Detalhe completo do cliente para o card (abas). */
 export const getCsClient = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -227,7 +234,18 @@ export const getCsClient = createServerFn({ method: "GET" })
       tags: tags.data ?? [],
       snapshots: snaps.data ?? [],
       records: records.data ?? [],
-      timeline: timeline.data ?? [],
+      // Bloco 7: "se houve mudança de cor na semana seguinte" ao contato
+      timeline: (timeline.data ?? []).map((ev) => {
+        const meta = (ev.metadata ?? {}) as Record<string, unknown>;
+        const st = meta["sinaleira"] as Record<string, unknown> | undefined;
+        if (!st) return ev;
+        const evWeek = mondayOfDate(new Date(ev.occurred_at));
+        const next = (snaps.data ?? []).find((s) => s.week_start > evWeek);
+        return {
+          ...ev,
+          metadata: { ...meta, sinaleira: { ...st, semana_seguinte: next?.signal ?? null } },
+        };
+      }),
       alerts: alerts.data ?? [],
       children: children.data ?? [],
       profiles: profiles.data ?? [],
@@ -636,6 +654,7 @@ export const saveCsSettings = createServerFn({ method: "POST" })
                   .enum(["analista_novo", "falta_projeto", "nao_ve_valor", "outro"])
                   .optional(),
                 mes_contrato: z.number().int().min(1).optional(),
+                analista_novo_dias: z.number().int().min(1).optional(),
                 modulos: z.array(z.number().int()),
                 usar_tag_uso: z.boolean().optional(),
                 motivo: z.string().max(200),
@@ -990,6 +1009,22 @@ export const addCsTimelineEntry = createServerFn({ method: "POST" })
         description: z.string().nullable().optional(),
         occurredAt: z.string().optional(),
         countsAsContact: z.boolean().default(true),
+        /** Bloco 10: as cinco perguntas do diagnóstico do vermelho + causa principal. */
+        diagnostico: z
+          .object({
+            respostas: z.record(z.string(), z.enum(["sim", "nao", "na"])),
+            causa: z.enum(["analista_novo", "falta_projeto", "nao_ve_valor", "outro"]).nullable(),
+            observacao: z.string().max(2000).nullable().optional(),
+          })
+          .optional(),
+        /** Bloco 8/10: acionar o Executivo com contexto (vira tarefa para ele). */
+        executivo: z
+          .object({
+            projeto: z.string().min(1).max(300),
+            contato: z.string().max(200).nullable().optional(),
+            resumo: z.string().max(2000).nullable().optional(),
+          })
+          .optional(),
       })
       .parse(d),
   )
@@ -998,17 +1033,86 @@ export const addCsTimelineEntry = createServerFn({ method: "POST" })
     const occurredAt = data.occurredAt
       ? new Date(data.occurredAt).toISOString()
       : new Date().toISOString();
+    const DIAG_Q: Record<string, string> = {
+      q1: "Sabe que está usando pouco",
+      q2: "Há projeto parado",
+      q3: "Mudança de equipe / saiu o analista",
+      q4: "Dúvida técnica acumulada",
+      q5: "Ainda acredita no valor",
+    };
+    let description = data.description || null;
+    if (data.diagnostico) {
+      const linhas = Object.entries(data.diagnostico.respostas)
+        .filter(([, v]) => v !== "na")
+        .map(([k, v]) => `${DIAG_Q[k] ?? k}: ${v === "sim" ? "sim" : "não"}`);
+      const { DIAG_CAUSE_LABEL } = await import("@/lib/cs/masterclass");
+      const causa = data.diagnostico.causa ? DIAG_CAUSE_LABEL[data.diagnostico.causa] : null;
+      description = [
+        description,
+        `Diagnóstico do vermelho — ${linhas.join(" · ") || "sem respostas"}${causa ? ` · Causa principal: ${causa}` : ""}`,
+        data.diagnostico.observacao?.trim() || null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      if (data.diagnostico.causa)
+        await supabase
+          .from("cs_clients")
+          .update({ diagnostico_causa: data.diagnostico.causa })
+          .eq("client_uid", data.clientUid);
+    }
     const { error } = await supabase.from("cs_timeline_events").insert({
       client_uid: data.clientUid,
       author_id: userId,
       event_type: "contato_manual",
       channel: data.channel,
       title: data.title,
-      description: data.description || null,
+      description,
       occurred_at: occurredAt,
-      metadata: { manual: true },
+      metadata: {
+        manual: true,
+        ...(data.diagnostico ? { diagnostico: data.diagnostico } : {}),
+      },
     } as never);
     if (error) throw new Error(error.message);
+
+    if (data.executivo) {
+      const { data: client } = await supabase
+        .from("cs_clients")
+        .select("nome_empresa, comercial_responsavel_id")
+        .eq("client_uid", data.clientUid)
+        .maybeSingle();
+      const notes = [
+        `Projeto/oportunidade: ${data.executivo.projeto}`,
+        data.executivo.contato ? `Contato no cliente: ${data.executivo.contato}` : null,
+        data.executivo.resumo ? `Última conversa: ${data.executivo.resumo}` : null,
+      ]
+        .filter(Boolean)
+        .join("\n");
+      await supabase.from("cs_tasks").insert({
+        client_uid: data.clientUid,
+        owner_id: client?.comercial_responsavel_id ?? null,
+        title:
+          `Acionamento do CS — ${client?.nome_empresa ?? data.clientUid}: ${data.executivo.projeto}`.slice(
+            0,
+            200,
+          ),
+        task_type: "outro",
+        due_at: new Date(Date.now() + 2 * 86400000).toISOString(),
+        notes,
+        created_by: userId,
+        source: "acionamento_executivo",
+      });
+      await supabase.from("cs_timeline_events").insert({
+        client_uid: data.clientUid,
+        author_id: userId,
+        event_type: "acionamento_executivo",
+        channel: "observacao",
+        title: `Executivo acionado: ${data.executivo.projeto}`.slice(0, 180),
+        description: notes,
+        occurred_at: occurredAt,
+        metadata: { executivo_id: client?.comercial_responsavel_id ?? null },
+      } as never);
+    }
 
     // Registro com data futura é agendamento (aparece em Follow-ups CS), não contato feito.
     const isFuture = occurredAt > new Date().toISOString();

@@ -1,14 +1,32 @@
 import { createFileRoute } from "@tanstack/react-router";
 import * as React from "react";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { listCsPlaybook, type CsPlaybookBlock } from "@/lib/cs-cadence.functions";
-import { BookOpen, ChevronDown, ChevronRight, Megaphone, Sparkles, Target } from "lucide-react";
+import {
+  deleteCsPlaybookBlock,
+  listCsPlaybook,
+  saveCsPlaybookBlock,
+  type CsPlaybookBlock,
+} from "@/lib/cs-cadence.functions";
+import { useCurrentRole } from "@/lib/use-role";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import {
+  BookOpen,
+  ChevronDown,
+  ChevronRight,
+  Megaphone,
+  Pencil,
+  Plus,
+  Sparkles,
+  Target,
+  Trash2,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs-playbook")({
   component: CsPlaybookPage,
@@ -23,7 +41,8 @@ export const Route = createFileRoute("/_app/cs-playbook")({
       { property: "og:title", content: "Playbook CS | Grou Compass" },
       {
         property: "og:description",
-        content: "Guia completo de cadência, ofertas e conteúdos de contato do time de Customer Success.",
+        content:
+          "Guia completo de cadência, ofertas e conteúdos de contato do time de Customer Success.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -210,7 +229,121 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-function BlockCard({ block }: { block: CsPlaybookBlock }) {
+type BlockDraft = Omit<CsPlaybookBlock, "id"> & { id?: string };
+
+/** Formulário do gestor: criar/editar bloco (markdown; tabelas com | col | col |). */
+function BlockEditor({
+  initial,
+  onClose,
+  onSaved,
+}: {
+  initial: BlockDraft;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const saveFn = useServerFn(saveCsPlaybookBlock);
+  const [d, setD] = useState<BlockDraft>(initial);
+  const save = useMutation({
+    mutationFn: () =>
+      saveFn({
+        data: {
+          id: d.id,
+          tipo: d.tipo as "gatilho_descricao" | "playbook" | "oferta" | "conteudo_contato",
+          titulo: d.titulo,
+          corpo: d.corpo,
+          cor: d.cor as "geral" | "verde" | "amarelo" | "vermelho",
+          ordem: d.ordem,
+          ativo: d.ativo,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Bloco salvo");
+      onSaved();
+      onClose();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+  return (
+    <Card className="space-y-2 border-primary/40 p-4">
+      <div className="grid gap-2 sm:grid-cols-[1fr_10rem_9rem_5rem]">
+        <Input
+          value={d.titulo}
+          onChange={(e) => setD({ ...d, titulo: e.target.value })}
+          placeholder="Título"
+        />
+        <select
+          value={d.tipo}
+          onChange={(e) => setD({ ...d, tipo: e.target.value })}
+          className="h-9 rounded-md border bg-background px-2 text-sm"
+        >
+          {Object.entries(TIPO_META).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v.label}
+            </option>
+          ))}
+        </select>
+        <select
+          value={d.cor}
+          onChange={(e) => setD({ ...d, cor: e.target.value })}
+          className="h-9 rounded-md border bg-background px-2 text-sm"
+        >
+          {Object.entries(COR_LABEL).map(([k, v]) => (
+            <option key={k} value={k}>
+              {v}
+            </option>
+          ))}
+        </select>
+        <Input
+          type="number"
+          value={d.ordem}
+          onChange={(e) => setD({ ...d, ordem: Number(e.target.value) })}
+          title="Ordem"
+        />
+      </div>
+      <Textarea
+        rows={14}
+        className="font-mono text-xs"
+        value={d.corpo}
+        onChange={(e) => setD({ ...d, corpo: e.target.value })}
+        placeholder="Corpo em markdown"
+      />
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={d.ativo}
+            onChange={(e) => setD({ ...d, ativo: e.target.checked })}
+          />{" "}
+          Ativo (visível para o time)
+        </label>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            disabled={d.titulo.trim().length < 2 || d.corpo.trim().length < 2 || save.isPending}
+            onClick={() => save.mutate()}
+          >
+            Salvar
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+function BlockCard({
+  block,
+  canEdit,
+  onEdit,
+  onDelete,
+}: {
+  block: CsPlaybookBlock;
+  canEdit: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const meta = TIPO_META[block.tipo] ?? TIPO_META.playbook;
   const Icon = meta.icon;
@@ -227,58 +360,140 @@ function BlockCard({ block }: { block: CsPlaybookBlock }) {
             <Badge variant="outline" className="text-[10px]">
               {meta.label}
             </Badge>
-            <Badge variant="outline" className={`text-[10px] ${COR_TONE[block.cor] ?? COR_TONE.geral}`}>
+            <Badge
+              variant="outline"
+              className={`text-[10px] ${COR_TONE[block.cor] ?? COR_TONE.geral}`}
+            >
               {COR_LABEL[block.cor] ?? block.cor}
             </Badge>
+            {!block.ativo && (
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                Inativo
+              </Badge>
+            )}
           </div>
         </div>
+        {canEdit && (
+          <span className="flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2"
+              onClick={onEdit}
+              aria-label="Editar"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 px-2 text-muted-foreground hover:text-destructive"
+              onClick={onDelete}
+              aria-label="Apagar"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </span>
+        )}
         {open ? (
           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
         ) : (
           <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
         )}
       </button>
-      {open ? <div className="border-t border-border px-4 py-4">
-        <Markdown body={block.corpo} />
-      </div> : null}
+      {open ? (
+        <div className="border-t border-border px-4 py-4">
+          <Markdown body={block.corpo} />
+        </div>
+      ) : null}
     </Card>
   );
 }
 
 function CsPlaybookPage() {
   const fetchPlaybook = useServerFn(listCsPlaybook);
+  const deleteFn = useServerFn(deleteCsPlaybookBlock);
+  const role = useCurrentRole();
+  const canEdit = !role.loading && role.canAccessAll;
+  const qc = useQueryClient();
   const [tipo, setTipo] = useState<string>("");
   const [cor, setCor] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
+  const [editing, setEditing] = useState<BlockDraft | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["cs-playbook"],
     queryFn: () => fetchPlaybook(),
   });
+  const refresh = () => qc.invalidateQueries({ queryKey: ["cs-playbook"] });
+  const del = useMutation({
+    mutationFn: (id: string) => deleteFn({ data: { id } }),
+    onSuccess: refresh,
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
 
   const blocks = useMemo(() => {
-    const all = (data ?? []).filter((b) => b.ativo);
+    const all = (data ?? []).filter((b) => b.ativo || (canEdit && showInactive));
     const q = search.trim().toLowerCase();
     return all.filter((b) => {
       if (tipo && b.tipo !== tipo) return false;
       if (cor && b.cor !== cor) return false;
-      if (q && !b.titulo.toLowerCase().includes(q) && !b.corpo.toLowerCase().includes(q)) return false;
+      if (q && !b.titulo.toLowerCase().includes(q) && !b.corpo.toLowerCase().includes(q))
+        return false;
       return true;
     });
-  }, [data, tipo, cor, search]);
+  }, [data, tipo, cor, search, canEdit, showInactive]);
 
   return (
     <div className="space-y-5 p-4 md:p-6">
-      <header>
-        <h1 className="text-xl font-bold tracking-tight">Playbook CS</h1>
-        <p className="text-sm text-muted-foreground">
-          Sinaleira GROU v2 — lógica de cadência, condução por cor, ofertas e modelos de contato.
-        </p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Playbook CS</h1>
+          <p className="text-sm text-muted-foreground">
+            Sinaleira GROU v2 — lógica de cadência, condução por cor, ofertas e modelos de contato.
+          </p>
+        </div>
+        {canEdit && (
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+              />
+              incluir inativos
+            </label>
+            <Button
+              size="sm"
+              onClick={() =>
+                setEditing({
+                  tipo: "playbook",
+                  titulo: "",
+                  corpo: "",
+                  cor: "geral",
+                  ordem: ((data ?? []).reduce((m, b) => Math.max(m, b.ordem), 0) || 0) + 10,
+                  ativo: true,
+                })
+              }
+            >
+              <Plus className="mr-1 h-4 w-4" /> Novo bloco
+            </Button>
+          </div>
+        )}
       </header>
+
+      {editing && !editing.id && (
+        <BlockEditor initial={editing} onClose={() => setEditing(null)} onSaved={refresh} />
+      )}
 
       <Card className="p-3">
         <div className="grid gap-2 md:grid-cols-3">
-          <Input placeholder="Buscar no playbook..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            placeholder="Buscar no playbook..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <select
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={tipo}
@@ -321,12 +536,31 @@ function CsPlaybookPage() {
       {isLoading ? (
         <Card className="p-6 text-sm text-muted-foreground">Carregando playbook...</Card>
       ) : blocks.length === 0 ? (
-        <Card className="p-6 text-sm text-muted-foreground">Nenhum bloco encontrado com esses filtros.</Card>
+        <Card className="p-6 text-sm text-muted-foreground">
+          Nenhum bloco encontrado com esses filtros.
+        </Card>
       ) : (
         <div className="space-y-3">
-          {blocks.map((b) => (
-            <BlockCard key={b.id} block={b} />
-          ))}
+          {blocks.map((b) =>
+            editing?.id === b.id ? (
+              <BlockEditor
+                key={b.id}
+                initial={editing}
+                onClose={() => setEditing(null)}
+                onSaved={refresh}
+              />
+            ) : (
+              <BlockCard
+                key={b.id}
+                block={b}
+                canEdit={canEdit}
+                onEdit={() => setEditing({ ...b })}
+                onDelete={() => {
+                  if (window.confirm(`Apagar o bloco "${b.titulo}"?`)) del.mutate(b.id);
+                }}
+              />
+            ),
+          )}
         </div>
       )}
     </div>

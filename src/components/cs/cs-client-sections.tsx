@@ -1,4 +1,16 @@
-import { DIAG_CAUSES, DIAG_CAUSE_LABEL } from "@/lib/cs/masterclass";
+import {
+  DIAG_CAUSES,
+  DIAG_CAUSE_LABEL,
+  type DiagCause as DiagCauseValue,
+} from "@/lib/cs/masterclass";
+
+const DIAG_QUESTIONS: Array<[string, string]> = [
+  ["q1", "O cliente sabe que está usando pouco?"],
+  ["q2", "Há projeto parado?"],
+  ["q3", "Houve mudança de equipe — saiu o analista PDA?"],
+  ["q4", "Há dúvida técnica não resolvida acumulada?"],
+  ["q5", "O cliente ainda acredita no valor da ferramenta?"],
+];
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -16,6 +28,7 @@ import {
   CS_SERVICE_TYPE_LABEL,
   CS_TAG_USO,
   CS_TAG_USO_LABEL,
+  CS_SIGNAL_LABEL,
 } from "@/lib/cs-types";
 import {
   History,
@@ -600,6 +613,30 @@ export type TimelineWhatsapp = {
   contact_name?: string | null;
 };
 
+/** "Vermelho · 2ª sem · descendo → sem. seguinte: amarelo" a partir do carimbo do contato. */
+function signalStamp(metadata: unknown): string | null {
+  const s = (
+    metadata as {
+      sinaleira?: {
+        cor?: string;
+        semanas?: number;
+        tendencia?: string;
+        semana_seguinte?: string | null;
+      };
+    } | null
+  )?.sinaleira;
+  if (!s?.cor || s.cor === "sem_dado") return null;
+  const cor = CS_SIGNAL_LABEL[s.cor as keyof typeof CS_SIGNAL_LABEL] ?? s.cor;
+  const parts = [
+    cor + (s.semanas ? ` ${s.semanas}ª sem` : ""),
+    s.tendencia && s.tendencia !== "estavel" ? s.tendencia : null,
+  ];
+  let out = parts.filter(Boolean).join(" · ");
+  if (s.semana_seguinte && s.semana_seguinte !== s.cor)
+    out += ` → sem. seguinte: ${CS_SIGNAL_LABEL[s.semana_seguinte as keyof typeof CS_SIGNAL_LABEL] ?? s.semana_seguinte}`;
+  return out;
+}
+
 /** Timeline unificada do atendimento: sistema, e-mails, WhatsApp, agenda e registros. */
 export function UnifiedTimeline({
   timeline,
@@ -612,6 +649,7 @@ export function UnifiedTimeline({
   onAddEntry,
   composerOpen,
   onComposerOpenChange,
+  currentSignal,
 }: {
   timeline: {
     id: string;
@@ -620,6 +658,8 @@ export function UnifiedTimeline({
     channel: string | null;
     occurred_at: string;
     author_id: string | null;
+    /** Carimbo da sinaleira no momento do contato + cor da semana seguinte (getCsClient). */
+    metadata?: unknown;
   }[];
   emails: TimelineEmail[];
   agenda: {
@@ -646,11 +686,31 @@ export function UnifiedTimeline({
     title: string;
     description: string | null;
     occurredAt: string;
+    diagnostico?: {
+      respostas: Record<string, "sim" | "nao" | "na">;
+      causa: DiagCauseValue | null;
+      observacao?: string | null;
+    };
+    executivo?: { projeto: string; contato?: string | null; resumo?: string | null };
   }) => void;
   /** Controle externo do formulário "Registrar contato" (ex.: botão no cabeçalho da página). */
   composerOpen?: boolean;
   onComposerOpenChange?: (open: boolean) => void;
+  /** Cliente em vermelho: mostra as 5 perguntas do diagnóstico no registro. */
+  currentSignal?: string | null;
 }) {
+  const [diag, setDiag] = useState<{
+    on: boolean;
+    respostas: Record<string, "sim" | "nao" | "na">;
+    causa: DiagCauseValue | "";
+    observacao: string;
+  }>({ on: false, respostas: {}, causa: "", observacao: "" });
+  const [exec, setExec] = useState<{
+    on: boolean;
+    projeto: string;
+    contato: string;
+    resumo: string;
+  }>({ on: false, projeto: "", contato: "", resumo: "" });
   const [innerOpen, setInnerOpen] = useState(false);
   const open = composerOpen ?? innerOpen;
   const setOpen = (v: boolean) => {
@@ -680,7 +740,9 @@ export function UnifiedTimeline({
         at: ev.occurred_at,
         title: ev.title,
         description: ev.description,
-        meta: [ev.channel, authorName(ev.author_id)].filter(Boolean).join(" · "),
+        meta: [ev.channel, authorName(ev.author_id), signalStamp(ev.metadata)]
+          .filter(Boolean)
+          .join(" · "),
       })),
       ...emails.map((e) => ({
         id: `em-${e.id}`,
@@ -801,6 +863,95 @@ export function UnifiedTimeline({
             value={manual.description}
             onChange={(e) => setManual({ ...manual, description: e.target.value })}
           />
+          {currentSignal === "vermelho" && (
+            <div className="space-y-2 rounded-md border border-red-500/30 bg-red-500/5 p-2">
+              <label className="flex items-center gap-2 text-xs font-medium">
+                <input
+                  type="checkbox"
+                  checked={diag.on}
+                  onChange={(e) => setDiag({ ...diag, on: e.target.checked })}
+                />
+                Diagnóstico do vermelho — as cinco perguntas
+              </label>
+              {diag.on && (
+                <>
+                  {DIAG_QUESTIONS.map(([k, q]) => (
+                    <div key={k} className="flex items-center justify-between gap-2 text-xs">
+                      <span>{q}</span>
+                      <div className="flex gap-1">
+                        {(["sim", "nao", "na"] as const).map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() =>
+                              setDiag({ ...diag, respostas: { ...diag.respostas, [k]: v } })
+                            }
+                            className={`rounded-full border px-2 py-0.5 ${(diag.respostas[k] ?? "na") === v ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"}`}
+                          >
+                            {v === "sim" ? "Sim" : v === "nao" ? "Não" : "—"}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <select
+                      value={diag.causa}
+                      onChange={(e) =>
+                        setDiag({ ...diag, causa: e.target.value as DiagCauseValue | "" })
+                      }
+                      className="h-8 rounded-md border bg-background px-2 text-xs"
+                    >
+                      <option value="">Causa principal (alimenta a masterclass)</option>
+                      {DIAG_CAUSES.map((c) => (
+                        <option key={c} value={c}>
+                          {DIAG_CAUSE_LABEL[c]}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      className="h-8 text-xs"
+                      placeholder="Observação do diagnóstico"
+                      value={diag.observacao}
+                      onChange={(e) => setDiag({ ...diag, observacao: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <div className="space-y-2 rounded-md border p-2">
+            <label className="flex items-center gap-2 text-xs font-medium">
+              <input
+                type="checkbox"
+                checked={exec.on}
+                onChange={(e) => setExec({ ...exec, on: e.target.checked })}
+              />
+              Acionar o Executivo (vira tarefa para ele, com contexto)
+            </label>
+            {exec.on && (
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  className="h-8 text-xs"
+                  placeholder="Projeto / oportunidade *"
+                  value={exec.projeto}
+                  onChange={(e) => setExec({ ...exec, projeto: e.target.value })}
+                />
+                <Input
+                  className="h-8 text-xs"
+                  placeholder="Contato no cliente"
+                  value={exec.contato}
+                  onChange={(e) => setExec({ ...exec, contato: e.target.value })}
+                />
+                <Input
+                  className="h-8 text-xs sm:col-span-2"
+                  placeholder="O que foi dito na última conversa"
+                  value={exec.resumo}
+                  onChange={(e) => setExec({ ...exec, resumo: e.target.value })}
+                />
+              </div>
+            )}
+          </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <Input
               type="datetime-local"
@@ -810,14 +961,34 @@ export function UnifiedTimeline({
             />
             <Button
               size="sm"
-              disabled={manual.title.trim().length < 3 || pending}
+              disabled={
+                manual.title.trim().length < 3 ||
+                pending ||
+                (exec.on && exec.projeto.trim().length < 2)
+              }
               onClick={() => {
                 onAddEntry({
                   channel: manual.channel,
                   title: manual.title.trim(),
                   description: manual.description.trim() || null,
                   occurredAt: manual.occurredAt,
+                  diagnostico: diag.on
+                    ? {
+                        respostas: diag.respostas,
+                        causa: diag.causa || null,
+                        observacao: diag.observacao || null,
+                      }
+                    : undefined,
+                  executivo: exec.on
+                    ? {
+                        projeto: exec.projeto.trim(),
+                        contato: exec.contato || null,
+                        resumo: exec.resumo || null,
+                      }
+                    : undefined,
                 });
+                setDiag({ on: false, respostas: {}, causa: "", observacao: "" });
+                setExec({ on: false, projeto: "", contato: "", resumo: "" });
                 setManual({
                   channel: manual.channel,
                   title: "",

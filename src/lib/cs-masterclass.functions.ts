@@ -113,27 +113,38 @@ export const getCsMasterclass = createServerFn({ method: "GET" })
     const { getMasterclassConfig } = await import("@/lib/cs/cs-core.server");
     const { lastNWeeks } = await import("@/lib/cs-types");
     const weeks = lastNWeeks(12);
-    const [cfg, { data: rows }, { data: client }, { data: snaps }] = await Promise.all([
-      getMasterclassConfig(supabase),
-      supabase
-        .from("cs_masterclass_participations")
-        .select("*")
-        .eq("client_uid", data.clientUid)
-        .order("held_at", { ascending: false }),
-      supabase
-        .from("cs_clients")
-        .select(
-          "tag_uso, diagnostico_causa, data_inicio_contrato, current_signal, primeiro_sucesso_at, segundo_sucesso_at",
-        )
-        .eq("client_uid", data.clientUid)
-        .maybeSingle(),
-      supabase
-        .from("cs_signal_snapshots")
-        .select("week_start, signal")
-        .eq("client_uid", data.clientUid)
-        .gte("week_start", weeks[0])
-        .order("week_start"),
-    ]);
+    const [cfg, { data: rows }, { data: client }, { data: snaps }, { data: analysts }] =
+      await Promise.all([
+        getMasterclassConfig(supabase),
+        supabase
+          .from("cs_masterclass_participations")
+          .select("*")
+          .eq("client_uid", data.clientUid)
+          .order("held_at", { ascending: false }),
+        supabase
+          .from("cs_clients")
+          .select(
+            "tag_uso, diagnostico_causa, data_inicio_contrato, current_signal, primeiro_sucesso_at, segundo_sucesso_at",
+          )
+          .eq("client_uid", data.clientUid)
+          .maybeSingle(),
+        supabase
+          .from("cs_signal_snapshots")
+          .select("week_start, signal")
+          .eq("client_uid", data.clientUid)
+          .gte("week_start", weeks[0])
+          .order("week_start"),
+        supabase
+          .from("cs_contacts")
+          .select("created_at")
+          .eq("client_uid", data.clientUid)
+          .eq("analista_pda", true)
+          .order("created_at", { ascending: false })
+          .limit(1),
+      ]);
+    const newAnalystDays = analysts?.[0]?.created_at
+      ? Math.floor((Date.now() - new Date(analysts[0].created_at).getTime()) / 86400000)
+      : null;
     const history = weeks.map(
       (w) => (snaps ?? []).find((s) => s.week_start === w)?.signal ?? "sem_dado",
     );
@@ -146,6 +157,7 @@ export const getCsMasterclass = createServerFn({ method: "GET" })
         tagUso: client?.tag_uso,
         diagCause: client?.diagnostico_causa,
         contractStart: client?.data_inicio_contrato,
+        newAnalystDays,
       },
       parts as unknown as Participation[],
       cfg,

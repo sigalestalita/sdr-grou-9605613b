@@ -44,6 +44,8 @@ import {
   daysBetween,
   healthLabel,
   type CsSignal,
+  CS_TAG_USO,
+  CS_TAG_USO_LABEL,
 } from "@/lib/cs-types";
 import {
   ArrowDown,
@@ -92,6 +94,8 @@ type Filters = {
   stage: string;
   tag: string;
   tipo: string;
+  /** Uso do PDA (tag_uso): recrutamento | desenvolvimento | ambos. */
+  tagUso: string;
   ativo: "ativos" | "todos";
   /** Só a carteira do usuário logado (CS ou executivo). */
   mine: boolean;
@@ -109,6 +113,7 @@ const EMPTY: Filters = {
   stage: "",
   tag: "",
   tipo: "",
+  tagUso: "",
   ativo: "ativos",
   mine: false,
   redWeeks: 0,
@@ -332,6 +337,7 @@ function CsPage() {
     if (f.exec && c.comercial_responsavel_id !== f.exec) return false;
     if (!ignoreSignal && f.signal && c.current_signal !== f.signal) return false;
     if (f.tipo && c.tipo_lead !== f.tipo) return false;
+    if (f.tagUso && (c.tag_uso ?? "") !== f.tagUso) return false;
     if (f.tag && !(tagsOf.get(c.client_uid) ?? []).includes(f.tag)) return false;
     if (f.stage && c.journey_stage !== f.stage) return false;
     if (f.mine && user && c.cs_responsavel_id !== user.id && c.comercial_responsavel_id !== user.id)
@@ -530,6 +536,12 @@ function CsPage() {
             value={filters.tag}
             options={tagOptions.map((t) => ({ value: t, label: CS_AGENDA_TYPE_LABEL[t] ?? t }))}
             onChange={(v) => set("tag", v)}
+          />
+          <FilterChip
+            label="Uso do PDA"
+            value={filters.tagUso}
+            options={CS_TAG_USO.map((t) => ({ value: t, label: CS_TAG_USO_LABEL[t] ?? t }))}
+            onChange={(v) => set("tagUso", v)}
           />
           <FilterChip
             label="Tipo"

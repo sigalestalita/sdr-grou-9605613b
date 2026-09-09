@@ -33,6 +33,8 @@ export type MasterclassRule = {
   causa?: DiagCause;
   /** Marco de contrato: mês N desde o início. */
   mes_contrato?: number;
+  /** Analista PDA novo registrado há até N dias (tag_analista mudou). */
+  analista_novo_dias?: number;
   /** Módulos sugeridos; vazio + usar_tag_uso = módulo da tag_uso. */
   modulos: number[];
   usar_tag_uso?: boolean;
@@ -141,6 +143,13 @@ export const DEFAULT_MASTERCLASS_CONFIG: MasterclassConfig = {
       motivo: "Elevar a conversa para estratégia",
     },
     {
+      id: "analista-novo",
+      cor: "qualquer",
+      analista_novo_dias: 60,
+      modulos: [1],
+      motivo: "Analista PDA novo registrado — capacitar o novo analista",
+    },
+    {
       id: "mes-3",
       cor: "qualquer",
       mes_contrato: 3,
@@ -211,6 +220,8 @@ export function suggestMasterclasses(
     tagUso: string | null | undefined;
     diagCause: string | null | undefined;
     contractStart: string | null | undefined;
+    /** Dias desde o registro do analista PDA mais recente (null = nenhum). */
+    newAnalystDays?: number | null;
     now?: Date;
   },
   participations: Participation[],
@@ -223,7 +234,12 @@ export function suggestMasterclasses(
   const seen = new Set<number>();
   for (const r of cfg.regras) {
     let ok = false;
-    if (r.mes_contrato != null)
+    if (r.analista_novo_dias != null)
+      ok =
+        input.newAnalystDays != null &&
+        input.newAnalystDays <= r.analista_novo_dias &&
+        (r.cor === "qualquer" || r.cor === signal);
+    else if (r.mes_contrato != null)
       ok = month === r.mes_contrato && (r.cor === "qualquer" || r.cor === signal);
     else if (r.causa) ok = signal === r.cor && input.diagCause === r.causa;
     else if (r.cor !== "qualquer") {

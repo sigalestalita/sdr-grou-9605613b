@@ -66,46 +66,62 @@ export const getCsCadence = createServerFn({ method: "GET" })
 
     const { getMasterclassConfig } = await import("@/lib/cs/cs-core.server");
     const { suggestMasterclasses } = await import("@/lib/cs/masterclass");
-    const [clients, snapshots, timeline, tags, profilesRes, mcParts, mcCfg] = await Promise.all([
-      fetchAllRows<Record<string, unknown>>((f, t) => {
-        let q = supabase
-          .from("cs_clients")
-          .select(
-            "client_uid, nome_empresa, tipo_lead, journey_stage, health_score, aporte_valor, cs_responsavel_id, comercial_responsavel_id, data_inicio_contrato, data_renovacao, last_contact_at, current_signal, pda_consumo_pct, ativo, tag_uso, diagnostico_causa",
-          )
-          .eq("ativo", true);
-        if (data.tipo !== "all") q = q.eq("tipo_lead", data.tipo);
-        if (data.ownerId) q = q.eq("cs_responsavel_id", data.ownerId);
-        return q.range(f, t);
-      }),
-      fetchAllRows<Record<string, unknown>>((f, t) =>
-        supabase
-          .from("cs_signal_snapshots")
-          .select("client_uid, week_start, signal, consumo_pct")
-          .gte("week_start", weeks[0])
-          .order("week_start", { ascending: true })
-          .range(f, t),
-      ),
-      fetchAllRows<Record<string, unknown>>((f, t) =>
-        supabase
-          .from("cs_timeline_events")
-          .select("client_uid, event_type, channel, metadata, occurred_at")
-          .gte("occurred_at", since240)
-          .lte("occurred_at", new Date().toISOString())
-          .range(f, t),
-      ),
-      fetchAllRows<Record<string, unknown>>((f, t) =>
-        supabase.from("cs_client_tags").select("client_uid, tag").range(f, t),
-      ),
-      supabase.from("profiles").select("id, full_name, email"),
-      fetchAllRows<Record<string, unknown>>((f, t) =>
-        supabase
-          .from("cs_masterclass_participations")
-          .select("client_uid, module_id, held_at, used_in_project")
-          .range(f, t),
-      ),
-      getMasterclassConfig(supabase),
-    ]);
+    const [clients, snapshots, timeline, tags, profilesRes, mcParts, mcCfg, analysts] =
+      await Promise.all([
+        fetchAllRows<Record<string, unknown>>((f, t) => {
+          let q = supabase
+            .from("cs_clients")
+            .select(
+              "client_uid, nome_empresa, tipo_lead, journey_stage, health_score, aporte_valor, cs_responsavel_id, comercial_responsavel_id, data_inicio_contrato, data_renovacao, last_contact_at, current_signal, pda_consumo_pct, ativo, tag_uso, diagnostico_causa",
+            )
+            .eq("ativo", true);
+          if (data.tipo !== "all") q = q.eq("tipo_lead", data.tipo);
+          if (data.ownerId) q = q.eq("cs_responsavel_id", data.ownerId);
+          return q.range(f, t);
+        }),
+        fetchAllRows<Record<string, unknown>>((f, t) =>
+          supabase
+            .from("cs_signal_snapshots")
+            .select("client_uid, week_start, signal, consumo_pct")
+            .gte("week_start", weeks[0])
+            .order("week_start", { ascending: true })
+            .range(f, t),
+        ),
+        fetchAllRows<Record<string, unknown>>((f, t) =>
+          supabase
+            .from("cs_timeline_events")
+            .select("client_uid, event_type, channel, metadata, occurred_at")
+            .gte("occurred_at", since240)
+            .lte("occurred_at", new Date().toISOString())
+            .range(f, t),
+        ),
+        fetchAllRows<Record<string, unknown>>((f, t) =>
+          supabase.from("cs_client_tags").select("client_uid, tag").range(f, t),
+        ),
+        supabase.from("profiles").select("id, full_name, email"),
+        fetchAllRows<Record<string, unknown>>((f, t) =>
+          supabase
+            .from("cs_masterclass_participations")
+            .select("client_uid, module_id, held_at, used_in_project")
+            .range(f, t),
+        ),
+        getMasterclassConfig(supabase),
+        fetchAllRows<Record<string, unknown>>((f, t) =>
+          supabase
+            .from("cs_contacts")
+            .select("client_uid, created_at")
+            .eq("analista_pda", true)
+            .range(f, t),
+        ),
+      ]);
+    const newestAnalyst = new Map<string, number>();
+    for (const a of analysts) {
+      const uid = String(a["client_uid"]);
+      const days = Math.floor(
+        (Date.now() - new Date(String(a["created_at"])).getTime()) / 86400000,
+      );
+      newestAnalyst.set(uid, Math.min(newestAnalyst.get(uid) ?? Infinity, days));
+    }
     const mcByClient = new Map<
       string,
       { module_id: number; held_at: string; used_in_project: boolean }[]
@@ -218,6 +234,7 @@ export const getCsCadence = createServerFn({ method: "GET" })
               tagUso: c["tag_uso"] as string | null,
               diagCause: c["diagnostico_causa"] as string | null,
               contractStart: (c["data_inicio_contrato"] as string) ?? null,
+              newAnalystDays: newestAnalyst.get(uid) ?? null,
               now,
             },
             mcByClient.get(uid) ?? [],
@@ -297,6 +314,16 @@ export const listCsPlaybook = createServerFn({ method: "GET" })
       .order("ordem", { ascending: true });
     if (error) throw new Error(error.message);
     return (data ?? []) as CsPlaybookBlock[];
+  });
+
+/** Apaga um bloco do playbook (somente gestão pelas policies). */
+export const deleteCsPlaybookBlock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.from("cs_playbook_blocks").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /** Cria ou atualiza um bloco do playbook (somente gestão pelas policies). */

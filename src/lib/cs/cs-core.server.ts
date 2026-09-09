@@ -328,9 +328,26 @@ export async function generateCsAlerts(db: DB): Promise<{ created: number }> {
     severity: string;
   }> = [];
 
+  // Bloco 15: cliente sem analista PDA certificado cadastrado é risco silencioso.
+  const { data: analysts } = await db
+    .from("cs_contacts")
+    .select("client_uid")
+    .eq("analista_pda", true)
+    .neq("ativo_no_cliente", false);
+  const withAnalyst = new Set((analysts ?? []).map((a) => a.client_uid));
+
   const now = Date.now();
   for (const c of clients) {
     const hist = byClient.get(c.client_uid) ?? [];
+    if (!withAnalyst.has(c.client_uid) && c.tipo_lead !== "consultoria") {
+      pending.push({
+        client_uid: c.client_uid,
+        alert_type: "sem_analista",
+        reason:
+          "Nenhum analista PDA certificado cadastrado nos contatos — quando o uso cair, a primeira hipótese é essa.",
+        severity: "media",
+      });
+    }
     if (hist[hist.length - 1] === "preto") {
       pending.push({
         client_uid: c.client_uid,

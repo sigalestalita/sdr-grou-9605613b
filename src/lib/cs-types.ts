@@ -158,6 +158,7 @@ export const CS_ALERT_TYPES = [
   "sem_contato",
   "oportunidade_upsell",
   "licenca_vencida",
+  "sem_analista",
 ] as const;
 export const CS_ALERT_TYPE_LABEL: Record<string, string> = {
   sinaleira_critica: "Sinaleira crítica",
@@ -166,6 +167,7 @@ export const CS_ALERT_TYPE_LABEL: Record<string, string> = {
   sem_contato: "Cliente sem contato",
   oportunidade_upsell: "Oportunidade de upsell",
   licenca_vencida: "Licença vencida — reativação",
+  sem_analista: "Sem analista PDA cadastrado",
 };
 
 export type HealthWeights = {

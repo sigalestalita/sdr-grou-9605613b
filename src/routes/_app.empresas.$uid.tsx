@@ -135,6 +135,12 @@ function CompanyPage() {
       title: string;
       description: string | null;
       occurredAt: string;
+      diagnostico?: {
+        respostas: Record<string, "sim" | "nao" | "na">;
+        causa: "analista_novo" | "falta_projeto" | "nao_ve_valor" | "outro" | null;
+        observacao?: string | null;
+      };
+      executivo?: { projeto: string; contato?: string | null; resumo?: string | null };
     }) => entryFn({ data: { clientUid, ...v, countsAsContact: true } }),
     "Contato registrado na timeline",
   );
@@ -490,6 +496,7 @@ function CompanyPage() {
                   onAddEntry={(v) => addEntry.mutate(v)}
                   composerOpen={composerOpen}
                   onComposerOpenChange={setComposerOpen}
+                  currentSignal={client.current_signal}
                 />
               )}
               {tab === "reunioes" && (
