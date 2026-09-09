@@ -255,7 +255,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       ? sdrOptions.filter((sdr) => sdr.id === assignedTo)
       : sdrOptions;
 
-    const leadIds = all.map((lead) => lead.id);
+    const leadIds = new Set(all.map((lead) => lead.id));
     const interactionRows: Array<{
       lead_id: string;
       author_id: string | null;
@@ -263,26 +263,28 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       created_at: string;
     }> = [];
 
-    if (leadIds.length > 0) {
-      const chunkSize = 100;
-      for (let index = 0; index < leadIds.length; index += chunkSize) {
-        const chunk = leadIds.slice(index, index + chunkSize);
-        const { data: chunkRows, error: interactionsError } = await supabase
+    if (leadIds.size > 0) {
+      for (let offset = 0; ; offset += PAGE) {
+        const { data: periodRows, error: interactionsError } = await supabase
           .from("lead_interactions")
           .select("lead_id, author_id, type, created_at")
-          .in("lead_id", chunk)
           .in("type", ["card_opened", "status_change"])
-          .order("created_at", { ascending: true });
+          .gte("created_at", fromISO)
+          .lte("created_at", toISO)
+          .order("created_at", { ascending: true })
+          .range(offset, offset + PAGE - 1);
 
         if (interactionsError) throw new Error(interactionsError.message);
+        const batch = periodRows ?? [];
         interactionRows.push(
-          ...((chunkRows ?? []) as Array<{
+          ...(batch.filter((row) => leadIds.has(row.lead_id)) as Array<{
             lead_id: string;
             author_id: string | null;
             type: string;
             created_at: string;
           }>)
         );
+        if (batch.length < PAGE) break;
       }
     }
 

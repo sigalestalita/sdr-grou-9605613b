@@ -38,7 +38,17 @@ export async function fetchAllRows<T>(
   const out: T[] = [];
   for (let page = 0; page < 100; page++) {
     const from = page * pageSize;
-    const { data, error } = await build(from, from + pageSize - 1);
+    let result: Awaited<ReturnType<typeof build>> | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      result = await build(from, from + pageSize - 1);
+      if (!result.error) break;
+      const transient = /schema cache|statement timeout|connection|fetch failed/i.test(
+        result.error.message,
+      );
+      if (!transient || attempt === 2) break;
+      await new Promise((resolve) => setTimeout(resolve, 250 * 2 ** attempt));
+    }
+    const { data, error } = result ?? { data: null, error: { message: "Falha ao consultar dados" } };
     if (error) throw new Error(error.message);
     const rows = data ?? [];
     out.push(...rows);
