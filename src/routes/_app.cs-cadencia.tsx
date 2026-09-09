@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -17,7 +17,6 @@ import {
 } from "@/lib/cs/cadence";
 import { SignalStrip } from "@/components/cs/signal-strip";
 import { CS_SIGNAL_LABEL, CS_STAGE_LABEL, type CsSignal } from "@/lib/cs-types";
-import { CsClientModal } from "@/components/cs/cs-client-modal";
 import {
   Activity,
   AlertTriangle,
@@ -44,7 +43,8 @@ export const Route = createFileRoute("/_app/cs-cadencia")({
       { property: "og:title", content: "Cadência CS | Grou Compass" },
       {
         property: "og:description",
-        content: "Cadência por cor da sinaleira, semanas na cor e tendência de oscilação do cliente.",
+        content:
+          "Cadência por cor da sinaleira, semanas na cor e tendência de oscilação do cliente.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -80,7 +80,9 @@ function Kpi({
   return (
     <Card className="p-4">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
         <Icon className="h-4 w-4 text-muted-foreground" />
       </div>
       <div className="mt-2 text-2xl font-bold">{value}</div>
@@ -96,11 +98,16 @@ function CadenceCard({ row, onOpen }: { row: CsCadenceRow; onOpen: () => void })
     <Card className="p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <button onClick={onOpen} className="truncate text-left text-sm font-semibold hover:underline">
+          <button
+            onClick={onOpen}
+            className="truncate text-left text-sm font-semibold hover:underline"
+          >
             {row.clientName}
           </button>
           <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className={`inline-flex h-2 w-2 rounded-full ${SIGNAL_DOT[p.color] ?? SIGNAL_DOT.sem_dado}`} />
+            <span
+              className={`inline-flex h-2 w-2 rounded-full ${SIGNAL_DOT[p.color] ?? SIGNAL_DOT.sem_dado}`}
+            />
             <span>
               {CS_SIGNAL_LABEL[p.color] ?? p.color} · {p.weeksInColor}
               {p.weeksInColor === 1 ? "ª semana" : " semanas"}
@@ -169,7 +176,10 @@ function CsCadenciaPage() {
   const [color, setColor] = useState<string>("");
   const [onlyDue, setOnlyDue] = useState(true);
   const [search, setSearch] = useState("");
-  const [openUid, setOpenUid] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const setOpenUid = (uid: string | null) => {
+    if (uid) navigate({ to: "/empresas/$uid", params: { uid } });
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["cs-cadence", tipo],
@@ -184,7 +194,8 @@ function CsCadenciaPage() {
       if (urgency && r.plan.urgency !== urgency) return false;
       if (color && r.plan.color !== color) return false;
       if (onlyDue && !r.plan.due) return false;
-      if (q && !r.clientName.toLowerCase().includes(q) && !r.clientUid.toLowerCase().includes(q)) return false;
+      if (q && !r.clientName.toLowerCase().includes(q) && !r.clientUid.toLowerCase().includes(q))
+        return false;
       return true;
     });
   }, [data, ownerId, urgency, color, onlyDue, search]);
@@ -212,7 +223,12 @@ function CsCadenciaPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           {(["empresa", "consultoria", "all"] as const).map((v) => (
-            <Button key={v} size="sm" variant={tipo === v ? "default" : "outline"} onClick={() => setTipo(v)}>
+            <Button
+              key={v}
+              size="sm"
+              variant={tipo === v ? "default" : "outline"}
+              onClick={() => setTipo(v)}
+            >
               {v === "empresa" ? "Empresas" : v === "consultoria" ? "Consultorias" : "Todos"}
             </Button>
           ))}
@@ -221,9 +237,24 @@ function CsCadenciaPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Kpi label="Clientes na carteira" value={t?.clients ?? 0} icon={Users} />
-        <Kpi label="Contatos devidos" value={t?.due ?? 0} hint="Gatilho aberto nesta semana" icon={CalendarClock} />
-        <Kpi label="Em carência" value={t?.inGrace ?? 0} hint="Primeiros 60 dias de licença" icon={Timer} />
-        <Kpi label="Meta anual em risco" value={t?.goalAtRisk ?? 0} hint="< 4 contatos com resposta" icon={Target} />
+        <Kpi
+          label="Contatos devidos"
+          value={t?.due ?? 0}
+          hint="Gatilho aberto nesta semana"
+          icon={CalendarClock}
+        />
+        <Kpi
+          label="Em carência"
+          value={t?.inGrace ?? 0}
+          hint="Primeiros 60 dias de licença"
+          icon={Timer}
+        />
+        <Kpi
+          label="Meta anual em risco"
+          value={t?.goalAtRisk ?? 0}
+          hint="< 4 contatos com resposta"
+          icon={Target}
+        />
         <Kpi
           label="Escaladas"
           value={`${t?.escalateExecutivo ?? 0} / ${t?.escalateDiretoria ?? 0}`}
@@ -234,7 +265,11 @@ function CsCadenciaPage() {
 
       <Card className="p-3">
         <div className="grid gap-2 md:grid-cols-5">
-          <Input placeholder="Buscar cliente..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            placeholder="Buscar cliente..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <select
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={ownerId}
@@ -312,13 +347,15 @@ function CsCadenciaPage() {
           ))}
         </div>
         <p className="mt-3 text-[11px] text-muted-foreground">
-          Vermelhos ficam na segunda e terça, amarelos na quarta, verdes na quinta e sexta. Crise e revisão
-          estratégica abrem a semana.
+          Vermelhos ficam na segunda e terça, amarelos na quarta, verdes na quinta e sexta. Crise e
+          revisão estratégica abrem a semana.
         </p>
       </Card>
 
       {isLoading ? (
-        <Card className="p-6 text-sm text-muted-foreground">Calculando cadência da carteira...</Card>
+        <Card className="p-6 text-sm text-muted-foreground">
+          Calculando cadência da carteira...
+        </Card>
       ) : rows.length === 0 ? (
         <Card className="flex items-center gap-2 p-6 text-sm text-muted-foreground">
           <AlertTriangle className="h-4 w-4" />
@@ -337,8 +374,6 @@ function CsCadenciaPage() {
           ) : null}
         </div>
       )}
-
-      {openUid ? <CsClientModal clientUid={openUid} onClose={() => setOpenUid(null)} /> : null}
     </div>
   );
 }

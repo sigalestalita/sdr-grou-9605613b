@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -12,9 +12,15 @@ import { getCsCadence, type CsCadenceRow } from "@/lib/cs-cadence.functions";
 import { listCadenceTasks, upsertCadenceTask } from "@/lib/cs-cadence-kanban.functions";
 import { CADENCE_URGENCY_LABEL, URGENCY_TONE, WEEKDAY_LABEL } from "@/lib/cs/cadence";
 import { CS_SIGNAL_LABEL, CS_STAGE_LABEL, mondayOf, type CsSignal } from "@/lib/cs-types";
-import { CsClientModal } from "@/components/cs/cs-client-modal";
 import { useAuth } from "@/lib/use-auth";
-import { CalendarClock, CheckCircle2, ChevronLeft, ChevronRight, ListChecks, Users } from "lucide-react";
+import {
+  CalendarClock,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ListChecks,
+  Users,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs-kanban")({
   component: CsKanbanPage,
@@ -29,7 +35,8 @@ export const Route = createFileRoute("/_app/cs-kanban")({
       { property: "og:title", content: "Kanban de Cadência CS | Grou Compass" },
       {
         property: "og:description",
-        content: "Organize a cadência da carteira de CS por dia da semana e marque cada ação como concluída.",
+        content:
+          "Organize a cadência da carteira de CS por dia da semana e marque cada ação como concluída.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -97,7 +104,9 @@ function CadenceKanbanCard({
             {row.clientName}
           </button>
           <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-            <span className={`inline-flex h-2 w-2 rounded-full ${SIGNAL_DOT[p.color] ?? SIGNAL_DOT.sem_dado}`} />
+            <span
+              className={`inline-flex h-2 w-2 rounded-full ${SIGNAL_DOT[p.color] ?? SIGNAL_DOT.sem_dado}`}
+            />
             <span>{CS_SIGNAL_LABEL[p.color] ?? p.color}</span>
             <span>· {CS_STAGE_LABEL[row.stage as keyof typeof CS_STAGE_LABEL] ?? row.stage}</span>
             <span>· {row.ownerName}</span>
@@ -148,7 +157,10 @@ function CsKanbanPage() {
   const [ownerId, setOwnerId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [hideDone, setHideDone] = useState(false);
-  const [openUid, setOpenUid] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const setOpenUid = (uid: string | null) => {
+    if (uid) navigate({ to: "/empresas/$uid", params: { uid } });
+  };
 
   const cadenceQ = useQuery({
     queryKey: ["cs-cadence", tipo],
@@ -186,7 +198,12 @@ function CsKanbanPage() {
       const task = tasks.get(row.clientUid);
       if (!row.plan.due && !task) continue;
       if (effectiveOwner && row.ownerId !== effectiveOwner) continue;
-      if (q && !row.clientName.toLowerCase().includes(q) && !row.clientUid.toLowerCase().includes(q)) continue;
+      if (
+        q &&
+        !row.clientName.toLowerCase().includes(q) &&
+        !row.clientUid.toLowerCase().includes(q)
+      )
+        continue;
       const done = task?.done ?? false;
       if (hideDone && done) continue;
       out.push({ row, weekday: task?.weekday ?? row.plan.suggestedWeekday, done });
@@ -238,17 +255,26 @@ function CsKanbanPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight">Kanban de Cadência CS</h1>
           <p className="text-sm text-muted-foreground">
-            O que fazer com cada cliente em cada dia da semana, segundo a cadência do Playbook — com check por ação.
+            O que fazer com cada cliente em cada dia da semana, segundo a cadência do Playbook — com
+            check por ação.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="icon" variant="outline" onClick={() => setWeekStart((w) => shiftWeek(w, -1))}>
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => setWeekStart((w) => shiftWeek(w, -1))}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <Badge variant="outline" className="h-9 px-3 text-sm">
             Semana de {dayLabel(weekStart, 1)}
           </Badge>
-          <Button size="icon" variant="outline" onClick={() => setWeekStart((w) => shiftWeek(w, 1))}>
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={() => setWeekStart((w) => shiftWeek(w, 1))}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
           <Button size="sm" variant="ghost" onClick={() => setWeekStart(mondayOf())}>
@@ -259,7 +285,11 @@ function CsKanbanPage() {
 
       <Card className="p-3">
         <div className="grid gap-2 md:grid-cols-5">
-          <Input placeholder="Buscar cliente..." value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input
+            placeholder="Buscar cliente..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <select
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             value={ownerId}
@@ -343,8 +373,6 @@ function CsKanbanPage() {
           ))}
         </div>
       )}
-
-      {openUid ? <CsClientModal clientUid={openUid} onClose={() => setOpenUid(null)} /> : null}
     </div>
   );
 }

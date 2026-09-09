@@ -24,6 +24,7 @@ export const TEAM_TONE: Record<AppTeam, string> = {
  */
 const ROUTE_TEAMS: { prefix: string; team: AppTeam }[] = [
   { prefix: "/cs", team: "cs" },
+  { prefix: "/empresas", team: "cs" },
   { prefix: "/cs-dashboard", team: "cs" },
   { prefix: "/cs-cadencia", team: "cs" },
   { prefix: "/cs-kanban", team: "cs" },
@@ -41,7 +42,6 @@ const ROUTE_TEAMS: { prefix: string; team: AppTeam }[] = [
   { prefix: "/analytics-chat", team: "comercial" },
   { prefix: "/playbook", team: "comercial" },
 ];
-
 
 export function teamForPath(pathname: string): AppTeam | null {
   const match = ROUTE_TEAMS.find(
