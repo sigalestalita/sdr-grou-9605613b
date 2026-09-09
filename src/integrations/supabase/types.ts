@@ -3443,14 +3443,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cs_escalation_config: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      cs_refresh_escalations: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_access_module: {
         Args: {
@@ -3472,6 +3464,22 @@ export type Database = {
           contact_id: string
         }[]
       }
+      cs_escalation_config: { Args: never; Returns: Json }
+      cs_escalations: {
+        Args: never
+        Returns: {
+          acted: boolean
+          client_uid: string
+          days_late: number
+          due_at: string
+          kind: string
+          last_action_at: string
+          owner_id: string
+          reason: string
+          ref_id: string
+          title: string
+        }[]
+      }
       cs_evidence_config: { Args: never; Returns: Json }
       cs_find_evidence: {
         Args: { _channel: string; _client_uid: string; _since: string }
@@ -3483,6 +3491,7 @@ export type Database = {
       }
       cs_gen_client_uid: { Args: never; Returns: string }
       cs_phone_digits: { Args: { _v: string }; Returns: string }
+      cs_refresh_escalations: { Args: never; Returns: number }
       cs_settle_meetings: { Args: never; Returns: number }
       cs_stage_from_contract:
         | {

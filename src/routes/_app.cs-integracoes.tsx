@@ -24,7 +24,7 @@ import {
   driveMirror,
   driveTransform,
   type TransformSlice,
-} from "@/lib/rd/rd-drive.client";
+} from "@/lib/rd/rd-drive";
 import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
 
 export const Route = createFileRoute("/_app/cs-integracoes")({
