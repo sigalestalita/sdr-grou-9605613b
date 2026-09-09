@@ -97,6 +97,289 @@ export type Database = {
         }
         Relationships: []
       }
+      companies: {
+        Row: {
+          analista_pda_declarado: boolean
+          ativo: boolean
+          cep: string | null
+          cidade: string | null
+          cnpj: string | null
+          created_at: string
+          created_at_original: string | null
+          created_by: string | null
+          dominio: string | null
+          estado: string | null
+          fonte_original: string | null
+          hubspot_id: string | null
+          id: string
+          indicado_por: string | null
+          lifecycle: string | null
+          linkedin_url: string | null
+          nome: string
+          nome_normalizado: string | null
+          num_funcionarios: number | null
+          owner_original: string | null
+          owner_user_id: string | null
+          pais: string | null
+          parent_company_id: string | null
+          pendencia_financeira: string | null
+          porte: string | null
+          provenance: Json
+          rd_org_id: string | null
+          rfm_seed: string | null
+          sdr_original: string | null
+          sdr_user_id: string | null
+          segmento: string | null
+          site_url: string | null
+          telefone: string | null
+          tipo_lead: Database["public"]["Enums"]["cs_client_type"]
+          uid: string
+          unidade_codigo: string | null
+          updated_at: string
+        }
+        Insert: {
+          analista_pda_declarado?: boolean
+          ativo?: boolean
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          created_at?: string
+          created_at_original?: string | null
+          created_by?: string | null
+          dominio?: string | null
+          estado?: string | null
+          fonte_original?: string | null
+          hubspot_id?: string | null
+          id?: string
+          indicado_por?: string | null
+          lifecycle?: string | null
+          linkedin_url?: string | null
+          nome: string
+          nome_normalizado?: string | null
+          num_funcionarios?: number | null
+          owner_original?: string | null
+          owner_user_id?: string | null
+          pais?: string | null
+          parent_company_id?: string | null
+          pendencia_financeira?: string | null
+          porte?: string | null
+          provenance?: Json
+          rd_org_id?: string | null
+          rfm_seed?: string | null
+          sdr_original?: string | null
+          sdr_user_id?: string | null
+          segmento?: string | null
+          site_url?: string | null
+          telefone?: string | null
+          tipo_lead?: Database["public"]["Enums"]["cs_client_type"]
+          uid: string
+          unidade_codigo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analista_pda_declarado?: boolean
+          ativo?: boolean
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          created_at?: string
+          created_at_original?: string | null
+          created_by?: string | null
+          dominio?: string | null
+          estado?: string | null
+          fonte_original?: string | null
+          hubspot_id?: string | null
+          id?: string
+          indicado_por?: string | null
+          lifecycle?: string | null
+          linkedin_url?: string | null
+          nome?: string
+          nome_normalizado?: string | null
+          num_funcionarios?: number | null
+          owner_original?: string | null
+          owner_user_id?: string | null
+          pais?: string | null
+          parent_company_id?: string | null
+          pendencia_financeira?: string | null
+          porte?: string | null
+          provenance?: Json
+          rd_org_id?: string | null
+          rfm_seed?: string | null
+          sdr_original?: string | null
+          sdr_user_id?: string | null
+          segmento?: string | null
+          site_url?: string | null
+          telefone?: string | null
+          tipo_lead?: Database["public"]["Enums"]["cs_client_type"]
+          uid?: string
+          unidade_codigo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_parent_company_id_fkey"
+            columns: ["parent_company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_contacts: {
+        Row: {
+          company_id: string
+          contact_id: string
+          created_at: string
+          papel: string | null
+          principal: boolean
+        }
+        Insert: {
+          company_id: string
+          contact_id: string
+          created_at?: string
+          papel?: string | null
+          principal?: boolean
+        }
+        Update: {
+          company_id?: string
+          contact_id?: string
+          created_at?: string
+          papel?: string | null
+          principal?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contacts: {
+        Row: {
+          analista_certificado_em: string | null
+          analista_pda: boolean
+          ativo: boolean
+          cargo: string | null
+          cidade: string | null
+          company_id: string | null
+          created_at: string
+          created_at_original: string | null
+          created_by: string | null
+          cs_owner_original: string | null
+          departamento: string | null
+          dor_interesse: string | null
+          email: string | null
+          emails: string[]
+          estado: string | null
+          fonte_original: string | null
+          fonte_recente_original: string | null
+          hubspot_id: string | null
+          id: string
+          interesse: string | null
+          last_activity_original: string | null
+          lifecycle: string | null
+          linkedin_url: string | null
+          modulos: string[]
+          nome: string
+          owner_original: string | null
+          phones: string[]
+          provenance: Json
+          rd_contact_id: string | null
+          sdr_original: string | null
+          sdr_user_id: string | null
+          telefone: string | null
+          updated_at: string
+        }
+        Insert: {
+          analista_certificado_em?: string | null
+          analista_pda?: boolean
+          ativo?: boolean
+          cargo?: string | null
+          cidade?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_at_original?: string | null
+          created_by?: string | null
+          cs_owner_original?: string | null
+          departamento?: string | null
+          dor_interesse?: string | null
+          email?: string | null
+          emails?: string[]
+          estado?: string | null
+          fonte_original?: string | null
+          fonte_recente_original?: string | null
+          hubspot_id?: string | null
+          id?: string
+          interesse?: string | null
+          last_activity_original?: string | null
+          lifecycle?: string | null
+          linkedin_url?: string | null
+          modulos?: string[]
+          nome: string
+          owner_original?: string | null
+          phones?: string[]
+          provenance?: Json
+          rd_contact_id?: string | null
+          sdr_original?: string | null
+          sdr_user_id?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          analista_certificado_em?: string | null
+          analista_pda?: boolean
+          ativo?: boolean
+          cargo?: string | null
+          cidade?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_at_original?: string | null
+          created_by?: string | null
+          cs_owner_original?: string | null
+          departamento?: string | null
+          dor_interesse?: string | null
+          email?: string | null
+          emails?: string[]
+          estado?: string | null
+          fonte_original?: string | null
+          fonte_recente_original?: string | null
+          hubspot_id?: string | null
+          id?: string
+          interesse?: string | null
+          last_activity_original?: string | null
+          lifecycle?: string | null
+          linkedin_url?: string | null
+          modulos?: string[]
+          nome?: string
+          owner_original?: string | null
+          phones?: string[]
+          provenance?: Json
+          rd_contact_id?: string | null
+          sdr_original?: string | null
+          sdr_user_id?: string | null
+          telefone?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contacts_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cs_alerts: {
         Row: {
           agenda_type: string | null
@@ -327,8 +610,8 @@ export type Database = {
           ativo: boolean
           client_uid: string
           cnpj: string | null
-          company_id: string | null
           comercial_responsavel_id: string | null
+          company_id: string | null
           created_at: string
           created_by: string | null
           cs_responsavel_id: string | null
@@ -364,8 +647,8 @@ export type Database = {
           ativo?: boolean
           client_uid: string
           cnpj?: string | null
-          company_id?: string | null
           comercial_responsavel_id?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           cs_responsavel_id?: string | null
@@ -401,8 +684,8 @@ export type Database = {
           ativo?: boolean
           client_uid?: string
           cnpj?: string | null
-          company_id?: string | null
           comercial_responsavel_id?: string | null
+          company_id?: string | null
           created_at?: string
           created_by?: string | null
           cs_responsavel_id?: string | null
@@ -433,7 +716,15 @@ export type Database = {
           tipo_servico?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cs_clients_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cs_contacts: {
         Row: {
@@ -494,6 +785,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -1036,6 +1334,284 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_contacts: {
+        Row: {
+          contact_id: string
+          deal_id: string
+          principal: boolean
+        }
+        Insert: {
+          contact_id: string
+          deal_id: string
+          principal?: boolean
+        }
+        Update: {
+          contact_id?: string
+          deal_id?: string
+          principal?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_contacts_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_contacts_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_products: {
+        Row: {
+          deal_id: string
+          id: string
+          nome: string
+          product_id: string | null
+          quantidade: number
+          total: number
+          valor_unitario: number
+        }
+        Insert: {
+          deal_id: string
+          id?: string
+          nome: string
+          product_id?: string | null
+          quantidade?: number
+          total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          deal_id?: string
+          id?: string
+          nome?: string
+          product_id?: string | null
+          quantidade?: number
+          total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_products_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          agendado_em: string | null
+          amount: number
+          campanha: string | null
+          categoria_venda: string | null
+          closed_at: string | null
+          closed_at_original: string | null
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_at_original: string | null
+          created_by: string | null
+          currency: string
+          devolutiva_em: string | null
+          devolutiva_user_id: string | null
+          executivo_user_id: string | null
+          fonte: string | null
+          fonte_original: string | null
+          hubspot_id: string | null
+          id: string
+          lost_note: string | null
+          lost_reason: string | null
+          motivo_venda: string | null
+          nome: string
+          observacao_adm: string | null
+          owner_original: string | null
+          owner_user_id: string | null
+          pipeline_id: string | null
+          produtos_texto: string | null
+          provenance: Json
+          rd_deal_id: string | null
+          rd_pipeline: string | null
+          rd_stage: string | null
+          reuniao_em: string | null
+          sdr_user_id: string | null
+          stage_id: string | null
+          status: string
+          status_reuniao: string | null
+          temperatura: string | null
+          tipo_venda: string | null
+          trilha: string | null
+          updated_at: string
+        }
+        Insert: {
+          agendado_em?: string | null
+          amount?: number
+          campanha?: string | null
+          categoria_venda?: string | null
+          closed_at?: string | null
+          closed_at_original?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_at_original?: string | null
+          created_by?: string | null
+          currency?: string
+          devolutiva_em?: string | null
+          devolutiva_user_id?: string | null
+          executivo_user_id?: string | null
+          fonte?: string | null
+          fonte_original?: string | null
+          hubspot_id?: string | null
+          id?: string
+          lost_note?: string | null
+          lost_reason?: string | null
+          motivo_venda?: string | null
+          nome: string
+          observacao_adm?: string | null
+          owner_original?: string | null
+          owner_user_id?: string | null
+          pipeline_id?: string | null
+          produtos_texto?: string | null
+          provenance?: Json
+          rd_deal_id?: string | null
+          rd_pipeline?: string | null
+          rd_stage?: string | null
+          reuniao_em?: string | null
+          sdr_user_id?: string | null
+          stage_id?: string | null
+          status?: string
+          status_reuniao?: string | null
+          temperatura?: string | null
+          tipo_venda?: string | null
+          trilha?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agendado_em?: string | null
+          amount?: number
+          campanha?: string | null
+          categoria_venda?: string | null
+          closed_at?: string | null
+          closed_at_original?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_at_original?: string | null
+          created_by?: string | null
+          currency?: string
+          devolutiva_em?: string | null
+          devolutiva_user_id?: string | null
+          executivo_user_id?: string | null
+          fonte?: string | null
+          fonte_original?: string | null
+          hubspot_id?: string | null
+          id?: string
+          lost_note?: string | null
+          lost_reason?: string | null
+          motivo_venda?: string | null
+          nome?: string
+          observacao_adm?: string | null
+          owner_original?: string | null
+          owner_user_id?: string | null
+          pipeline_id?: string | null
+          produtos_texto?: string | null
+          provenance?: Json
+          rd_deal_id?: string | null
+          rd_pipeline?: string | null
+          rd_stage?: string | null
+          reuniao_em?: string | null
+          sdr_user_id?: string | null
+          stage_id?: string | null
+          status?: string
+          status_reuniao?: string | null
+          temperatura?: string | null
+          tipo_venda?: string | null
+          trilha?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deals_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dedupe_candidates: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          left_id: string
+          motivo: string
+          resolved_at: string | null
+          resolved_by: string | null
+          right_id: string
+          score: number
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind: string
+          left_id: string
+          motivo: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          right_id: string
+          score?: number
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          left_id?: string
+          motivo?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          right_id?: string
+          score?: number
+          status?: string
+        }
+        Relationships: []
+      }
       icp_config: {
         Row: {
           id: string
@@ -1225,657 +1801,6 @@ export type Database = {
           },
         ]
       }
-      companies: {
-        Row: {
-          id: string
-          uid: string
-          nome: string
-          nome_normalizado: string | null | null
-          tipo_lead: Database["public"]["Enums"]["cs_client_type"]
-          lifecycle: string | null
-          cnpj: string | null
-          dominio: string | null
-          site_url: string | null
-          linkedin_url: string | null
-          telefone: string | null
-          cidade: string | null
-          estado: string | null
-          pais: string | null
-          cep: string | null
-          segmento: string | null
-          porte: string | null
-          num_funcionarios: number | null
-          fonte_original: string | null
-          indicado_por: string | null
-          pendencia_financeira: string | null
-          sdr_user_id: string | null
-          owner_user_id: string | null
-          parent_company_id: string | null
-          unidade_codigo: string | null
-          rd_org_id: string | null
-          hubspot_id: string | null
-          owner_original: string | null
-          sdr_original: string | null
-          created_at_original: string | null
-          rfm_seed: string | null
-          analista_pda_declarado: boolean
-          provenance: Json
-          ativo: boolean
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          uid?: string
-          nome: string
-          nome_normalizado?: string | null | null
-          tipo_lead?: Database["public"]["Enums"]["cs_client_type"]
-          lifecycle?: string | null
-          cnpj?: string | null
-          dominio?: string | null
-          site_url?: string | null
-          linkedin_url?: string | null
-          telefone?: string | null
-          cidade?: string | null
-          estado?: string | null
-          pais?: string | null
-          cep?: string | null
-          segmento?: string | null
-          porte?: string | null
-          num_funcionarios?: number | null
-          fonte_original?: string | null
-          indicado_por?: string | null
-          pendencia_financeira?: string | null
-          sdr_user_id?: string | null
-          owner_user_id?: string | null
-          parent_company_id?: string | null
-          unidade_codigo?: string | null
-          rd_org_id?: string | null
-          hubspot_id?: string | null
-          owner_original?: string | null
-          sdr_original?: string | null
-          created_at_original?: string | null
-          rfm_seed?: string | null
-          analista_pda_declarado?: boolean
-          provenance?: Json
-          ativo?: boolean
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          uid?: string
-          nome?: string
-          nome_normalizado?: string | null | null
-          tipo_lead?: Database["public"]["Enums"]["cs_client_type"]
-          lifecycle?: string | null
-          cnpj?: string | null
-          dominio?: string | null
-          site_url?: string | null
-          linkedin_url?: string | null
-          telefone?: string | null
-          cidade?: string | null
-          estado?: string | null
-          pais?: string | null
-          cep?: string | null
-          segmento?: string | null
-          porte?: string | null
-          num_funcionarios?: number | null
-          fonte_original?: string | null
-          indicado_por?: string | null
-          pendencia_financeira?: string | null
-          sdr_user_id?: string | null
-          owner_user_id?: string | null
-          parent_company_id?: string | null
-          unidade_codigo?: string | null
-          rd_org_id?: string | null
-          hubspot_id?: string | null
-          owner_original?: string | null
-          sdr_original?: string | null
-          created_at_original?: string | null
-          rfm_seed?: string | null
-          analista_pda_declarado?: boolean
-          provenance?: Json
-          ativo?: boolean
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      contacts: {
-        Row: {
-          id: string
-          nome: string
-          email: string | null
-          emails: string[]
-          telefone: string | null
-          phones: string[]
-          cargo: string | null
-          departamento: string | null
-          lifecycle: string | null
-          fonte_original: string | null
-          fonte_recente_original: string | null
-          interesse: string | null
-          cidade: string | null
-          estado: string | null
-          linkedin_url: string | null
-          dor_interesse: string | null
-          sdr_user_id: string | null
-          company_id: string | null
-          analista_pda: boolean
-          analista_certificado_em: string | null
-          modulos: string[]
-          rd_contact_id: string | null
-          hubspot_id: string | null
-          owner_original: string | null
-          sdr_original: string | null
-          cs_owner_original: string | null
-          created_at_original: string | null
-          last_activity_original: string | null
-          provenance: Json
-          ativo: boolean
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          nome: string
-          email?: string | null
-          emails?: string[]
-          telefone?: string | null
-          phones?: string[]
-          cargo?: string | null
-          departamento?: string | null
-          lifecycle?: string | null
-          fonte_original?: string | null
-          fonte_recente_original?: string | null
-          interesse?: string | null
-          cidade?: string | null
-          estado?: string | null
-          linkedin_url?: string | null
-          dor_interesse?: string | null
-          sdr_user_id?: string | null
-          company_id?: string | null
-          analista_pda?: boolean
-          analista_certificado_em?: string | null
-          modulos?: string[]
-          rd_contact_id?: string | null
-          hubspot_id?: string | null
-          owner_original?: string | null
-          sdr_original?: string | null
-          cs_owner_original?: string | null
-          created_at_original?: string | null
-          last_activity_original?: string | null
-          provenance?: Json
-          ativo?: boolean
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          nome?: string
-          email?: string | null
-          emails?: string[]
-          telefone?: string | null
-          phones?: string[]
-          cargo?: string | null
-          departamento?: string | null
-          lifecycle?: string | null
-          fonte_original?: string | null
-          fonte_recente_original?: string | null
-          interesse?: string | null
-          cidade?: string | null
-          estado?: string | null
-          linkedin_url?: string | null
-          dor_interesse?: string | null
-          sdr_user_id?: string | null
-          company_id?: string | null
-          analista_pda?: boolean
-          analista_certificado_em?: string | null
-          modulos?: string[]
-          rd_contact_id?: string | null
-          hubspot_id?: string | null
-          owner_original?: string | null
-          sdr_original?: string | null
-          cs_owner_original?: string | null
-          created_at_original?: string | null
-          last_activity_original?: string | null
-          provenance?: Json
-          ativo?: boolean
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      company_contacts: {
-        Row: {
-          company_id: string
-          contact_id: string
-          principal: boolean
-          papel: string | null
-          created_at: string
-        }
-        Insert: {
-          company_id: string
-          contact_id: string
-          principal?: boolean
-          papel?: string | null
-          created_at?: string
-        }
-        Update: {
-          company_id?: string
-          contact_id?: string
-          principal?: boolean
-          papel?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
-      pipelines: {
-        Row: {
-          id: string
-          nome: string
-          slug: string
-          tipo: string
-          ordem: number
-          ativo: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          nome: string
-          slug: string
-          tipo: string
-          ordem?: number
-          ativo?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          nome?: string
-          slug?: string
-          tipo?: string
-          ordem?: number
-          ativo?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      pipeline_stages: {
-        Row: {
-          id: string
-          pipeline_id: string
-          nome: string
-          slug: string
-          ordem: number
-          probabilidade: number
-          kind: string
-          cor: string | null
-        }
-        Insert: {
-          id?: string
-          pipeline_id: string
-          nome: string
-          slug: string
-          ordem?: number
-          probabilidade?: number
-          kind?: string
-          cor?: string | null
-        }
-        Update: {
-          id?: string
-          pipeline_id?: string
-          nome?: string
-          slug?: string
-          ordem?: number
-          probabilidade?: number
-          kind?: string
-          cor?: string | null
-        }
-        Relationships: []
-      }
-      products: {
-        Row: {
-          id: string
-          nome: string
-          categoria: string | null
-          rd_product_id: string | null
-          ativo: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          nome: string
-          categoria?: string | null
-          rd_product_id?: string | null
-          ativo?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          nome?: string
-          categoria?: string | null
-          rd_product_id?: string | null
-          ativo?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
-      deals: {
-        Row: {
-          id: string
-          nome: string
-          company_id: string | null
-          contact_id: string | null
-          pipeline_id: string | null
-          stage_id: string | null
-          status: string
-          amount: number
-          currency: string
-          closed_at: string | null
-          created_at_original: string | null
-          closed_at_original: string | null
-          tipo_venda: string | null
-          categoria_venda: string | null
-          temperatura: string | null
-          motivo_venda: string | null
-          lost_reason: string | null
-          lost_note: string | null
-          fonte: string | null
-          fonte_original: string | null
-          campanha: string | null
-          sdr_user_id: string | null
-          executivo_user_id: string | null
-          owner_user_id: string | null
-          owner_original: string | null
-          reuniao_em: string | null
-          agendado_em: string | null
-          status_reuniao: string | null
-          trilha: string | null
-          devolutiva_user_id: string | null
-          devolutiva_em: string | null
-          observacao_adm: string | null
-          produtos_texto: string | null
-          rd_deal_id: string | null
-          rd_pipeline: string | null
-          rd_stage: string | null
-          hubspot_id: string | null
-          provenance: Json
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          nome: string
-          company_id?: string | null
-          contact_id?: string | null
-          pipeline_id?: string | null
-          stage_id?: string | null
-          status?: string
-          amount?: number
-          currency?: string
-          closed_at?: string | null
-          created_at_original?: string | null
-          closed_at_original?: string | null
-          tipo_venda?: string | null
-          categoria_venda?: string | null
-          temperatura?: string | null
-          motivo_venda?: string | null
-          lost_reason?: string | null
-          lost_note?: string | null
-          fonte?: string | null
-          fonte_original?: string | null
-          campanha?: string | null
-          sdr_user_id?: string | null
-          executivo_user_id?: string | null
-          owner_user_id?: string | null
-          owner_original?: string | null
-          reuniao_em?: string | null
-          agendado_em?: string | null
-          status_reuniao?: string | null
-          trilha?: string | null
-          devolutiva_user_id?: string | null
-          devolutiva_em?: string | null
-          observacao_adm?: string | null
-          produtos_texto?: string | null
-          rd_deal_id?: string | null
-          rd_pipeline?: string | null
-          rd_stage?: string | null
-          hubspot_id?: string | null
-          provenance?: Json
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          nome?: string
-          company_id?: string | null
-          contact_id?: string | null
-          pipeline_id?: string | null
-          stage_id?: string | null
-          status?: string
-          amount?: number
-          currency?: string
-          closed_at?: string | null
-          created_at_original?: string | null
-          closed_at_original?: string | null
-          tipo_venda?: string | null
-          categoria_venda?: string | null
-          temperatura?: string | null
-          motivo_venda?: string | null
-          lost_reason?: string | null
-          lost_note?: string | null
-          fonte?: string | null
-          fonte_original?: string | null
-          campanha?: string | null
-          sdr_user_id?: string | null
-          executivo_user_id?: string | null
-          owner_user_id?: string | null
-          owner_original?: string | null
-          reuniao_em?: string | null
-          agendado_em?: string | null
-          status_reuniao?: string | null
-          trilha?: string | null
-          devolutiva_user_id?: string | null
-          devolutiva_em?: string | null
-          observacao_adm?: string | null
-          produtos_texto?: string | null
-          rd_deal_id?: string | null
-          rd_pipeline?: string | null
-          rd_stage?: string | null
-          hubspot_id?: string | null
-          provenance?: Json
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      deal_contacts: {
-        Row: {
-          deal_id: string
-          contact_id: string
-          principal: boolean
-        }
-        Insert: {
-          deal_id: string
-          contact_id: string
-          principal?: boolean
-        }
-        Update: {
-          deal_id?: string
-          contact_id?: string
-          principal?: boolean
-        }
-        Relationships: []
-      }
-      deal_products: {
-        Row: {
-          id: string
-          deal_id: string
-          product_id: string | null
-          nome: string
-          quantidade: number
-          valor_unitario: number
-          total: number
-        }
-        Insert: {
-          id?: string
-          deal_id: string
-          product_id?: string | null
-          nome: string
-          quantidade?: number
-          valor_unitario?: number
-          total?: number
-        }
-        Update: {
-          id?: string
-          deal_id?: string
-          product_id?: string | null
-          nome?: string
-          quantidade?: number
-          valor_unitario?: number
-          total?: number
-        }
-        Relationships: []
-      }
-      tickets: {
-        Row: {
-          id: string
-          numero: number
-          titulo: string
-          descricao: string | null
-          company_id: string | null
-          contact_id: string | null
-          pipeline_id: string | null
-          stage_id: string | null
-          prioridade: string
-          categoria: string | null
-          origem: string | null
-          responsavel_id: string | null
-          sla_due_at: string | null
-          resolved_at: string | null
-          created_by: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          numero?: number
-          titulo: string
-          descricao?: string | null
-          company_id?: string | null
-          contact_id?: string | null
-          pipeline_id?: string | null
-          stage_id?: string | null
-          prioridade?: string
-          categoria?: string | null
-          origem?: string | null
-          responsavel_id?: string | null
-          sla_due_at?: string | null
-          resolved_at?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          numero?: number
-          titulo?: string
-          descricao?: string | null
-          company_id?: string | null
-          contact_id?: string | null
-          pipeline_id?: string | null
-          stage_id?: string | null
-          prioridade?: string
-          categoria?: string | null
-          origem?: string | null
-          responsavel_id?: string | null
-          sla_due_at?: string | null
-          resolved_at?: string | null
-          created_by?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      ticket_comments: {
-        Row: {
-          id: string
-          ticket_id: string
-          author_id: string | null
-          body: string
-          interno: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          ticket_id: string
-          author_id?: string | null
-          body: string
-          interno?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          ticket_id?: string
-          author_id?: string | null
-          body?: string
-          interno?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
-      dedupe_candidates: {
-        Row: {
-          id: string
-          kind: string
-          left_id: string
-          right_id: string
-          motivo: string
-          score: number
-          status: string
-          resolved_by: string | null
-          resolved_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          kind: string
-          left_id: string
-          right_id: string
-          motivo: string
-          score?: number
-          status?: string
-          resolved_by?: string | null
-          resolved_at?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          kind?: string
-          left_id?: string
-          right_id?: string
-          motivo?: string
-          score?: number
-          status?: string
-          resolved_by?: string | null
-          resolved_at?: string | null
-          created_at?: string
-        }
-        Relationships: []
-      }
       leads: {
         Row: {
           ad_name: string | null
@@ -2063,6 +1988,107 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      pipeline_stages: {
+        Row: {
+          cor: string | null
+          id: string
+          kind: string
+          nome: string
+          ordem: number
+          pipeline_id: string
+          probabilidade: number
+          slug: string
+        }
+        Insert: {
+          cor?: string | null
+          id?: string
+          kind?: string
+          nome: string
+          ordem?: number
+          pipeline_id: string
+          probabilidade?: number
+          slug: string
+        }
+        Update: {
+          cor?: string | null
+          id?: string
+          kind?: string
+          nome?: string
+          ordem?: number
+          pipeline_id?: string
+          probabilidade?: number
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stages_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipelines: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+          ordem: number
+          slug: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+          ordem?: number
+          slug: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+          ordem?: number
+          slug?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      products: {
+        Row: {
+          ativo: boolean
+          categoria: string | null
+          created_at: string
+          id: string
+          nome: string
+          rd_product_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          nome: string
+          rd_product_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          categoria?: string | null
+          created_at?: string
+          id?: string
+          nome?: string
+          rd_product_id?: string | null
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -2297,6 +2323,130 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      ticket_comments: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          interno: boolean
+          ticket_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          interno?: boolean
+          ticket_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          interno?: boolean
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ticket_comments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
+        Row: {
+          categoria: string | null
+          company_id: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          id: string
+          numero: number
+          origem: string | null
+          pipeline_id: string | null
+          prioridade: string
+          resolved_at: string | null
+          responsavel_id: string | null
+          sla_due_at: string | null
+          stage_id: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          numero?: number
+          origem?: string | null
+          pipeline_id?: string | null
+          prioridade?: string
+          resolved_at?: string | null
+          responsavel_id?: string | null
+          sla_due_at?: string | null
+          stage_id?: string | null
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string | null
+          company_id?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          id?: string
+          numero?: number
+          origem?: string | null
+          pipeline_id?: string | null
+          prioridade?: string
+          resolved_at?: string | null
+          responsavel_id?: string | null
+          sla_due_at?: string | null
+          stage_id?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tickets_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
