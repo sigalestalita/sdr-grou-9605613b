@@ -130,14 +130,14 @@ export const removeUser = createServerFn({ method: "POST" })
 export const getMyRole = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await context.supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     const roles = (data ?? []).map((r) => r.role as string);
 
-    const { data: teamRows, error: tErr } = await supabaseAdmin
+    const { data: teamRows, error: tErr } = await context.supabase
       .from("user_teams")
       .select("team")
       .eq("user_id", context.userId);
