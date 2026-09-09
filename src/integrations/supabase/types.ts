@@ -934,71 +934,6 @@ export type Database = {
           },
         ]
       }
-      cs_escalation_notices: {
-        Row: {
-          acknowledged_at: string | null
-          acknowledged_by: string | null
-          acted: boolean
-          client_uid: string
-          days_late: number
-          due_at: string
-          first_seen_at: string
-          kind: string
-          last_seen_at: string
-          note: string | null
-          notified_at: string | null
-          owner_id: string | null
-          reason: string
-          ref_id: string
-          resolved_at: string | null
-          title: string
-        }
-        Insert: {
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          acted?: boolean
-          client_uid: string
-          days_late?: number
-          due_at: string
-          first_seen_at?: string
-          kind: string
-          last_seen_at?: string
-          note?: string | null
-          notified_at?: string | null
-          owner_id?: string | null
-          reason?: string
-          ref_id: string
-          resolved_at?: string | null
-          title: string
-        }
-        Update: {
-          acknowledged_at?: string | null
-          acknowledged_by?: string | null
-          acted?: boolean
-          client_uid?: string
-          days_late?: number
-          due_at?: string
-          first_seen_at?: string
-          kind?: string
-          last_seen_at?: string
-          note?: string | null
-          notified_at?: string | null
-          owner_id?: string | null
-          reason?: string
-          ref_id?: string
-          resolved_at?: string | null
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "cs_escalation_notices_client_uid_fkey"
-            columns: ["client_uid"]
-            isOneToOne: false
-            referencedRelation: "cs_clients"
-            referencedColumns: ["client_uid"]
-          },
-        ]
-      }
       cs_meeting_categories: {
         Row: {
           ativo: boolean
@@ -3443,14 +3378,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      cs_escalation_config: {
-        Args: Record<PropertyKey, never>
-        Returns: Json
-      }
-      cs_refresh_escalations: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_access_module: {
         Args: {
