@@ -668,6 +668,7 @@ export type Database = {
           origem: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid: string | null
           pda_consumo_pct: number | null
+          pessoas_mapeadas: number | null
           primeiro_sucesso_at: string | null
           produtos_ativos: string[]
           provenance: Json
@@ -709,6 +710,7 @@ export type Database = {
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
+          pessoas_mapeadas?: number | null
           primeiro_sucesso_at?: string | null
           produtos_ativos?: string[]
           provenance?: Json
@@ -750,6 +752,7 @@ export type Database = {
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
+          pessoas_mapeadas?: number | null
           primeiro_sucesso_at?: string | null
           produtos_ativos?: string[]
           provenance?: Json
@@ -1004,6 +1007,50 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "cs_escalation_notices_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_feature_offers: {
+        Row: {
+          client_uid: string
+          created_at: string
+          created_by: string | null
+          feature_id: string
+          id: string
+          note: string | null
+          offered_at: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_uid: string
+          created_at?: string
+          created_by?: string | null
+          feature_id: string
+          id?: string
+          note?: string | null
+          offered_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_uid?: string
+          created_at?: string
+          created_by?: string | null
+          feature_id?: string
+          id?: string
+          note?: string | null
+          offered_at?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_feature_offers_client_uid_fkey"
             columns: ["client_uid"]
             isOneToOne: false
             referencedRelation: "cs_clients"
