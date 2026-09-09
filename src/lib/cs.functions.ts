@@ -17,9 +17,8 @@ export const listCsBoard = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { lastNWeeks, DEFAULT_STAGE_SLA } = await import("@/lib/cs-types");
-    const { getStageSla, getHealthWeights, getRouting, fetchAllRows } = await import(
-      "@/lib/cs/cs-core.server"
-    );
+    const { getStageSla, getHealthWeights, getRouting, fetchAllRows } =
+      await import("@/lib/cs/cs-core.server");
     const weeks = lastNWeeks(8);
 
     const [clients, snapshots, alerts, tags, profilesRes, sla, weights, routing] =
@@ -124,7 +123,9 @@ export const getCsClient = createServerFn({ method: "GET" })
         .limit(200),
       supabase
         .from("cs_calendly_events")
-        .select("id, name, status, start_time, end_time, invitee_name, invitee_email, meeting_url, user_id")
+        .select(
+          "id, name, status, start_time, end_time, invitee_name, invitee_email, meeting_url, user_id",
+        )
         .eq("client_uid", data.clientUid)
         .order("start_time", { ascending: false })
         .limit(200),
@@ -173,7 +174,6 @@ export const getCsClient = createServerFn({ method: "GET" })
         });
       }
     }
-
 
     return {
       client: client.data,
@@ -322,7 +322,10 @@ export const setCsOwner = createServerFn({ method: "POST" })
       client_uid: data.clientUid,
       author_id: userId,
       event_type: "responsavel_alterado",
-      title: data.field === "cs_responsavel_id" ? "Responsável de CS alterado" : "Responsável comercial alterado",
+      title:
+        data.field === "cs_responsavel_id"
+          ? "Responsável de CS alterado"
+          : "Responsável comercial alterado",
       metadata: { novo_responsavel: data.userId },
     });
     return { ok: true };
@@ -349,7 +352,10 @@ export const saveCsContact = createServerFn({ method: "POST" })
     const { supabase } = context;
     const { id, ...fields } = data;
     if (id) {
-      const { error } = await supabase.from("cs_contacts").update(fields as never).eq("id", id);
+      const { error } = await supabase
+        .from("cs_contacts")
+        .update(fields as never)
+        .eq("id", id);
       if (error) throw new Error(error.message);
       return { id };
     }
@@ -373,7 +379,9 @@ export const deleteCsContact = createServerFn({ method: "POST" })
 
 export const addCsTag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ clientUid: z.string().min(1), tag: z.string().min(1) }).parse(d))
+  .inputValidator((d) =>
+    z.object({ clientUid: z.string().min(1), tag: z.string().min(1) }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { addClientTag } = await import("@/lib/cs/cs-core.server");
     await addClientTag(context.supabase, {
@@ -432,9 +440,8 @@ export const resolveCsAlert = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { addClientTag, logTimeline, recomputeHealth, tagForAgenda } = await import(
-      "@/lib/cs/cs-core.server"
-    );
+    const { addClientTag, logTimeline, recomputeHealth, tagForAgenda } =
+      await import("@/lib/cs/cs-core.server");
     const { CS_AGENDA_TYPE_LABEL, CS_CONTACT_TYPE_LABEL } = await import("@/lib/cs-types");
 
     const { data: alert, error: alertErr } = await supabase
@@ -455,7 +462,10 @@ export const resolveCsAlert = createServerFn({ method: "POST" })
     const now = new Date();
     const needsFollowUp = data.contact_type === "whatsapp" && data.whatsapp_answered === false;
     const followUpAt = needsFollowUp ? new Date(now.getTime() + 2 * 86400000).toISOString() : null;
-    const engajou = data.cliente_autossuficiente || data.whatsapp_answered === true || data.contact_type === "agenda";
+    const engajou =
+      data.cliente_autossuficiente ||
+      data.whatsapp_answered === true ||
+      data.contact_type === "agenda";
 
     const { error } = await supabase
       .from("cs_alerts")
@@ -617,9 +627,11 @@ export const importCsClients = createServerFn({ method: "POST" })
         skipped++;
         continue;
       }
-      let cs = row.cs_responsavel_email ? emailToId.get(norm(row.cs_responsavel_email)) ?? null : null;
+      let cs = row.cs_responsavel_email
+        ? (emailToId.get(norm(row.cs_responsavel_email)) ?? null)
+        : null;
       let comercial = row.comercial_responsavel_email
-        ? emailToId.get(norm(row.comercial_responsavel_email)) ?? null
+        ? (emailToId.get(norm(row.comercial_responsavel_email)) ?? null)
         : null;
       if (data.autoRoute && (!cs || !comercial)) {
         const routed = await resolveCsRouting(supabase, {
@@ -654,7 +666,8 @@ export const importCsClients = createServerFn({ method: "POST" })
       if (error) throw new Error(`${row.nome_empresa}: ${error.message}`);
       byName.set(norm(row.nome_empresa), inserted.client_uid);
       created++;
-      if (row.parent_nome) parents.push({ child: inserted.client_uid, parentName: row.parent_nome });
+      if (row.parent_nome)
+        parents.push({ child: inserted.client_uid, parentName: row.parent_nome });
       await logTimeline(supabase, {
         client_uid: inserted.client_uid,
         author_id: userId,
@@ -700,7 +713,12 @@ export const listCsSignalTabs = createServerFn({ method: "GET" })
       const tabs = await listSheetTabs();
       return { ok: true as const, tabs, latest: pickLatestTab(tabs) };
     } catch (e) {
-      return { ok: false as const, tabs: [] as string[], latest: null, error: e instanceof Error ? e.message : String(e) };
+      return {
+        ok: false as const,
+        tabs: [] as string[],
+        latest: null,
+        error: e instanceof Error ? e.message : String(e),
+      };
     }
   });
 
@@ -719,11 +737,7 @@ export const listCsMeetings = createServerFn({ method: "GET" })
         .select("*")
         .eq("client_uid", data.clientUid)
         .order("occurred_at", { ascending: false }),
-      context.supabase
-        .from("cs_meeting_categories")
-        .select("*")
-        .eq("ativo", true)
-        .order("name"),
+      context.supabase.from("cs_meeting_categories").select("*").eq("ativo", true).order("name"),
     ]);
     if (meetings.error) throw new Error(meetings.error.message);
     return { meetings: meetings.data ?? [], categories: categories.data ?? [] };
@@ -769,7 +783,10 @@ export const saveCsMeeting = createServerFn({ method: "POST" })
 
     let meetingId = data.id ?? null;
     if (data.id) {
-      const { error } = await supabase.from("cs_meetings").update(row as never).eq("id", data.id);
+      const { error } = await supabase
+        .from("cs_meetings")
+        .update(row as never)
+        .eq("id", data.id);
       if (error) throw new Error(error.message);
     } else {
       const { data: created, error } = await supabase
@@ -824,7 +841,9 @@ export const saveCsMeetingCategory = createServerFn({ method: "POST" })
       .replace(/(^-|-$)/g, "");
     const { data: created, error } = await context.supabase
       .from("cs_meeting_categories")
-      .upsert({ name: data.name, slug, created_by: context.userId } as never, { onConflict: "slug" })
+      .upsert({ name: data.name, slug, created_by: context.userId } as never, {
+        onConflict: "slug",
+      })
       .select("*")
       .single();
     if (error) throw new Error(error.message);
@@ -848,7 +867,9 @@ export const addCsTimelineEntry = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const occurredAt = data.occurredAt ? new Date(data.occurredAt).toISOString() : new Date().toISOString();
+    const occurredAt = data.occurredAt
+      ? new Date(data.occurredAt).toISOString()
+      : new Date().toISOString();
     const { error } = await supabase.from("cs_timeline_events").insert({
       client_uid: data.clientUid,
       author_id: userId,
@@ -870,4 +891,61 @@ export const addCsTimelineEntry = createServerFn({ method: "POST" })
         .eq("client_uid", data.clientUid);
     }
     return { ok: true };
+  });
+
+/** Dados da página Início: quem sou, minha carteira, alertas abertos e atividade recente. */
+export const getCsHome = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const [profile, clients, alerts, events, profiles] = await Promise.all([
+      supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle(),
+      supabase
+        .from("cs_clients")
+        .select(
+          "client_uid, nome_empresa, current_signal, health_score, cs_responsavel_id, comercial_responsavel_id",
+        )
+        .eq("ativo", true),
+      supabase
+        .from("cs_alerts")
+        .select("id, client_uid, alert_type, reason, severity, created_at")
+        .eq("status", "open")
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase
+        .from("cs_timeline_events")
+        .select("id, client_uid, event_type, channel, title, description, author_id, occurred_at")
+        .order("occurred_at", { ascending: false })
+        .limit(30),
+      supabase.from("profiles").select("id, full_name, email"),
+    ]);
+
+    const all = clients.data ?? [];
+    const names = new Map(all.map((c) => [c.client_uid, c.nome_empresa]));
+    const mine = all.filter(
+      (c) => c.cs_responsavel_id === userId || c.comercial_responsavel_id === userId,
+    );
+    const mineSet = new Set(mine.map((c) => c.client_uid));
+    const openAlerts = alerts.data ?? [];
+
+    return {
+      me: { id: userId, name: profile.data?.full_name || profile.data?.email || "" },
+      carteira: {
+        total: all.length,
+        mine: mine.length,
+        mineRed: mine.filter((c) => c.current_signal === "vermelho").length,
+        alertsOpen: openAlerts.length,
+        alertsMine: openAlerts.filter((a) => mineSet.has(a.client_uid)).length,
+      },
+      alerts: openAlerts.map((a) => ({
+        ...a,
+        clientName: names.get(a.client_uid) ?? a.client_uid,
+        mine: mineSet.has(a.client_uid),
+      })),
+      events: (events.data ?? []).map((e) => ({
+        ...e,
+        clientName: names.get(e.client_uid) ?? e.client_uid,
+      })),
+      profiles: profiles.data ?? [],
+    };
   });

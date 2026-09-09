@@ -20,6 +20,7 @@ import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
 import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
+import { Route as AppInicioRouteImport } from './routes/_app.inicio'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppCsPlaybookRouteImport } from './routes/_app.cs-playbook'
 import { Route as AppCsKanbanRouteImport } from './routes/_app.cs-kanban'
@@ -27,6 +28,7 @@ import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integraco
 import { Route as AppCsFollowUpsRouteImport } from './routes/_app.cs-follow-ups'
 import { Route as AppCsEmailsRouteImport } from './routes/_app.cs-emails'
 import { Route as AppCsDashboardRouteImport } from './routes/_app.cs-dashboard'
+import { Route as AppCsConfiguracoesRouteImport } from './routes/_app.cs-configuracoes'
 import { Route as AppCsCadenciaRouteImport } from './routes/_app.cs-cadencia'
 import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
 import { Route as AppCsRouteImport } from './routes/_app.cs'
@@ -111,6 +113,11 @@ const AppKanbanRoute = AppKanbanRouteImport.update({
   path: '/kanban',
   getParentRoute: () => AppRoute,
 } as any)
+const AppInicioRoute = AppInicioRouteImport.update({
+  id: '/inicio',
+  path: '/inicio',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -144,6 +151,11 @@ const AppCsEmailsRoute = AppCsEmailsRouteImport.update({
 const AppCsDashboardRoute = AppCsDashboardRouteImport.update({
   id: '/cs-dashboard',
   path: '/cs-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsConfiguracoesRoute = AppCsConfiguracoesRouteImport.update({
+  id: '/cs-configuracoes',
+  path: '/cs-configuracoes',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCsCadenciaRoute = AppCsCadenciaRouteImport.update({
@@ -309,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
   '/cs-cadencia': typeof AppCsCadenciaRoute
+  '/cs-configuracoes': typeof AppCsConfiguracoesRoute
   '/cs-dashboard': typeof AppCsDashboardRoute
   '/cs-emails': typeof AppCsEmailsRoute
   '/cs-follow-ups': typeof AppCsFollowUpsRoute
@@ -316,6 +329,7 @@ export interface FileRoutesByFullPath {
   '/cs-kanban': typeof AppCsKanbanRoute
   '/cs-playbook': typeof AppCsPlaybookRoute
   '/dashboard': typeof AppDashboardRoute
+  '/inicio': typeof AppInicioRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/novidades': typeof AppNovidadesRoute
@@ -357,6 +371,7 @@ export interface FileRoutesByTo {
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
   '/cs-cadencia': typeof AppCsCadenciaRoute
+  '/cs-configuracoes': typeof AppCsConfiguracoesRoute
   '/cs-dashboard': typeof AppCsDashboardRoute
   '/cs-emails': typeof AppCsEmailsRoute
   '/cs-follow-ups': typeof AppCsFollowUpsRoute
@@ -364,6 +379,7 @@ export interface FileRoutesByTo {
   '/cs-kanban': typeof AppCsKanbanRoute
   '/cs-playbook': typeof AppCsPlaybookRoute
   '/dashboard': typeof AppDashboardRoute
+  '/inicio': typeof AppInicioRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/novidades': typeof AppNovidadesRoute
@@ -406,6 +422,7 @@ export interface FileRoutesById {
   '/_app/cs': typeof AppCsRoute
   '/_app/cs-agenda': typeof AppCsAgendaRoute
   '/_app/cs-cadencia': typeof AppCsCadenciaRoute
+  '/_app/cs-configuracoes': typeof AppCsConfiguracoesRoute
   '/_app/cs-dashboard': typeof AppCsDashboardRoute
   '/_app/cs-emails': typeof AppCsEmailsRoute
   '/_app/cs-follow-ups': typeof AppCsFollowUpsRoute
@@ -413,6 +430,7 @@ export interface FileRoutesById {
   '/_app/cs-kanban': typeof AppCsKanbanRoute
   '/_app/cs-playbook': typeof AppCsPlaybookRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/inicio': typeof AppInicioRoute
   '/_app/kanban': typeof AppKanbanRoute
   '/_app/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/_app/novidades': typeof AppNovidadesRoute
@@ -456,6 +474,7 @@ export interface FileRouteTypes {
     | '/cs'
     | '/cs-agenda'
     | '/cs-cadencia'
+    | '/cs-configuracoes'
     | '/cs-dashboard'
     | '/cs-emails'
     | '/cs-follow-ups'
@@ -463,6 +482,7 @@ export interface FileRouteTypes {
     | '/cs-kanban'
     | '/cs-playbook'
     | '/dashboard'
+    | '/inicio'
     | '/kanban'
     | '/leads-analytics'
     | '/novidades'
@@ -504,6 +524,7 @@ export interface FileRouteTypes {
     | '/cs'
     | '/cs-agenda'
     | '/cs-cadencia'
+    | '/cs-configuracoes'
     | '/cs-dashboard'
     | '/cs-emails'
     | '/cs-follow-ups'
@@ -511,6 +532,7 @@ export interface FileRouteTypes {
     | '/cs-kanban'
     | '/cs-playbook'
     | '/dashboard'
+    | '/inicio'
     | '/kanban'
     | '/leads-analytics'
     | '/novidades'
@@ -552,6 +574,7 @@ export interface FileRouteTypes {
     | '/_app/cs'
     | '/_app/cs-agenda'
     | '/_app/cs-cadencia'
+    | '/_app/cs-configuracoes'
     | '/_app/cs-dashboard'
     | '/_app/cs-emails'
     | '/_app/cs-follow-ups'
@@ -559,6 +582,7 @@ export interface FileRouteTypes {
     | '/_app/cs-kanban'
     | '/_app/cs-playbook'
     | '/_app/dashboard'
+    | '/_app/inicio'
     | '/_app/kanban'
     | '/_app/leads-analytics'
     | '/_app/novidades'
@@ -685,6 +709,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppKanbanRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/inicio': {
+      id: '/_app/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof AppInicioRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -732,6 +763,13 @@ declare module '@tanstack/react-router' {
       path: '/cs-dashboard'
       fullPath: '/cs-dashboard'
       preLoaderRoute: typeof AppCsDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-configuracoes': {
+      id: '/_app/cs-configuracoes'
+      path: '/cs-configuracoes'
+      fullPath: '/cs-configuracoes'
+      preLoaderRoute: typeof AppCsConfiguracoesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cs-cadencia': {
@@ -998,6 +1036,7 @@ interface AppRouteChildren {
   AppCsRoute: typeof AppCsRoute
   AppCsAgendaRoute: typeof AppCsAgendaRoute
   AppCsCadenciaRoute: typeof AppCsCadenciaRoute
+  AppCsConfiguracoesRoute: typeof AppCsConfiguracoesRoute
   AppCsDashboardRoute: typeof AppCsDashboardRoute
   AppCsEmailsRoute: typeof AppCsEmailsRoute
   AppCsFollowUpsRoute: typeof AppCsFollowUpsRoute
@@ -1005,6 +1044,7 @@ interface AppRouteChildren {
   AppCsKanbanRoute: typeof AppCsKanbanRoute
   AppCsPlaybookRoute: typeof AppCsPlaybookRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppInicioRoute: typeof AppInicioRoute
   AppKanbanRoute: typeof AppKanbanRoute
   AppLeadsAnalyticsRoute: typeof AppLeadsAnalyticsRoute
   AppNovidadesRoute: typeof AppNovidadesRoute
@@ -1023,6 +1063,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCsRoute: AppCsRoute,
   AppCsAgendaRoute: AppCsAgendaRoute,
   AppCsCadenciaRoute: AppCsCadenciaRoute,
+  AppCsConfiguracoesRoute: AppCsConfiguracoesRoute,
   AppCsDashboardRoute: AppCsDashboardRoute,
   AppCsEmailsRoute: AppCsEmailsRoute,
   AppCsFollowUpsRoute: AppCsFollowUpsRoute,
@@ -1030,6 +1071,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCsKanbanRoute: AppCsKanbanRoute,
   AppCsPlaybookRoute: AppCsPlaybookRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppInicioRoute: AppInicioRoute,
   AppKanbanRoute: AppKanbanRoute,
   AppLeadsAnalyticsRoute: AppLeadsAnalyticsRoute,
   AppNovidadesRoute: AppNovidadesRoute,

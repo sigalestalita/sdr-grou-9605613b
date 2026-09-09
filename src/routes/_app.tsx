@@ -11,6 +11,8 @@ import {
   PanelLeft,
   Sparkles,
   Inbox,
+  Home,
+  SlidersHorizontal,
   Building2,
   Handshake,
   ListChecks,
@@ -55,6 +57,7 @@ type NavItem = {
  * aponta para a tela que hoje representa aquele objeto.
  */
 const NAV_OBJECTS: NavItem[] = [
+  { to: "/inicio", label: "Início", icon: Home },
   { to: "/whatsapp", label: "Caixa de entrada", icon: Inbox },
   { to: "/cs", label: "Empresas", icon: Building2, team: "cs", also: ["/empresas"] },
   { to: "/kanban", label: "Negócios", icon: Handshake, team: "comercial", also: ["/lead"] },
@@ -96,6 +99,12 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/usuarios", label: "Usuários", icon: Users, managerOnly: true },
       { to: "/configuracoes", label: "Configurações", icon: SettingsIcon, managerOnly: true },
+      {
+        to: "/cs-configuracoes",
+        label: "Configurações CS",
+        icon: SlidersHorizontal,
+        managerOnly: true,
+      },
       { to: "/novidades", label: "Novidades", icon: Sparkles },
     ],
   },
