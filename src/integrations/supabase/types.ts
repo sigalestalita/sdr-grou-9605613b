@@ -657,6 +657,7 @@ export type Database = {
           data_inicio_contrato: string | null
           data_renovacao: string | null
           dg_ativo: boolean
+          diagnostico_causa: string | null
           health_score: number
           id: string
           journey_stage: Database["public"]["Enums"]["cs_journey_stage"]
@@ -667,11 +668,13 @@ export type Database = {
           origem: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid: string | null
           pda_consumo_pct: number | null
+          primeiro_sucesso_at: string | null
           produtos_ativos: string[]
           rd_lifecycle: string | null
           rd_org_id: string | null
           rd_owner: string | null
           rd_synced_at: string | null
+          segundo_sucesso_at: string | null
           setor: string | null
           site_url: string | null
           stage_entered_at: string
@@ -694,6 +697,7 @@ export type Database = {
           data_inicio_contrato?: string | null
           data_renovacao?: string | null
           dg_ativo?: boolean
+          diagnostico_causa?: string | null
           health_score?: number
           id?: string
           journey_stage?: Database["public"]["Enums"]["cs_journey_stage"]
@@ -704,11 +708,13 @@ export type Database = {
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
+          primeiro_sucesso_at?: string | null
           produtos_ativos?: string[]
           rd_lifecycle?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
           rd_synced_at?: string | null
+          segundo_sucesso_at?: string | null
           setor?: string | null
           site_url?: string | null
           stage_entered_at?: string
@@ -731,6 +737,7 @@ export type Database = {
           data_inicio_contrato?: string | null
           data_renovacao?: string | null
           dg_ativo?: boolean
+          diagnostico_causa?: string | null
           health_score?: number
           id?: string
           journey_stage?: Database["public"]["Enums"]["cs_journey_stage"]
@@ -741,11 +748,13 @@ export type Database = {
           origem?: Database["public"]["Enums"]["cs_origin"]
           parent_client_uid?: string | null
           pda_consumo_pct?: number | null
+          primeiro_sucesso_at?: string | null
           produtos_ativos?: string[]
           rd_lifecycle?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
           rd_synced_at?: string | null
+          segundo_sucesso_at?: string | null
           setor?: string | null
           site_url?: string | null
           stage_entered_at?: string
@@ -996,6 +1005,72 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_masterclass_participations: {
+        Row: {
+          analista_id: string | null
+          client_uid: string
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          held_at: string
+          id: string
+          module_id: number
+          notes: string | null
+          participantes: string | null
+          updated_at: string
+          used_at: string | null
+          used_in_project: boolean
+          used_note: string | null
+        }
+        Insert: {
+          analista_id?: string | null
+          client_uid: string
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          held_at?: string
+          id?: string
+          module_id: number
+          notes?: string | null
+          participantes?: string | null
+          updated_at?: string
+          used_at?: string | null
+          used_in_project?: boolean
+          used_note?: string | null
+        }
+        Update: {
+          analista_id?: string | null
+          client_uid?: string
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          held_at?: string
+          id?: string
+          module_id?: number
+          notes?: string | null
+          participantes?: string | null
+          updated_at?: string
+          used_at?: string | null
+          used_in_project?: boolean
+          used_note?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_masterclass_participations_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_masterclass_participations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
