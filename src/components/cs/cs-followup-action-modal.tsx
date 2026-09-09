@@ -20,7 +20,7 @@ import {
   rescheduleCsFollowUp,
   type CsFollowUpItem,
 } from "@/lib/cs-follow-ups.functions";
-import { CalendarClock, Check, X } from "lucide-react";
+import { CalendarClock, Check, ShieldCheck, X } from "lucide-react";
 
 /** Valor para <input type="datetime-local"> no fuso local. */
 function toLocalInput(d: Date) {
@@ -35,12 +35,18 @@ function toLocalInput(d: Date) {
 export function CsFollowUpActionModal({
   item,
   mode,
+  asManager,
+  evidenceChannels = [],
   onClose,
   onDone,
 }: {
   item: CsFollowUpItem;
   /** "resultado" abre focado no desfecho; "reagendar" abre focado na nova data. */
   mode: "resultado" | "reagendar";
+  /** Gestão concluindo tarefa de canal sem o registro — justificativa obrigatória. */
+  asManager?: boolean;
+  /** Canais em que o resultado só vale com envio registrado pelo canal vinculado. */
+  evidenceChannels?: readonly string[];
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -48,9 +54,12 @@ export function CsFollowUpActionModal({
   const rescheduleFn = useServerFn(rescheduleCsFollowUp);
 
   const [outcome, setOutcome] = useState<CsFollowUpOutcome>("atendimento_concluido");
-  const [channel, setChannel] = useState<CsFollowUpChannel>(
-    item.kind === "reuniao" ? "reuniao" : "whatsapp",
-  );
+  const [channel, setChannel] = useState<CsFollowUpChannel>(() => {
+    if (item.kind === "tarefa" && item.taskType && item.taskType !== "outro")
+      return item.taskType as CsFollowUpChannel;
+    return item.kind === "reuniao" ? "reuniao" : "whatsapp";
+  });
+  const channelNeedsEvidence = evidenceChannels.includes(channel) && outcome !== "sem_resposta";
   const [notes, setNotes] = useState("");
   const [nextAt, setNextAt] = useState(() => {
     const d = new Date();
@@ -86,6 +95,7 @@ export function CsFollowUpActionModal({
           channel,
           notes: notes || null,
           nextAt: withNext ? iso : null,
+          asManager: asManager || undefined,
         },
       });
     },
@@ -104,10 +114,7 @@ export function CsFollowUpActionModal({
       className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
-      <Card
-        className="mt-10 w-full max-w-lg space-y-4 p-5"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <Card className="mt-10 w-full max-w-lg space-y-4 p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <h2 className="flex items-center gap-2 text-base font-semibold">
@@ -138,9 +145,7 @@ export function CsFollowUpActionModal({
                       if (o === "sem_resposta" || o === "aguardando_cliente") setWithNext(true);
                     }}
                     className={`rounded-full border px-2.5 py-1 text-xs ${
-                      outcome === o
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "hover:bg-muted"
+                      outcome === o ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"
                     }`}
                   >
                     {CS_FOLLOWUP_OUTCOME_LABEL[o]}
@@ -157,14 +162,30 @@ export function CsFollowUpActionModal({
                     key={c}
                     type="button"
                     onClick={() => setChannel(c)}
-                    className={`rounded-full border px-2.5 py-1 text-xs ${
+                    className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs ${
                       channel === c ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"
                     }`}
                   >
+                    {evidenceChannels.includes(c) && <ShieldCheck className="h-3 w-3" />}
                     {CS_FOLLOWUP_CHANNEL_LABEL[c]}
                   </button>
                 ))}
               </div>
+              {channelNeedsEvidence && !asManager && (
+                <p className="flex items-start gap-1.5 rounded-md bg-muted/60 p-2 text-[11px] text-muted-foreground">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {CS_FOLLOWUP_CHANNEL_LABEL[channel]} só conta com o envio registrado pelo canal
+                  vinculado do CS. O último envio para esta empresa é procurado automaticamente; sem
+                  ele, o resultado não é aceito.
+                </p>
+              )}
+              {asManager && (
+                <p className="flex items-start gap-1.5 rounded-md border border-warning/40 bg-warning/10 p-2 text-[11px]">
+                  <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  Conclusão pela gestão sem o registro do canal. A justificativa abaixo fica na
+                  timeline da empresa.
+                </p>
+              )}
             </div>
           </>
         )}
@@ -185,7 +206,9 @@ export function CsFollowUpActionModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
-              placeholder="O que foi tratado com o cliente?"
+              placeholder={
+                asManager ? "Justificativa (obrigatória)" : "O que foi tratado com o cliente?"
+              }
             />
           )}
         </div>
@@ -231,7 +254,7 @@ export function CsFollowUpActionModal({
             {mode === "resultado" ? (
               <Button
                 size="sm"
-                disabled={save.isPending}
+                disabled={save.isPending || (asManager && notes.trim().length < 5)}
                 onClick={() => save.mutate("resultado")}
                 className="gap-1"
               >

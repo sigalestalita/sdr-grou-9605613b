@@ -451,6 +451,9 @@ export type Database = {
           done: boolean
           done_at: string | null
           done_by: string | null
+          done_via: string | null
+          evidence_event_id: string | null
+          channel: string | null
           id: string
           notes: string | null
           owner_id: string | null
@@ -468,6 +471,9 @@ export type Database = {
           done?: boolean
           done_at?: string | null
           done_by?: string | null
+          done_via?: string | null
+          evidence_event_id?: string | null
+          channel?: string | null
           id?: string
           notes?: string | null
           owner_id?: string | null
@@ -485,6 +491,9 @@ export type Database = {
           done?: boolean
           done_at?: string | null
           done_by?: string | null
+          done_via?: string | null
+          evidence_event_id?: string | null
+          channel?: string | null
           id?: string
           notes?: string | null
           owner_id?: string | null
@@ -1236,6 +1245,87 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_tasks: {
+        Row: {
+          client_uid: string
+          completed_via: string | null
+          contact_id: string | null
+          created_at: string
+          created_by: string | null
+          done_at: string | null
+          done_by: string | null
+          due_at: string
+          evidence_at: string | null
+          evidence_event_id: string | null
+          id: string
+          notes: string | null
+          owner_id: string | null
+          source: string
+          source_ref: string | null
+          status: string
+          task_type: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          client_uid: string
+          completed_via?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_at?: string
+          evidence_at?: string | null
+          evidence_event_id?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          source?: string
+          source_ref?: string | null
+          status?: string
+          task_type?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          client_uid?: string
+          completed_via?: string | null
+          contact_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          done_at?: string | null
+          done_by?: string | null
+          due_at?: string
+          evidence_at?: string | null
+          evidence_event_id?: string | null
+          id?: string
+          notes?: string | null
+          owner_id?: string | null
+          source?: string
+          source_ref?: string | null
+          status?: string
+          task_type?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_tasks_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_tasks_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
           },
         ]
       }

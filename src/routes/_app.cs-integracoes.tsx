@@ -351,7 +351,9 @@ function CsIntegrationsPage() {
             </div>
             <p className="text-xs text-muted-foreground">
               Configure no Gmail/Outlook (ou no Zapier/Make) o encaminhamento das caixas do time
-              para este endpoint. Cada mensagem encaminhada entra em “E-mails CS”.
+              para este endpoint — recebidos <strong>e enviados</strong> (regra “de: mim” ou o
+              endereço em cópia oculta). O e-mail enviado pela caixa vinculada é a evidência que
+              conclui tarefas de e-mail; sem ele, a tarefa fica aberta.
             </p>
             <div className="flex items-center gap-2">
               <code className="min-w-0 flex-1 truncate rounded-md border bg-muted/40 px-2 py-1.5 text-[11px]">

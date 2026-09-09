@@ -390,3 +390,40 @@ export function lastNWeeks(n: number, from = new Date()): string[] {
   }
   return out;
 }
+
+// ---------------------------------------------------------------------------
+// Tarefas e conclusão por evidência
+// ---------------------------------------------------------------------------
+export const CS_TASK_TYPES = ["email", "whatsapp", "ligacao", "reuniao", "outro"] as const;
+export type CsTaskType = (typeof CS_TASK_TYPES)[number];
+export const CS_TASK_TYPE_LABEL: Record<CsTaskType, string> = {
+  email: "E-mail",
+  whatsapp: "WhatsApp",
+  ligacao: "Ligação",
+  reuniao: "Reunião",
+  outro: "Outro",
+};
+
+/** cs_settings.evidence — espelha os padrões de cs_evidence_config() no banco. */
+export type EvidenceConfig = {
+  /** Tarefas dos canais abaixo só concluem com o registro automático do canal. */
+  exigir_evidencia: boolean;
+  canais: CsTaskType[];
+  /** Um envio conclui tarefas que vencem até N horas depois dele. */
+  antecedencia_horas: number;
+  /** Ao registrar resultado por e-mail/WhatsApp, procura envio nas últimas N horas. */
+  retroativo_horas: number;
+  gestor_pode_concluir: boolean;
+  /** Mensagens de automação/IA contam como envio do time. */
+  conta_bot: boolean;
+};
+export const DEFAULT_EVIDENCE_CONFIG: EvidenceConfig = {
+  exigir_evidencia: true,
+  canais: ["email", "whatsapp"],
+  antecedencia_horas: 72,
+  retroativo_horas: 72,
+  gestor_pode_concluir: true,
+  conta_bot: false,
+};
+export const requiresEvidence = (cfg: EvidenceConfig, channel: string | null | undefined) =>
+  cfg.exigir_evidencia && !!channel && (cfg.canais as string[]).includes(channel);

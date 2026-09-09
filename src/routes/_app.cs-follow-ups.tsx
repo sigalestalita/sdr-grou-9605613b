@@ -9,6 +9,13 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/use-auth";
 import { getCsFollowUpAgenda, type CsFollowUpItem } from "@/lib/cs-follow-ups.functions";
 import { CsFollowUpActionModal } from "@/components/cs/cs-followup-action-modal";
+import {
+  AwaitingEvidencePill,
+  CompletedBadge,
+  CsTaskDialog,
+  TaskTypeBadge,
+} from "@/components/cs/cs-task-dialog";
+import { followUpNeedsEvidence } from "@/lib/cs-follow-up-types";
 import { CS_SIGNAL_CLASS, CS_SIGNAL_LABEL, CS_STAGE_LABEL, healthLabel } from "@/lib/cs-types";
 import {
   AlertTriangle,
@@ -20,6 +27,8 @@ import {
   ChevronRight,
   Flag,
   HeartPulse,
+  ListTodo,
+  Plus,
   Users,
 } from "lucide-react";
 
@@ -70,6 +79,7 @@ const KIND_META: Record<CsFollowUpItem["kind"], { label: string; icon: typeof Be
   jornada: { label: "Jornada", icon: HeartPulse },
   sem_contato: { label: "Relacionamento", icon: Users },
   timeline: { label: "Agendado", icon: CalendarClock },
+  tarefa: { label: "Tarefa", icon: ListTodo },
 };
 
 function CsFollowUpsPage() {
@@ -79,7 +89,9 @@ function CsFollowUpsPage() {
   const [action, setAction] = useState<{
     item: CsFollowUpItem;
     mode: "resultado" | "reagendar";
+    asManager?: boolean;
   } | null>(null);
+  const [newTask, setNewTask] = useState(false);
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [owner, setOwner] = useState("me");
 
@@ -104,7 +116,10 @@ function CsFollowUpsPage() {
     qc.invalidateQueries({ queryKey: ["cs-board"] });
   };
 
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const days = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart],
+  );
   const byDay = useMemo(() => {
     const map = new Map<string, CsFollowUpItem[]>();
     for (const it of scheduled) {
@@ -115,20 +130,32 @@ function CsFollowUpsPage() {
   }, [scheduled]);
 
   const todayKey = dayKey(new Date());
+  const evidenceChannels = data?.evidenceChannels ?? [];
+  const isManager = Boolean(data?.isManager);
+  const itemProps = {
+    evidenceChannels,
+    isManager,
+    onAction: (it: CsFollowUpItem, mode: "resultado" | "reagendar", asManager?: boolean) =>
+      setAction({ item: it, mode, asManager }),
+  };
 
   return (
     <div className="space-y-5 p-6">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <CalendarDays className="h-5 w-5" /> Follow-ups de CS
+            <CalendarDays className="h-5 w-5" /> Tarefas de CS
           </h1>
           <p className="text-sm text-muted-foreground">
-            Agenda de cada CS e executivo: próximos passos das reuniões, tratativas de alertas e
-            checkpoints de onboarding, ativação e renovação.
+            Agenda de cada CS e executivo: tarefas, próximos passos das reuniões, tratativas de
+            alertas e checkpoints da jornada. Tarefas de e-mail e WhatsApp concluem sozinhas quando
+            o canal vinculado registra o envio.
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button size="sm" onClick={() => setNewTask(true)}>
+            <Plus className="mr-1 h-4 w-4" /> Nova tarefa
+          </Button>
           <select
             value={owner}
             onChange={(e) => setOwner(e.target.value)}
@@ -160,9 +187,18 @@ function CsFollowUpsPage() {
         <>
           <div className="grid gap-3 sm:grid-cols-4">
             <Kpi label="Atrasados" value={String(overdue.length)} tone="danger" />
-            <Kpi label="Hoje" value={String((byDay.get(todayKey) ?? []).filter((i) => !i.done).length)} />
-            <Kpi label="Pendentes na semana" value={String(scheduled.filter((i) => !i.done).length)} />
-            <Kpi label="Concluídos na semana" value={String(scheduled.filter((i) => i.done).length)} />
+            <Kpi
+              label="Hoje"
+              value={String((byDay.get(todayKey) ?? []).filter((i) => !i.done).length)}
+            />
+            <Kpi
+              label="Pendentes na semana"
+              value={String(scheduled.filter((i) => !i.done).length)}
+            />
+            <Kpi
+              label="Concluídos na semana"
+              value={String(scheduled.filter((i) => i.done).length)}
+            />
           </div>
 
           {overdue.length > 0 && (
@@ -172,12 +208,7 @@ function CsFollowUpsPage() {
               </h2>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {overdue.slice(0, 60).map((it) => (
-                  <FollowUpItem
-                    key={it.key}
-                    item={it}
-                    late
-                    onAction={(mode) => setAction({ item: it, mode })}
-                  />
+                  <FollowUpItem key={it.key} item={it} late {...itemProps} />
                 ))}
               </div>
             </Card>
@@ -208,14 +239,7 @@ function CsFollowUpsPage() {
                   {list.length === 0 ? (
                     <p className="text-[11px] text-muted-foreground">Sem follow-ups</p>
                   ) : (
-                    list.map((it) => (
-                      <FollowUpItem
-                        key={it.key}
-                        item={it}
-                        compact
-                        onAction={(mode) => setAction({ item: it, mode })}
-                      />
-                    ))
+                    list.map((it) => <FollowUpItem key={it.key} item={it} compact {...itemProps} />)
                   )}
                 </Card>
               );
@@ -228,8 +252,17 @@ function CsFollowUpsPage() {
         <CsFollowUpActionModal
           item={action.item}
           mode={action.mode}
+          asManager={action.asManager}
+          evidenceChannels={evidenceChannels}
           onClose={() => setAction(null)}
           onDone={refresh}
+        />
+      )}
+      {newTask && (
+        <CsTaskDialog
+          evidenceChannels={evidenceChannels}
+          onClose={() => setNewTask(false)}
+          onSaved={refresh}
         />
       )}
     </div>
@@ -240,16 +273,22 @@ function FollowUpItem({
   item,
   compact,
   late,
+  evidenceChannels,
+  isManager,
   onAction,
 }: {
   item: CsFollowUpItem;
   compact?: boolean;
   late?: boolean;
-  onAction?: (mode: "resultado" | "reagendar") => void;
+  evidenceChannels: readonly string[];
+  isManager: boolean;
+  onAction?: (item: CsFollowUpItem, mode: "resultado" | "reagendar", asManager?: boolean) => void;
 }) {
   const meta = KIND_META[item.kind];
   const Icon = meta.icon;
   const health = healthLabel(item.healthScore);
+  // Tarefa de e-mail/WhatsApp: sem check manual — conclui pelo registro do canal.
+  const needsEvidence = followUpNeedsEvidence(item, evidenceChannels);
   return (
     <div
       className={`space-y-1 rounded-lg border p-2 ${
@@ -263,20 +302,31 @@ function FollowUpItem({
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-medium text-muted-foreground">{hhmm(item.dueAt)}</span>
         <div className="flex items-center gap-1">
-          <span className={`h-2 w-2 rounded-full ${CS_SIGNAL_CLASS[item.signal]}`} title={CS_SIGNAL_LABEL[item.signal]} />
-          <Badge variant="outline" className="gap-1 text-[10px]">
-            <Icon className="h-3 w-3" /> {meta.label}
-          </Badge>
+          <span
+            className={`h-2 w-2 rounded-full ${CS_SIGNAL_CLASS[item.signal]}`}
+            title={CS_SIGNAL_LABEL[item.signal]}
+          />
+          {item.kind === "tarefa" ? (
+            <TaskTypeBadge type={item.taskType} />
+          ) : (
+            <Badge variant="outline" className="gap-1 text-[10px]">
+              <Icon className="h-3 w-3" /> {meta.label}
+            </Badge>
+          )}
         </div>
       </div>
-      <p className={`truncate text-sm font-medium ${item.done ? "line-through text-muted-foreground" : ""}`}>
+      <p
+        className={`truncate text-sm font-medium ${item.done ? "line-through text-muted-foreground" : ""}`}
+      >
         {item.clientName}
       </p>
       <p className="truncate text-[11px] text-muted-foreground">
         <span className="font-mono">{item.clientUid}</span> · {item.ownerName}
       </p>
       <p className="truncate text-[11px]">{item.title}</p>
-      {item.subtitle && <p className="truncate text-[11px] text-muted-foreground">{item.subtitle}</p>}
+      {item.subtitle && (
+        <p className="truncate text-[11px] text-muted-foreground">{item.subtitle}</p>
+      )}
       {!compact && (
         <p className="truncate text-[11px] text-muted-foreground">
           {CS_STAGE_LABEL[item.stage as keyof typeof CS_STAGE_LABEL] ?? item.stage} ·{" "}
@@ -285,30 +335,47 @@ function FollowUpItem({
       )}
       {onAction && !item.done && (
         <div className="flex flex-wrap gap-1 pt-0.5">
+          {needsEvidence ? (
+            <AwaitingEvidencePill type={item.taskType ?? "email"} />
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAction(item, "resultado")}
+              className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-600 hover:bg-emerald-500/20"
+            >
+              <Check className="h-3 w-3" /> Resultado
+            </button>
+          )}
+          {needsEvidence && isManager && (
+            <button
+              type="button"
+              onClick={() => onAction(item, "resultado", true)}
+              title="Concluir sem o registro do canal, com justificativa"
+              className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted"
+            >
+              <Check className="h-3 w-3" /> Gestão
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => onAction("resultado")}
-            className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-1.5 py-0.5 text-[11px] text-emerald-600 hover:bg-emerald-500/20"
-          >
-            <Check className="h-3 w-3" /> Resultado
-          </button>
-          <button
-            type="button"
-            onClick={() => onAction("reagendar")}
+            onClick={() => onAction(item, "reagendar")}
             className="inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted"
           >
             <CalendarClock className="h-3 w-3" /> Reagendar
           </button>
         </div>
       )}
-      {item.done && (
-        <Badge
-          variant="outline"
-          className="gap-1 border-emerald-500/40 bg-emerald-500/15 text-[10px] text-emerald-600"
-        >
-          <Check className="h-3 w-3" /> Concluído
-        </Badge>
-      )}
+      {item.done &&
+        (item.kind === "tarefa" ? (
+          <CompletedBadge via={item.completedVia} at={item.evidenceAt ?? item.doneAt} />
+        ) : (
+          <Badge
+            variant="outline"
+            className="gap-1 border-emerald-500/40 bg-emerald-500/15 text-[10px] text-emerald-600"
+          >
+            <Check className="h-3 w-3" /> Concluído
+          </Badge>
+        ))}
     </div>
   );
 }

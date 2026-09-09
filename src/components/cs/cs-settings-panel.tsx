@@ -13,14 +13,19 @@ import {
   saveCsSettings,
 } from "@/lib/cs.functions";
 import {
+  CS_TASK_TYPES,
+  CS_TASK_TYPE_LABEL,
   DEFAULT_DAILY_TARGET,
+  DEFAULT_EVIDENCE_CONFIG,
   DEFAULT_HEALTH_OPTIONS,
   DEFAULT_HEALTH_SIGNAL_POINTS,
   DEFAULT_HEALTH_WEIGHTS,
   DEFAULT_ROUTING,
   DEFAULT_STAGE_SLA,
   HEALTH_CRITERIA_LABEL,
+  type CsTaskType,
   type DailyTarget,
+  type EvidenceConfig,
   type HealthOptions,
   type HealthSignalPoints,
   type HealthWeights,
@@ -32,11 +37,12 @@ import { Plus, Save, Trash2, Upload } from "lucide-react";
 
 type Profile = { id: string; full_name: string | null; email: string | null };
 
-const TABS = ["health", "metas", "sla", "roteamento", "carteira", "importar"] as const;
+const TABS = ["health", "metas", "evidencia", "sla", "roteamento", "carteira", "importar"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   health: "Health score",
   metas: "Metas",
+  evidencia: "Tarefas e evidência",
   sla: "SLA da jornada",
   roteamento: "Roteamento",
   carteira: "Carteira e delegações",
@@ -50,6 +56,7 @@ export function CsSettingsPanel({
   signalPoints,
   options,
   dailyTarget,
+  evidence,
   sla,
   routing,
   onSaved,
@@ -59,6 +66,7 @@ export function CsSettingsPanel({
   signalPoints?: HealthSignalPoints;
   options?: HealthOptions;
   dailyTarget?: DailyTarget;
+  evidence?: EvidenceConfig;
   sla?: StageSla;
   routing?: RoutingConfig;
   onSaved: () => void;
@@ -71,6 +79,7 @@ export function CsSettingsPanel({
   const [pts, setPts] = useState<HealthSignalPoints>(signalPoints ?? DEFAULT_HEALTH_SIGNAL_POINTS);
   const [opt, setOpt] = useState<HealthOptions>(options ?? DEFAULT_HEALTH_OPTIONS);
   const [meta, setMeta] = useState<DailyTarget>(dailyTarget ?? DEFAULT_DAILY_TARGET);
+  const [ev, setEv] = useState<EvidenceConfig>(evidence ?? DEFAULT_EVIDENCE_CONFIG);
   const [s, setS] = useState<StageSla>(sla ?? DEFAULT_STAGE_SLA);
   const [r, setR] = useState<RoutingConfig>(routing ?? DEFAULT_ROUTING);
   useEffect(() => {
@@ -86,6 +95,9 @@ export function CsSettingsPanel({
     if (dailyTarget) setMeta(dailyTarget);
   }, [dailyTarget]);
   useEffect(() => {
+    if (evidence) setEv(evidence);
+  }, [evidence]);
+  useEffect(() => {
     if (sla) setS(sla);
   }, [sla]);
   useEffect(() => {
@@ -100,6 +112,7 @@ export function CsSettingsPanel({
           signalPoints: pts,
           options: opt,
           dailyTarget: meta,
+          evidence: ev,
           sla: s,
           routing: r,
         },
@@ -252,6 +265,99 @@ export function CsSettingsPanel({
                 value={meta.contatos_por_dia}
                 onChange={(e) => setMeta({ contatos_por_dia: Number(e.target.value) })}
               />
+            </label>
+            {saveBar}
+          </>
+        )}
+
+        {tab === "evidencia" && (
+          <>
+            <p className="max-w-[80ch] text-[13px] text-muted-foreground">
+              Tarefas dos canais marcados não têm check manual: são concluídas pelo próprio registro
+              do canal — o e-mail enviado pela caixa vinculada ou a mensagem enviada pelo WhatsApp
+              do CS. Cada envio também atualiza o "último contato" da empresa e a ação de cadência
+              da semana.
+            </p>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={ev.exigir_evidencia}
+                onChange={(e) => setEv({ ...ev, exigir_evidencia: e.target.checked })}
+              />
+              Exigir evidência do canal para concluir tarefas
+            </label>
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Canais com evidência obrigatória</p>
+              <div className="flex flex-wrap gap-1.5">
+                {CS_TASK_TYPES.filter((t) => t !== "outro").map((t) => {
+                  const on = ev.canais.includes(t);
+                  return (
+                    <button
+                      key={t}
+                      type="button"
+                      disabled={!ev.exigir_evidencia}
+                      onClick={() =>
+                        setEv({
+                          ...ev,
+                          canais: on
+                            ? ev.canais.filter((c) => c !== t)
+                            : ([...ev.canais, t] as CsTaskType[]),
+                        })
+                      }
+                      className={`rounded-full border px-2.5 py-1 text-xs disabled:opacity-50 ${
+                        on ? "border-primary bg-primary/10 text-primary" : "hover:bg-muted"
+                      }`}
+                    >
+                      {CS_TASK_TYPE_LABEL[t]}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Ligação e reunião não têm registro automático — se marcados, só a gestão conclui.
+              </p>
+            </div>
+            <div className="grid max-w-lg gap-3 sm:grid-cols-2">
+              <label className="block space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  Antecedência (h): um envio conclui tarefas que vencem em até
+                </span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={720}
+                  value={ev.antecedencia_horas}
+                  onChange={(e) => setEv({ ...ev, antecedencia_horas: Number(e.target.value) })}
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted-foreground">
+                  Retroativo (h): ao registrar resultado, aceita envio feito há até
+                </span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={720}
+                  value={ev.retroativo_horas}
+                  onChange={(e) => setEv({ ...ev, retroativo_horas: Number(e.target.value) })}
+                />
+              </label>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={ev.gestor_pode_concluir}
+                onChange={(e) => setEv({ ...ev, gestor_pode_concluir: e.target.checked })}
+              />
+              Gestão pode concluir tarefa de canal com justificativa
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={ev.conta_bot}
+                onChange={(e) => setEv({ ...ev, conta_bot: e.target.checked })}
+              />
+              Mensagens de automação/IA no WhatsApp contam como envio do time
             </label>
             {saveBar}
           </>

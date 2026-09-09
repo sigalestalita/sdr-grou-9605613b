@@ -31,3 +31,17 @@ export const CS_FOLLOWUP_CHANNEL_LABEL: Record<string, string> = {
   reuniao: "Reunião",
   observacao: "Observação",
 };
+
+/** Tarefa cujo "feito" só vem do registro automático do canal (e-mail/WhatsApp vinculado). */
+export function followUpNeedsEvidence(
+  item: { kind: string; taskType?: string | null },
+  evidenceChannels: readonly string[],
+) {
+  return item.kind === "tarefa" && !!item.taskType && evidenceChannels.includes(item.taskType);
+}
+
+export const COMPLETED_VIA_LABEL: Record<string, string> = {
+  evidencia: "pelo canal vinculado",
+  manual: "manualmente",
+  gestor: "pela gestão",
+};

@@ -7,6 +7,8 @@ import { ptBR } from "date-fns/locale";
 import { useAuth } from "@/lib/use-auth";
 import { getCsHome } from "@/lib/cs.functions";
 import { getCsFollowUpAgenda, type CsFollowUpItem } from "@/lib/cs-follow-ups.functions";
+import { followUpNeedsEvidence } from "@/lib/cs-follow-up-types";
+import { AwaitingEvidencePill } from "@/components/cs/cs-task-dialog";
 import { getCsCadence, type CsCadenceRow } from "@/lib/cs-cadence.functions";
 import { CsFollowUpActionModal } from "@/components/cs/cs-followup-action-modal";
 import { CS_SIGNAL_CLASS } from "@/lib/cs-types";
@@ -197,14 +199,18 @@ function HomePage() {
                         {overdue ? "atrasada · " : ""}
                         {format(new Date(t.dueAt), "dd/MM HH:mm", { locale: ptBR })}
                       </span>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7"
-                        onClick={() => setAction({ item: t, mode: "resultado" })}
-                      >
-                        <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Concluir
-                      </Button>
+                      {followUpNeedsEvidence(t, agenda.data?.evidenceChannels ?? []) ? (
+                        <AwaitingEvidencePill type={t.taskType ?? "email"} />
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7"
+                          onClick={() => setAction({ item: t, mode: "resultado" })}
+                        >
+                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Concluir
+                        </Button>
+                      )}
                     </li>
                   );
                 })}
@@ -332,6 +338,7 @@ function HomePage() {
         <CsFollowUpActionModal
           item={action.item}
           mode={action.mode}
+          evidenceChannels={agenda.data?.evidenceChannels ?? []}
           onClose={() => setAction(null)}
           onDone={() => {
             setAction(null);

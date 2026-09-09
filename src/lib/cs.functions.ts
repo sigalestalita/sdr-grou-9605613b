@@ -26,6 +26,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getHealthOptions,
       getDailyTarget,
       getRouting,
+      getEvidenceConfig,
       fetchAllRows,
     } = await import("@/lib/cs/cs-core.server");
     const weeks = lastNWeeks(8);
@@ -42,6 +43,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       signalPoints,
       options,
       dailyTarget,
+      evidence,
     ] = await Promise.all([
       fetchAllRows((f, t) =>
         supabase.from("cs_clients").select("*").order("nome_empresa").range(f, t),
@@ -67,6 +69,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getHealthSignalPoints(supabase),
       getHealthOptions(supabase),
       getDailyTarget(supabase),
+      getEvidenceConfig(supabase),
     ]);
 
     return {
@@ -82,6 +85,7 @@ export const listCsBoard = createServerFn({ method: "GET" })
       signalPoints,
       options,
       dailyTarget,
+      evidence,
     };
   });
 
@@ -201,7 +205,15 @@ export const getCsClient = createServerFn({ method: "GET" })
       }
     }
 
+    const { getEvidenceConfig: getEvidence } = await import("@/lib/cs/cs-core.server");
+    const [{ data: isManager }, evidenceCfg] = await Promise.all([
+      supabase.rpc("is_manager", { _user_id: context.userId }),
+      getEvidence(supabase),
+    ]);
+
     return {
+      isManager: Boolean(isManager),
+      evidenceChannels: evidenceCfg.exigir_evidencia ? evidenceCfg.canais : [],
       client: client.data,
       contacts: contacts.data ?? [],
       tags: tags.data ?? [],
@@ -582,6 +594,16 @@ export const saveCsSettings = createServerFn({ method: "POST" })
           .optional(),
         options: z.object({ renormalizar_sem_sinaleira: z.boolean() }).optional(),
         dailyTarget: z.object({ contatos_por_dia: z.number().int().min(0).max(100) }).optional(),
+        evidence: z
+          .object({
+            exigir_evidencia: z.boolean(),
+            canais: z.array(z.enum(["email", "whatsapp", "ligacao", "reuniao", "outro"])),
+            antecedencia_horas: z.number().int().min(0).max(720),
+            retroativo_horas: z.number().int().min(1).max(720),
+            gestor_pode_concluir: z.boolean(),
+            conta_bot: z.boolean(),
+          })
+          .optional(),
         sla: z
           .object({
             onboarding: z.number().int().min(1).max(400),
@@ -611,6 +633,7 @@ export const saveCsSettings = createServerFn({ method: "POST" })
     if (data.signalPoints) await saveCsSetting(supabase, "health_signal_points", data.signalPoints);
     if (data.options) await saveCsSetting(supabase, "health_options", data.options);
     if (data.dailyTarget) await saveCsSetting(supabase, "daily_contact_target", data.dailyTarget);
+    if (data.evidence) await saveCsSetting(supabase, "evidence", data.evidence);
     if (data.sla) await saveCsSetting(supabase, "stage_sla_days", data.sla);
     if (data.routing) {
       const current = await getRouting(supabase);

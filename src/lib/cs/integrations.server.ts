@@ -59,7 +59,9 @@ export async function listIntegrationStatus(userIds?: string[]): Promise<Integra
 }
 
 /** Pessoas elegíveis do CS (time cs, gestão ou super admin) para o gestor vincular agendas. */
-export async function listCsTeamUsers(): Promise<Array<{ userId: string; name: string; email: string | null }>> {
+export async function listCsTeamUsers(): Promise<
+  Array<{ userId: string; name: string; email: string | null }>
+> {
   const [{ data: teams }, { data: roles }, { data: profiles }] = await Promise.all([
     supabaseAdmin.from("user_teams").select("user_id, team").eq("team", "cs"),
     supabaseAdmin.from("user_roles").select("user_id, role"),
@@ -224,42 +226,64 @@ function emailDomain(address: string | null | undefined): string | null {
   return at === -1 ? null : address.slice(at + 1).toLowerCase();
 }
 
-/** Grava um e-mail redirecionado e tenta vincular ao cliente e ao responsável. */
+const FREE_MAIL = ["gmail.com", "hotmail.com", "outlook.com", "yahoo.com", "icloud.com"];
+
+/** Cliente dono de um endereço: contato exato, senão domínio corporativo. */
+async function clientForAddress(address: string | null): Promise<string | null> {
+  if (!address) return null;
+  const { data: contact } = await supabaseAdmin
+    .from("cs_contacts")
+    .select("client_uid")
+    .ilike("email", address)
+    .limit(1);
+  if (contact?.[0]?.client_uid) return contact[0].client_uid;
+  const domain = emailDomain(address);
+  if (!domain || FREE_MAIL.includes(domain)) return null;
+  const { data: byDomain } = await supabaseAdmin
+    .from("cs_contacts")
+    .select("client_uid")
+    .ilike("email", `%@${domain}`)
+    .limit(1);
+  return byDomain?.[0]?.client_uid ?? null;
+}
+
+/**
+ * Grava um e-mail redirecionado e tenta vincular ao cliente e ao responsável.
+ * Se o remetente é uma caixa vinculada do time, o e-mail é um ENVIO
+ * (direction = outbound) e o cliente é procurado nos destinatários — é essa
+ * linha que serve de evidência para concluir tarefas de e-mail.
+ */
 export async function storeInboundEmail(payload: InboundEmail) {
   const from = (payload.from ?? "").toLowerCase().trim() || null;
   const to = (payload.to ?? []).map((t) => t.toLowerCase().trim()).filter(Boolean);
-  const mailbox = (payload.mailbox ?? to[0] ?? null)?.toLowerCase() ?? null;
+  const cc = (payload.cc ?? []).map((c) => c.toLowerCase().trim()).filter(Boolean);
+
+  const { data: teamBoxes } = await supabaseAdmin
+    .from("cs_user_integrations")
+    .select("user_id, email_address")
+    .not("email_address", "is", null);
+  const boxOwner = new Map(
+    (teamBoxes ?? []).map((b) => [String(b.email_address).toLowerCase(), b.user_id] as const),
+  );
+  const outbound = !!from && boxOwner.has(from);
+  const mailbox =
+    (outbound
+      ? from
+      : (payload.mailbox ?? to.find((t) => boxOwner.has(t)) ?? to[0] ?? null)
+    )?.toLowerCase() ?? null;
 
   let clientUid: string | null = null;
-  if (from) {
-    const { data: contact } = await supabaseAdmin
-      .from("cs_contacts")
-      .select("client_uid")
-      .ilike("email", from)
-      .maybeSingle();
-    clientUid = contact?.client_uid ?? null;
-  }
-  if (!clientUid) {
-    const domain = emailDomain(from);
-    if (domain && !["gmail.com", "hotmail.com", "outlook.com", "yahoo.com"].includes(domain)) {
-      const { data: byDomain } = await supabaseAdmin
-        .from("cs_contacts")
-        .select("client_uid")
-        .ilike("email", `%@${domain}`)
-        .limit(1);
-      clientUid = byDomain?.[0]?.client_uid ?? null;
+  if (outbound) {
+    for (const addr of [...to, ...cc]) {
+      if (boxOwner.has(addr)) continue;
+      clientUid = await clientForAddress(addr);
+      if (clientUid) break;
     }
+  } else {
+    clientUid = await clientForAddress(from);
   }
 
-  let ownerUserId: string | null = null;
-  if (mailbox) {
-    const { data: integ } = await supabaseAdmin
-      .from("cs_user_integrations")
-      .select("user_id")
-      .ilike("email_address", mailbox)
-      .maybeSingle();
-    ownerUserId = integ?.user_id ?? null;
-  }
+  let ownerUserId: string | null = mailbox ? (boxOwner.get(mailbox) ?? null) : null;
   if (!ownerUserId && clientUid) {
     const { data: client } = await supabaseAdmin
       .from("cs_clients")
@@ -279,11 +303,11 @@ export async function storeInboundEmail(payload: InboundEmail) {
   const { error } = await supabaseAdmin.from("cs_emails").upsert(
     {
       message_id: payload.messageId ?? `${from ?? "?"}-${payload.receivedAt ?? Date.now()}`,
-      direction: "inbound",
+      direction: outbound ? "outbound" : "inbound",
       from_email: from,
       from_name: payload.fromName ?? null,
       to_emails: to,
-      cc_emails: (payload.cc ?? []).map((c) => c.toLowerCase().trim()).filter(Boolean),
+      cc_emails: cc,
       subject: payload.subject ?? null,
       snippet,
       body_text: text,
@@ -297,5 +321,5 @@ export async function storeInboundEmail(payload: InboundEmail) {
     { onConflict: "message_id" },
   );
   if (error) throw new Error(error.message);
-  return { ok: true, clientUid, ownerUserId };
+  return { ok: true, clientUid, ownerUserId, direction: outbound ? "outbound" : "inbound" };
 }

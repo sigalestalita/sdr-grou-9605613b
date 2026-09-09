@@ -34,6 +34,7 @@ import {
 import { SignalStrip } from "@/components/cs/signal-strip";
 import { CsMeetingsTab } from "@/components/cs/cs-meetings-tab";
 import { CsSalesTab } from "@/components/cs/cs-sales-tab";
+import { CsTasksPanel } from "@/components/cs/cs-tasks-panel";
 import {
   ClientEditor,
   ContactsPanel,
@@ -470,7 +471,11 @@ function CompanyPage() {
             <div className="p-4">
               {tab === "atividades" && (
                 <UnifiedTimeline
-                  timeline={data?.timeline ?? []}
+                  // E-mails e WhatsApp já aparecem nas listas próprias; os eventos
+                  // automáticos gerados por eles ficariam duplicados.
+                  timeline={(data?.timeline ?? []).filter(
+                    (ev) => !(ev.metadata as { automatico?: boolean } | null)?.automatico,
+                  )}
                   emails={data?.emails ?? []}
                   agenda={data?.agenda ?? []}
                   whatsapp={data?.whatsapp ?? []}
@@ -500,6 +505,14 @@ function CompanyPage() {
 
         {/* Direita */}
         <div className="space-y-4">
+          <Panel title="Tarefas">
+            <CsTasksPanel
+              clientUid={clientUid}
+              evidenceChannels={data?.evidenceChannels ?? []}
+              isManager={Boolean(data?.isManager)}
+            />
+          </Panel>
+
           <Panel title={`Contatos (${(data?.contacts ?? []).length})`}>
             <ContactsPanel
               contacts={data?.contacts ?? []}
