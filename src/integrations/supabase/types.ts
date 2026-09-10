@@ -1695,7 +1695,6 @@ export type Database = {
           gcal_ics_url: string | null
           gcal_last_error: string | null
           gcal_last_sync_at: string | null
-          meeting_url: string | null
           updated_at: string
           user_id: string
         }
@@ -1716,7 +1715,6 @@ export type Database = {
           gcal_ics_url?: string | null
           gcal_last_error?: string | null
           gcal_last_sync_at?: string | null
-          meeting_url?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1737,7 +1735,6 @@ export type Database = {
           gcal_ics_url?: string | null
           gcal_last_error?: string | null
           gcal_last_sync_at?: string | null
-          meeting_url?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -2116,71 +2113,6 @@ export type Database = {
           },
         ]
       }
-      lead_meeting_invites: {
-        Row: {
-          briefing_message_id: string | null
-          briefing_sent_at: string | null
-          created_at: string
-          duration_min: number
-          error: string | null
-          executivo_id: string | null
-          handoff: string | null
-          id: string
-          invite_message_id: string | null
-          lead_id: string
-          meeting_at: string
-          method: string
-          sdr_id: string | null
-          sequence: number
-          to_emails: string[]
-          uid: string
-        }
-        Insert: {
-          briefing_message_id?: string | null
-          briefing_sent_at?: string | null
-          created_at?: string
-          duration_min?: number
-          error?: string | null
-          executivo_id?: string | null
-          handoff?: string | null
-          id?: string
-          invite_message_id?: string | null
-          lead_id: string
-          meeting_at: string
-          method?: string
-          sdr_id?: string | null
-          sequence?: number
-          to_emails?: string[]
-          uid: string
-        }
-        Update: {
-          briefing_message_id?: string | null
-          briefing_sent_at?: string | null
-          created_at?: string
-          duration_min?: number
-          error?: string | null
-          executivo_id?: string | null
-          handoff?: string | null
-          id?: string
-          invite_message_id?: string | null
-          lead_id?: string
-          meeting_at?: string
-          method?: string
-          sdr_id?: string | null
-          sequence?: number
-          to_emails?: string[]
-          uid?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "lead_meeting_invites_lead_id_fkey"
-            columns: ["lead_id"]
-            isOneToOne: false
-            referencedRelation: "leads"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       lead_notes: {
         Row: {
           author_id: string | null
@@ -2316,11 +2248,6 @@ export type Database = {
           lost_reason: string | null
           meeting_at: string | null
           meeting_booked_at: string | null
-          meeting_duration_min: number | null
-          meeting_handoff: string | null
-          meeting_invite_sent_at: string | null
-          meeting_invite_sequence: number
-          meeting_invite_uid: string | null
           name: string
           next_action: string | null
           next_follow_up_at: string | null
@@ -2383,11 +2310,6 @@ export type Database = {
           lost_reason?: string | null
           meeting_at?: string | null
           meeting_booked_at?: string | null
-          meeting_duration_min?: number | null
-          meeting_handoff?: string | null
-          meeting_invite_sent_at?: string | null
-          meeting_invite_sequence?: number
-          meeting_invite_uid?: string | null
           name: string
           next_action?: string | null
           next_follow_up_at?: string | null
@@ -2450,11 +2372,6 @@ export type Database = {
           lost_reason?: string | null
           meeting_at?: string | null
           meeting_booked_at?: string | null
-          meeting_duration_min?: number | null
-          meeting_handoff?: string | null
-          meeting_invite_sent_at?: string | null
-          meeting_invite_sequence?: number
-          meeting_invite_uid?: string | null
           name?: string
           next_action?: string | null
           next_follow_up_at?: string | null
