@@ -112,9 +112,13 @@ export async function notifyEscalationsByEmail(opts?: { force?: boolean }) {
 ${sections}
 <p style="color:#888;font-size:12px;margin-top:18px">Você recebe este aviso por ser gestor. Ajuste a regra em Configurações CS → Tarefas e evidência.</p></div>`;
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${process.env.LOVABLE_API_KEY}`,
+      "X-Connection-Api-Key": resendKey,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from: "Grou Compass <noreply@grougp.com.br>",
       to,

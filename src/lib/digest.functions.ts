@@ -307,10 +307,11 @@ export async function sendDigestEmail(digestId: string) {
     .single();
   if (error || !digest) throw new Error("Digest não encontrado");
 
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${resendKey}`,
+      Authorization: `Bearer ${process.env.LOVABLE_API_KEY}`,
+      "X-Connection-Api-Key": resendKey,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
