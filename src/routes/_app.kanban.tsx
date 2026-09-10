@@ -13,6 +13,14 @@ import { syncLeadsFromSheet } from "@/lib/sheets.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { LostReasonFilter } from "@/components/leads/lost-reason-filter";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
@@ -1772,10 +1780,12 @@ function LostReasonDialog({
   const isOther = selected === "__other";
   const finalReason = isOther ? custom.trim() : selected;
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onClose}>
-      <Card className="p-6 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold mb-1">Motivo de desqualificação</h2>
-        <p className="text-xs text-muted-foreground mb-4">Escolha o motivo para mover este lead.</p>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Motivo de desqualificação</DialogTitle>
+          <DialogDescription>Escolha o motivo para mover este lead.</DialogDescription>
+        </DialogHeader>
         <div className="space-y-3">
           <select
             value={selected}
@@ -1798,16 +1808,16 @@ function LostReasonDialog({
             />
           )}
         </div>
-        <div className="mt-5 flex gap-2 justify-end">
+        <DialogFooter>
           <Button variant="ghost" size="sm" onClick={onClose}>
             Cancelar
           </Button>
           <Button size="sm" disabled={!finalReason} onClick={() => onPick(finalReason)}>
             Salvar
           </Button>
-        </div>
-      </Card>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1834,9 +1844,11 @@ function NewLeadDialog({
     source: "manual",
   });
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 grid place-items-center p-4" onClick={onClose}>
-      <Card className="p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-        <h2 className="text-lg font-bold mb-4">Novo lead manual</h2>
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Novo lead manual</DialogTitle>
+        </DialogHeader>
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -1876,14 +1888,14 @@ function NewLeadDialog({
             value={form.source}
             onChange={(e) => setForm({ ...form, source: e.target.value })}
           />
-          <div className="flex gap-2 justify-end pt-2">
+          <DialogFooter className="pt-2">
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit">Criar</Button>
-          </div>
+          </DialogFooter>
         </form>
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

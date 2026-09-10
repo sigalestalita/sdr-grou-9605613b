@@ -5,7 +5,14 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "sonner";
 import { CalendarX2, Loader2, Send } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -95,32 +102,23 @@ export function MeetingInviteDialog({
   const when = lead.meeting_at ? new Date(lead.meeting_at) : null;
   const emailOk = /^\S+@\S+\.\S+$/.test(leadEmail.trim());
   const ready = !!when && !!lead.executivo_id && emailOk && !!data?.executivo?.email;
-  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
 
   return (
-    <div
-      className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
-      onClick={onClose}
-      onPointerDown={stop}
-    >
-      <Card
-        className="max-h-[90vh] w-full max-w-lg space-y-3 overflow-y-auto p-5"
-        onClick={stop}
-        onPointerDown={stop}
-      >
-        <div>
-          <h2 className="text-base font-bold">
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] space-y-3 overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>
             {lead.meeting_invite_sent_at
               ? "Reenviar convite atualizado"
               : "Enviar convite da reunião"}
-          </h2>
-          <p className="text-xs text-muted-foreground">
+          </DialogTitle>
+          <DialogDescription>
             {lead.company_name ?? "Empresa"} · {lead.name ?? "lead"}
             {when
               ? ` · ${format(when, "EEEE, dd/MM 'às' HH:mm", { locale: ptBR })}`
               : " · sem data"}
-          </p>
-        </div>
+          </DialogDescription>
+        </DialogHeader>
 
         {isLoading || !data ? (
           <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
@@ -205,7 +203,7 @@ export function MeetingInviteDialog({
               executivo recebe também este briefing, com você em cópia.
             </p>
 
-            <div className="flex items-center justify-between gap-2 pt-1">
+            <DialogFooter className="gap-2 pt-1 sm:justify-between">
               {lead.meeting_invite_sent_at ? (
                 <Button
                   variant="ghost"
@@ -235,10 +233,10 @@ export function MeetingInviteDialog({
                   {lead.meeting_invite_sent_at ? "Reenviar convite" : "Enviar convite"}
                 </Button>
               </div>
-            </div>
+            </DialogFooter>
           </>
         )}
-      </Card>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
