@@ -402,11 +402,24 @@ export const createManualLead = createServerFn({ method: "POST" })
       .select("id")
       .eq("slug", "novo")
       .maybeSingle();
+    const email = data.email?.trim().toLowerCase() || null;
+    if (email) {
+      const { data: existing } = await supabase
+        .from("leads")
+        .select("id, name")
+        .eq("email", email)
+        .maybeSingle();
+      if (existing) {
+        throw new Error(
+          `Já existe um lead cadastrado com o e-mail ${email}${existing.name ? ` (${existing.name})` : ""}.`,
+        );
+      }
+    }
     const { data: inserted, error } = await supabase
       .from("leads")
       .insert({
         name: data.name,
-        email: data.email || null,
+        email,
         phone: data.phone || null,
         company_name: data.company_name || null,
         position: data.position || null,
@@ -416,7 +429,14 @@ export const createManualLead = createServerFn({ method: "POST" })
       })
       .select("id, name, company_name, lead_type, score, priority")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23505" && error.message.includes("leads_email_unique")) {
+        throw new Error(
+          `Já existe um lead cadastrado com o e-mail ${email ?? ""}.`.trim(),
+        );
+      }
+      throw new Error(error.message);
+    }
     const { ensureLeadRouted } = await import("./lead-routing.server");
     await ensureLeadRouted({ supabase, leadId: inserted.id });
     await notifyNewLead({
