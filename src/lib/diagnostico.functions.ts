@@ -127,6 +127,88 @@ export const runPipelineDiagnostics = createServerFn({ method: "GET" })
         .select("id", { count: "exact", head: true });
       return String(count ?? 0);
     });
+    // Composição da base: de onde vieram os leads e quando entraram
+    await time("Leads por origem (source) — top 15", async () => {
+      const { data } = await supabaseAdmin.from("leads").select("source").limit(50000);
+      const c = new Map<string, number>();
+      for (const r of data ?? [])
+        c.set(r.source ?? "(vazio)", (c.get(r.source ?? "(vazio)") ?? 0) + 1);
+      return [...c.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" · ");
+    });
+    await time("Leads por dia de entrada (created_at) — últimos 12 dias", async () => {
+      const since = new Date(Date.now() - 12 * 86400000).toISOString();
+      const { data } = await supabaseAdmin
+        .from("leads")
+        .select("created_at")
+        .gte("created_at", since)
+        .limit(50000);
+      const c = new Map<string, number>();
+      for (const r of data ?? []) {
+        const d = String(r.created_at).slice(0, 10);
+        c.set(d, (c.get(d) ?? 0) + 1);
+      }
+      const before = await supabaseAdmin
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .lt("created_at", since);
+      return (
+        `antes: ${before.count ?? 0} · ` +
+        [...c.entries()]
+          .sort()
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(" · ")
+      );
+    });
+    await time("Leads com formulário × sem, e com RD × sem", async () => {
+      const q = (fn: (q: any) => any) =>
+        fn(supabaseAdmin.from("leads").select("id", { count: "exact", head: true }));
+      const [comForm, comRd, comRdSemForm, semNada] = await Promise.all([
+        q((x) => x.not("form_payload", "is", null)),
+        q((x) => x.not("rd_deal_id", "is", null)),
+        q((x) => x.not("rd_deal_id", "is", null).is("form_payload", null)),
+        q((x) => x.is("rd_deal_id", null).is("form_payload", null)),
+      ]);
+      return `com formulário: ${comForm.count ?? 0} · com RD: ${comRd.count ?? 0} · com RD e sem formulário: ${comRdSemForm.count ?? 0} · sem RD e sem formulário: ${semNada.count ?? 0}`;
+    });
+    await time("Leads por aba da planilha (form_payload.sheet_tab) — top 10", async () => {
+      const { data } = await supabaseAdmin
+        .from("leads")
+        .select("form_payload")
+        .not("form_payload", "is", null)
+        .limit(50000);
+      const c = new Map<string, number>();
+      for (const r of data ?? []) {
+        const tab = String(
+          (r.form_payload as { sheet_tab?: string } | null)?.sheet_tab ?? "(sem aba)",
+        );
+        c.set(tab, (c.get(tab) ?? 0) + 1);
+      }
+      return [...c.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" · ");
+    });
+    await time("Leads por etapa (stage) — visíveis na sessão", async () => {
+      const [{ data: stages }, { data: leads }] = await Promise.all([
+        supabase.from("stages").select("id, name"),
+        supabase.from("leads").select("stage_id").limit(50000),
+      ]);
+      const name = new Map((stages ?? []).map((x) => [x.id, x.name]));
+      const c = new Map<string, number>();
+      for (const r of leads ?? []) {
+        const k = name.get(r.stage_id as string) ?? "(sem etapa)";
+        c.set(k, (c.get(k) ?? 0) + 1);
+      }
+      return [...c.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" · ");
+    });
     const total = steps.reduce((a, s) => a + s.ms, 0);
     return { steps, totalMs: total, at: new Date().toISOString() };
   });
