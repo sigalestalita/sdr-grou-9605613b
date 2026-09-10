@@ -112,30 +112,9 @@ export function CsHomeSections() {
 
   return (
     <div className="space-y-6">
-      {/* Resumo da carteira */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tile
-          label="Minha carteira"
-          value={home.data?.carteira.mine ?? 0}
-          hint={`de ${home.data?.carteira.total ?? 0} empresas`}
-          to="/cs"
-        />
-        <Tile
-          label="Em vermelho"
-          value={home.data?.carteira.mineRed ?? 0}
-          tone={home.data?.carteira.mineRed ? "red" : undefined}
-          to="/cs"
-        />
-        <Tile
-          label="Alertas abertos"
-          value={home.data?.carteira.alertsMine ?? 0}
-          hint={`${home.data?.carteira.alertsOpen ?? 0} no time`}
-          tone={home.data?.carteira.alertsMine ? "amber" : undefined}
-          to="/cs"
-        />
-        <Tile label="Tarefas hoje" value={tasks.length + dueRows.length} to="/cs-follow-ups" />
-      </div>
-
+      {/* As métricas de carteira (Minha carteira, Em vermelho, Alertas, Tarefas)
+          já aparecem no bloco "Customer Success" da tela de boas-vindas — aqui
+          só o que é do dia: tarefas, cadência, escalações, alertas e feed. */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-4">
           {/* Tarefas */}
@@ -331,32 +310,6 @@ export function CsHomeSections() {
         />
       )}
     </div>
-  );
-}
-
-export function Tile({
-  label,
-  value,
-  hint,
-  tone,
-  to,
-}: {
-  label: string;
-  value: number;
-  hint?: string;
-  tone?: "red" | "amber";
-  to: string;
-}) {
-  const ring = tone === "red" ? "border-red-500/40" : tone === "amber" ? "border-warning/50" : "";
-  return (
-    <Link
-      to={to}
-      className={`surface-panel block p-3 transition-colors hover:border-primary/50 ${ring}`}
-    >
-      <p className="section-label">{label}</p>
-      <p className="metric-value mt-1 text-2xl">{value}</p>
-      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-    </Link>
   );
 }
 
