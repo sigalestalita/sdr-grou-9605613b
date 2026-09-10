@@ -279,11 +279,14 @@ function AppShell() {
   };
 
   return (
-    <div className={`min-h-screen flex bg-surface ${glass ? "glass-bg" : ""}`}>
+    // h-screen + overflow-hidden: a rolagem fica dentro de <main>, e telas de
+    // painéis (Inbox, Cadência, Visão geral) ganham altura definida para rolar
+    // cada coluna por conta própria em vez de arrastar a página inteira.
+    <div className={`flex h-screen overflow-hidden bg-surface ${glass ? "glass-bg" : ""}`}>
       <aside
         className={`${collapsed ? "w-[52px]" : "w-[228px]"} shrink-0 text-sidebar-foreground flex flex-col transition-[width] duration-150 ${
           glass
-            ? "glass-nav sticky top-3 m-3 mr-0 h-[calc(100vh-1.5rem)] self-start rounded-2xl"
+            ? "glass-nav m-3 mr-0 h-[calc(100vh-1.5rem)] rounded-2xl"
             : "border-r border-sidebar-border bg-sidebar"
         }`}
       >
@@ -408,9 +411,7 @@ function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header
           className={`flex h-12 shrink-0 items-center gap-3 px-4 ${
-            glass
-              ? "glass-bar sticky top-3 z-10 mx-3 mt-3 rounded-full"
-              : "border-b border-border bg-background"
+            glass ? "glass-bar z-10 mx-3 mt-3 rounded-full" : "border-b border-border bg-background"
           }`}
         >
           <button

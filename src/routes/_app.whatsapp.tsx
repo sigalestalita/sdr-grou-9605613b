@@ -1,6 +1,16 @@
 import { createFileRoute, Outlet, Link, useRouterState } from "@tanstack/react-router";
 import { useOwnerLabel } from "@/lib/use-owner-label";
-import { MessageCircle, FileText, Megaphone, Zap, Settings2, BarChart3, Repeat, Bot, Bell } from "lucide-react";
+import {
+  MessageCircle,
+  FileText,
+  Megaphone,
+  Zap,
+  Settings2,
+  BarChart3,
+  Repeat,
+  Bot,
+  Bell,
+} from "lucide-react";
 
 export const Route = createFileRoute("/_app/whatsapp")({
   component: WhatsappLayout,
@@ -26,7 +36,7 @@ function WhatsappLayout() {
     <div className="h-full flex flex-col">
       <header className="px-4 py-2 border-b border-border bg-background flex items-center gap-4 flex-wrap">
         <h1 className="page-title flex items-center gap-2 shrink-0">
-          <MessageCircle className="h-4 w-4 text-primary" strokeWidth={1.75} /> Inbox
+          <MessageCircle className="h-4 w-4 text-primary" strokeWidth={1.75} /> WhatsApp
         </h1>
         <nav className="flex items-center gap-0.5 flex-wrap">
           {tabs.map((t) => {
