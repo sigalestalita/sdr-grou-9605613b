@@ -2232,6 +2232,7 @@ export type Database = {
           email: string | null
           enriched_at: string | null
           enrichment_status: Database["public"]["Enums"]["enrichment_status"]
+          executivo_id: string | null
           first_approach_at: string | null
           form_name: string | null
           form_payload: Json | null
@@ -2246,6 +2247,7 @@ export type Database = {
           linkedin_url: string | null
           lost_reason: string | null
           meeting_at: string | null
+          meeting_booked_at: string | null
           name: string
           next_action: string | null
           next_follow_up_at: string | null
@@ -2292,6 +2294,7 @@ export type Database = {
           email?: string | null
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
+          executivo_id?: string | null
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
@@ -2306,6 +2309,7 @@ export type Database = {
           linkedin_url?: string | null
           lost_reason?: string | null
           meeting_at?: string | null
+          meeting_booked_at?: string | null
           name: string
           next_action?: string | null
           next_follow_up_at?: string | null
@@ -2352,6 +2356,7 @@ export type Database = {
           email?: string | null
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
+          executivo_id?: string | null
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
@@ -2366,6 +2371,7 @@ export type Database = {
           linkedin_url?: string | null
           lost_reason?: string | null
           meeting_at?: string | null
+          meeting_booked_at?: string | null
           name?: string
           next_action?: string | null
           next_follow_up_at?: string | null

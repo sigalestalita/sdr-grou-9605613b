@@ -14,7 +14,7 @@ export const listKanbanData = createServerFn({ method: "GET" })
     // Só as colunas que o Kanban usa: os campos longos (BANT, resumo da
     // empresa, sinais de ICP, dor provável) ficam para a página do lead.
     const KANBAN_COLUMNS =
-      "id, name, email, phone, company_name, company_segment, company_size, company_website, linkedin_url, position, stage_id, stage_entered_at, priority, score, source, campaign, ad_name, lead_type, assigned_to, enrichment_status, converted_at, created_at, meeting_at, next_follow_up_at, last_touch_at, last_touch_channel, last_touch_outcome, touch_count, lost_reason, demo_free, cadence_track, cadence_status, cadence_started_at, first_approach_at, linkedin_company_size, form_payload";
+      "id, name, email, phone, company_name, company_segment, company_size, company_website, linkedin_url, position, stage_id, stage_entered_at, priority, score, source, campaign, ad_name, lead_type, assigned_to, enrichment_status, converted_at, created_at, meeting_at, next_follow_up_at, last_touch_at, last_touch_channel, last_touch_outcome, touch_count, lost_reason, demo_free, cadence_track, cadence_status, cadence_started_at, first_approach_at, linkedin_company_size, meeting_booked_at, executivo_id, form_payload";
     const filter = "source.is.null,source.neq.campaign_upload";
     async function fetchAllLeads() {
       // Conta primeiro e busca as páginas em paralelo (o PostgREST devolve no
@@ -43,10 +43,11 @@ export const listKanbanData = createServerFn({ method: "GET" })
       }
       return all;
     }
-    const [stagesRes, leads, profilesRes] = await Promise.all([
+    const [stagesRes, leads, profilesRes, rolesRes] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       fetchAllLeads(),
       supabase.from("profiles").select("id, full_name, email"),
+      supabase.from("user_roles").select("user_id").eq("role", "executivo"),
     ]);
     if (stagesRes.error) throw new Error(stagesRes.error.message);
     if (profilesRes.error) throw new Error(profilesRes.error.message);
@@ -54,6 +55,8 @@ export const listKanbanData = createServerFn({ method: "GET" })
       stages: stagesRes.data ?? [],
       leads,
       profiles: profilesRes.data ?? [],
+      /** Quem pode ser o executivo da agenda (papel executivo). */
+      executivoIds: (rolesRes.data ?? []).map((r) => r.user_id as string),
     };
   });
 
@@ -211,6 +214,7 @@ export const updateLead = createServerFn({ method: "POST" })
       "lead_type",
       "stage_id",
       "meeting_at",
+      "executivo_id",
       "lost_reason",
       "demo_free",
     ];

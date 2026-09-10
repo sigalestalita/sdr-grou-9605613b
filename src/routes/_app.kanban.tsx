@@ -42,6 +42,7 @@ import {
   Calendar,
   Clock,
   Timer,
+  User as UserIcon,
   Flame,
   Briefcase,
   Building2,
@@ -873,6 +874,7 @@ function KanbanPage() {
                     stageSlug={s.slug}
                     stages={data.stages}
                     profiles={data.profiles}
+                    executivoIds={data.executivoIds}
                     onMoveTo={handleMoveTo}
                     onUpdate={handleUpdateLead}
                   />
@@ -888,6 +890,7 @@ function KanbanPage() {
               stageSlug={stageById.get(activeLead.stage_id ?? "")?.slug ?? ""}
               stages={data.stages}
               profiles={data.profiles}
+              executivoIds={data.executivoIds}
               onMoveTo={handleMoveTo}
               onUpdate={handleUpdateLead}
               overlay
@@ -973,6 +976,7 @@ function LeadCard({
   stageSlug,
   stages,
   profiles,
+  executivoIds = [],
   onMoveTo,
   onUpdate,
   overlay,
@@ -981,6 +985,8 @@ function LeadCard({
   stageSlug: string;
   stages: { id: string; slug: string; name: string; position: number }[];
   profiles: { id: string; full_name: string | null; email: string | null }[];
+  /** Ids dos usuários com papel executivo (opções de "executivo da agenda"). */
+  executivoIds?: string[];
   onMoveTo: (leadId: string, stageId: string) => void;
   onUpdate: (id: string, patch: Record<string, unknown>) => void;
   overlay?: boolean;
@@ -1253,20 +1259,13 @@ function LeadCard({
       )}
 
       {stageSlug === "agendado" && (
-        <div className="mt-2 space-y-1">
-          <p className="text-[10px] font-medium flex items-center gap-1 text-emerald-600">
-            <Calendar className="h-3 w-3" />
-            {meetingAt
-              ? `Agenda: ${format(meetingAt, "dd/MM HH:mm", { locale: ptBR })}`
-              : "Sem data de agenda"}
-          </p>
-          {convertedAt && stageEnteredAt && (
-            <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Timer className="h-3 w-3" />
-              {formatDistanceToNow(convertedAt, { locale: ptBR })} após conversão
-            </p>
-          )}
-        </div>
+        <ScheduledBlock
+          lead={lead}
+          profiles={profiles}
+          executivoIds={executivoIds}
+          convertedAt={convertedAt}
+          onUpdate={(patch) => onUpdate(lead.id, patch)}
+        />
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px]">
@@ -1549,6 +1548,103 @@ function CadenceHints({ lead, onOpen }: { lead: KanbanLead; onOpen: (e: Syntheti
           </Badge>
         </button>
       )}
+    </div>
+  );
+}
+
+/**
+ * Card na etapa "Agendado": data da reunião (editável), quando a agenda foi
+ * marcada (carimbo automático ao definir a data) e o executivo do comercial
+ * que vai fazer a reunião.
+ */
+function ScheduledBlock({
+  lead,
+  profiles,
+  executivoIds,
+  convertedAt,
+  onUpdate,
+}: {
+  lead: KanbanLead;
+  profiles: { id: string; full_name: string | null; email: string | null }[];
+  executivoIds: string[];
+  convertedAt: Date | null;
+  onUpdate: (patch: Record<string, unknown>) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const meetingAt = lead.meeting_at ? new Date(lead.meeting_at) : null;
+  const bookedAt = lead.meeting_booked_at
+    ? new Date(lead.meeting_booked_at)
+    : lead.stage_entered_at
+      ? new Date(lead.stage_entered_at)
+      : null;
+  const toLocal = (d: Date) => {
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  const [draft, setDraft] = useState(meetingAt ? toLocal(meetingAt) : "");
+  const executivos = profiles.filter((p) => executivoIds.includes(p.id));
+  const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+  return (
+    <div className="mt-2 space-y-1 rounded-md border border-emerald-500/30 bg-emerald-500/5 p-1.5">
+      {editing ? (
+        <div className="flex items-center gap-1" onPointerDown={stop} onClick={stop}>
+          <input
+            type="datetime-local"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            className="h-6 flex-1 rounded border bg-background px-1 text-[10px]"
+          />
+          <button
+            type="button"
+            className="rounded bg-primary px-1.5 py-0.5 text-[10px] text-primary-foreground"
+            onClick={() => {
+              if (draft) onUpdate({ meeting_at: new Date(draft).toISOString() });
+              setEditing(false);
+            }}
+          >
+            ok
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onPointerDown={stop}
+          onClick={(e) => {
+            stop(e);
+            setEditing(true);
+          }}
+          title="Alterar data da reunião"
+          className="flex items-center gap-1 text-[10px] font-medium text-emerald-600 hover:underline"
+        >
+          <Calendar className="h-3 w-3" />
+          {meetingAt
+            ? `Reunião: ${format(meetingAt, "dd/MM HH:mm", { locale: ptBR })}`
+            : "Definir data da reunião"}
+        </button>
+      )}
+      <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+        <Clock className="h-3 w-3" />
+        {bookedAt ? `Marcada em ${format(bookedAt, "dd/MM HH:mm", { locale: ptBR })}` : "Marcada em —"}
+        {convertedAt && bookedAt
+          ? ` · ${formatDistanceToNow(convertedAt, { locale: ptBR })} após conversão`
+          : ""}
+      </p>
+      <label className="flex items-center gap-1 text-[10px] text-muted-foreground" onPointerDown={stop} onClick={stop}>
+        <UserIcon className="h-3 w-3 shrink-0" />
+        <select
+          value={lead.executivo_id ?? ""}
+          onChange={(e) => onUpdate({ executivo_id: e.target.value || null })}
+          className="h-6 min-w-0 flex-1 rounded border bg-background px-1 text-[10px] text-foreground"
+          title="Executivo do comercial que vai fazer a reunião"
+        >
+          <option value="">Executivo: a definir</option>
+          {executivos.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.full_name || p.email || p.id}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   );
 }
