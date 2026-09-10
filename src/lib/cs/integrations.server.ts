@@ -3,15 +3,28 @@ import { getCalendlyMe, listCalendlyEvents } from "@/lib/cs/calendly.server";
 
 export type CsAccess = { isManager: boolean; inCs: boolean };
 
+/** Slugs dos times que habilitam o módulo CS (o padrão "cs" e os criados pela gestão). */
+async function csTeamSlugs(): Promise<Set<string>> {
+  const { data } = await supabaseAdmin
+    .from("teams")
+    .select("slug")
+    .eq("modulo", "cs")
+    .eq("ativo", true);
+  const set = new Set((data ?? []).map((t) => t.slug as string));
+  set.add("cs");
+  return set;
+}
+
 /** Gestor/super admin ou membro do time de CS. */
 export async function assertCsAccess(userId: string): Promise<CsAccess> {
-  const [{ data: roles }, { data: teams }] = await Promise.all([
+  const [{ data: roles }, { data: teams }, csSlugs] = await Promise.all([
     supabaseAdmin.from("user_roles").select("role").eq("user_id", userId),
     supabaseAdmin.from("user_teams").select("team").eq("user_id", userId),
+    csTeamSlugs(),
   ]);
   const roleList = (roles ?? []).map((r) => r.role as string);
   const isManager = roleList.includes("super_admin") || roleList.includes("gestao");
-  const inCs = (teams ?? []).some((t) => t.team === "cs");
+  const inCs = (teams ?? []).some((t) => csSlugs.has(t.team as string));
   if (!isManager && !inCs) throw new Error("Acesso restrito ao time de Customer Success");
   return { isManager, inCs };
 }
@@ -70,12 +83,15 @@ export async function listIntegrationStatus(userIds?: string[]): Promise<Integra
 export async function listCsTeamUsers(): Promise<
   Array<{ userId: string; name: string; email: string | null }>
 > {
-  const [{ data: teams }, { data: roles }, { data: profiles }] = await Promise.all([
-    supabaseAdmin.from("user_teams").select("user_id, team").eq("team", "cs"),
+  const [{ data: teams }, { data: roles }, { data: profiles }, csSlugs] = await Promise.all([
+    supabaseAdmin.from("user_teams").select("user_id, team"),
     supabaseAdmin.from("user_roles").select("user_id, role"),
     supabaseAdmin.from("profiles").select("id, full_name, email"),
+    csTeamSlugs(),
   ]);
-  const ids = new Set((teams ?? []).map((t) => t.user_id));
+  const ids = new Set(
+    (teams ?? []).filter((t) => csSlugs.has(t.team as string)).map((t) => t.user_id),
+  );
   for (const r of roles ?? [])
     if (r.role === "super_admin" || r.role === "gestao" || r.role === "executivo")
       ids.add(r.user_id);

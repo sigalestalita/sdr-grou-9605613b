@@ -2886,22 +2886,75 @@ export type Database = {
       }
       user_teams: {
         Row: {
+          access: string[]
           created_at: string
           id: string
-          team: Database["public"]["Enums"]["app_team"]
+          team: string
+          updated_at: string
           user_id: string
         }
         Insert: {
+          access?: string[]
           created_at?: string
           id?: string
-          team: Database["public"]["Enums"]["app_team"]
+          team: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          access?: string[]
           created_at?: string
           id?: string
-          team?: Database["public"]["Enums"]["app_team"]
+          team?: string
+          updated_at?: string
           user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_teams_team_fkey"
+            columns: ["team"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      teams: {
+        Row: {
+          ativo: boolean
+          cor: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          modulo: string | null
+          nome: string
+          ordem: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          modulo?: string | null
+          nome: string
+          ordem?: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          modulo?: string | null
+          nome?: string
+          ordem?: number
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }

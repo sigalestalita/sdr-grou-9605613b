@@ -54,19 +54,23 @@ export const syncCsOwners = createServerFn({ method: "POST" })
     const weekStart = last?.week_start as string | undefined;
     if (!weekStart) throw new Error("Nenhuma sinaleira sincronizada ainda");
 
-    const snaps = await fetchAllRows<{ client_uid: string; metadata: unknown }>((f, t) =>
-      supabaseAdmin
-        .from("cs_signal_snapshots")
-        .select("client_uid, metadata")
-        .eq("week_start", weekStart)
-        .range(f, t) as never,
+    const snaps = await fetchAllRows<{ client_uid: string; metadata: unknown }>(
+      (f, t) =>
+        supabaseAdmin
+          .from("cs_signal_snapshots")
+          .select("client_uid, metadata")
+          .eq("week_start", weekStart)
+          .range(f, t) as never,
     );
 
     // Nomes distintos que aparecem nos cards
     const wanted = new Map<string, string>(); // norm -> nome original
     const perClient: Array<{ client_uid: string; cs: string | null; com: string | null }> = [];
     for (const s of snaps) {
-      const meta = (s.metadata && typeof s.metadata === "object" ? s.metadata : {}) as Record<string, unknown>;
+      const meta = (s.metadata && typeof s.metadata === "object" ? s.metadata : {}) as Record<
+        string,
+        unknown
+      >;
       const cs = String(meta["cs_atendimento"] ?? "").trim() || null;
       const com = String(meta["responsavel"] ?? "").trim() || null;
       for (const n of [cs, com]) if (n && !wanted.has(normName(n))) wanted.set(normName(n), n);
@@ -78,7 +82,11 @@ export const syncCsOwners = createServerFn({ method: "POST" })
     const byName = new Map<string, string>();
     for (const p of profiles ?? []) {
       if (p.full_name) byName.set(normName(p.full_name as string), p.id as string);
-      if (p.email) byName.set(normName((p.email as string).split("@")[0].replace(/[._]/g, " ")), p.id as string);
+      if (p.email)
+        byName.set(
+          normName((p.email as string).split("@")[0].replace(/[._]/g, " ")),
+          p.id as string,
+        );
     }
 
     const created: Array<{ name: string; email: string }> = [];
@@ -108,10 +116,11 @@ export const syncCsOwners = createServerFn({ method: "POST" })
       await supabaseAdmin
         .from("profiles")
         .upsert({ id: newUser.user.id, email, full_name: titleCase(name) } as never);
+      // Vínculo no time Comercial como executivo (o papel é derivado por trigger)
       await supabaseAdmin
-        .from("user_roles")
-        .upsert({ user_id: newUser.user.id, role: "executivo" } as never, {
-          onConflict: "user_id,role",
+        .from("user_teams")
+        .upsert({ user_id: newUser.user.id, team: "comercial", access: ["executivo"] } as never, {
+          onConflict: "user_id,team",
         });
       byName.set(key, newUser.user.id);
       created.push({ name: titleCase(name), email });

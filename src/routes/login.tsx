@@ -27,7 +27,7 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
-  const [role, setRole] = useState<"sdr" | "executivo" | "gestao">("sdr");
+  const [role, setRole] = useState<"sdr" | "executivo" | "cs" | "gestao">("sdr");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -224,12 +224,13 @@ function LoginPage() {
               <Label className="text-foreground/80">Qual é o seu papel?</Label>
               <RadioGroup
                 value={role}
-                onValueChange={(v) => setRole(v as "sdr" | "executivo" | "gestao")}
-                className="grid grid-cols-3 gap-2"
+                onValueChange={(v) => setRole(v as "sdr" | "executivo" | "cs" | "gestao")}
+                className="grid grid-cols-2 gap-2"
               >
                 {[
                   { v: "sdr", label: "SDR" },
                   { v: "executivo", label: "Executivo" },
+                  { v: "cs", label: "Customer Success" },
                   { v: "gestao", label: "Gestão" },
                 ].map((opt) => (
                   <label
