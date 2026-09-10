@@ -169,7 +169,6 @@ export function modulesFromMemberships(memberships: Membership[], teams: Team[])
 type RouteAccess = { prefix: string; teams: AppTeam[]; roles?: AppRole[] };
 
 const ROUTE_ACCESS: RouteAccess[] = [
-  { prefix: "/inicio", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/cs", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/empresas", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/cs-follow-ups", teams: ["cs"], roles: ["executivo"] },

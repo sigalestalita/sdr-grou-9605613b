@@ -1,55 +1,69 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { format } from "date-fns";
+import { endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { useAuth } from "@/lib/use-auth";
-import { getCsHome } from "@/lib/cs.functions";
-import { getCsFollowUpAgenda, type CsFollowUpItem } from "@/lib/cs-follow-ups.functions";
-import { followUpNeedsEvidence } from "@/lib/cs-follow-up-types";
-import { AwaitingEvidencePill } from "@/components/cs/cs-task-dialog";
-import { CsEscalationsPanel } from "@/components/cs/cs-escalations-panel";
-import { useCurrentRole } from "@/lib/use-role";
-import { getCsCadence, type CsCadenceRow } from "@/lib/cs-cadence.functions";
-import { CsFollowUpActionModal } from "@/components/cs/cs-followup-action-modal";
-import { CS_SIGNAL_CLASS } from "@/lib/cs-types";
-import { CADENCE_URGENCY_LABEL } from "@/lib/cs/cadence";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Activity,
-  AlertTriangle,
-  ArrowRight,
-  Bell,
-  Building2,
-  CalendarCheck,
-  CheckCircle2,
-  Clock,
-  Rss,
+  Briefcase,
+  CalendarClock,
+  Handshake,
+  KanbanSquare,
+  LifeBuoy,
+  Send,
+  Users,
 } from "lucide-react";
+import { useAuth } from "@/lib/use-auth";
+import { useCurrentRole } from "@/lib/use-role";
+import { getWelcome } from "@/lib/welcome.functions";
+import { accessLabel, TEAM_COLORS } from "@/lib/teams";
+import { CsHomeSections, Empty, Section } from "@/components/cs/cs-home";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/inicio")({
-  component: HomePage,
+  component: WelcomePage,
   head: () => ({
     meta: [
       { title: "Início | Grou Compass" },
       {
         name: "description",
-        content: "Seu dia: tarefas, contatos da cadência, alertas e atividade recente da carteira.",
+        content: "Boas-vindas: as métricas mais importantes para você, no período que escolher.",
       },
     ],
   }),
 });
 
-const URGENCY_RANK: Record<string, number> = {
-  crise: 0,
-  estrategico: 1,
-  urgente: 2,
-  normal: 3,
-  baixa: 4,
-  nenhuma: 5,
+type Period = "hoje" | "semana" | "mes" | "30d";
+const PERIOD_LABEL: Record<Period, string> = {
+  hoje: "Hoje",
+  semana: "Esta semana",
+  mes: "Este mês",
+  "30d": "Últimos 30 dias",
 };
+
+function periodRange(p: Period): { from: Date; to: Date } {
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  if (p === "hoje") return { from: start, to: new Date(start.getTime() + 86400000) };
+  if (p === "semana")
+    return {
+      from: startOfWeek(now, { weekStartsOn: 1 }),
+      to: new Date(endOfWeek(now, { weekStartsOn: 1 }).getTime() + 1),
+    };
+  if (p === "mes") return { from: startOfMonth(now), to: new Date(endOfMonth(now).getTime() + 1) };
+  return {
+    from: new Date(start.getTime() - 29 * 86400000),
+    to: new Date(start.getTime() + 86400000),
+  };
+}
 
 function greeting(d: Date) {
   const h = d.getHours();
@@ -58,370 +72,410 @@ function greeting(d: Date) {
   return "Boa noite";
 }
 
+const pct = (v: number | null) => (v === null ? "—" : `${v}%`);
+
 /**
- * Página inicial no padrão HubSpot: saudação, o que tenho hoje (tarefas e
- * contatos da cadência), alertas da minha carteira e feed de atividades.
+ * Tela de boas-vindas. O que aparece depende do que a pessoa faz:
+ *  - SDR: leads no nome dela, abordagens, agendas marcadas, SLA, pipeline, próximas reuniões
+ *  - Executivo: reuniões marcadas para ela, carteira comercial, tarefas
+ *  - CS: carteira por sinaleira, tarefas, contatos — e os blocos do dia (tarefas, cadência, alertas, feed)
+ *  - Gestão: além das próprias, a tabela do time de SDR e o seletor de pessoa
  */
-function HomePage() {
+function WelcomePage() {
   const { user } = useAuth();
   const role = useCurrentRole();
-  const homeFn = useServerFn(getCsHome);
-  const agendaFn = useServerFn(getCsFollowUpAgenda);
-  const cadenceFn = useServerFn(getCsCadence);
-  const qc = useQueryClient();
-  const [action, setAction] = useState<{
-    item: CsFollowUpItem;
-    mode: "resultado" | "reagendar";
-  } | null>(null);
+  const fn = useServerFn(getWelcome);
+  const [period, setPeriod] = useState<Period>("semana");
+  const [who, setWho] = useState<string>("me");
+  const range = useMemo(() => periodRange(period), [period]);
 
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
-  const tomorrow = useMemo(() => new Date(today.getTime() + 86400000), [today]);
-
-  const home = useQuery({
-    queryKey: ["cs-home", user?.id],
-    queryFn: () => homeFn({}),
+  const q = useQuery({
+    queryKey: ["welcome", user?.id, period, who],
+    queryFn: () =>
+      fn({
+        data: {
+          from: range.from.toISOString(),
+          to: range.to.toISOString(),
+          ...(who !== "me" ? { userId: who } : {}),
+        },
+      }),
     enabled: !!user,
+    staleTime: 60_000,
   });
-  const agenda = useQuery({
-    queryKey: ["cs-follow-ups", "hoje", user?.id],
-    queryFn: () => agendaFn({ data: { from: today.toISOString(), to: tomorrow.toISOString() } }),
-    enabled: !!user,
-  });
-  const cadence = useQuery({
-    queryKey: ["cs-cadence", "home", user?.id],
-    queryFn: () => cadenceFn({ data: { tipo: "all" } }),
-    enabled: !!user,
-  });
-
-  const me = user?.id ?? null;
-  const tasks = useMemo(() => {
-    const all = [...(agenda.data?.overdue ?? []), ...(agenda.data?.scheduled ?? [])];
-    return all
-      .filter((t) => !t.done && (!me || t.ownerId === me))
-      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
-  }, [agenda.data, me]);
-
-  const dueRows = useMemo(() => {
-    const rows = (cadence.data?.rows ?? []).filter(
-      (r: CsCadenceRow) => r.plan.due && (!me || r.ownerId === me || r.execId === me),
-    );
-    return rows
-      .sort((a, b) => (URGENCY_RANK[a.plan.urgency] ?? 9) - (URGENCY_RANK[b.plan.urgency] ?? 9))
-      .slice(0, 8);
-  }, [cadence.data, me]);
-
-  const myAlerts = (home.data?.alerts ?? []).filter((a) => a.mine).slice(0, 6);
-  const events = home.data?.events ?? [];
-  const profileName = useMemo(() => {
-    const map = new Map(
-      (home.data?.profiles ?? []).map((p) => [p.id, p.full_name || p.email || p.id]),
-    );
-    return (id: string | null | undefined) => (id ? (map.get(id) ?? "—") : "Sistema");
-  }, [home.data?.profiles]);
-
-  const firstName = (home.data?.me.name ?? "").split(" ")[0] || "";
-  const invalidateAll = () => {
-    qc.invalidateQueries({ queryKey: ["cs-home"] });
-    qc.invalidateQueries({ queryKey: ["cs-follow-ups"] });
-    qc.invalidateQueries({ queryKey: ["cs-cadence"] });
-  };
+  const d = q.data;
+  const viewingSelf = !d || d.viewing.id === d.me.id;
+  const firstName = (d?.me.name ?? "").split(" ")[0];
 
   return (
     <div className="mx-auto max-w-[1100px] space-y-6 p-4 lg:p-8">
-      <header>
-        <p className="text-[12px] font-medium capitalize text-muted-foreground">
-          {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-        </p>
-        <h1 className="mt-1 text-2xl font-semibold">
-          {greeting(new Date())}
-          {firstName ? `, ${firstName}` : ""}
-        </h1>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-[12px] font-medium capitalize text-muted-foreground">
+            {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold">
+            {greeting(new Date())}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          {d && (
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {viewingSelf ? null : (
+                <span className="text-[12px] text-muted-foreground">Vendo {d.viewing.name} ·</span>
+              )}
+              {d.viewing.memberships.map((m) => (
+                <span
+                  key={m.team}
+                  className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                    TEAM_COLORS[m.cor]?.chip ?? TEAM_COLORS.slate.chip
+                  }`}
+                >
+                  {m.team} · {m.access.map(accessLabel).join(", ")}
+                </span>
+              ))}
+              {d.viewing.isManager && d.viewing.memberships.length === 0 && (
+                <Badge variant="secondary">Gestão</Badge>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {d?.me.isManager && d.pickable.length > 0 && (
+            <Select value={who} onValueChange={setWho}>
+              <SelectTrigger className="h-8 w-52 text-xs">
+                <Users className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="me">Minhas métricas</SelectItem>
+                {d.pickable
+                  .filter((p) => p.id !== d.me.id)
+                  .map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
+                      <span className="ml-1 text-muted-foreground">
+                        · {p.teams.map((t) => t.access.map(accessLabel).join("/")).join(", ")}
+                      </span>
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>
+            <SelectTrigger className="h-8 w-40 text-xs">
+              <CalendarClock className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(PERIOD_LABEL) as Period[]).map((p) => (
+                <SelectItem key={p} value={p}>
+                  {PERIOD_LABEL[p]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </header>
 
-      {/* Resumo da carteira */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tile
-          label="Minha carteira"
-          value={home.data?.carteira.mine ?? 0}
-          hint={`de ${home.data?.carteira.total ?? 0} empresas`}
-          to="/cs"
-        />
-        <Tile
-          label="Em vermelho"
-          value={home.data?.carteira.mineRed ?? 0}
-          tone={home.data?.carteira.mineRed ? "red" : undefined}
-          to="/cs"
-        />
-        <Tile
-          label="Alertas abertos"
-          value={home.data?.carteira.alertsMine ?? 0}
-          hint={`${home.data?.carteira.alertsOpen ?? 0} no time`}
-          tone={home.data?.carteira.alertsMine ? "amber" : undefined}
-          to="/cs"
-        />
-        <Tile label="Tarefas hoje" value={tasks.length + dueRows.length} to="/cs-follow-ups" />
-      </div>
+      {q.isLoading && <Empty>Carregando suas métricas…</Empty>}
+      {q.error && <Empty>{q.error instanceof Error ? q.error.message : "Erro ao carregar"}</Empty>}
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <div className="space-y-4">
-          {/* Tarefas */}
-          <Section icon={CalendarCheck} title="Tarefas" to="/cs-follow-ups" toLabel="Ver agenda">
-            {agenda.isLoading ? (
-              <Empty>Carregando…</Empty>
-            ) : tasks.length === 0 ? (
-              <Empty>Hoje você não tem tarefas.</Empty>
-            ) : (
-              <ul className="divide-y">
-                {tasks.map((t) => {
-                  const overdue = new Date(t.dueAt) < today;
+      {d && !d.show.sdr && !d.show.executivo && !d.show.cs && !d.show.gestaoSdr && (
+        <Section icon={LifeBuoy} title="Sem time ainda">
+          <Empty>
+            {viewingSelf
+              ? "Seu usuário ainda não está em nenhum time. Peça à gestão para incluir você em Administração → Usuários."
+              : "Essa pessoa ainda não está em nenhum time."}
+          </Empty>
+        </Section>
+      )}
+
+      {/* ---------------- SDR ---------------- */}
+      {d?.sdr && (
+        <Section
+          icon={KanbanSquare}
+          title={`SDR · ${PERIOD_LABEL[period].toLowerCase()}`}
+          to="/kanban"
+          toLabel="Ver pipeline"
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Metric label="Leads novos" value={d.sdr.novos} hint="no meu nome" />
+            <Metric label="Abordados" value={d.sdr.abordados} hint="1º toque feito" />
+            <Metric
+              label="Agendas marcadas"
+              value={d.sdr.marcadas}
+              hint={`taxa ${pct(d.sdr.taxaAgendamento)} dos abordados`}
+              tone={d.sdr.marcadas > 0 ? "good" : undefined}
+            />
+            <Metric
+              label="Reuniões no período"
+              value={d.sdr.reunioesNoPeriodo}
+              hint="pela data da reunião"
+            />
+            <Metric
+              label="SLA 1º toque"
+              value={pct(d.sdr.slaDentroPct)}
+              hint={
+                d.sdr.slaMediaMin !== null
+                  ? `média ${d.sdr.slaMediaMin} min · ${d.sdr.slaAmostra} leads`
+                  : "sem abordagens no período"
+              }
+              tone={
+                d.sdr.slaDentroPct !== null
+                  ? d.sdr.slaDentroPct >= 80
+                    ? "good"
+                    : "warn"
+                  : undefined
+              }
+            />
+            <Metric label="Enviados ao comercial" value={d.sdr.enviadosComercial} />
+            <Metric label="Desqualificados" value={d.sdr.perdidos} />
+            <Metric
+              label="Mensagens WhatsApp"
+              value={d.sdr.mensagensWhatsapp}
+              hint="enviadas por mim"
+            />
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div>
+              <p className="section-label mb-2">Pipeline em aberto · {d.sdr.emAberto} leads</p>
+              <ul className="space-y-1.5">
+                {d.sdr.pipeline.map((s) => {
+                  const w = d.sdr!.emAberto ? Math.round((s.count / d.sdr!.emAberto) * 100) : 0;
                   return (
-                    <li key={t.key} className="flex items-center gap-3 py-2.5">
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-full ${CS_SIGNAL_CLASS[t.signal ?? "sem_dado"]}`}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[13px] font-medium">{t.title}</p>
-                        <p className="truncate text-[12px] text-muted-foreground">
-                          <Link
-                            to="/empresas/$uid"
-                            params={{ uid: t.clientUid }}
-                            className="hover:underline"
-                          >
-                            {t.clientName}
-                          </Link>
-                          {t.subtitle ? ` · ${t.subtitle}` : ""}
-                        </p>
-                      </div>
-                      <span
-                        className={`whitespace-nowrap text-[11px] ${overdue ? "text-destructive" : "text-muted-foreground"}`}
-                      >
-                        {overdue ? "atrasada · " : ""}
-                        {format(new Date(t.dueAt), "dd/MM HH:mm", { locale: ptBR })}
+                    <li key={s.slug} className="flex items-center gap-2 text-[12px]">
+                      <span className="w-40 truncate text-muted-foreground">{s.stage}</span>
+                      <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                        <span
+                          className="block h-full rounded-full bg-primary"
+                          style={{ width: `${w}%` }}
+                        />
                       </span>
-                      {followUpNeedsEvidence(t, agenda.data?.evidenceChannels ?? []) ? (
-                        <AwaitingEvidencePill type={t.taskType ?? "email"} />
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7"
-                          onClick={() => setAction({ item: t, mode: "resultado" })}
-                        >
-                          <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Concluir
-                        </Button>
-                      )}
+                      <span className="w-8 text-right tabular-nums">{s.count}</span>
                     </li>
                   );
                 })}
               </ul>
-            )}
-          </Section>
+            </div>
+            <div>
+              <p className="section-label mb-2">Próximas reuniões</p>
+              {d.sdr.proximasReunioes.length === 0 ? (
+                <Empty>Nenhuma reunião marcada daqui pra frente.</Empty>
+              ) : (
+                <ul className="divide-y">
+                  {d.sdr.proximasReunioes.map((m) => (
+                    <li key={m.id} className="flex items-center gap-2 py-2 text-[12px]">
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          to="/lead/$id"
+                          params={{ id: m.id }}
+                          className="truncate font-medium hover:underline"
+                        >
+                          {m.company}
+                        </Link>
+                        <p className="truncate text-muted-foreground">
+                          {m.name}
+                          {m.executivo ? ` · com ${m.executivo}` : " · executivo a definir"}
+                        </p>
+                      </div>
+                      <span className="whitespace-nowrap text-muted-foreground">
+                        {format(new Date(m.meetingAt), "dd/MM HH:mm", { locale: ptBR })}
+                      </span>
+                      <Send
+                        className={`h-3.5 w-3.5 ${m.conviteEnviado ? "text-emerald-500" : "text-muted-foreground/40"}`}
+                        aria-label={m.conviteEnviado ? "Convite enviado" : "Convite não enviado"}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </Section>
+      )}
 
-          {/* Cadência */}
-          <Section
-            icon={Activity}
-            title="Contatos da cadência"
-            to="/cs-kanban"
-            toLabel="Ver kanban semanal"
-          >
-            {cadence.isLoading ? (
-              <Empty>Carregando…</Empty>
-            ) : dueRows.length === 0 ? (
-              <Empty>Nenhum contato vencido na sua carteira.</Empty>
+      {/* ---------------- Time de SDR (gestão) ---------------- */}
+      {d?.team && (
+        <Section
+          icon={Users}
+          title={`Time de SDR · ${PERIOD_LABEL[period].toLowerCase()}`}
+          to="/leads-analytics"
+          toLabel="Performance SDR"
+        >
+          {d.team.length === 0 ? (
+            <Empty>Ninguém com acesso SDR no time Comercial ainda.</Empty>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-[12px]">
+                <thead className="text-left text-muted-foreground">
+                  <tr>
+                    <th className="py-1.5 pr-2 font-medium">Pessoa</th>
+                    <th className="py-1.5 pr-2 text-right font-medium">Novos</th>
+                    <th className="py-1.5 pr-2 text-right font-medium">Abordados</th>
+                    <th className="py-1.5 pr-2 text-right font-medium">Agendas</th>
+                    <th className="py-1.5 pr-2 text-right font-medium">Taxa</th>
+                    <th className="py-1.5 text-right font-medium">SLA 15 min</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.team.map((r) => (
+                    <tr key={r.id} className="border-t">
+                      <td className="py-1.5 pr-2">
+                        <button
+                          type="button"
+                          className="font-medium hover:underline"
+                          onClick={() => setWho(r.id)}
+                        >
+                          {r.name}
+                        </button>
+                      </td>
+                      <td className="py-1.5 pr-2 text-right tabular-nums">{r.novos}</td>
+                      <td className="py-1.5 pr-2 text-right tabular-nums">{r.abordados}</td>
+                      <td className="py-1.5 pr-2 text-right tabular-nums font-semibold">
+                        {r.marcadas}
+                      </td>
+                      <td className="py-1.5 pr-2 text-right tabular-nums">{pct(r.taxa)}</td>
+                      <td className="py-1.5 text-right tabular-nums">{pct(r.slaDentroPct)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Section>
+      )}
+
+      {/* ---------------- Executivo ---------------- */}
+      {d?.executivo && (
+        <Section
+          icon={Handshake}
+          title={`Executivo comercial · ${PERIOD_LABEL[period].toLowerCase()}`}
+          to="/empresas"
+          toLabel="Ver empresas"
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Metric
+              label="Agendas marcadas para mim"
+              value={d.executivo.marcadasParaMim}
+              hint="pelos SDRs"
+            />
+            <Metric label="Reuniões no período" value={d.executivo.reunioesNoPeriodo} />
+            <Metric
+              label="Carteira comercial"
+              value={d.executivo.carteira.total}
+              hint={`${d.executivo.carteira.verde} verde · ${d.executivo.carteira.amarelo} amarelo · ${d.executivo.carteira.vermelho} vermelho`}
+              tone={d.executivo.carteira.vermelho ? "warn" : undefined}
+            />
+            <Metric
+              label="Tarefas pendentes"
+              value={d.executivo.tarefasPendentes}
+              hint={
+                d.executivo.tarefasAtrasadas
+                  ? `${d.executivo.tarefasAtrasadas} atrasadas`
+                  : "nenhuma atrasada"
+              }
+              tone={d.executivo.tarefasAtrasadas ? "warn" : undefined}
+            />
+          </div>
+          <div className="mt-4">
+            <p className="section-label mb-2">Próximas reuniões</p>
+            {d.executivo.proximas.length === 0 ? (
+              <Empty>Nenhuma reunião marcada para você.</Empty>
             ) : (
               <ul className="divide-y">
-                {dueRows.map((r) => (
-                  <li key={r.clientUid} className="flex items-center gap-3 py-2.5">
-                    <span
-                      className={`h-2 w-2 shrink-0 rounded-full ${CS_SIGNAL_CLASS[r.plan.color ?? "sem_dado"]}`}
-                    />
+                {d.executivo.proximas.map((m) => (
+                  <li key={m.id} className="flex items-center gap-2 py-2 text-[12px]">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-[13px] font-medium">
-                        <Link
-                          to="/empresas/$uid"
-                          params={{ uid: r.clientUid }}
-                          className="hover:underline"
-                        >
-                          {r.clientName}
-                        </Link>
-                      </p>
-                      <p className="truncate text-[12px] text-muted-foreground">
-                        {r.plan.action || r.plan.reason}
+                      <Link
+                        to="/lead/$id"
+                        params={{ id: m.id }}
+                        className="truncate font-medium hover:underline"
+                      >
+                        {m.company}
+                      </Link>
+                      <p className="truncate text-muted-foreground">
+                        {m.name}
+                        {m.sdr ? ` · marcada por ${m.sdr}` : ""}
                       </p>
                     </div>
-                    <Badge variant="outline" className="text-[10px]">
-                      {CADENCE_URGENCY_LABEL[r.plan.urgency] ?? r.plan.urgency}
-                    </Badge>
-                    {r.plan.overdueDays > 0 && (
-                      <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] text-destructive">
-                        <Clock className="h-3 w-3" /> {r.plan.overdueDays} d
-                      </span>
-                    )}
+                    <span className="whitespace-nowrap text-muted-foreground">
+                      {format(new Date(m.meetingAt), "EEE dd/MM HH:mm", { locale: ptBR })}
+                    </span>
+                    <Send
+                      className={`h-3.5 w-3.5 ${m.conviteEnviado ? "text-emerald-500" : "text-muted-foreground/40"}`}
+                      aria-label={m.conviteEnviado ? "Convite enviado" : "Convite não enviado"}
+                    />
                   </li>
                 ))}
               </ul>
             )}
-          </Section>
-        </div>
-
-        <div className="space-y-4">
-          {/* Escalações (gestão) */}
-          {!role.loading && role.canAccessAll && (
-            <CsEscalationsPanel
-              compact
-              owners={(home.data?.profiles ?? []).map((p) => ({
-                id: p.id,
-                name: p.full_name || p.email || "—",
-              }))}
-            />
-          )}
-
-          {/* Alertas */}
-          <Section icon={Bell} title="Alertas da minha carteira" to="/cs" toLabel="Ver carteira">
-            {home.isLoading ? (
-              <Empty>Carregando…</Empty>
-            ) : myAlerts.length === 0 ? (
-              <Empty>Nenhum alerta aberto.</Empty>
-            ) : (
-              <ul className="space-y-2">
-                {myAlerts.map((a) => (
-                  <li
-                    key={a.id}
-                    className="rounded-md border border-warning/40 bg-warning/10 px-2.5 py-2 text-[12px]"
-                  >
-                    <p className="flex items-center gap-1.5 font-medium">
-                      <AlertTriangle className="h-3.5 w-3.5 text-warning" />
-                      <Link
-                        to="/empresas/$uid"
-                        params={{ uid: a.client_uid }}
-                        className="truncate hover:underline"
-                      >
-                        {a.clientName}
-                      </Link>
-                    </p>
-                    <p className="line-clamp-2 text-muted-foreground">{a.reason}</p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-
-          {/* Feed */}
-          <Section icon={Rss} title="Feed de atividades">
-            {home.isLoading ? (
-              <Empty>Carregando…</Empty>
-            ) : events.length === 0 ? (
-              <Empty>Acompanhe aqui os contatos, agendas e alterações da carteira.</Empty>
-            ) : (
-              <ol className="relative space-y-3 border-l pl-4">
-                {events.slice(0, 15).map((e) => (
-                  <li key={e.id} className="text-[12px]">
-                    <span className="absolute -left-[5px] mt-1.5 h-2 w-2 rounded-full bg-primary" />
-                    <p className="font-medium text-foreground">
-                      <Link
-                        to="/empresas/$uid"
-                        params={{ uid: e.client_uid }}
-                        className="hover:underline"
-                      >
-                        {e.clientName}
-                      </Link>
-                      <span className="font-normal text-muted-foreground"> · {e.title}</span>
-                    </p>
-                    <p className="text-muted-foreground">
-                      {[
-                        e.channel,
-                        profileName(e.author_id),
-                        format(new Date(e.occurred_at), "dd/MM HH:mm", { locale: ptBR }),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Section>
-        </div>
-      </div>
-
-      {action && (
-        <CsFollowUpActionModal
-          item={action.item}
-          mode={action.mode}
-          evidenceChannels={agenda.data?.evidenceChannels ?? []}
-          onClose={() => setAction(null)}
-          onDone={() => {
-            setAction(null);
-            invalidateAll();
-          }}
-        />
+          </div>
+        </Section>
       )}
+
+      {/* ---------------- CS ---------------- */}
+      {d?.cs && (
+        <Section
+          icon={Briefcase}
+          title={`Customer Success · ${PERIOD_LABEL[period].toLowerCase()}`}
+          to="/cs"
+          toLabel="Ver carteira"
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Metric
+              label="Minha carteira"
+              value={d.cs.carteira.total}
+              hint={`${d.cs.carteira.verde} verde · ${d.cs.carteira.amarelo} amarelo · ${d.cs.carteira.vermelho} vermelho`}
+              tone={d.cs.carteira.vermelho ? "warn" : undefined}
+            />
+            <Metric
+              label="Contatos no período"
+              value={d.cs.contatosNoPeriodo}
+              hint={`${d.cs.reunioesNoPeriodo} reuniões`}
+            />
+            <Metric
+              label="Alertas abertos"
+              value={d.cs.alertasAbertos}
+              tone={d.cs.alertasAbertos ? "warn" : undefined}
+            />
+            <Metric
+              label="Tarefas pendentes"
+              value={d.cs.tarefasPendentes}
+              hint={
+                d.cs.tarefasAtrasadas
+                  ? `${d.cs.tarefasAtrasadas} atrasadas`
+                  : `${d.cs.primeirosSucessos} 1º sucesso no período`
+              }
+              tone={d.cs.tarefasAtrasadas ? "warn" : undefined}
+            />
+          </div>
+        </Section>
+      )}
+
+      {/* Blocos do dia do CS (sempre sobre a pessoa logada) */}
+      {d?.show.cs && viewingSelf && !role.loading && <CsHomeSections />}
     </div>
   );
 }
 
-function Tile({
+function Metric({
   label,
   value,
   hint,
   tone,
-  to,
 }: {
   label: string;
-  value: number;
+  value: number | string;
   hint?: string;
-  tone?: "red" | "amber";
-  to: string;
+  tone?: "good" | "warn";
 }) {
-  const ring = tone === "red" ? "border-red-500/40" : tone === "amber" ? "border-warning/50" : "";
+  const ring =
+    tone === "good" ? "border-emerald-500/40" : tone === "warn" ? "border-warning/50" : "";
   return (
-    <Link
-      to={to}
-      className={`surface-panel block p-3 transition-colors hover:border-primary/50 ${ring}`}
-    >
+    <div className={`surface-panel p-3 ${ring}`}>
       <p className="section-label">{label}</p>
       <p className="metric-value mt-1 text-2xl">{value}</p>
       {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-    </Link>
+    </div>
   );
-}
-
-function Section({
-  icon: Icon,
-  title,
-  to,
-  toLabel,
-  children,
-}: {
-  icon: typeof Building2;
-  title: string;
-  to?: string;
-  toLabel?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="surface-panel p-4">
-      <div className="mb-2 flex items-center gap-2">
-        <Icon className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
-        <h2 className="text-[13px] font-semibold">{title}</h2>
-        {to && (
-          <Link
-            to={to}
-            className="ml-auto inline-flex items-center gap-1 text-[12px] text-primary hover:underline"
-          >
-            {toLabel ?? "Ver tudo"} <ArrowRight className="h-3 w-3" />
-          </Link>
-        )}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return <p className="py-3 text-[13px] text-muted-foreground">{children}</p>;
 }

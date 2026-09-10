@@ -66,7 +66,7 @@ type NavItem = {
  *  - Gestão: tudo (itens repetidos entre módulos aparecem uma vez).
  */
 const NAV_OBJECTS: NavItem[] = [
-  { to: "/inicio", label: "Início", icon: Home, team: "cs", roles: ["executivo"] },
+  { to: "/inicio", label: "Início", icon: Home },
   {
     to: "/cs",
     label: "Empresas",
@@ -102,7 +102,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/cs-kanban", label: "Kanban semanal", icon: KanbanIcon, team: "cs" },
       { to: "/cs-cadencia", label: "Cadência e sinaleira", icon: Activity, team: "cs" },
-      { to: "/cs-integracoes", label: "Integrações", icon: Link2, team: "cs", roles: ["executivo"] },
+      {
+        to: "/cs-integracoes",
+        label: "Integrações",
+        icon: Link2,
+        team: "cs",
+        roles: ["executivo"],
+      },
       {
         to: "/cs-configuracoes",
         label: "Configurações CS",
