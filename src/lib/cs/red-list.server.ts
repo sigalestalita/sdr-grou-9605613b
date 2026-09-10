@@ -101,9 +101,13 @@ export async function sendRedListEmail(opts?: { force?: boolean; minWeeks?: numb
 <tbody>${trs || `<tr><td colspan="6" style="padding:8px;color:#666">Nenhum cliente nessa situação.</td></tr>`}</tbody></table>
 <p style="font-size:13px;color:#444;margin-top:14px">Esses clientes estão além do que o CS pode resolver sozinho. A decisão sobre continuidade, ajuste de produto ou abordagem diferenciada precisa vir da liderança.</p>
 </div>`;
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${process.env.LOVABLE_API_KEY}`,
+      "X-Connection-Api-Key": resendKey,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from: "Grou Compass <noreply@grougp.com.br>",
       to,

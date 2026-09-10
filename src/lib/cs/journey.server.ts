@@ -147,9 +147,13 @@ export async function sendJourneyEmail(id: string, sentBy: string | null) {
   const text = renderJourneyBody(tpl.corpo, toName, cfg.assinatura);
   const resendKey = process.env.RESEND_API_KEY;
   if (!resendKey) throw new Error("RESEND_API_KEY não configurada");
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
     method: "POST",
-    headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json" },
+    headers: {
+      Authorization: `Bearer ${process.env.LOVABLE_API_KEY}`,
+      "X-Connection-Api-Key": resendKey,
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify({
       from: `${cfg.assinatura} · Grou <noreply@grougp.com.br>`,
       to: [to],
