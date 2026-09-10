@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { CadenceJourney } from "./cadence-journey";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -319,16 +320,22 @@ function Stat({ label, value, alert }: { label: string; value: string; alert?: b
   );
 }
 
-/** Modal para ver/registrar touches direto do card do Kanban. */
+/**
+ * Modal do card do Kanban: a cadência do playbook (próximos touchpoints com o
+ * script de cada um, registrar direto dali) e o registro livre de touches.
+ */
 export function TouchSequenceModal({
   leadId,
   leadName,
   onClose,
+  initialTab = "cadencia",
 }: {
   leadId: string;
   leadName?: string | null;
   onClose: () => void;
+  initialTab?: "cadencia" | "touches";
 }) {
+  const [tab, setTab] = useState<"cadencia" | "touches">(initialTab);
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -349,8 +356,31 @@ export function TouchSequenceModal({
             <X className="h-4 w-4" />
           </Button>
         </div>
+        <div className="mb-2 flex gap-1">
+          {(
+            [
+              ["cadencia", "Cadência do playbook"],
+              ["touches", "Touches registrados"],
+            ] as const
+          ).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setTab(v)}
+              className={`rounded-full px-3 py-1 text-xs transition-colors ${tab === v ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div className="bg-popover rounded-xl border shadow-2xl">
-          <TouchSequence leadId={leadId} />
+          {tab === "cadencia" ? (
+            <div className="p-3">
+              <CadenceJourney leadId={leadId} />
+            </div>
+          ) : (
+            <TouchSequence leadId={leadId} />
+          )}
         </div>
       </div>
     </div>,

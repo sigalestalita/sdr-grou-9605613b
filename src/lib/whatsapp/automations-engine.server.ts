@@ -506,9 +506,12 @@ export async function runAutomationsTick(): Promise<{
         continue;
       }
       const usingAiInitial = r.trigger_type === "new_lead";
-      const res = usingAiInitial
+      let res = usingAiInitial
         ? await executeAiInitialOutreachForLead(lead)
         : await executeRuleForLead(r, lead);
+      // IA inicial desligada ou sem template: a 1ª mensagem sai pelo template da regra.
+      if (usingAiInitial && !res.ok && r.template_id && /IA inicial/.test(res.error ?? ""))
+        res = await executeRuleForLead(r, lead);
       if (res.ok) sent++;
       else failed++;
 

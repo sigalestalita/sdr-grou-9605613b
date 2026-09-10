@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type SyntheticEvent } from "react";
 import { listKanbanData, moveLeadStage, createManualLead, updateLead } from "@/lib/leads.functions";
 import { getOrCreateConversationForLead } from "@/lib/whatsapp.functions";
 import { syncRdLeads } from "@/lib/rd-station.functions";
@@ -30,6 +30,8 @@ import { evaluateIcpFit } from "@/lib/icp-fit";
 import { getTouchRules, setFollowUpDone } from "@/lib/touches.functions";
 import { DEFAULT_TOUCH_RULES, channelLabel, outcomeLabel, daysSince } from "@/lib/touch-types";
 import { TouchSequenceModal } from "@/components/leads/touch-sequence";
+import { buildCadencePlan, evaluateSla, resolveTrack } from "@/lib/sdr-cadence";
+import { TRACK_LABEL } from "@/lib/sdr-playbook";
 import { useAuth } from "@/lib/use-auth";
 import { downloadCsv } from "@/lib/export-csv";
 import { toast } from "sonner";
@@ -1221,6 +1223,17 @@ function LeadCard({
         </div>
       )}
 
+      {/* Playbook SDR no card: SLA de 1º atendimento e o próximo touchpoint da cadência */}
+      {!["comercial", "descartado", "perdido", "desqualificado"].includes(stageSlug) && (
+        <CadenceHints
+          lead={lead}
+          onOpen={(e) => {
+            stopDrag(e);
+            setShowTouches(true);
+          }}
+        />
+      )}
+
       {(stageSlug === "qualificacao" || stageSlug === "em_contato") && (
         <div className="mt-2 text-[10px] text-muted-foreground flex items-center gap-1">
           <Timer className="h-3 w-3" />
@@ -1460,6 +1473,82 @@ function LeadCard({
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}>
       {content}
+    </div>
+  );
+}
+
+/**
+ * SLA de 1º atendimento (15 min) e próximo touchpoint do playbook. O "feito"
+ * é aproximado pelo nº de touches registrados (os passos são feitos em ordem);
+ * o modal traz o plano exato e o script de cada passo.
+ */
+function CadenceHints({ lead, onOpen }: { lead: KanbanLead; onOpen: (e: SyntheticEvent) => void }) {
+  const touches = lead.touch_count ?? 0;
+  const sla = evaluateSla({
+    createdAt: lead.created_at,
+    convertedAt: lead.converted_at,
+    firstTouchAt: lead.first_approach_at ?? (touches > 0 ? lead.last_touch_at : null),
+  });
+  const track = resolveTrack({
+    company_size: lead.company_size,
+    linkedin_company_size: lead.linkedin_company_size,
+    lead_type: lead.lead_type,
+    cadence_track: lead.cadence_track,
+  });
+  const startAt = lead.cadence_started_at ?? lead.converted_at ?? lead.created_at;
+  const plan = startAt ? buildCadencePlan({ track, startAt, doneMap: {} }) : null;
+  const next = plan ? (plan.steps[Math.min(touches, plan.steps.length - 1)] ?? null) : null;
+  const finished = !!plan && touches >= plan.steps.length;
+  const showSla = sla.status !== "sem_dado" && (sla.status !== "ok" || touches === 0);
+  if (!showSla && (!next || finished)) return null;
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1">
+      {showSla && (
+        <Badge
+          variant="outline"
+          className={`gap-1 text-[10px] ${
+            sla.status === "estourado"
+              ? "border-red-500/50 text-red-600"
+              : sla.status === "pendente"
+                ? "border-amber-500/50 text-amber-600"
+                : "border-emerald-500/40 text-emerald-600"
+          }`}
+          title="SLA de primeiro atendimento: 15 minutos da conversão até o primeiro touch"
+        >
+          <Timer className="h-3 w-3" /> SLA {sla.minutes} min
+          {sla.status === "estourado"
+            ? " · estourado"
+            : sla.status === "pendente"
+              ? " · sem touch"
+              : ""}
+        </Badge>
+      )}
+      {next && !finished && (
+        <button
+          type="button"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={onOpen}
+          title={`${TRACK_LABEL[track]} · ${next.channelTag} · abrir cadência e script`}
+          className="min-w-0"
+        >
+          <Badge
+            variant="outline"
+            className={`max-w-full gap-1 truncate text-[10px] ${
+              next.status === "atrasado"
+                ? "border-red-500/50 text-red-600"
+                : next.status === "hoje"
+                  ? "border-primary/50 text-primary"
+                  : "text-muted-foreground"
+            }`}
+          >
+            <Activity className="h-3 w-3 shrink-0" />
+            <span className="truncate">
+              D{next.day} {next.period === "manha" ? "M" : "T"} · {next.channelTag} · {next.title}
+            </span>
+            {next.status === "atrasado" ? " · atrasado" : next.status === "hoje" ? " · hoje" : ""}
+          </Badge>
+        </button>
+      )}
     </div>
   );
 }
