@@ -2246,6 +2246,7 @@ export type Database = {
           linkedin_url: string | null
           lost_reason: string | null
           meeting_at: string | null
+          meeting_booked_at: string | null
           name: string
           next_action: string | null
           next_follow_up_at: string | null
@@ -2306,6 +2307,7 @@ export type Database = {
           linkedin_url?: string | null
           lost_reason?: string | null
           meeting_at?: string | null
+          meeting_booked_at?: string | null
           name: string
           next_action?: string | null
           next_follow_up_at?: string | null
@@ -2366,6 +2368,7 @@ export type Database = {
           linkedin_url?: string | null
           lost_reason?: string | null
           meeting_at?: string | null
+          meeting_booked_at?: string | null
           name?: string
           next_action?: string | null
           next_follow_up_at?: string | null

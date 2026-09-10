@@ -1,0 +1,2 @@
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS meeting_booked_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS leads_meeting_booked_at_idx ON public.leads (meeting_booked_at) WHERE meeting_booked_at IS NOT NULL;
