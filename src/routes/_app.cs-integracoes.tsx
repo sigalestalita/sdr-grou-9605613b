@@ -18,6 +18,7 @@ import {
   syncCsCalendly,
 } from "@/lib/cs-integrations.functions";
 import { getRdCsSyncLogs, syncRdCsClients } from "@/lib/cs-rd.functions";
+import { saveMeetingUrl } from "@/lib/meeting-invite.functions";
 import { runRdMirrorSlice, runRdTransform } from "@/lib/rd-master.functions";
 import { Aborted, driveMirror, driveTransform, type TransformSlice } from "@/lib/rd/rd-drive";
 import { Building2, CalendarClock, Copy, Link2, Mail, RefreshCw, Unlink } from "lucide-react";
@@ -125,6 +126,17 @@ function CsIntegrationsPage() {
   const [token, setToken] = useState("");
   const [targetUser, setTargetUser] = useState("");
   const [mailbox, setMailbox] = useState("");
+  const [meetingUrl, setMeetingUrl] = useState("");
+  const meetingUrlFn = useServerFn(saveMeetingUrl);
+  const saveMeeting = useMutation({
+    mutationFn: () => meetingUrlFn({ data: { url: meetingUrl.trim() || null } }),
+    onSuccess: () => {
+      toast.success(meetingUrl.trim() ? "Link de reunião salvo" : "Link de reunião removido");
+      setMeetingUrl("");
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
   const [icsUrl, setIcsUrl] = useState("");
   const [gcalTarget, setGcalTarget] = useState("");
 
@@ -433,6 +445,54 @@ function CsIntegrationsPage() {
           >
             Salvar caixa
           </Button>
+        </Card>
+
+        <Card className="space-y-3 p-4">
+          <div className="flex items-center gap-2">
+            <Link2 className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Meu link de reunião</h2>
+            {mine?.meetingUrl && <Badge variant="secondary">Definido</Badge>}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Link fixo de videochamada (Google Meet ou Zoom pessoal). Quando o SDR marca uma reunião
+            com você, ele entra no convite que vai para o lead e na sua agenda — e a disponibilidade
+            é lida da Google Agenda vinculada acima.
+          </p>
+          {mine?.meetingUrl && (
+            <p className="truncate text-xs text-muted-foreground" title={mine.meetingUrl}>
+              Atual: {mine.meetingUrl}
+            </p>
+          )}
+          <Input
+            placeholder="https://meet.google.com/xxx-xxxx-xxx"
+            value={meetingUrl}
+            onChange={(e) => setMeetingUrl(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              disabled={!/^https?:\/\/\S+$/.test(meetingUrl.trim()) || saveMeeting.isPending}
+              onClick={() => saveMeeting.mutate()}
+            >
+              Salvar link
+            </Button>
+            {mine?.meetingUrl && (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={saveMeeting.isPending}
+                onClick={() => {
+                  setMeetingUrl("");
+                  meetingUrlFn({ data: { url: null } }).then(() => {
+                    toast.success("Link de reunião removido");
+                    invalidate();
+                  });
+                }}
+              >
+                Remover
+              </Button>
+            )}
+          </div>
         </Card>
       </div>
 

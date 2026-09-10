@@ -5,6 +5,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState, useEffect, useRef, type SyntheticEvent } from "react";
 import { listKanbanData, moveLeadStage, createManualLead, updateLead } from "@/lib/leads.functions";
 import { getOrCreateConversationForLead } from "@/lib/whatsapp.functions";
+import { getExecutivoAvailability } from "@/lib/meeting-invite.functions";
+import { MeetingInviteDialog } from "@/components/leads/meeting-invite-dialog";
 import { syncRdLeads } from "@/lib/rd-station.functions";
 import { autoEnrichPendingLeads, recalculatePendingScores } from "@/lib/ai.functions";
 import { syncLeadsFromSheet } from "@/lib/sheets.functions";
@@ -58,6 +60,7 @@ import {
   AlertTriangle,
   CalendarClock,
   Download,
+  Send,
   SlidersHorizontal,
 } from "lucide-react";
 import {
@@ -1582,8 +1585,29 @@ function ScheduledBlock({
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   };
   const [draft, setDraft] = useState(meetingAt ? toLocal(meetingAt) : "");
+  const [invite, setInvite] = useState(false);
   const executivos = profiles.filter((p) => executivoIds.includes(p.id));
   const stop = (e: { stopPropagation: () => void }) => e.stopPropagation();
+
+  // Agenda do executivo no dia da reunião: conflito + horários livres
+  const availabilityFn = useServerFn(getExecutivoAvailability);
+  const day = meetingAt ? format(meetingAt, "yyyy-MM-dd") : null;
+  const { data: avail } = useQuery({
+    queryKey: ["exec-availability", lead.executivo_id, day, lead.meeting_at, lead.id],
+    queryFn: () =>
+      availabilityFn({
+        data: {
+          executivoId: lead.executivo_id!,
+          day: day!,
+          leadId: lead.id,
+          meetingAt: meetingAt!.toISOString(),
+          ...(lead.meeting_duration_min ? { durationMin: lead.meeting_duration_min } : {}),
+        },
+      }),
+    enabled: !!lead.executivo_id && !!day,
+    staleTime: 5 * 60_000,
+  });
+  const inviteSentAt = lead.meeting_invite_sent_at ? new Date(lead.meeting_invite_sent_at) : null;
   return (
     <div className="mt-2 space-y-1 rounded-md border border-emerald-500/30 bg-emerald-500/5 p-1.5">
       {editing ? (
@@ -1624,12 +1648,18 @@ function ScheduledBlock({
       )}
       <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
         <Clock className="h-3 w-3" />
-        {bookedAt ? `Marcada em ${format(bookedAt, "dd/MM HH:mm", { locale: ptBR })}` : "Marcada em —"}
+        {bookedAt
+          ? `Marcada em ${format(bookedAt, "dd/MM HH:mm", { locale: ptBR })}`
+          : "Marcada em —"}
         {convertedAt && bookedAt
           ? ` · ${formatDistanceToNow(convertedAt, { locale: ptBR })} após conversão`
           : ""}
       </p>
-      <label className="flex items-center gap-1 text-[10px] text-muted-foreground" onPointerDown={stop} onClick={stop}>
+      <label
+        className="flex items-center gap-1 text-[10px] text-muted-foreground"
+        onPointerDown={stop}
+        onClick={stop}
+      >
         <UserIcon className="h-3 w-3 shrink-0" />
         <select
           value={lead.executivo_id ?? ""}
@@ -1645,6 +1675,79 @@ function ScheduledBlock({
           ))}
         </select>
       </label>
+
+      {lead.executivo_id && meetingAt && avail && (
+        <div className="space-y-1 text-[10px]" onPointerDown={stop} onClick={stop}>
+          {!avail.connected ? (
+            <p className="text-muted-foreground">
+              Agenda do executivo não vinculada (Integrações).
+            </p>
+          ) : avail.conflicts.length ? (
+            <p className="text-amber-600">
+              Conflito: {avail.conflicts[0].title ?? "compromisso"}{" "}
+              {format(new Date(avail.conflicts[0].start), "HH:mm")}–
+              {format(new Date(avail.conflicts[0].end), "HH:mm")}
+            </p>
+          ) : (
+            <p className="text-emerald-600">Executivo livre nesse horário ✓</p>
+          )}
+          {avail.connected && avail.conflicts.length > 0 && avail.free.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-muted-foreground">Livre:</span>
+              {avail.free.slice(0, 5).map((iso) => (
+                <button
+                  key={iso}
+                  type="button"
+                  className="rounded border border-border px-1 py-0.5 hover:bg-muted"
+                  onClick={() => onUpdate({ meeting_at: iso })}
+                >
+                  {format(new Date(iso), "HH:mm")}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-1" onPointerDown={stop} onClick={stop}>
+        <span className="text-[10px] text-muted-foreground">
+          {inviteSentAt
+            ? `Convite enviado ${format(inviteSentAt, "dd/MM HH:mm", { locale: ptBR })}`
+            : "Convite ainda não enviado"}
+        </span>
+        <button
+          type="button"
+          disabled={!meetingAt || !lead.executivo_id}
+          title={
+            !meetingAt || !lead.executivo_id
+              ? "Defina data e executivo primeiro"
+              : "Enviar convite ao lead e ao executivo, com a passada de bastão"
+          }
+          onClick={() => setInvite(true)}
+          className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium disabled:opacity-50 ${
+            inviteSentAt
+              ? "border border-border text-foreground hover:bg-muted"
+              : "bg-primary text-primary-foreground"
+          }`}
+        >
+          <Send className="h-3 w-3" />
+          {inviteSentAt ? "Reenviar" : "Enviar convite"}
+        </button>
+      </div>
+      {invite && (
+        <MeetingInviteDialog
+          lead={{
+            id: lead.id,
+            name: lead.name,
+            email: lead.email,
+            company_name: lead.company_name,
+            meeting_at: lead.meeting_at,
+            executivo_id: lead.executivo_id,
+            meeting_invite_sent_at: lead.meeting_invite_sent_at,
+          }}
+          onClose={() => setInvite(false)}
+        />
+      )}
     </div>
   );
 }

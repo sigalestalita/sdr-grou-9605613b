@@ -14,7 +14,7 @@ export const listKanbanData = createServerFn({ method: "GET" })
     // Só as colunas que o Kanban usa: os campos longos (BANT, resumo da
     // empresa, sinais de ICP, dor provável) ficam para a página do lead.
     const KANBAN_COLUMNS =
-      "id, name, email, phone, company_name, company_segment, company_size, company_website, linkedin_url, position, stage_id, stage_entered_at, priority, score, source, campaign, ad_name, lead_type, assigned_to, enrichment_status, converted_at, created_at, meeting_at, next_follow_up_at, last_touch_at, last_touch_channel, last_touch_outcome, touch_count, lost_reason, demo_free, cadence_track, cadence_status, cadence_started_at, first_approach_at, linkedin_company_size, meeting_booked_at, executivo_id, form_payload";
+      "id, name, email, phone, company_name, company_segment, company_size, company_website, linkedin_url, position, stage_id, stage_entered_at, priority, score, source, campaign, ad_name, lead_type, assigned_to, enrichment_status, converted_at, created_at, meeting_at, next_follow_up_at, last_touch_at, last_touch_channel, last_touch_outcome, touch_count, lost_reason, demo_free, cadence_track, cadence_status, cadence_started_at, first_approach_at, linkedin_company_size, meeting_booked_at, executivo_id, form_payload, meeting_invite_sent_at, meeting_duration_min";
     const filter = "source.is.null,source.neq.campaign_upload";
     async function fetchAllLeads() {
       // Conta primeiro e busca as páginas em paralelo (o PostgREST devolve no

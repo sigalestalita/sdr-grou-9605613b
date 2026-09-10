@@ -25,7 +25,10 @@ export async function assertCsAccess(userId: string): Promise<CsAccess> {
   const roleList = (roles ?? []).map((r) => r.role as string);
   const isManager = roleList.includes("super_admin") || roleList.includes("gestao");
   const inCs = (teams ?? []).some((t) => csSlugs.has(t.team as string));
-  if (!isManager && !inCs) throw new Error("Acesso restrito ao time de Customer Success");
+  // executivo comercial entra para vincular a própria agenda (convites do SDR)
+  const isExecutivo = roleList.includes("executivo");
+  if (!isManager && !inCs && !isExecutivo)
+    throw new Error("Acesso restrito ao time de Customer Success");
   return { isManager, inCs };
 }
 
@@ -43,6 +46,7 @@ export type IntegrationStatus = {
   gcalLastSyncAt: string | null;
   gcalLastError: string | null;
   mailbox: string | null;
+  meetingUrl: string | null;
 };
 
 /** Status das integrações (nunca devolve tokens). */
@@ -50,7 +54,7 @@ export async function listIntegrationStatus(userIds?: string[]): Promise<Integra
   let q = supabaseAdmin
     .from("cs_user_integrations")
     .select(
-      "user_id, calendly_user_uri, calendly_name, calendly_email, calendly_last_sync_at, calendly_last_error, email_address, gcal_ics_url, gcal_email, gcal_last_sync_at, gcal_last_error",
+      "user_id, calendly_user_uri, calendly_name, calendly_email, calendly_last_sync_at, calendly_last_error, email_address, gcal_ics_url, gcal_email, gcal_last_sync_at, gcal_last_error, meeting_url",
     );
   if (userIds?.length) q = q.in("user_id", userIds);
   const [{ data: rows, error }, { data: profiles }] = await Promise.all([
@@ -75,6 +79,7 @@ export async function listIntegrationStatus(userIds?: string[]): Promise<Integra
       gcalLastSyncAt: r.gcal_last_sync_at,
       gcalLastError: r.gcal_last_error,
       mailbox: r.email_address,
+      meetingUrl: (r as { meeting_url?: string | null }).meeting_url ?? null,
     };
   });
 }

@@ -180,7 +180,7 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/cs-playbook", teams: ["cs"] },
   { prefix: "/cs-agenda", teams: ["cs"] },
   { prefix: "/cs-emails", teams: ["cs"] },
-  { prefix: "/cs-integracoes", teams: ["cs"] },
+  { prefix: "/cs-integracoes", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/dashboard", teams: ["comercial"] },
   { prefix: "/kanban", teams: ["comercial"] },
   { prefix: "/lead", teams: ["comercial"], roles: ["executivo"] },

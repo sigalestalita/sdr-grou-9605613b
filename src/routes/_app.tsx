@@ -102,7 +102,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/cs-kanban", label: "Kanban semanal", icon: KanbanIcon, team: "cs" },
       { to: "/cs-cadencia", label: "Cadência e sinaleira", icon: Activity, team: "cs" },
-      { to: "/cs-integracoes", label: "Integrações", icon: Link2, team: "cs" },
+      { to: "/cs-integracoes", label: "Integrações", icon: Link2, team: "cs", roles: ["executivo"] },
       {
         to: "/cs-configuracoes",
         label: "Configurações CS",
