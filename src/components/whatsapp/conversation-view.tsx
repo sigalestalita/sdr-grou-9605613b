@@ -1,7 +1,13 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listMessages, sendMessage, sendMediaFromStorage } from "@/lib/whatsapp.functions";
+import {
+  listMessages,
+  sendMessage,
+  sendMediaFromStorage,
+  sendTemplateToConversation,
+} from "@/lib/whatsapp.functions";
+import { listTemplates } from "@/lib/whatsapp-templates.functions";
 import { explainWhatsappError } from "@/lib/whatsapp/send-error";
 import {
   summarizeConversation,
@@ -179,10 +185,14 @@ export function ConversationView({ conversationId }: { conversationId: string })
     }
   }
 
+  // Enquanto carrega, não trava o campo — só bloqueia quando o servidor
+  // confirma que a janela de 24h está fechada.
+  const canSendFreeText = data?.window ? data.window.canSendFreeText : true;
+
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     const v = text.trim();
-    if (!v) return;
+    if (!v || !canSendFreeText) return;
     send.mutate(v);
   }
 
@@ -222,6 +232,14 @@ export function ConversationView({ conversationId }: { conversationId: string })
           );
         })}
       </div>
+      <WindowBar
+        window={data?.window ?? null}
+        conversationId={conversationId}
+        onSent={() => {
+          qc.invalidateQueries({ queryKey: ["wa-messages", conversationId] });
+          qc.invalidateQueries({ queryKey: ["wa-conversations"] });
+        }}
+      />
       <form onSubmit={onSubmit} className="border-t border-white/5 p-3 flex gap-2 items-end">
         <Button
           type="button"
@@ -269,14 +287,140 @@ export function ConversationView({ conversationId }: { conversationId: string })
               onSubmit(e);
             }
           }}
-          placeholder="Digite uma mensagem ou anexe um arquivo (Enter envia, Shift+Enter quebra linha)"
+          placeholder={
+            canSendFreeText
+              ? "Digite uma mensagem ou anexe um arquivo (Enter envia, Shift+Enter quebra linha)"
+              : "Janela de 24h fechada — envie um template aprovado pelo botão acima"
+          }
           className="min-h-[44px] max-h-[160px] resize-none"
-          disabled={send.isPending || uploading}
+          disabled={send.isPending || uploading || !canSendFreeText}
         />
-        <Button type="submit" disabled={send.isPending || uploading || !text.trim()} size="sm">
+        <Button
+          type="submit"
+          disabled={send.isPending || uploading || !text.trim() || !canSendFreeText}
+          size="sm"
+        >
           <Send className="h-4 w-4" />
         </Button>
       </form>
+    </div>
+  );
+}
+
+type Win = {
+  state: "aberta" | "fechando" | "fechada" | "sem_contato";
+  canSendFreeText: boolean;
+  label: string;
+  hint: string;
+};
+
+const WIN_TONE: Record<Win["state"], string> = {
+  aberta: "border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-400",
+  fechando: "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  fechada: "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400",
+  sem_contato: "border-border bg-muted/40 text-muted-foreground",
+};
+
+/**
+ * Estado da janela de 24h do WhatsApp, logo acima do campo de mensagem, com o
+ * atalho para mandar um template aprovado quando ela está fechada.
+ */
+function WindowBar({
+  window: win,
+  conversationId,
+  onSent,
+}: {
+  window: Win | null;
+  conversationId: string;
+  onSent: () => void;
+}) {
+  const listFn = useServerFn(listTemplates);
+  const sendTemplateFn = useServerFn(sendTemplateToConversation);
+  const [open, setOpen] = useState(false);
+
+  const { data: tpl } = useQuery({
+    queryKey: ["wa-templates-approved"],
+    queryFn: () => listFn(),
+    staleTime: 5 * 60_000,
+  });
+  const approved = (tpl?.templates ?? []).filter(
+    (t: { status?: string | null }) => t.status === "approved",
+  ) as Array<{ id: string; name: string; body: string | null; category: string | null }>;
+
+  const sendTemplate = useMutation({
+    mutationFn: (templateId: string) => sendTemplateFn({ data: { conversationId, templateId } }),
+    onSuccess: () => {
+      toast.success("Template enviado");
+      setOpen(false);
+      onSent();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao enviar template"),
+  });
+
+  if (!win) return null;
+  const urgent = win.state === "fechada" || win.state === "sem_contato";
+
+  return (
+    <div
+      className={`flex items-center gap-2 border-t px-3 py-2 text-[11px] ${WIN_TONE[win.state]}`}
+    >
+      <Clock className="h-3.5 w-3.5 shrink-0" />
+      <span className="font-semibold">{win.label}</span>
+      <span className="hidden min-w-0 flex-1 truncate opacity-80 sm:block">{win.hint}</span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            variant={urgent ? "default" : "outline"}
+            className="ml-auto h-7 shrink-0 text-[11px]"
+          >
+            <FileText className="mr-1 h-3.5 w-3.5" />
+            Enviar template
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-96 p-0">
+          <div className="border-b px-3 py-2">
+            <p className="text-xs font-semibold">Templates aprovados na Meta</p>
+            <p className="text-[11px] text-muted-foreground">
+              São os únicos que saem com a janela fechada. As variáveis são preenchidas com os dados
+              do lead.
+            </p>
+          </div>
+          {approved.length === 0 ? (
+            <p className="px-3 py-4 text-[11px] text-muted-foreground">
+              Nenhum template aprovado ainda. Crie e envie para aprovação na aba Templates.
+            </p>
+          ) : (
+            <ul className="max-h-72 overflow-y-auto py-1">
+              {approved.map((t) => (
+                <li key={t.id}>
+                  <button
+                    type="button"
+                    disabled={sendTemplate.isPending}
+                    onClick={() => sendTemplate.mutate(t.id)}
+                    className="w-full px-3 py-2 text-left transition-colors hover:bg-muted disabled:opacity-50"
+                  >
+                    <p className="flex items-center gap-1.5 text-xs font-medium">
+                      {t.name}
+                      {t.category && (
+                        <Badge variant="outline" className="text-[9px]">
+                          {t.category}
+                        </Badge>
+                      )}
+                    </p>
+                    {t.body && (
+                      <p className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground">
+                        {t.body}
+                      </p>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

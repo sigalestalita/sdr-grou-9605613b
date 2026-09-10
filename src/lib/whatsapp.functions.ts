@@ -53,7 +53,46 @@ export const listConversations = createServerFn({ method: "GET" })
       });
     }
     const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
-    return { conversations: result, profiles: profiles ?? [] };
+
+    /*
+     * Janela de 24h por conversa, para o SDR ver na lista quais estão prestes a
+     * fechar. Só as mensagens das últimas 25h importam: quem não aparece aqui
+     * já está com a janela fechada, então nem precisa entrar na consulta.
+     */
+    const { serviceWindow } = await import("./whatsapp/service-window");
+    const desde = new Date(Date.now() - 25 * 3600 * 1000).toISOString();
+    const { data: recentes } = await supabase
+      .from("whatsapp_messages")
+      .select("conversation_id, sender_type, created_at")
+      .gte("created_at", desde)
+      .order("created_at", { ascending: true })
+      .limit(3000);
+
+    const ultimoInbound = new Map<string, string>();
+    const ultimoDeTodos = new Map<string, string>();
+    for (const m of recentes ?? []) {
+      const cid = m.conversation_id as string;
+      if (!cid) continue;
+      ultimoDeTodos.set(cid, m.sender_type as string);
+      if (m.sender_type === "lead") ultimoInbound.set(cid, m.created_at as string);
+    }
+
+    const windows: Record<
+      string,
+      { state: string; label: string; msLeft: number; aguardandoResposta: boolean }
+    > = {};
+    for (const c of result) {
+      const w = serviceWindow(ultimoInbound.get(c.id) ?? null);
+      windows[c.id] = {
+        state: w.state,
+        label: w.label,
+        msLeft: w.msLeft,
+        // último a falar foi o lead: ninguém respondeu ainda
+        aguardandoResposta: ultimoDeTodos.get(c.id) === "lead",
+      };
+    }
+
+    return { conversations: result, profiles: profiles ?? [], windows };
   });
 
 /** Busca/cria conversa para um lead. */
@@ -231,12 +270,28 @@ export const listMessages = createServerFn({ method: "GET" })
       company_name: string | null;
     } | null;
 
+    // Janela de 24h: vale a última mensagem do lead na conversa inteira, não só
+    // nas 500 carregadas acima.
+    const { serviceWindow } = await import("./whatsapp/service-window");
+    const { data: lastInbound } = await supabase
+      .from("whatsapp_messages")
+      .select("created_at")
+      .eq("conversation_id", data.conversationId)
+      .eq("sender_type", "lead")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     // zera unread_count
     await supabase
       .from("whatsapp_conversations")
       .update({ unread_count: 0 })
       .eq("id", data.conversationId);
-    return { messages: rowsWithFreshMediaUrls, lead: leadRow };
+    return {
+      messages: rowsWithFreshMediaUrls,
+      lead: leadRow,
+      window: serviceWindow(lastInbound?.created_at ?? null),
+    };
   });
 
 /** Envia mensagem via provider configurado. */
@@ -360,6 +415,153 @@ export const sendMessage = createServerFn({ method: "POST" })
   });
 
 /** Cria signed URL para arquivo já enviado ao bucket whatsapp-media e dispara como mensagem. */
+/**
+ * Envia um template aprovado (HSM) na conversa — é o que funciona quando a
+ * janela de 24h fechou ou o lead nunca respondeu. As variáveis são resolvidas
+ * pela posição real do modelo na Meta, igual às automações.
+ */
+export const sendTemplateToConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ conversationId: z.string().uuid(), templateId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: conv, error: convErr } = await supabase
+      .from("whatsapp_conversations")
+      .select("id, lead_id, account_id, leads:lead_id(id, name, company_name, phone)")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (convErr) throw new Error(convErr.message);
+    if (!conv) throw new Error("Conversa não encontrada");
+    const lead = conv.leads as {
+      id: string;
+      name: string | null;
+      company_name: string | null;
+      phone: string | null;
+    } | null;
+    if (!lead?.phone) throw new Error("Lead sem telefone — não dá pra enviar via WhatsApp");
+
+    const { data: tmpl, error: tmplErr } = await supabase
+      .from("whatsapp_templates")
+      .select("*")
+      .eq("id", data.templateId)
+      .maybeSingle();
+    if (tmplErr) throw new Error(tmplErr.message);
+    if (!tmpl) throw new Error("Template não encontrado");
+    if (tmpl.status !== "approved") {
+      throw new Error("Só dá para enviar template aprovado pela Meta");
+    }
+    const providerName = tmpl.provider_template_name ?? tmpl.name;
+    if (!providerName) throw new Error("Template sem nome registrado na Meta");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getProvider } = await import("./whatsapp/provider-registry.server");
+    const { resolveTemplateSendParams } = await import("./whatsapp/template-send.server");
+    const { renderTemplate } = await import("./whatsapp-templates.functions");
+
+    const accountQuery = conv.account_id
+      ? supabaseAdmin.from("whatsapp_accounts").select("*").eq("id", conv.account_id).maybeSingle()
+      : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
+    const { data: account } = await accountQuery;
+    if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
+
+    const { headerParams, bodyParams } = await resolveTemplateSendParams({
+      account: {
+        access_token: account.access_token ?? "",
+        provider_base_url: account.provider_base_url,
+      },
+      metaTemplateId: tmpl.meta_template_id,
+      storedVariables: tmpl.variables,
+      lead: { name: lead.name, company_name: lead.company_name },
+    });
+
+    const renderedBody = tmpl.body
+      ? renderTemplate(tmpl.body, {
+          nome: lead.name ?? "",
+          primeiro_nome: (lead.name ?? "").split(" ")[0] ?? "",
+          empresa: lead.company_name ?? "",
+        }).trim()
+      : null;
+
+    const { data: msg, error: msgErr } = await supabase
+      .from("whatsapp_messages")
+      .insert({
+        conversation_id: data.conversationId,
+        lead_id: conv.lead_id,
+        sender_type: "sdr",
+        sender_user_id: userId,
+        message_type: "template",
+        body: renderedBody,
+        metadata: {
+          source: "inbox_template",
+          template_id: tmpl.id,
+          template_name: providerName,
+          rendered_body: renderedBody,
+          account_id: account.id,
+        },
+        status: "sending",
+      })
+      .select("id")
+      .single();
+    if (msgErr) throw new Error(msgErr.message);
+
+    try {
+      const provider = getProvider(account.provider);
+      const result = await provider.sendMessage({
+        account: {
+          id: account.id,
+          phone_number: account.phone_number,
+          provider: account.provider,
+          provider_instance_id: account.provider_instance_id,
+          provider_base_url: account.provider_base_url,
+          access_token: account.access_token,
+          webhook_secret: account.webhook_secret,
+        },
+        to: normPhone(lead.phone),
+        type: "template",
+        templateName: providerName,
+        templateLanguage: tmpl.language ?? "pt_BR",
+        templateHeaderParams: headerParams,
+        templateParams: bodyParams,
+      });
+
+      await supabaseAdmin
+        .from("whatsapp_messages")
+        .update({
+          provider_message_id: result.providerMessageId,
+          status: result.status === "failed" ? "failed" : "sent",
+          error: result.error ?? null,
+          sent_at: new Date().toISOString(),
+        })
+        .eq("id", msg.id);
+
+      if (result.status === "failed") {
+        throw new Error(result.error ?? "Falha ao enviar o template pelo WhatsApp");
+      }
+
+      await supabaseAdmin
+        .from("whatsapp_conversations")
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_preview: (renderedBody ?? `[${providerName}]`).slice(0, 200),
+          status: "open",
+          unread_count: 0,
+        })
+        .eq("id", data.conversationId);
+
+      return { ok: true, messageId: msg.id };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Falha desconhecida";
+      await supabase
+        .from("whatsapp_messages")
+        .update({ status: "failed", error: message })
+        .eq("id", msg.id);
+      throw new Error(message);
+    }
+  });
+
 export const sendMediaFromStorage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>

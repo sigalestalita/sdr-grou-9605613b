@@ -4,7 +4,12 @@ import { z } from "zod";
 import { useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { assignConversation, assumeConversation, listConversations, setConversationStatus } from "@/lib/whatsapp.functions";
+import {
+  assignConversation,
+  assumeConversation,
+  listConversations,
+  setConversationStatus,
+} from "@/lib/whatsapp.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { ConversationView } from "@/components/whatsapp/conversation-view";
 import { LeadSidePanel } from "@/components/whatsapp/lead-side-panel";
@@ -12,7 +17,13 @@ import { useAuth } from "@/lib/use-auth";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { BellRing, ExternalLink } from "lucide-react";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type";
 import { toast } from "sonner";
@@ -55,17 +66,25 @@ function WhatsappInbox() {
   useEffect(() => {
     const channel = supabase
       .channel("wa-inbox")
-      .on("postgres_changes", { event: "*", schema: "public", table: "whatsapp_conversations" }, () => {
-        qc.invalidateQueries({ queryKey: ["wa-conversations"] });
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "whatsapp_conversations" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["wa-conversations"] });
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [qc]);
 
   const conversations = data?.conversations ?? [];
   const profiles = data?.profiles ?? [];
   const selectedConv = conversations.find((c) => c.id === selected) ?? null;
-  const waitingForLisiane = conversations.filter((c) => c.status === "pending" && c.assigned_user_id === LISIANE_USER_ID);
+  const waitingForLisiane = conversations.filter(
+    (c) => c.status === "pending" && c.assigned_user_id === LISIANE_USER_ID,
+  );
   const isLisiane = user?.id === LISIANE_USER_ID;
 
   const transfer = useMutation({
@@ -105,7 +124,10 @@ function WhatsappInbox() {
     }
   };
 
-  const conversationOwnerId = selectedConv?.assigned_user_id ?? (selectedConv?.leads as { assigned_to?: string | null } | null)?.assigned_to ?? null;
+  const conversationOwnerId =
+    selectedConv?.assigned_user_id ??
+    (selectedConv?.leads as { assigned_to?: string | null } | null)?.assigned_to ??
+    null;
   const wasAssumed = Boolean(selectedConv?.assumed_at && selectedConv?.assumed_by_user_id);
   const assumedByMe = selectedConv?.assumed_by_user_id === user?.id;
 
@@ -117,8 +139,12 @@ function WhatsappInbox() {
             <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
               <BellRing className="mt-0.5 h-4 w-4 shrink-0" />
               <div>
-                <p className="font-medium text-amber-100">Você tem {waitingForLisiane.length} contato(s) aguardando resposta.</p>
-                <p className="text-amber-200/80">Conversas transferidas pela IA para você aparecem como pendentes.</p>
+                <p className="font-medium text-amber-100">
+                  Você tem {waitingForLisiane.length} contato(s) aguardando resposta.
+                </p>
+                <p className="text-amber-200/80">
+                  Conversas transferidas pela IA para você aparecem como pendentes.
+                </p>
               </div>
             </div>
           )}
@@ -129,7 +155,9 @@ function WhatsappInbox() {
           />
           <div className="flex gap-2">
             <Select value={status} onValueChange={(v) => setStatus(v as typeof status)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos status</SelectItem>
                 <SelectItem value="open">Abertas</SelectItem>
@@ -138,7 +166,9 @@ function WhatsappInbox() {
               </SelectContent>
             </Select>
             <Select value={assigned} onValueChange={(v) => setAssigned(v as typeof assigned)}>
-              <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos {roleLabel}s</SelectItem>
                 <SelectItem value="me">Minhas</SelectItem>
@@ -182,20 +212,23 @@ function WhatsappInbox() {
                 }}
                 className={`w-full text-left px-3 py-3 border-b border-white/5 hover:bg-white/5 transition-colors ${
                   isWaitingForLisiane ? "bg-amber-500/5" : ""
-                } ${
-                  isSel ? "bg-white/5" : ""
-                }`}
+                } ${isSel ? "bg-white/5" : ""}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-sm font-medium truncate">{lead?.name ?? "Sem nome"}</p>
                   <div className="flex items-center gap-1">
                     {isWaitingForLisiane && (
-                      <Badge variant="outline" className="h-5 px-1.5 text-[10px] border-amber-500/40 text-amber-300">
+                      <Badge
+                        variant="outline"
+                        className="h-5 px-1.5 text-[10px] border-amber-500/40 text-amber-300"
+                      >
                         Aguardando Lisiane
                       </Badge>
                     )}
                     {c.unread_count > 0 && (
-                      <Badge variant="default" className="h-5 px-1.5 text-[10px]">{c.unread_count}</Badge>
+                      <Badge variant="default" className="h-5 px-1.5 text-[10px]">
+                        {c.unread_count}
+                      </Badge>
                     )}
                   </div>
                 </div>
@@ -216,7 +249,10 @@ function WhatsappInbox() {
                     </Badge>
                   )}
                   {lead?.company_size && (
-                    <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-muted-foreground">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] h-4 px-1.5 text-muted-foreground"
+                    >
                       {lead.company_size}
                     </Badge>
                   )}
@@ -226,14 +262,24 @@ function WhatsappInbox() {
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground truncate mt-1">{c.last_preview ?? "—"}</p>
-                <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-muted-foreground truncate mt-1">
+                  {c.last_preview ?? "—"}
+                </p>
+                <div className="flex items-center justify-between mt-1 gap-1">
                   <span className="text-[10px] text-muted-foreground">
                     {c.last_message_at
-                      ? new Date(c.last_message_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+                      ? new Date(c.last_message_at).toLocaleString("pt-BR", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })
                       : "—"}
                   </span>
-                  <Badge variant="outline" className="text-[10px]">{c.status}</Badge>
+                  <div className="flex items-center gap-1">
+                    <WindowChip w={data?.windows?.[c.id]} />
+                    <Badge variant="outline" className="text-[10px]">
+                      {c.status}
+                    </Badge>
+                  </div>
                 </div>
               </button>
             );
@@ -256,7 +302,8 @@ function WhatsappInbox() {
                     {(selectedConv.leads as { name?: string | null } | null)?.name ?? "Sem nome"}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {(selectedConv.leads as { company_name?: string | null } | null)?.company_name ?? ""}
+                    {(selectedConv.leads as { company_name?: string | null } | null)
+                      ?.company_name ?? ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -266,7 +313,11 @@ function WhatsappInbox() {
                     onClick={() => assume.mutate()}
                     disabled={assume.isPending || !selectedConv || assumedByMe}
                   >
-                    {assumedByMe ? "Assumida por mim" : wasAssumed ? "Reassumir conversa" : "Assumir conversa"}
+                    {assumedByMe
+                      ? "Assumida por mim"
+                      : wasAssumed
+                        ? "Reassumir conversa"
+                        : "Assumir conversa"}
                   </Button>
                   <Select
                     value={String(conversationOwnerId ?? "__none")}
@@ -279,14 +330,18 @@ function WhatsappInbox() {
                     <SelectContent>
                       <SelectItem value="__none">Fila geral</SelectItem>
                       {profiles.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>{p.full_name ?? p.email ?? p.id}</SelectItem>
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.full_name ?? p.email ?? p.id}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <Button
                     size="sm"
                     variant={selectedConv.status === "closed" ? "default" : "outline"}
-                    onClick={() => changeConversationStatus(selectedConv.status === "closed" ? "open" : "closed")}
+                    onClick={() =>
+                      changeConversationStatus(selectedConv.status === "closed" ? "open" : "closed")
+                    }
                   >
                     {selectedConv.status === "closed" ? "Reabrir conversa" : "Encerrar conversa"}
                   </Button>
@@ -314,5 +369,37 @@ function WhatsappInbox() {
         )}
       </main>
     </div>
+  );
+}
+/**
+ * Selo da janela de 24h na lista: chama atenção para as conversas em que o
+ * lead falou por último e o prazo de resposta livre está acabando.
+ */
+function WindowChip({
+  w,
+}: {
+  w?: { state: string; label: string; msLeft: number; aguardandoResposta: boolean };
+}) {
+  if (!w) return null;
+  if (w.state === "aberta" && !w.aguardandoResposta) return null;
+
+  if (w.state === "fechada" || w.state === "sem_contato") {
+    if (!w.aguardandoResposta) return null;
+    return (
+      <Badge variant="outline" className="border-red-500/40 text-[10px] text-red-500">
+        só template
+      </Badge>
+    );
+  }
+
+  const tone =
+    w.state === "fechando"
+      ? "border-amber-500/50 text-amber-600 dark:text-amber-400"
+      : "border-emerald-500/40 text-emerald-600 dark:text-emerald-400";
+  return (
+    <Badge variant="outline" className={`text-[10px] ${tone}`} title={w.label}>
+      {w.aguardandoResposta ? "responder · " : ""}
+      {w.label.replace("Janela fecha em ", "").replace("Janela aberta · ", "")}
+    </Badge>
   );
 }
