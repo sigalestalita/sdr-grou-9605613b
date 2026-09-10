@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildIcs, conflictsFor, freeSlots, icsFold, zonedDate, humanWhen } from "./meeting-invite";
+import {
+  buildIcs,
+  conflictsFor,
+  freeSlots,
+  googleCalendarLink,
+  icsFold,
+  zonedDate,
+  humanWhen,
+} from "./meeting-invite";
 
 const TZ = "America/Sao_Paulo";
 
@@ -67,6 +75,23 @@ describe("buildIcs", () => {
     expect(ics.endsWith("END:VCALENDAR\r\n")).toBe(true);
   });
 
+  it("nome com vírgula ou ponto-e-vírgula vai entre aspas no CN, não com contrabarra", () => {
+    const ics = buildIcs({
+      uid: "u2",
+      sequence: 0,
+      method: "REQUEST",
+      start: new Date("2026-09-10T17:30:00Z"),
+      durationMin: 30,
+      summary: "x",
+      organizer: { email: "sdr@grougp.com.br", name: "Empresa, Ltda" },
+      attendees: [{ email: "lead@empresa.com", name: "Fulano; Sicrano" }],
+    });
+    // contrabarra num param-value (CN=Nome\, Sobrenome) não é válido pela RFC 5545 —
+    // um parser estrito lê a vírgula/ponto-e-vírgula não citado como novo campo.
+    expect(ics).toContain('ORGANIZER;CN="Empresa, Ltda":mailto:sdr@grougp.com.br');
+    expect(ics).toContain('ATTENDEE;CN="Fulano; Sicrano";ROLE=');
+  });
+
   it("CANCEL marca o evento como cancelado", () => {
     const ics = buildIcs({
       uid: "u",
@@ -88,5 +113,38 @@ describe("buildIcs", () => {
     for (const l of folded.split("\r\n"))
       expect(Buffer.byteLength(l, "utf8")).toBeLessThanOrEqual(75);
     expect(folded.replace(/\r\n /g, "")).toBe(long);
+  });
+});
+
+describe("googleCalendarLink", () => {
+  it("monta o link de 'adicionar à agenda' com datas, local e convidados", () => {
+    const url = googleCalendarLink({
+      title: "Grou × Empresa",
+      start: new Date("2026-09-10T17:30:00Z"),
+      end: new Date("2026-09-10T18:15:00Z"),
+      details: "Reunião com a Grou",
+      location: "https://meet.google.com/abc-defg-hij",
+      guests: ["lead@empresa.com", "exec@grougp.com.br"],
+    });
+    const p = new URL(url).searchParams;
+    expect(url.startsWith("https://calendar.google.com/calendar/render?")).toBe(true);
+    expect(p.get("action")).toBe("TEMPLATE");
+    expect(p.get("text")).toBe("Grou × Empresa");
+    expect(p.get("dates")).toBe("20260910T173000Z/20260910T181500Z");
+    expect(p.get("details")).toBe("Reunião com a Grou");
+    expect(p.get("location")).toBe("https://meet.google.com/abc-defg-hij");
+    expect(p.get("add")).toBe("lead@empresa.com,exec@grougp.com.br");
+  });
+
+  it("omite parâmetros opcionais ausentes", () => {
+    const url = googleCalendarLink({
+      title: "x",
+      start: new Date("2026-09-10T17:30:00Z"),
+      end: new Date("2026-09-10T18:00:00Z"),
+    });
+    const p = new URL(url).searchParams;
+    expect(p.has("details")).toBe(false);
+    expect(p.has("location")).toBe(false);
+    expect(p.has("add")).toBe(false);
   });
 });

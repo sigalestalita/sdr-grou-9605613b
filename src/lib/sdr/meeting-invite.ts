@@ -141,6 +141,15 @@ export function icsEscape(s: string): string {
     .replace(/\r?\n/g, "\\n");
 }
 
+/**
+ * Valor de PARÂMETRO (CN=..., não o conteúdo de uma linha como SUMMARY):
+ * regra é diferente da de texto — nada de contrabarra, quem tem "," ";" ":"
+ * ou aspas vai entre aspas (RFC 5545 §3.2, param-value).
+ */
+export function icsParam(s: string): string {
+  return /[,;:"]/.test(s) ? `"${s.replace(/"/g, "'")}"` : s;
+}
+
 /** Quebra linhas com mais de 75 octetos (RFC 5545 §3.1). */
 export function icsFold(line: string): string {
   const bytes = Buffer.from(line, "utf8");
@@ -181,10 +190,10 @@ export function buildIcs(i: IcsInput): string {
     ...(i.description ? [`DESCRIPTION:${icsEscape(i.description)}`] : []),
     ...(i.location ? [`LOCATION:${icsEscape(i.location)}`] : []),
     ...(i.url ? [`URL:${i.url}`] : []),
-    `ORGANIZER;CN=${icsEscape(i.organizer.name ?? i.organizer.email)}:mailto:${i.organizer.email}`,
+    `ORGANIZER;CN=${icsParam(i.organizer.name ?? i.organizer.email)}:mailto:${i.organizer.email}`,
     ...i.attendees.map(
       (a) =>
-        `ATTENDEE;CN=${icsEscape(a.name ?? a.email)};ROLE=${a.role ?? "REQ-PARTICIPANT"};PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${a.email}`,
+        `ATTENDEE;CN=${icsParam(a.name ?? a.email)};ROLE=${a.role ?? "REQ-PARTICIPANT"};PARTSTAT=NEEDS-ACTION;RSVP=TRUE:mailto:${a.email}`,
     ),
     `STATUS:${i.method === "CANCEL" ? "CANCELLED" : "CONFIRMED"}`,
     "TRANSP:OPAQUE",
@@ -197,6 +206,32 @@ export function buildIcs(i: IcsInput): string {
     "END:VCALENDAR",
   ];
   return lines.map(icsFold).join("\r\n") + "\r\n";
+}
+
+/**
+ * Link "Adicionar à Google Agenda": abre a tela de criar evento já preenchida
+ * — funciona sempre que a pessoa tem conta Google, independente de o cliente
+ * de e-mail reconhecer (ou não) o anexo .ics como convite. É o principal
+ * caminho para a agenda entrar de fato no Google Calendar de cada um, já que
+ * o reconhecimento automático do anexo varia muito entre Gmail/Outlook/apps.
+ */
+export function googleCalendarLink(opts: {
+  title: string;
+  start: Date;
+  end: Date;
+  details?: string;
+  location?: string | null;
+  guests?: string[];
+}): string {
+  const p = new URLSearchParams({
+    action: "TEMPLATE",
+    text: opts.title,
+    dates: `${icsDate(opts.start)}/${icsDate(opts.end)}`,
+  });
+  if (opts.details) p.set("details", opts.details);
+  if (opts.location) p.set("location", opts.location);
+  if (opts.guests?.length) p.set("add", opts.guests.join(","));
+  return `https://calendar.google.com/calendar/render?${p.toString()}`;
 }
 
 /** Data/hora legível para os e-mails: "quarta-feira, 10/09 às 14:30". */

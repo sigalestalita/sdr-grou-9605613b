@@ -18,6 +18,7 @@ import {
   dayKey,
   DEFAULT_MEETING_SETTINGS,
   freeSlots,
+  googleCalendarLink,
   humanWhen,
   type Interval,
   type MeetingSettings,
@@ -401,6 +402,7 @@ export async function sendMeetingInvite(opts: {
 
   const start = new Date(lead.meeting_at);
   const durationMin = opts.durationMin ?? lead.meeting_duration_min ?? settings.duration_min;
+  const end = new Date(start.getTime() + durationMin * 60000);
   const uid = lead.meeting_invite_uid ?? `lead-${lead.id}@compass.groupp.com`;
   const sequence = lead.meeting_invite_uid ? (lead.meeting_invite_sequence ?? 0) + 1 : 0;
   const isUpdate = sequence > 0;
@@ -438,6 +440,17 @@ export async function sendMeetingInvite(opts: {
         : []),
     ],
   });
+  // O reconhecimento automático do .ics varia muito entre Gmail/Outlook/apps —
+  // este link sempre funciona para quem tem conta Google: abre o evento já
+  // preenchido, com o outro lado como convidado, e a pessoa só confirma.
+  const addToCalendarUrl = googleCalendarLink({
+    title: summary,
+    start,
+    end,
+    details: `Reunião entre ${company} e ${executivo.name}, da Grou.${meetingUrl ? ` Link: ${meetingUrl}` : ""}`,
+    location,
+    guests: [leadEmail, executivo.email],
+  });
   const inviteText = [
     `Olá, ${leadName}!`,
     "",
@@ -446,7 +459,10 @@ export async function sendMeetingInvite(opts: {
       ? `Link: ${meetingUrl}`
       : "O link da videochamada será enviado pelo(a) ${executivo.name}.",
     "",
-    "O convite está anexo — é só aceitar para entrar na sua agenda.",
+    "Adicione à sua agenda:",
+    addToCalendarUrl,
+    "",
+    "O convite também está anexo (arquivo .ics) — dependendo do seu app de e-mail, aceitar por ele também funciona.",
     "",
     `${sdr?.name ?? "Equipe Grou"} · Grou`,
   ].join("\n");
@@ -454,8 +470,11 @@ export async function sendMeetingInvite(opts: {
     isUpdate ? "Reunião atualizada" : "Reunião marcada",
     `<p>Olá, <strong>${esc(leadName)}</strong>!</p>
      <p>${isUpdate ? "Atualizamos a sua reunião" : "Sua reunião"} com <strong>${esc(executivo.name)}</strong>, da Grou, ${isUpdate ? "para" : "está marcada para"} <strong>${esc(when)}</strong> (${durationMin} min).</p>
-     ${meetingUrl ? `<p><a href="${esc(meetingUrl)}" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;">Entrar na reunião</a></p>` : `<p>O link da videochamada será enviado por ${esc(executivo.name)}.</p>`}
-     <p style="color:#6b7280">O convite está anexo — é só aceitar para entrar na sua agenda.</p>
+     <p>
+       <a href="${esc(addToCalendarUrl)}" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;">Adicionar à Google Agenda</a>
+       ${meetingUrl ? `&nbsp; <a href="${esc(meetingUrl)}" style="color:#111827;font-weight:600;">Entrar na reunião →</a>` : ""}
+     </p>
+     <p style="color:#6b7280">O convite também está anexo (arquivo .ics) — dependendo do seu app de e-mail, aceitar por ele também funciona.</p>
      <p>${esc(sdr?.name ?? "Equipe Grou")} · Grou</p>`,
   );
   const from = `${sdr?.name ?? "Grou"} · Grou <${settings.from_email}>`;
@@ -494,6 +513,14 @@ export async function sendMeetingInvite(opts: {
         )
         .join("")}</table></details>`
     : "";
+  const execAddToCalendarUrl = googleCalendarLink({
+    title: summary,
+    start,
+    end,
+    details: `Reunião com ${leadName}${lead.position ? `, ${lead.position}` : ""} (${company}).${meetingUrl ? ` Link: ${meetingUrl}` : ""} Passada de bastão e detalhes: ${leadUrl}`,
+    location,
+    guests: [leadEmail, executivo.email],
+  });
   const briefingHtml = shell(
     `Reunião ${when} — ${company}`,
     `<p>Oi, ${esc(executivo.name.split(" ")[0])}! ${esc(sdr?.name ?? "O SDR")} marcou uma reunião para você:</p>
@@ -504,6 +531,7 @@ export async function sendMeetingInvite(opts: {
        ${meetingUrl ? `<tr><td style="padding:4px 8px;color:#6b7280">Link</td><td style="padding:4px 8px"><a href="${esc(meetingUrl)}">${esc(meetingUrl)}</a></td></tr>` : ""}
        ${lead.source || lead.campaign ? `<tr><td style="padding:4px 8px;color:#6b7280">Origem</td><td style="padding:4px 8px">${esc([lead.source, lead.campaign, lead.form_name].filter(Boolean).join(" · "))}</td></tr>` : ""}
      </table>
+     <p><a href="${esc(execAddToCalendarUrl)}" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;">Adicionar à Google Agenda</a></p>
      <h3 style="margin:16px 0 6px 0;font-size:14px">Passada de bastão</h3>
      <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">${nl2br(handoffText)}</div>
      <h3 style="margin:16px 0 6px 0;font-size:14px">Qualificação BANT</h3>
@@ -516,6 +544,9 @@ export async function sendMeetingInvite(opts: {
     `Reunião ${when} (${durationMin} min) — ${company}`,
     `Lead: ${leadName}${lead.position ? `, ${lead.position}` : ""} · ${leadEmail}${lead.phone ? ` · ${lead.phone}` : ""}`,
     meetingUrl ? `Link: ${meetingUrl}` : "",
+    "",
+    "Adicionar à sua agenda:",
+    execAddToCalendarUrl,
     "",
     "PASSADA DE BASTÃO",
     handoffText,
@@ -617,14 +648,22 @@ export async function cancelMeetingInvite(opts: {
     attendees: to.map((email) => ({ email })),
   });
   const when = humanWhen(start, settings.tz);
-  const text = `A reunião de ${when} entre Grou e ${lead.company_name ?? "sua empresa"} foi cancelada.${opts.reason ? `\nMotivo: ${opts.reason}` : ""}\n\n${sdr?.name ?? "Equipe Grou"} · Grou`;
+  // O cancelamento remove sozinho quando a pessoa aceitou pelo anexo original;
+  // quem adicionou pelo link "Adicionar à Google Agenda" criou um evento à
+  // parte, então avisamos para remover na mão se ele não sumir sozinho.
+  const manualNote =
+    "Se a reunião não sumir sozinha da sua agenda, é só apagar o evento manualmente.";
+  const text = `A reunião de ${when} entre Grou e ${lead.company_name ?? "sua empresa"} foi cancelada.${opts.reason ? `\nMotivo: ${opts.reason}` : ""}\n\n${manualNote}\n\n${sdr?.name ?? "Equipe Grou"} · Grou`;
   const id = await sendEmail({
     from: `${sdr?.name ?? "Grou"} · Grou <${settings.from_email}>`,
     to,
     cc: sdr?.email ? [sdr.email] : [],
     replyTo: sdr?.email ?? null,
     subject: `Cancelada: reunião Grou × ${lead.company_name ?? ""} — ${when}`,
-    html: shell("Reunião cancelada", `<p>${nl2br(text)}</p>`),
+    html: shell(
+      "Reunião cancelada",
+      `<p>${nl2br(`A reunião de ${when} entre Grou e ${lead.company_name ?? "sua empresa"} foi cancelada.${opts.reason ? `\nMotivo: ${opts.reason}` : ""}`)}</p><p style="color:#6b7280">${manualNote}</p>`,
+    ),
     text,
     attachments: [
       {
