@@ -429,7 +429,14 @@ export const createManualLead = createServerFn({ method: "POST" })
       })
       .select("id, name, company_name, lead_type, score, priority")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if (error.code === "23505" && error.message.includes("leads_email_unique")) {
+        throw new Error(
+          `Já existe um lead cadastrado com o e-mail ${email ?? ""}.`.trim(),
+        );
+      }
+      throw new Error(error.message);
+    }
     const { ensureLeadRouted } = await import("./lead-routing.server");
     await ensureLeadRouted({ supabase, leadId: inserted.id });
     await notifyNewLead({
