@@ -2232,7 +2232,6 @@ export type Database = {
           email: string | null
           enriched_at: string | null
           enrichment_status: Database["public"]["Enums"]["enrichment_status"]
-          executivo_id: string | null
           first_approach_at: string | null
           form_name: string | null
           form_payload: Json | null
@@ -2247,7 +2246,6 @@ export type Database = {
           linkedin_url: string | null
           lost_reason: string | null
           meeting_at: string | null
-          meeting_booked_at: string | null
           name: string
           next_action: string | null
           next_follow_up_at: string | null
@@ -2294,7 +2292,6 @@ export type Database = {
           email?: string | null
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
-          executivo_id?: string | null
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
@@ -2309,7 +2306,6 @@ export type Database = {
           linkedin_url?: string | null
           lost_reason?: string | null
           meeting_at?: string | null
-          meeting_booked_at?: string | null
           name: string
           next_action?: string | null
           next_follow_up_at?: string | null
@@ -2356,7 +2352,6 @@ export type Database = {
           email?: string | null
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
-          executivo_id?: string | null
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
@@ -2371,7 +2366,6 @@ export type Database = {
           linkedin_url?: string | null
           lost_reason?: string | null
           meeting_at?: string | null
-          meeting_booked_at?: string | null
           name?: string
           next_action?: string | null
           next_follow_up_at?: string | null
@@ -2886,75 +2880,22 @@ export type Database = {
       }
       user_teams: {
         Row: {
-          access: string[]
           created_at: string
           id: string
-          team: string
-          updated_at: string
+          team: Database["public"]["Enums"]["app_team"]
           user_id: string
         }
         Insert: {
-          access?: string[]
           created_at?: string
           id?: string
-          team: string
-          updated_at?: string
+          team: Database["public"]["Enums"]["app_team"]
           user_id: string
         }
         Update: {
-          access?: string[]
           created_at?: string
           id?: string
-          team?: string
-          updated_at?: string
+          team?: Database["public"]["Enums"]["app_team"]
           user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_teams_team_fkey"
-            columns: ["team"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["slug"]
-          },
-        ]
-      }
-      teams: {
-        Row: {
-          ativo: boolean
-          cor: string
-          created_at: string
-          created_by: string | null
-          descricao: string | null
-          modulo: string | null
-          nome: string
-          ordem: number
-          slug: string
-          updated_at: string
-        }
-        Insert: {
-          ativo?: boolean
-          cor?: string
-          created_at?: string
-          created_by?: string | null
-          descricao?: string | null
-          modulo?: string | null
-          nome: string
-          ordem?: number
-          slug: string
-          updated_at?: string
-        }
-        Update: {
-          ativo?: boolean
-          cor?: string
-          created_at?: string
-          created_by?: string | null
-          descricao?: string | null
-          modulo?: string | null
-          nome?: string
-          ordem?: number
-          slug?: string
-          updated_at?: string
         }
         Relationships: []
       }
