@@ -2739,6 +2739,45 @@ export type Database = {
         }
         Relationships: []
       }
+      teams: {
+        Row: {
+          ativo: boolean
+          cor: string
+          created_at: string
+          created_by: string | null
+          descricao: string | null
+          modulo: string | null
+          nome: string
+          ordem: number
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          modulo?: string | null
+          nome: string
+          ordem?: number
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cor?: string
+          created_at?: string
+          created_by?: string | null
+          descricao?: string | null
+          modulo?: string | null
+          nome?: string
+          ordem?: number
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ticket_comments: {
         Row: {
           author_id: string | null
@@ -2886,24 +2925,38 @@ export type Database = {
       }
       user_teams: {
         Row: {
+          access: string[]
           created_at: string
           id: string
-          team: Database["public"]["Enums"]["app_team"]
+          team: string
+          updated_at: string
           user_id: string
         }
         Insert: {
+          access?: string[]
           created_at?: string
           id?: string
-          team: Database["public"]["Enums"]["app_team"]
+          team: string
+          updated_at?: string
           user_id: string
         }
         Update: {
+          access?: string[]
           created_at?: string
           id?: string
-          team?: Database["public"]["Enums"]["app_team"]
+          team?: string
+          updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_teams_team_fkey"
+            columns: ["team"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["slug"]
+          },
+        ]
       }
       weekly_digests: {
         Row: {
@@ -3735,6 +3788,8 @@ export type Database = {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: boolean
       }
+      sync_user_roles: { Args: { _user_id: string }; Returns: undefined }
+      team_access_types: { Args: { _modulo: string }; Returns: string[] }
     }
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr"
