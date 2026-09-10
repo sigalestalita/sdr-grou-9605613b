@@ -402,6 +402,19 @@ export const createManualLead = createServerFn({ method: "POST" })
       .select("id")
       .eq("slug", "novo")
       .maybeSingle();
+    const email = data.email?.trim().toLowerCase() || null;
+    if (email) {
+      const { data: existing } = await supabase
+        .from("leads")
+        .select("id, name")
+        .eq("email", email)
+        .maybeSingle();
+      if (existing) {
+        throw new Error(
+          `Já existe um lead cadastrado com o e-mail ${email}${existing.name ? ` (${existing.name})` : ""}.`,
+        );
+      }
+    }
     const { data: inserted, error } = await supabase
       .from("leads")
       .insert({
