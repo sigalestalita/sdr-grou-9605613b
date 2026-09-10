@@ -3725,6 +3725,10 @@ export type Database = {
       }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      lead_is_rd_import: {
+        Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr"
