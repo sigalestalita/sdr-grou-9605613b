@@ -419,7 +419,7 @@ export const createManualLead = createServerFn({ method: "POST" })
       .from("leads")
       .insert({
         name: data.name,
-        email: data.email || null,
+        email,
         phone: data.phone || null,
         company_name: data.company_name || null,
         position: data.position || null,
