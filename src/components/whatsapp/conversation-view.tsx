@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listMessages, sendMessage, sendMediaFromStorage } from "@/lib/whatsapp.functions";
+import { explainWhatsappError } from "@/lib/whatsapp/send-error";
 import {
   summarizeConversation,
   suggestReply,
@@ -13,16 +14,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
 import { useOwnerLabel } from "@/lib/use-owner-label";
 import {
-  Send, Check, CheckCheck, AlertCircle, Clock,
-  Sparkles, FileText, Thermometer, Loader2, Paperclip, Target,
+  Send,
+  Check,
+  CheckCheck,
+  AlertCircle,
+  Clock,
+  Sparkles,
+  FileText,
+  Thermometer,
+  Loader2,
+  Paperclip,
+  Target,
 } from "lucide-react";
 
 type Msg = {
@@ -32,6 +38,8 @@ type Msg = {
   message_type: string;
   media_mime?: string | null;
   status: string;
+  /** Motivo da falha, como o WhatsApp devolveu (só quando status = failed). */
+  error?: string | null;
   created_at: string;
   sent_at: string | null;
   delivered_at: string | null;
@@ -75,14 +83,21 @@ export function ConversationView({ conversationId }: { conversationId: string })
       .channel(`wa-conv-${conversationId}`)
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "whatsapp_messages", filter: `conversation_id=eq.${conversationId}` },
+        {
+          event: "*",
+          schema: "public",
+          table: "whatsapp_messages",
+          filter: `conversation_id=eq.${conversationId}`,
+        },
         () => {
           qc.invalidateQueries({ queryKey: ["wa-messages", conversationId] });
           qc.invalidateQueries({ queryKey: ["wa-conversations"] });
         },
       )
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [conversationId, qc]);
 
   // auto-scroll
@@ -188,9 +203,7 @@ export function ConversationView({ conversationId }: { conversationId: string })
         ref={scrollRef}
         className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-2 bg-muted/20"
       >
-        {isLoading && (
-          <p className="text-xs text-muted-foreground text-center">Carregando…</p>
-        )}
+        {isLoading && <p className="text-xs text-muted-foreground text-center">Carregando…</p>}
         {data?.messages.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-8">
             Nenhuma mensagem ainda. Envie a primeira para iniciar a conversa.
@@ -209,7 +222,11 @@ export function ConversationView({ conversationId }: { conversationId: string })
           onClick={() => suggest.mutate()}
           disabled={suggest.isPending || send.isPending}
         >
-          {suggest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {suggest.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Sparkles className="h-4 w-4" />
+          )}
         </Button>
         <input
           ref={fileRef}
@@ -228,7 +245,11 @@ export function ConversationView({ conversationId }: { conversationId: string })
           onClick={() => fileRef.current?.click()}
           disabled={uploading || send.isPending}
         >
-          {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+          {uploading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Paperclip className="h-4 w-4" />
+          )}
         </Button>
         <Textarea
           value={text}
@@ -252,10 +273,16 @@ export function ConversationView({ conversationId }: { conversationId: string })
 }
 
 function MessageBubble({ m }: { m: Msg }) {
-  const mine = m.sender_type === "sdr" || m.sender_type === "bot" || m.sender_type === "automation" || m.sender_type === "agent";
+  const mine =
+    m.sender_type === "sdr" ||
+    m.sender_type === "bot" ||
+    m.sender_type === "automation" ||
+    m.sender_type === "agent";
   const templateFallback =
     m.message_type === "template"
-      ? m.body ?? m.metadata?.rendered_body ?? (m.metadata?.template_name ? `[HSM] ${m.metadata.template_name}` : null)
+      ? (m.body ??
+        m.metadata?.rendered_body ??
+        (m.metadata?.template_name ? `[HSM] ${m.metadata.template_name}` : null))
       : null;
   const displayBody = templateFallback ?? m.body;
   const isAudio = m.message_type === "audio" || m.media_mime?.startsWith("audio/");
@@ -276,38 +303,74 @@ function MessageBubble({ m }: { m: Msg }) {
             : "bg-card border border-white/5 rounded-bl-sm"
         }`}
       >
-        <div className={`mb-1 text-[10px] uppercase tracking-wide ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+        <div
+          className={`mb-1 text-[10px] uppercase tracking-wide ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+        >
           {senderLabel}
         </div>
         {m.media_url ? (
           isAudio ? (
-            <audio
-              controls
-              preload="metadata"
-              className="mb-2 h-10 w-full max-w-[280px]"
-            >
+            <audio controls preload="metadata" className="mb-2 h-10 w-full max-w-[280px]">
               <source src={m.media_url} type={m.media_mime ?? undefined} />
               Seu navegador não suporta reprodução de áudio.
             </audio>
           ) : (
-            <a href={m.media_url} target="_blank" rel="noreferrer" className="block mb-1 underline text-xs opacity-80">
+            <a
+              href={m.media_url}
+              target="_blank"
+              rel="noreferrer"
+              className="block mb-1 underline text-xs opacity-80"
+            >
               Anexo
             </a>
           )
         ) : isAudio ? (
-          <div className={`mb-2 flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs ${mine ? "border-primary-foreground/20 text-primary-foreground/80" : "border-white/10 text-muted-foreground"}`}>
+          <div
+            className={`mb-2 flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs ${mine ? "border-primary-foreground/20 text-primary-foreground/80" : "border-white/10 text-muted-foreground"}`}
+          >
             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
             <span>Áudio recebido sem arquivo disponível</span>
           </div>
         ) : null}
         {displayBody && <p className="whitespace-pre-wrap break-words">{displayBody}</p>}
-        <div className={`flex items-center gap-1 mt-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+        <div
+          className={`flex items-center gap-1 mt-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}
+        >
           <span>
-            {new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+            {new Date(m.created_at).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
           </span>
           {mine && <StatusIcon status={m.status} />}
         </div>
+        {mine && m.status === "failed" && <FailureNote error={m.error} />}
       </div>
+    </div>
+  );
+}
+
+/** Por que a mensagem não chegou — em português, com o que fazer. */
+function FailureNote({ error }: { error?: string | null }) {
+  const f = explainWhatsappError(error);
+  return (
+    <div className="mt-1.5 rounded-lg bg-red-950/30 px-2 py-1.5 text-[11px] leading-snug text-red-50 ring-1 ring-red-300/40">
+      <p className="flex items-center gap-1 font-semibold">
+        <AlertCircle className="h-3 w-3 shrink-0" />
+        Não entregue · {f.title}
+        {f.scope === "conta" && (
+          <span className="rounded-full bg-red-100/20 px-1.5 py-px text-[9px] font-medium uppercase tracking-wide">
+            afeta a conta toda
+          </span>
+        )}
+      </p>
+      <p className="mt-0.5 opacity-90">{f.action}</p>
+      {error && (
+        <p className="mt-0.5 truncate font-mono text-[10px] opacity-60" title={error}>
+          {f.code ? `#${f.code} · ` : ""}
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -344,17 +407,15 @@ function AiToolbar({
   summarizing: boolean;
   classifying: boolean;
   planning: boolean;
-  plan:
-    | {
-        diagnosis: string;
-        options: Array<{
-          strategy: string;
-          rationale: string;
-          message: string;
-          expected_conversion: "alta" | "média" | "baixa";
-        }>;
-      }
-    | null;
+  plan: {
+    diagnosis: string;
+    options: Array<{
+      strategy: string;
+      rationale: string;
+      message: string;
+      expected_conversion: "alta" | "média" | "baixa";
+    }>;
+  } | null;
   onSummarize: () => void;
   onClassify: () => void;
   onPlan: () => void;
@@ -385,8 +446,20 @@ function AiToolbar({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium">Resumo da conversa</p>
-              <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={onSummarize} disabled={summarizing}>
-                {summarizing ? <Loader2 className="h-3 w-3 animate-spin" /> : ai?.ai_summary ? "Atualizar" : "Gerar"}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-[11px]"
+                onClick={onSummarize}
+                disabled={summarizing}
+              >
+                {summarizing ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : ai?.ai_summary ? (
+                  "Atualizar"
+                ) : (
+                  "Gerar"
+                )}
               </Button>
             </div>
             {ai?.ai_summary ? (
@@ -418,13 +491,27 @@ function AiToolbar({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium">Temperatura do lead</p>
-              <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={onClassify} disabled={classifying}>
-                {classifying ? <Loader2 className="h-3 w-3 animate-spin" /> : ai?.temperature ? "Reclassificar" : "Classificar"}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-[11px]"
+                onClick={onClassify}
+                disabled={classifying}
+              >
+                {classifying ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : ai?.temperature ? (
+                  "Reclassificar"
+                ) : (
+                  "Classificar"
+                )}
               </Button>
             </div>
             {ai?.temperature ? (
               <>
-                <Badge variant="outline" className={`text-[10px] ${tempColor}`}>{ai.temperature}</Badge>
+                <Badge variant="outline" className={`text-[10px] ${tempColor}`}>
+                  {ai.temperature}
+                </Badge>
                 {ai.temperature_reason && (
                   <p className="text-xs text-muted-foreground">{ai.temperature_reason}</p>
                 )}
@@ -453,13 +540,26 @@ function AiToolbar({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium">Plano de abordagem ({ownerLabel} sênior)</p>
-              <Button size="sm" variant="ghost" className="h-6 text-[11px]" onClick={onPlan} disabled={planning}>
-                {planning ? <Loader2 className="h-3 w-3 animate-spin" /> : plan ? "Atualizar" : "Gerar"}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-6 text-[11px]"
+                onClick={onPlan}
+                disabled={planning}
+              >
+                {planning ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : plan ? (
+                  "Atualizar"
+                ) : (
+                  "Gerar"
+                )}
               </Button>
             </div>
             {!plan && (
               <p className="text-[11px] text-muted-foreground">
-                Gera 3 próximos passos com táticas distintas, ordenados por probabilidade de conversão.
+                Gera 3 próximos passos com táticas distintas, ordenados por probabilidade de
+                conversão.
               </p>
             )}
             {plan && (
@@ -469,11 +569,17 @@ function AiToolbar({
                   {plan.options.map((opt, i) => (
                     <div key={i} className="rounded-md border border-white/10 p-2 space-y-1">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-medium">{i + 1}. {opt.strategy}</p>
-                        <Badge variant="outline" className="text-[10px]">{opt.expected_conversion}</Badge>
+                        <p className="text-xs font-medium">
+                          {i + 1}. {opt.strategy}
+                        </p>
+                        <Badge variant="outline" className="text-[10px]">
+                          {opt.expected_conversion}
+                        </Badge>
                       </div>
                       <p className="text-[11px] text-muted-foreground">{opt.rationale}</p>
-                      <p className="text-xs whitespace-pre-wrap bg-muted/30 rounded p-1.5">{opt.message}</p>
+                      <p className="text-xs whitespace-pre-wrap bg-muted/30 rounded p-1.5">
+                        {opt.message}
+                      </p>
                       <Button
                         size="sm"
                         variant="ghost"
