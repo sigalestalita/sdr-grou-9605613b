@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -55,18 +56,22 @@ export function InboxNotifier() {
     baseTitle.current = document.title || FALLBACK_TITLE;
   }, []);
 
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const { data } = useQuery({
     queryKey: ["inbox-notification-pulse-v2", user?.id],
     queryFn: async () => {
+      const empty = { conversations: [], totalUnread: 0, mineUnread: 0 };
+      // Sem token válido no navegador o serverFn protegido responde 401 — nem chamamos.
+      const { data: current } = await supabase.auth.getSession();
+      if (!current.session?.access_token) return empty;
       try {
         return await fn();
       } catch (error) {
         console.warn("Não foi possível atualizar as notificações do inbox", error);
-        return { conversations: [], totalUnread: 0, mineUnread: 0 };
+        return empty;
       }
     },
-    enabled: !!user,
+    enabled: !!user && !!session?.access_token,
     retry: false,
     refetchInterval: 12000,
     refetchIntervalInBackground: true,
