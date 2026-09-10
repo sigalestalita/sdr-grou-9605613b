@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { listMessages, sendMessage, sendMediaFromStorage } from "@/lib/whatsapp.functions";
@@ -209,9 +209,18 @@ export function ConversationView({ conversationId }: { conversationId: string })
             Nenhuma mensagem ainda. Envie a primeira para iniciar a conversa.
           </p>
         )}
-        {data?.messages.map((m) => (
-          <MessageBubble key={m.id} m={m as Msg} />
-        ))}
+        {data?.messages.map((m, i) => {
+          const msg = m as Msg;
+          const prev = i > 0 ? (data.messages[i - 1] as Msg) : null;
+          return (
+            <Fragment key={msg.id}>
+              {(!prev || !sameDay(prev.created_at, msg.created_at)) && (
+                <DaySeparator iso={msg.created_at} />
+              )}
+              <MessageBubble m={msg} leadName={data.lead?.name ?? null} />
+            </Fragment>
+          );
+        })}
       </div>
       <form onSubmit={onSubmit} className="border-t border-white/5 p-3 flex gap-2 items-end">
         <Button
@@ -272,7 +281,40 @@ export function ConversationView({ conversationId }: { conversationId: string })
   );
 }
 
-function MessageBubble({ m }: { m: Msg }) {
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+
+function sameDay(a: string, b: string) {
+  return startOfDay(new Date(a)) === startOfDay(new Date(b));
+}
+
+/** "Hoje", "Ontem" ou "quarta-feira, 10/09/2026". */
+function dayLabel(iso: string) {
+  const d = new Date(iso);
+  const dias = Math.round((startOfDay(new Date()) - startOfDay(d)) / 86400000);
+  if (dias === 0) return "Hoje";
+  if (dias === 1) return "Ontem";
+  return d.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+/** Marca a virada de dia na conversa, como no WhatsApp. */
+function DaySeparator({ iso }: { iso: string }) {
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <span className="h-px flex-1 bg-border" />
+      <span className="rounded-full bg-card px-2.5 py-0.5 text-[10px] font-medium capitalize text-muted-foreground ring-1 ring-border">
+        {dayLabel(iso)}
+      </span>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
+function MessageBubble({ m, leadName }: { m: Msg; leadName?: string | null }) {
   const mine =
     m.sender_type === "sdr" ||
     m.sender_type === "bot" ||
@@ -293,7 +335,7 @@ function MessageBubble({ m }: { m: Msg }) {
         ? "Automação"
         : m.sender_type === "sdr" || m.sender_type === "agent"
           ? "Time"
-          : "Lead";
+          : leadName?.trim() || "Lead";
   return (
     <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
       <div
@@ -336,7 +378,7 @@ function MessageBubble({ m }: { m: Msg }) {
         <div
           className={`flex items-center gap-1 mt-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}
         >
-          <span>
+          <span title={new Date(m.created_at).toLocaleString("pt-BR")}>
             {new Date(m.created_at).toLocaleTimeString("pt-BR", {
               hour: "2-digit",
               minute: "2-digit",

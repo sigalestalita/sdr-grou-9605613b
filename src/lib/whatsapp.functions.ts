@@ -29,7 +29,9 @@ export const listConversations = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     let q = supabase
       .from("whatsapp_conversations")
-      .select("*, leads:lead_id(id,name,company_name,email,phone,priority,stage_id,assigned_to,lead_type,company_size)")
+      .select(
+        "*, leads:lead_id(id,name,company_name,email,phone,priority,stage_id,assigned_to,lead_type,company_size)",
+      )
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(300);
     if (data?.status && data.status !== "all") q = q.eq("status", data.status);
@@ -50,9 +52,7 @@ export const listConversations = createServerFn({ method: "GET" })
         );
       });
     }
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, full_name, email");
+    const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
     return { conversations: result, profiles: profiles ?? [] };
   });
 
@@ -70,7 +70,8 @@ export const getOrCreateConversationForLead = createServerFn({ method: "POST" })
       .maybeSingle();
     if (leadErr) throw new Error(leadErr.message);
     if (!lead) throw new Error("Lead não encontrado");
-    if (!lead.phone) throw new Error("Lead sem telefone — adicione um número para iniciar a conversa");
+    if (!lead.phone)
+      throw new Error("Lead sem telefone — adicione um número para iniciar a conversa");
 
     const routedUserId = await ensureLeadRouted({ supabase, leadId: lead.id, actorUserId: userId });
 
@@ -87,10 +88,7 @@ export const getOrCreateConversationForLead = createServerFn({ method: "POST" })
       const phone = normPhone(lead.phone);
       const { data: contact } = await supabase
         .from("whatsapp_contacts")
-        .upsert(
-          { phone, lead_id: lead.id, name: lead.name },
-          { onConflict: "phone" },
-        )
+        .upsert({ phone, lead_id: lead.id, name: lead.name }, { onConflict: "phone" })
         .select("id")
         .maybeSingle();
       contactId = contact?.id ?? null;
@@ -155,8 +153,16 @@ export const listMessages = createServerFn({ method: "GET" })
 
     let hydratedRows = messageRows;
     if (templateRows.length > 0) {
-      const templateIds = [...new Set(templateRows.map((row) => ((row.metadata ?? {}) as { template_id?: string | null }).template_id).filter(Boolean))] as string[];
-      const leadIds = [...new Set(templateRows.map((row) => row.lead_id).filter(Boolean))] as string[];
+      const templateIds = [
+        ...new Set(
+          templateRows
+            .map((row) => ((row.metadata ?? {}) as { template_id?: string | null }).template_id)
+            .filter(Boolean),
+        ),
+      ] as string[];
+      const leadIds = [
+        ...new Set(templateRows.map((row) => row.lead_id).filter(Boolean)),
+      ] as string[];
 
       const [{ data: templates }, { data: leads }] = await Promise.all([
         supabase.from("whatsapp_templates").select("id, body").in("id", templateIds),
@@ -175,8 +181,9 @@ export const listMessages = createServerFn({ method: "GET" })
 
         const template = templateMap.get(metadata.template_id);
         const lead = row.lead_id ? leadMap.get(row.lead_id) : null;
-        const renderedBody = metadata.rendered_body
-          ?? (template?.body
+        const renderedBody =
+          metadata.rendered_body ??
+          (template?.body
             ? renderTemplate(template.body, {
                 nome: lead?.name ?? "",
                 primeiro_nome: (lead?.name ?? "").split(" ")[0] ?? "",
@@ -198,7 +205,10 @@ export const listMessages = createServerFn({ method: "GET" })
 
     const rowsWithFreshMediaUrls = await Promise.all(
       hydratedRows.map(async (row) => {
-        const metadata = (row.metadata ?? {}) as { storage_bucket?: string | null; storage_path?: string | null };
+        const metadata = (row.metadata ?? {}) as {
+          storage_bucket?: string | null;
+          storage_path?: string | null;
+        };
         if (metadata.storage_bucket !== "whatsapp-media" || !metadata.storage_path) return row;
 
         const { data: signed } = await supabase.storage
@@ -209,12 +219,24 @@ export const listMessages = createServerFn({ method: "GET" })
       }),
     );
 
+    // quem é o lead — para assinar as mensagens recebidas com o nome dele
+    const { data: conv } = await supabase
+      .from("whatsapp_conversations")
+      .select("lead_id, leads:lead_id(id, name, company_name)")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    const leadRow = (conv?.leads ?? null) as {
+      id: string;
+      name: string | null;
+      company_name: string | null;
+    } | null;
+
     // zera unread_count
     await supabase
       .from("whatsapp_conversations")
       .update({ unread_count: 0 })
       .eq("id", data.conversationId);
-    return { messages: rowsWithFreshMediaUrls };
+    return { messages: rowsWithFreshMediaUrls, lead: leadRow };
   });
 
 /** Envia mensagem via provider configurado. */
@@ -227,7 +249,9 @@ export const sendMessage = createServerFn({ method: "POST" })
         body: z.string().min(1).max(4096).optional(),
         mediaUrl: z.string().url().optional(),
         mediaMime: z.string().optional(),
-        messageType: z.enum(["text", "image", "file", "audio", "video", "template"]).default("text"),
+        messageType: z
+          .enum(["text", "image", "file", "audio", "video", "template"])
+          .default("text"),
         templateName: z.string().optional(),
         templateVariables: z.record(z.string(), z.string()).optional(),
       })
@@ -271,7 +295,11 @@ export const sendMessage = createServerFn({ method: "POST" })
       const { getProvider } = await import("./whatsapp/provider-registry.server");
 
       const accountQuery = conv.account_id
-        ? supabaseAdmin.from("whatsapp_accounts").select("*").eq("id", conv.account_id).maybeSingle()
+        ? supabaseAdmin
+            .from("whatsapp_accounts")
+            .select("*")
+            .eq("id", conv.account_id)
+            .maybeSingle()
         : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
       const { data: account } = await accountQuery;
       if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
@@ -364,7 +392,8 @@ export const sendMediaFromStorage = createServerFn({ method: "POST" })
     const { data: signed, error: signErr } = await supabaseAdmin.storage
       .from("whatsapp-media")
       .createSignedUrl(data.storagePath, 60 * 60 * 24);
-    if (signErr || !signed?.signedUrl) throw new Error(signErr?.message ?? "Falha ao gerar URL do anexo");
+    if (signErr || !signed?.signedUrl)
+      throw new Error(signErr?.message ?? "Falha ao gerar URL do anexo");
 
     const messageType: "image" | "video" | "audio" | "file" = data.mime.startsWith("image/")
       ? "image"
@@ -397,7 +426,11 @@ export const sendMediaFromStorage = createServerFn({ method: "POST" })
 
     try {
       const accountQuery = conv.account_id
-        ? supabaseAdmin.from("whatsapp_accounts").select("*").eq("id", conv.account_id).maybeSingle()
+        ? supabaseAdmin
+            .from("whatsapp_accounts")
+            .select("*")
+            .eq("id", conv.account_id)
+            .maybeSingle()
         : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
       const { data: account } = await accountQuery;
       if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
@@ -447,7 +480,10 @@ export const sendMediaFromStorage = createServerFn({ method: "POST" })
       return { ok: true, messageId: msg.id };
     } catch (e) {
       const message = e instanceof Error ? e.message : "Falha desconhecida";
-      await supabase.from("whatsapp_messages").update({ status: "failed", error: message }).eq("id", msg.id);
+      await supabase
+        .from("whatsapp_messages")
+        .update({ status: "failed", error: message })
+        .eq("id", msg.id);
       throw new Error(message);
     }
   });
@@ -456,10 +492,12 @@ export const sendMediaFromStorage = createServerFn({ method: "POST" })
 export const assignConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      conversationId: z.string().uuid(),
-      userId: z.string().uuid().nullable(),
-    }).parse(d),
+    z
+      .object({
+        conversationId: z.string().uuid(),
+        userId: z.string().uuid().nullable(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -487,7 +525,9 @@ export const assignConversation = createServerFn({ method: "POST" })
       lead_id: conversation.lead_id,
       author_id: userId,
       type: "routing",
-      content: data.userId ? "Conversa transferida para outra SDR." : "Conversa enviada para fila geral.",
+      content: data.userId
+        ? "Conversa transferida para outra SDR."
+        : "Conversa enviada para fila geral.",
       metadata: {
         previous_assignee_user_id: conversation.assigned_user_id,
         assignee_user_id: data.userId,
@@ -502,9 +542,11 @@ export const assignConversation = createServerFn({ method: "POST" })
 export const assumeConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      conversationId: z.string().uuid(),
-    }).parse(d),
+    z
+      .object({
+        conversationId: z.string().uuid(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -556,10 +598,12 @@ export const assumeConversation = createServerFn({ method: "POST" })
 export const setConversationStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      conversationId: z.string().uuid(),
-      status: z.enum(["open", "pending", "closed"]),
-    }).parse(d),
+    z
+      .object({
+        conversationId: z.string().uuid(),
+        status: z.enum(["open", "pending", "closed"]),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
@@ -575,10 +619,12 @@ export const setConversationStatus = createServerFn({ method: "POST" })
 export const getOrCreateConversationForPhone = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      phone: z.string().min(8).max(30),
-      name: z.string().max(200).optional(),
-    }).parse(d),
+    z
+      .object({
+        phone: z.string().min(8).max(30),
+        name: z.string().max(200).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -636,11 +682,14 @@ export const getOrCreateConversationForPhone = createServerFn({ method: "POST" }
     if (!contactId) {
       const { data: createdContact, error: contactCreateErr } = await supabase
         .from("whatsapp_contacts")
-        .upsert({
-          phone,
-          lead_id: leadId,
-          name: data.name?.trim() || null,
-        }, { onConflict: "phone" })
+        .upsert(
+          {
+            phone,
+            lead_id: leadId,
+            name: data.name?.trim() || null,
+          },
+          { onConflict: "phone" },
+        )
         .select("id")
         .single();
       if (contactCreateErr) throw new Error(contactCreateErr.message);
