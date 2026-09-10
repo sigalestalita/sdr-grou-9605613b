@@ -2232,6 +2232,7 @@ export type Database = {
           email: string | null
           enriched_at: string | null
           enrichment_status: Database["public"]["Enums"]["enrichment_status"]
+          executivo_id: string | null
           first_approach_at: string | null
           form_name: string | null
           form_payload: Json | null
@@ -2293,6 +2294,7 @@ export type Database = {
           email?: string | null
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
+          executivo_id?: string | null
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
@@ -2354,6 +2356,7 @@ export type Database = {
           email?: string | null
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
+          executivo_id?: string | null
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
