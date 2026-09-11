@@ -9,7 +9,9 @@ import {
   deleteTemplate,
   submitTemplateToMeta,
   syncTemplatesFromMeta,
+  seedRetomadaTemplates,
 } from "@/lib/whatsapp-templates.functions";
+import { RETOMADA_TEMPLATES } from "@/lib/whatsapp/retomada-templates";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,7 +24,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Send, RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -63,11 +71,35 @@ function TemplatesPage() {
   const deleteFn = useServerFn(deleteTemplate);
   const submitFn = useServerFn(submitTemplateToMeta);
   const syncFn = useServerFn(syncTemplatesFromMeta);
+  const seedFn = useServerFn(seedRetomadaTemplates);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ["wa-templates"],
     queryFn: () => listFn(),
+  });
+
+  // Quantos dos modelos de retomada ainda não existem — o botão some quando zera.
+  const existentes = new Set(
+    (data?.templates ?? []).map((t: { provider_template_name?: string | null }) =>
+      (t.provider_template_name ?? "").toLowerCase(),
+    ),
+  );
+  const faltamRetomada = RETOMADA_TEMPLATES.filter(
+    (t) => !existentes.has(t.provider_template_name),
+  ).length;
+
+  const seed = useMutation({
+    mutationFn: () => seedFn(),
+    onSuccess: (r) => {
+      toast.success(
+        r.criados > 0
+          ? `${r.criados} template(s) de retomada criado(s) como rascunho. Revise e envie para a Meta.`
+          : "Os templates de retomada já existem.",
+      );
+      qc.invalidateQueries({ queryKey: ["wa-templates"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao criar templates"),
   });
 
   const [editing, setEditing] = useState<TemplateRow | null>(null);
@@ -185,173 +217,228 @@ function TemplatesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-        <Button size="sm" variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}>
-          <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
-          Sincronizar Meta
-        </Button>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-1" /> Novo template
+          {faltamRetomada > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => seed.mutate()}
+              disabled={seed.isPending}
+              title="Cria os modelos usados quando a janela de 24h fecha: retomada de contato, remarcar reunião e envio de material"
+            >
+              <Plus className={`h-4 w-4 mr-1 ${seed.isPending ? "animate-spin" : ""}`} />
+              Criar templates de retomada ({faltamRetomada})
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>{editing ? "Editar template" : "Novo template"}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs text-muted-foreground">Nome interno</label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex: boas-vindas SDR" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${sync.isPending ? "animate-spin" : ""}`} />
+            Sincronizar Meta
+          </Button>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-1" /> Novo template
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editing ? "Editar template" : "Novo template"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
                 <div>
-                  <label className="text-xs text-muted-foreground">Categoria</label>
-                  <Select value={category} onValueChange={(v) => setCategory(v as typeof category)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="utility">Utility</SelectItem>
-                      <SelectItem value="marketing">Marketing</SelectItem>
-                      <SelectItem value="authentication">Autenticação</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <label className="text-xs text-muted-foreground">Nome interno</label>
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="ex: boas-vindas SDR"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Categoria</label>
+                    <Select
+                      value={category}
+                      onValueChange={(v) => setCategory(v as typeof category)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="utility">Utility</SelectItem>
+                        <SelectItem value="marketing">Marketing</SelectItem>
+                        <SelectItem value="authentication">Autenticação</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Idioma</label>
+                    <Input value={language} onChange={(e) => setLanguage(e.target.value)} />
+                  </div>
                 </div>
                 <div>
-                  <label className="text-xs text-muted-foreground">Idioma</label>
-                  <Input value={language} onChange={(e) => setLanguage(e.target.value)} />
+                  <label className="text-xs text-muted-foreground">Corpo</label>
+                  <Textarea
+                    rows={6}
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    placeholder="Olá {{primeiro_nome}}, tudo bem? Vi que vocês da {{empresa}}…"
+                  />
+                  {extractVars(body).length > 0 && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Variáveis detectadas:{" "}
+                      {extractVars(body)
+                        .map((v) => `{{${v}}}`)
+                        .join(", ")}
+                    </p>
+                  )}
                 </div>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">Corpo</label>
-                <Textarea
-                  rows={6}
-                  value={body}
-                  onChange={(e) => setBody(e.target.value)}
-                  placeholder="Olá {{primeiro_nome}}, tudo bem? Vi que vocês da {{empresa}}…"
-                />
-                {extractVars(body).length > 0 && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground">
+                      Header (texto, opcional)
+                    </label>
+                    <Input
+                      maxLength={60}
+                      value={headerText}
+                      onChange={(e) => setHeaderText(e.target.value)}
+                      placeholder="ex: Novidade Grou"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">Footer (opcional)</label>
+                    <Input
+                      maxLength={60}
+                      value={footerText}
+                      onChange={(e) => setFooterText(e.target.value)}
+                      placeholder="ex: Equipe Grou"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs text-muted-foreground">Botões (máx. 3)</label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      disabled={buttons.length >= 3}
+                      onClick={() => setButtons((b) => [...b, { type: "QUICK_REPLY", text: "" }])}
+                    >
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {buttons.map((b, i) => (
+                      <div key={i} className="border border-white/10 rounded-md p-2 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Select
+                            value={b.type}
+                            onValueChange={(v) => {
+                              const t = v as BtnType;
+                              setButtons((arr) =>
+                                arr.map((x, j) =>
+                                  j !== i
+                                    ? x
+                                    : t === "URL"
+                                      ? { type: "URL", text: x.text, url: "" }
+                                      : t === "PHONE_NUMBER"
+                                        ? { type: "PHONE_NUMBER", text: x.text, phone_number: "" }
+                                        : { type: "QUICK_REPLY", text: x.text },
+                                ),
+                              );
+                            }}
+                          >
+                            <SelectTrigger className="h-8 w-40">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="QUICK_REPLY">Resposta rápida</SelectItem>
+                              <SelectItem value="URL">Abrir URL</SelectItem>
+                              <SelectItem value="PHONE_NUMBER">Ligar</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            maxLength={25}
+                            placeholder="Texto do botão"
+                            value={b.text}
+                            onChange={(e) =>
+                              setButtons((arr) =>
+                                arr.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)),
+                              )
+                            }
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setButtons((arr) => arr.filter((_, j) => j !== i))}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {b.type === "URL" && (
+                          <Input
+                            placeholder="https://…"
+                            value={b.url}
+                            onChange={(e) =>
+                              setButtons((arr) =>
+                                arr.map((x, j) =>
+                                  j === i && x.type === "URL" ? { ...x, url: e.target.value } : x,
+                                ),
+                              )
+                            }
+                          />
+                        )}
+                        {b.type === "PHONE_NUMBER" && (
+                          <Input
+                            placeholder="+55 51 99999-9999"
+                            value={b.phone_number}
+                            onChange={(e) =>
+                              setButtons((arr) =>
+                                arr.map((x, j) =>
+                                  j === i && x.type === "PHONE_NUMBER"
+                                    ? { ...x, phone_number: e.target.value }
+                                    : x,
+                                ),
+                              )
+                            }
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">
+                    Nome do template aprovado na Meta (HSM)
+                  </label>
+                  <Input
+                    value={providerTemplateName}
+                    onChange={(e) => setProviderTemplateName(e.target.value)}
+                    placeholder="ex: boas_vindas_sdr"
+                  />
                   <p className="text-[11px] text-muted-foreground mt-1">
-                    Variáveis detectadas: {extractVars(body).map((v) => `{{${v}}}`).join(", ")}
+                    Opcional: gerado automaticamente a partir do nome interno ao clicar "Enviar p/
+                    Meta". As variáveis acima são enviadas em ordem como {"{{1}}, {{2}}, …"}.
                   </p>
+                </div>
+                {save.error instanceof Error && (
+                  <p className="text-xs text-destructive">{save.error.message}</p>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-xs text-muted-foreground">Header (texto, opcional)</label>
-                  <Input maxLength={60} value={headerText} onChange={(e) => setHeaderText(e.target.value)} placeholder="ex: Novidade Grou" />
-                </div>
-                <div>
-                  <label className="text-xs text-muted-foreground">Footer (opcional)</label>
-                  <Input maxLength={60} value={footerText} onChange={(e) => setFooterText(e.target.value)} placeholder="ex: Equipe Grou" />
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs text-muted-foreground">Botões (máx. 3)</label>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    disabled={buttons.length >= 3}
-                    onClick={() => setButtons((b) => [...b, { type: "QUICK_REPLY", text: "" }])}
-                  >
-                    <Plus className="h-3 w-3 mr-1" /> Adicionar
-                  </Button>
-                </div>
-                <div className="space-y-2">
-                  {buttons.map((b, i) => (
-                    <div key={i} className="border border-white/10 rounded-md p-2 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <Select
-                          value={b.type}
-                          onValueChange={(v) => {
-                            const t = v as BtnType;
-                            setButtons((arr) =>
-                              arr.map((x, j) =>
-                                j !== i
-                                  ? x
-                                  : t === "URL"
-                                    ? { type: "URL", text: x.text, url: "" }
-                                    : t === "PHONE_NUMBER"
-                                      ? { type: "PHONE_NUMBER", text: x.text, phone_number: "" }
-                                      : { type: "QUICK_REPLY", text: x.text },
-                              ),
-                            );
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-40"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="QUICK_REPLY">Resposta rápida</SelectItem>
-                            <SelectItem value="URL">Abrir URL</SelectItem>
-                            <SelectItem value="PHONE_NUMBER">Ligar</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input
-                          maxLength={25}
-                          placeholder="Texto do botão"
-                          value={b.text}
-                          onChange={(e) =>
-                            setButtons((arr) => arr.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)))
-                          }
-                        />
-                        <Button size="icon" variant="ghost" onClick={() => setButtons((arr) => arr.filter((_, j) => j !== i))}>
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {b.type === "URL" && (
-                        <Input
-                          placeholder="https://…"
-                          value={b.url}
-                          onChange={(e) =>
-                            setButtons((arr) =>
-                              arr.map((x, j) => (j === i && x.type === "URL" ? { ...x, url: e.target.value } : x)),
-                            )
-                          }
-                        />
-                      )}
-                      {b.type === "PHONE_NUMBER" && (
-                        <Input
-                          placeholder="+55 51 99999-9999"
-                          value={b.phone_number}
-                          onChange={(e) =>
-                            setButtons((arr) =>
-                              arr.map((x, j) =>
-                                j === i && x.type === "PHONE_NUMBER" ? { ...x, phone_number: e.target.value } : x,
-                              ),
-                            )
-                          }
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-xs text-muted-foreground">
-                  Nome do template aprovado na Meta (HSM)
-                </label>
-                <Input
-                  value={providerTemplateName}
-                  onChange={(e) => setProviderTemplateName(e.target.value)}
-                  placeholder="ex: boas_vindas_sdr"
-                />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Opcional: gerado automaticamente a partir do nome interno ao clicar "Enviar p/ Meta".
-                  As variáveis acima são enviadas em ordem como {"{{1}}, {{2}}, …"}.
-                </p>
-              </div>
-              {save.error instanceof Error && (
-                <p className="text-xs text-destructive">{save.error.message}</p>
-              )}
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button onClick={() => save.mutate()} disabled={save.isPending || !name || !body}>
-                {save.isPending ? "Salvando…" : "Salvar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={() => save.mutate()} disabled={save.isPending || !name || !body}>
+                  {save.isPending ? "Salvando…" : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -368,8 +455,12 @@ function TemplatesPage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-medium truncate">{t.name}</p>
-                  <Badge variant="outline" className="text-[10px]">{t.category ?? "utility"}</Badge>
-                  <Badge variant="outline" className="text-[10px]">{t.language ?? "pt_BR"}</Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {t.category ?? "utility"}
+                  </Badge>
+                  <Badge variant="outline" className="text-[10px]">
+                    {t.language ?? "pt_BR"}
+                  </Badge>
                   {(() => {
                     const s = (t.status ?? "draft").toLowerCase();
                     const styles: Record<string, string> = {
@@ -380,19 +471,26 @@ function TemplatesPage() {
                       paused: "bg-amber-500/15 text-amber-300 border-amber-500/30",
                       disabled: "bg-red-500/15 text-red-300 border-red-500/30",
                     };
-                    return <Badge className={`text-[10px] ${styles[s] ?? styles.draft}`}>{s}</Badge>;
+                    return (
+                      <Badge className={`text-[10px] ${styles[s] ?? styles.draft}`}>{s}</Badge>
+                    );
                   })()}
                   {t.provider_template_name ? (
                     <Badge className="text-[10px] bg-emerald-500/15 text-emerald-300 border-emerald-500/30">
                       HSM: {t.provider_template_name}
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-500/30">
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] text-amber-400 border-amber-500/30"
+                    >
                       texto livre (24h)
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap line-clamp-3">{t.body}</p>
+                <p className="text-xs text-muted-foreground mt-2 whitespace-pre-wrap line-clamp-3">
+                  {t.body}
+                </p>
                 {t.rejection_reason && (
                   <p className="text-[11px] text-red-400 mt-1">Motivo Meta: {t.rejection_reason}</p>
                 )}

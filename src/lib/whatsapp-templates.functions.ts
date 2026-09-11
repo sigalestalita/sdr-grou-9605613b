@@ -32,8 +32,16 @@ export const createTemplate = createServerFn({ method: "POST" })
           .array(
             z.discriminatedUnion("type", [
               z.object({ type: z.literal("QUICK_REPLY"), text: z.string().min(1).max(25) }),
-              z.object({ type: z.literal("URL"), text: z.string().min(1).max(25), url: z.string().url() }),
-              z.object({ type: z.literal("PHONE_NUMBER"), text: z.string().min(1).max(25), phone_number: z.string().min(5) }),
+              z.object({
+                type: z.literal("URL"),
+                text: z.string().min(1).max(25),
+                url: z.string().url(),
+              }),
+              z.object({
+                type: z.literal("PHONE_NUMBER"),
+                text: z.string().min(1).max(25),
+                phone_number: z.string().min(5),
+              }),
             ]),
           )
           .max(10)
@@ -77,7 +85,9 @@ export const updateTemplate = createServerFn({ method: "POST" })
         language: z.string().optional(),
         body: z.string().min(1).max(4096).optional(),
         variables: z.array(z.string()).optional(),
-        status: z.enum(["draft", "pending", "approved", "rejected", "paused", "disabled"]).optional(),
+        status: z
+          .enum(["draft", "pending", "approved", "rejected", "paused", "disabled"])
+          .optional(),
         provider_template_name: z.string().nullable().optional(),
         header_text: z.string().max(60).nullable().optional(),
         footer_text: z.string().max(60).nullable().optional(),
@@ -88,9 +98,7 @@ export const updateTemplate = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { id, header_text, ...rest } = data;
     const headerPatch =
-      header_text !== undefined
-        ? { header_text, header_type: header_text ? "TEXT" : null }
-        : {};
+      header_text !== undefined ? { header_text, header_type: header_text ? "TEXT" : null } : {};
     const { error } = await context.supabase
       .from("whatsapp_templates")
       .update({ ...rest, ...headerPatch })
@@ -104,16 +112,16 @@ export const deleteTemplate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
-      .from("whatsapp_templates")
-      .delete()
-      .eq("id", data.id);
+    const { error } = await context.supabase.from("whatsapp_templates").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 /** Renderiza um template substituindo variáveis {{nome}}. */
-export function renderTemplate(body: string, vars: Record<string, string | null | undefined>): string {
+export function renderTemplate(
+  body: string,
+  vars: Record<string, string | null | undefined>,
+): string {
   return body.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key: string) => {
     const v = vars[key];
     return v == null ? "" : String(v);
@@ -152,25 +160,34 @@ export const submitTemplateToMeta = createServerFn({ method: "POST" })
     // Meta exige BODY com {{1}},{{2}},… numéricos sequenciais. Converte {{nome}} → {{1}} etc.
     let bodyForMeta = tpl.body as string;
     variables.forEach((v, i) => {
-      const re = new RegExp(`\\{\\{\\s*${v.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\s*\\}\\}`, "g");
+      const re = new RegExp(
+        `\\{\\{\\s*${v.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}\\s*\\}\\}`,
+        "g",
+      );
       bodyForMeta = bodyForMeta.replace(re, `{{${i + 1}}}`);
     });
     const bodyExamples = variables.map((v) => {
       switch (v) {
-        case "primeiro_nome": return "Maria";
-        case "nome": return "Maria Silva";
-        case "empresa": return "Acme";
-        default: return v;
+        case "primeiro_nome":
+          return "Maria";
+        case "nome":
+          return "Maria Silva";
+        case "empresa":
+          return "Acme";
+        default:
+          return v;
       }
     });
 
-    const providerName = (tpl.provider_template_name as string | null) || (tpl.name as string)
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9_]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(0, 60);
+    const providerName =
+      (tpl.provider_template_name as string | null) ||
+      (tpl.name as string)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9_]+/g, "_")
+        .replace(/^_+|_+$/g, "")
+        .slice(0, 60);
 
     const result = await submitMetaTemplate(
       {
@@ -181,7 +198,10 @@ export const submitTemplateToMeta = createServerFn({ method: "POST" })
       {
         name: providerName,
         language: (tpl.language as string) || "pt_BR",
-        category: ((tpl.category as string) || "utility").toUpperCase() as "MARKETING" | "UTILITY" | "AUTHENTICATION",
+        category: ((tpl.category as string) || "utility").toUpperCase() as
+          | "MARKETING"
+          | "UTILITY"
+          | "AUTHENTICATION",
         body: bodyForMeta,
         bodyExamples,
         headerText: (tpl.header_text as string | null) ?? null,
@@ -261,7 +281,8 @@ export const syncTemplatesFromMeta = createServerFn({ method: "POST" })
     for (const tpl of local ?? []) {
       if (!tpl.provider_template_name) continue;
       const match = remote.find(
-        (r) => r.name === tpl.provider_template_name && (r.language === tpl.language || !tpl.language),
+        (r) =>
+          r.name === tpl.provider_template_name && (r.language === tpl.language || !tpl.language),
       );
       if (!match) continue;
       await supabase
@@ -331,4 +352,54 @@ export const syncTemplatesFromMeta = createServerFn({ method: "POST" })
     }
 
     return { ok: true, updated, imported, remoteCount: remote.length };
+  });
+/**
+ * Cria os templates de retomada que ainda não existem.
+ *
+ * São os modelos usados quando a janela de 24h fecha. Ficam definidos em
+ * código (whatsapp/retomada-templates.ts) e entram como rascunho, para a
+ * gestão revisar o texto antes de mandar para aprovação da Meta. Repetir a
+ * ação não duplica nada: pula os que já existem pelo nome do HSM.
+ */
+export const seedRetomadaTemplates = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { RETOMADA_TEMPLATES, validateRetomadaTemplate } =
+      await import("./whatsapp/retomada-templates");
+
+    const nomes = RETOMADA_TEMPLATES.map((t) => t.provider_template_name);
+    const { data: existentes, error: exErr } = await supabase
+      .from("whatsapp_templates")
+      .select("provider_template_name")
+      .in("provider_template_name", nomes);
+    if (exErr) throw new Error(exErr.message);
+    const jaTem = new Set((existentes ?? []).map((t) => t.provider_template_name as string));
+
+    const faltando = RETOMADA_TEMPLATES.filter((t) => !jaTem.has(t.provider_template_name));
+    if (faltando.length === 0) return { ok: true, criados: 0, jaExistiam: jaTem.size };
+
+    for (const t of faltando) {
+      const erros = validateRetomadaTemplate(t);
+      if (erros.length > 0) throw new Error(`Template "${t.name}": ${erros.join("; ")}`);
+    }
+
+    const { error } = await supabase.from("whatsapp_templates").insert(
+      faltando.map((t) => ({
+        name: t.name,
+        provider_template_name: t.provider_template_name,
+        category: t.category,
+        language: t.language,
+        body: t.body,
+        variables: t.variables,
+        footer_text: t.footer_text,
+        header_text: null,
+        header_type: null,
+        buttons: t.buttons as never,
+        status: "draft",
+        created_by: userId,
+      })) as never,
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true, criados: faltando.length, jaExistiam: jaTem.size };
   });
