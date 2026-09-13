@@ -2,6 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { Json } from "@/integrations/supabase/types";
 import { LISIANE_USER_ID } from "@/lib/whatsapp-ai.functions";
 
+// Mariana Borges cuida de consultoria; é o padrão quando a configuração está vazia.
+const MARIANA_BORGES_USER_ID = "81068193-826f-42e8-8670-df87fcdfecf5";
+
 // Webhook público de WhatsApp. URL estável:
 //   https://<host>/api/public/whatsapp/webhook/<accountId>
 // Cada conta tem seu próprio webhook_secret; provider.verifySignature valida.
@@ -36,7 +39,9 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
         const accountId = params.accountId;
         const rawBody = await request.text();
         const headers: Record<string, string> = {};
-        request.headers.forEach((v, k) => { headers[k] = v; });
+        request.headers.forEach((v, k) => {
+          headers[k] = v;
+        });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { getProvider } = await import("@/lib/whatsapp/provider-registry.server");
@@ -49,7 +54,10 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
         if (!account) return new Response("account not found", { status: 404 });
 
         const provider = getProvider(account.provider);
-        if (provider.verifySignature && !provider.verifySignature(rawBody, headers, account.webhook_secret)) {
+        if (
+          provider.verifySignature &&
+          !provider.verifySignature(rawBody, headers, account.webhook_secret)
+        ) {
           return new Response("invalid signature", { status: 401 });
         }
 
@@ -111,9 +119,8 @@ async function handleInbound(
   const phone = msg.from.replace(/\D+/g, "");
 
   // 1) acha contato → lead
-  let contact = (
-    await admin.from("whatsapp_contacts").select("*").eq("phone", phone).maybeSingle()
-  ).data;
+  let contact = (await admin.from("whatsapp_contacts").select("*").eq("phone", phone).maybeSingle())
+    .data;
 
   let leadId = contact?.lead_id ?? null;
   if (!leadId) {
@@ -195,14 +202,20 @@ async function handleInbound(
 
   if ((msg.mediaId || msg.mediaUrl) && accountConfig.access_token) {
     try {
-      const base = (accountConfig.provider_base_url || "https://graph.facebook.com/v21.0").replace(/\/+$/, "");
-      let mediaInfo: { url?: string; mime_type?: string } = { url: msg.mediaUrl, mime_type: msg.mediaMime };
+      const base = (accountConfig.provider_base_url || "https://graph.facebook.com/v21.0").replace(
+        /\/+$/,
+        "",
+      );
+      let mediaInfo: { url?: string; mime_type?: string } = {
+        url: msg.mediaUrl,
+        mime_type: msg.mediaMime,
+      };
       if (msg.mediaId) {
         const metaRes = await fetch(`${base}/${encodeURIComponent(msg.mediaId)}`, {
           headers: { Authorization: `Bearer ${accountConfig.access_token}` },
         });
         if (!metaRes.ok) throw new Error(`media metadata HTTP ${metaRes.status}`);
-        mediaInfo = await metaRes.json() as { url?: string; mime_type?: string };
+        mediaInfo = (await metaRes.json()) as { url?: string; mime_type?: string };
       }
       if (!mediaInfo.url) throw new Error("media URL ausente");
 
@@ -218,7 +231,10 @@ async function handleInbound(
       const bytes = await fileRes.arrayBuffer();
       const { error: uploadErr } = await admin.storage
         .from("whatsapp-media")
-        .upload(storagePath, bytes, { contentType: mediaMime ?? "application/octet-stream", upsert: true });
+        .upload(storagePath, bytes, {
+          contentType: mediaMime ?? "application/octet-stream",
+          upsert: true,
+        });
       if (uploadErr) throw uploadErr;
 
       const { data: signed } = await admin.storage
@@ -232,7 +248,10 @@ async function handleInbound(
       };
     } catch (e) {
       console.error("[wa webhook] media download error", e);
-      mediaMetadata = { provider_media_id: msg.mediaId, media_error: e instanceof Error ? e.message : String(e) };
+      mediaMetadata = {
+        provider_media_id: msg.mediaId,
+        media_error: e instanceof Error ? e.message : String(e),
+      };
     }
   }
 
@@ -291,10 +310,7 @@ async function handleInbound(
     }
   }
 
-  await admin
-    .from("whatsapp_contacts")
-    .update({ last_message_at: ts })
-    .eq("id", contact!.id);
+  await admin.from("whatsapp_contacts").update({ last_message_at: ts }).eq("id", contact!.id);
 
   await admin
     .from("whatsapp_conversations")
@@ -317,7 +333,8 @@ async function handleInbound(
     const cfg = (aiCfg?.value ?? {}) as Record<string, unknown>;
     const autoReplyEnabled = cfg.enabled === true && cfg.autoReplyEnabled === true;
     const stopOnLeadReply = cfg.stopOnLeadReply !== false;
-    const responseMaxPerConversation = typeof cfg.responseMaxPerConversation === "number" ? cfg.responseMaxPerConversation : 12;
+    const responseMaxPerConversation =
+      typeof cfg.responseMaxPerConversation === "number" ? cfg.responseMaxPerConversation : 12;
 
     if (!autoReplyEnabled || !conv?.id || !leadId) return;
 
@@ -333,24 +350,76 @@ async function handleInbound(
       .order("created_at", { ascending: false })
       .limit(50);
 
-    const hasHumanTakeover = (recentMsgs ?? []).some((m) => ["sdr", "agent", "human"].includes(m.sender_type));
+    const hasHumanTakeover = (recentMsgs ?? []).some((m) =>
+      ["sdr", "agent", "human"].includes(m.sender_type),
+    );
     if (hasHumanTakeover) return;
 
     if (stopOnLeadReply) {
-      const agentReplies = (recentMsgs ?? []).filter((m) => ["bot", "automation"].includes(m.sender_type)).length;
+      const agentReplies = (recentMsgs ?? []).filter((m) =>
+        ["bot", "automation"].includes(m.sender_type),
+      ).length;
       if (agentReplies >= responseMaxPerConversation) return;
     }
 
-    const { evaluateAiHandoffInternal, generateAutoReplyInternal } = await import("@/lib/whatsapp-ai.functions");
+    /*
+     * Quem a IA atende. Empresa só abaixo do corte de porte; consultoria
+     * sempre. Fora disso o atendimento é humano desde o início, então a
+     * conversa vai direto para o responsável sem a IA responder.
+     */
+    const { decidirAtendimento } = await import("@/lib/whatsapp/ai-elegibilidade");
+    const { data: leadRegra } = await admin
+      .from("leads")
+      .select("lead_type, company_size, linkedin_company_size, assigned_to")
+      .eq("id", leadId)
+      .maybeSingle();
+    const decisao = decidirAtendimento(
+      {
+        lead_type: leadRegra?.lead_type ?? null,
+        company_size: leadRegra?.company_size ?? null,
+        linkedin_company_size: leadRegra?.linkedin_company_size ?? null,
+        assigned_to: leadRegra?.assigned_to ?? null,
+      },
+      {
+        empresaMaxFuncionarios:
+          typeof cfg.empresaMaxFuncionarios === "number" ? cfg.empresaMaxFuncionarios : 100,
+        consultoriaAtendeTudo: cfg.consultoriaAtendeTudo !== false,
+      },
+    );
+
+    // Para quem vai o bastão: consultoria tem dona própria.
+    const donoDoBastao =
+      decisao.handoff === "consultoria"
+        ? ((cfg.consultoriaHandoffUserId as string | null) ?? MARIANA_BORGES_USER_ID)
+        : (leadRegra?.assigned_to ?? LISIANE_USER_ID);
+
+    if (!decisao.atende) {
+      conversationStatus = "pending";
+      conversationAssignee = donoDoBastao;
+      await admin
+        .from("whatsapp_conversations")
+        .update({
+          assigned_user_id: donoDoBastao,
+          status: "pending",
+          unread_count: (conv.unread_count ?? 0) + 1,
+          last_message_at: ts,
+          last_preview: msg.body?.slice(0, 200) ?? `[${msg.type}]`,
+        })
+        .eq("id", conv.id);
+      return;
+    }
+
+    const { evaluateAiHandoffInternal, generateAutoReplyInternal } =
+      await import("@/lib/whatsapp-ai.functions");
     const handoff = await evaluateAiHandoffInternal(admin, conv.id);
     if (handoff.shouldHandoff) {
       conversationStatus = "pending";
-      conversationAssignee = LISIANE_USER_ID;
+      conversationAssignee = donoDoBastao;
 
       await admin
         .from("whatsapp_conversations")
         .update({
-          assigned_user_id: LISIANE_USER_ID,
+          assigned_user_id: donoDoBastao,
           status: "pending",
           unread_count: (conv.unread_count ?? 0) + 1,
           last_message_at: ts,
@@ -360,16 +429,17 @@ async function handleInbound(
 
       await admin
         .from("leads")
-        .update({ assigned_to: LISIANE_USER_ID, last_action_at: new Date().toISOString() })
+        .update({ assigned_to: donoDoBastao, last_action_at: new Date().toISOString() })
         .eq("id", leadId);
 
       await admin.from("lead_interactions").insert({
         lead_id: leadId,
         author_id: null,
         type: "routing",
-        content: "Lead transferido automaticamente da IA para a Lisiane por intenção comercial/agendamento.",
+        content:
+          "Lead transferido automaticamente da IA para a Lisiane por intenção comercial/agendamento.",
         metadata: {
-          assignee_user_id: LISIANE_USER_ID,
+          assignee_user_id: donoDoBastao,
           source: "ai_handoff",
           reason: handoff.reason,
           urgency: handoff.urgency,

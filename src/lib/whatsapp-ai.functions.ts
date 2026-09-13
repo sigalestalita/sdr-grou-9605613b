@@ -24,6 +24,10 @@ type AiAgentSettings = {
   firstMessagePrompt: string;
   replyPrompt: string;
   handoffPrompt: string;
+  assinaturaFallback: string;
+  empresaMaxFuncionarios: number;
+  consultoriaAtendeTudo: boolean;
+  consultoriaHandoffUserId: string | null;
   defaultAccountId: string | null;
   consultoriaAccountId: string | null;
   consultoriaInitialTemplateId: string | null;
@@ -75,12 +79,50 @@ const AiAgentSettingsSchema = z.object({
   responseMaxPerConversation: z.number().int().min(1).max(50).default(12),
   initialTemplateId: z.string().uuid().nullable().default(null),
   knowledgeBase: z.string().max(20000).default(""),
-  qualificationObjective: z.string().max(2000).default("Fazer o primeiro atendimento, descobrir rapidamente o motivo da conversão, qualificar nos filtros comerciais da Grou e conduzir para conversa comercial com handoff humano no momento certo."),
-  toneGuide: z.string().max(2000).default("Tom de SDR sênior: consultivo, humano, seguro, curto e direto no WhatsApp. Mensagens objetivas, naturais e sem cara de robô."),
-  prohibitedClaims: z.string().max(2000).default("Não inventar dados do lead, campanha, criativo, preço, ROI, prazo, integração, case ou funcionalidade. Não escrever mensagens longas. Não insistir quando o lead pedir humano."),
-  firstMessagePrompt: z.string().max(5000).default("Na primeira interação útil, descubra o motivo da conversão e conecte a abordagem ao contexto da origem, campanha, formulário ou criativo quando esses dados existirem. Priorize perguntas curtas para entender dor, momento e interesse. Deixe claro que, se preferir, o lead pode falar com um especialista humano desde já."),
-  replyPrompt: z.string().max(5000).default("Responda a última mensagem do lead de forma curta e consultiva. Priorize: 1) entender o motivo da conversão e a dor principal, 2) qualificar perfil, contexto e timing, 3) avançar para atendimento comercial. Se o lead pedir humano, reconheça isso e conduza imediatamente para handoff."),
-  handoffPrompt: z.string().max(2000).default("Faça handoff para humano imediatamente quando o lead pedir falar com uma pessoa, demonstrar intenção comercial clara, pedir proposta/demonstração/agendamento, trouxer negociação sensível ou quando a conversa estiver madura para um SDR assumir e marcar agenda."),
+  qualificationObjective: z
+    .string()
+    .max(2000)
+    .default(
+      "Fazer o primeiro atendimento, descobrir rapidamente o motivo da conversão, qualificar nos filtros comerciais da Grou e conduzir para conversa comercial com handoff humano no momento certo.",
+    ),
+  toneGuide: z
+    .string()
+    .max(2000)
+    .default(
+      "Tom de SDR sênior: consultivo, humano, seguro, curto e direto no WhatsApp. Mensagens objetivas, naturais e sem cara de robô.",
+    ),
+  prohibitedClaims: z
+    .string()
+    .max(2000)
+    .default(
+      "Não inventar dados do lead, campanha, criativo, preço, ROI, prazo, integração, case ou funcionalidade. Não escrever mensagens longas. Não insistir quando o lead pedir humano.",
+    ),
+  firstMessagePrompt: z
+    .string()
+    .max(5000)
+    .default(
+      "Na primeira interação útil, descubra o motivo da conversão e conecte a abordagem ao contexto da origem, campanha, formulário ou criativo quando esses dados existirem. Priorize perguntas curtas para entender dor, momento e interesse. Deixe claro que, se preferir, o lead pode falar com um especialista humano desde já.",
+    ),
+  replyPrompt: z
+    .string()
+    .max(5000)
+    .default(
+      "Responda a última mensagem do lead de forma curta e consultiva. Priorize: 1) entender o motivo da conversão e a dor principal, 2) qualificar perfil, contexto e timing, 3) avançar para atendimento comercial. Se o lead pedir humano, reconheça isso e conduza imediatamente para handoff.",
+    ),
+  handoffPrompt: z
+    .string()
+    .max(2000)
+    .default(
+      "Faça handoff para humano imediatamente quando o lead pedir falar com uma pessoa, demonstrar intenção comercial clara, pedir proposta/demonstração/agendamento, trouxer negociação sensível ou quando a conversa estiver madura para um SDR assumir e marcar agenda.",
+    ),
+  /** Nome usado quando o lead não tem SDR responsável. */
+  assinaturaFallback: z.string().max(120).default("Equipe Grou"),
+  /** Acima disso, lead empresa não é atendido pela IA. */
+  empresaMaxFuncionarios: z.number().int().min(0).max(100000).default(100),
+  /** Consultoria é atendida integralmente, sem corte de porte. */
+  consultoriaAtendeTudo: z.boolean().default(true),
+  /** Para quem vai o bastão de consultoria. */
+  consultoriaHandoffUserId: z.string().uuid().nullable().default(null),
   defaultAccountId: z.string().uuid().nullable().default(null),
   consultoriaAccountId: z.string().uuid().nullable().default(null),
   consultoriaInitialTemplateId: z.string().uuid().nullable().default(null),
@@ -111,17 +153,45 @@ async function writeAiAgentSettings(
   if (error) throw new Error(error.message);
 }
 
-function buildAgentSystemPrompt(settings: AiAgentSettings) {
+/**
+ * Quem assina a conversa: o SDR responsável pelo lead. Sem responsável, cai no
+ * nome configurado. É isso que impede a IA de se apresentar sempre com o mesmo
+ * nome, independente de quem cuida do lead.
+ */
+async function assinaturaDaConversa(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  lead: Record<string, unknown>,
+  settings: AiAgentSettings,
+): Promise<string> {
+  const { assinaturaDaIa } = await import("./whatsapp/ai-elegibilidade");
+  const responsavel = lead?.assigned_to as string | null | undefined;
+  if (!responsavel) return assinaturaDaIa(null, settings.assinaturaFallback);
+  const { data } = await supabase
+    .from("profiles")
+    .select("full_name, email")
+    .eq("id", responsavel)
+    .maybeSingle();
+  return assinaturaDaIa(data?.full_name ?? data?.email ?? null, settings.assinaturaFallback);
+}
+
+function buildAgentSystemPrompt(settings: AiAgentSettings, assinatura?: string) {
   return [
     SYSTEM_BASE,
     "Você está operando como a IA de atendimento ativo da Lidi no WhatsApp.",
+    assinatura
+      ? `Você se apresenta e assina como ${assinatura}, que é a pessoa responsável por este lead. ` +
+        "Nunca invente outro nome, nunca use o nome de outra pessoa do time e nunca se apresente como inteligência artificial."
+      : "",
     `Objetivo principal: ${settings.qualificationObjective}`,
     `Guia de tom: ${settings.toneGuide}`,
     `Restrições obrigatórias: ${settings.prohibitedClaims}`,
     `Regras de handoff: ${settings.handoffPrompt}`,
     "Base de conhecimento comercial da operação:",
     GROU_PLAYBOOK,
-    settings.knowledgeBase?.trim() ? `Conhecimento adicional configurado pelo time:\n${settings.knowledgeBase.trim()}` : "",
+    settings.knowledgeBase?.trim()
+      ? `Conhecimento adicional configurado pelo time:\n${settings.knowledgeBase.trim()}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -179,7 +249,8 @@ export async function evaluateAiHandoffInternal(
         properties: {
           shouldHandoff: {
             type: "boolean",
-            description: "true quando houver intenção comercial direta, pedido de valores, proposta, agenda, demo, reunião ou maturidade clara para SDR assumir.",
+            description:
+              "true quando houver intenção comercial direta, pedido de valores, proposta, agenda, demo, reunião ou maturidade clara para SDR assumir.",
           },
           reason: {
             type: "string",
@@ -191,7 +262,8 @@ export async function evaluateAiHandoffInternal(
           },
           suggestedReply: {
             type: "string",
-            description: "Mensagem curta pronta para WhatsApp. Se shouldHandoff=true, deve avisar que a Lisiane vai assumir e seguir dali. Se false, deve ser a próxima resposta normal da IA.",
+            description:
+              "Mensagem curta pronta para WhatsApp. Se shouldHandoff=true, avise que a pessoa responsável vai assumir a conversa a partir dali, sem citar nome que não tenha sido informado no contexto. Se false, deve ser a próxima resposta normal da IA.",
           },
         },
         required: ["shouldHandoff", "reason", "urgency", "suggestedReply"],
@@ -200,14 +272,15 @@ export async function evaluateAiHandoffInternal(
     },
   };
 
+  const assinatura = await assinaturaDaConversa(supabase, lead, settings);
   const result = await callAI(
     [
-      { role: "system", content: buildAgentSystemPrompt(settings) },
+      { role: "system", content: buildAgentSystemPrompt(settings, assinatura) },
       {
         role: "user",
         content:
           `${settings.replyPrompt}\n\n` +
-          `Antes de responder, decida se já é hora de transferir para o SDR humano. Faça handoff quando o lead pedir valores, preço, proposta, condições, detalhes comerciais mais diretos, agenda, reunião, demonstração, ou quando a conversa estiver madura para a Lisiane assumir.\n\n` +
+          `Antes de responder, decida se já é hora de transferir para o SDR humano. Faça handoff quando o lead pedir valores, preço, proposta, condições, detalhes comerciais mais diretos, agenda, reunião, demonstração, ou quando a conversa estiver madura para a pessoa responsável assumir.\n\n` +
           `${leadBrief(lead, stage, notes, icp)}\n\n` +
           `Conversa:\n${transcript(messages)}\n\n` +
           `Última mensagem do lead: ${lastLead.body}`,
@@ -251,8 +324,9 @@ export async function generateAutoReplyInternal(
   }
   const lastLead = lastInboundLeadMessage(messages);
   if (!lastLead) throw new Error("Nenhuma mensagem recente do lead para responder");
+  const assinatura = await assinaturaDaConversa(supabase, lead, settings);
   const result = await callAI([
-    { role: "system", content: buildAgentSystemPrompt(settings) },
+    { role: "system", content: buildAgentSystemPrompt(settings, assinatura) },
     {
       role: "user",
       content:
@@ -285,11 +359,15 @@ async function callAI(messages: Array<{ role: string; content: string }>, tool?:
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (res.status === 429) throw new Error("Rate limit atingido. Tente novamente em alguns segundos.");
-  if (res.status === 402) throw new Error("Créditos de IA esgotados. Adicione créditos em Settings → Workspace → Usage.");
+  if (res.status === 429)
+    throw new Error("Rate limit atingido. Tente novamente em alguns segundos.");
+  if (res.status === 402)
+    throw new Error("Créditos de IA esgotados. Adicione créditos em Settings → Workspace → Usage.");
   if (!res.ok) throw new Error(`AI gateway ${res.status}: ${(await res.text()).slice(0, 200)}`);
   return res.json() as Promise<{
-    choices: Array<{ message: { content?: string; tool_calls?: Array<{ function: { arguments: string } }> } }>;
+    choices: Array<{
+      message: { content?: string; tool_calls?: Array<{ function: { arguments: string } }> };
+    }>;
   }>;
 }
 
@@ -390,11 +468,28 @@ function leadBrief(
   return lines.join("\n\n");
 }
 
-function transcript(messages: Array<{ sender_type: string; message_type: string; body: string | null; created_at: string }>) {
+function transcript(
+  messages: Array<{
+    sender_type: string;
+    message_type: string;
+    body: string | null;
+    created_at: string;
+  }>,
+) {
   return messages
     .map((m) => {
-      const who = m.sender_type === "lead" ? "Lead" : m.sender_type === "sdr" ? "SDR" : m.sender_type === "bot" ? "Bot" : m.sender_type;
-      const ts = new Date(m.created_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+      const who =
+        m.sender_type === "lead"
+          ? "Lead"
+          : m.sender_type === "sdr"
+            ? "SDR"
+            : m.sender_type === "bot"
+              ? "Bot"
+              : m.sender_type;
+      const ts = new Date(m.created_at).toLocaleString("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "short",
+      });
       const body = m.body?.trim() || `[${m.message_type}]`;
       return `[${ts}] ${who}: ${body}`;
     })
@@ -423,7 +518,11 @@ export const summarizeConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ conversationId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { conv, messages, notes, stage, icp } = await loadContext(context.supabase, data.conversationId, 60);
+    const { conv, messages, notes, stage, icp } = await loadContext(
+      context.supabase,
+      data.conversationId,
+      60,
+    );
     if (messages.length === 0) return { summary: "Conversa ainda sem mensagens." };
 
     const lead = (conv.leads ?? {}) as Record<string, unknown>;
@@ -462,7 +561,11 @@ export const suggestReply = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { conv, messages, notes, stage, icp } = await loadContext(context.supabase, data.conversationId, 30);
+    const { conv, messages, notes, stage, icp } = await loadContext(
+      context.supabase,
+      data.conversationId,
+      30,
+    );
     const lead = (conv.leads ?? {}) as Record<string, unknown>;
     const result = await callAI([
       { role: "system", content: SYSTEM_BASE },
@@ -488,7 +591,11 @@ export const classifyTemperature = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ conversationId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { conv, messages, notes, stage, icp } = await loadContext(context.supabase, data.conversationId, 40);
+    const { conv, messages, notes, stage, icp } = await loadContext(
+      context.supabase,
+      data.conversationId,
+      40,
+    );
     if (messages.length === 0) throw new Error("Sem mensagens para classificar");
 
     const tool = {
@@ -507,7 +614,8 @@ export const classifyTemperature = createServerFn({ method: "POST" })
             },
             reason: {
               type: "string",
-              description: "Justificativa curta (1-2 frases) baseada em sinais concretos da conversa",
+              description:
+                "Justificativa curta (1-2 frases) baseada em sinais concretos da conversa",
             },
             buying_signals: {
               type: "array",
@@ -580,20 +688,26 @@ export const suggestApproachPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ conversationId: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { conv, messages, notes, stage, icp } = await loadContext(context.supabase, data.conversationId, 40);
+    const { conv, messages, notes, stage, icp } = await loadContext(
+      context.supabase,
+      data.conversationId,
+      40,
+    );
     const lead = (conv.leads ?? {}) as Record<string, unknown>;
 
     const tool = {
       type: "function",
       function: {
         name: "approach_plan",
-        description: "Plano de abordagem do SDR com 3 opções de próximo passo, ordenadas por probabilidade de conversão.",
+        description:
+          "Plano de abordagem do SDR com 3 opções de próximo passo, ordenadas por probabilidade de conversão.",
         parameters: {
           type: "object",
           properties: {
             diagnosis: {
               type: "string",
-              description: "1-2 frases: onde o lead está no funil e qual o bloqueio/oportunidade principal agora.",
+              description:
+                "1-2 frases: onde o lead está no funil e qual o bloqueio/oportunidade principal agora.",
             },
             options: {
               type: "array",
@@ -604,15 +718,18 @@ export const suggestApproachPlan = createServerFn({ method: "POST" })
                 properties: {
                   strategy: {
                     type: "string",
-                    description: "Nome curto da tática (ex: 'CTA direto de agenda', 'Quebra-padrão por dor', 'Prova social do segmento', 'Reframe de objeção').",
+                    description:
+                      "Nome curto da tática (ex: 'CTA direto de agenda', 'Quebra-padrão por dor', 'Prova social do segmento', 'Reframe de objeção').",
                   },
                   rationale: {
                     type: "string",
-                    description: "Por que essa tática é a melhor agora, em 1 frase, baseada em sinais concretos.",
+                    description:
+                      "Por que essa tática é a melhor agora, em 1 frase, baseada em sinais concretos.",
                   },
                   message: {
                     type: "string",
-                    description: "Mensagem PRONTA para enviar no WhatsApp (2-5 linhas, termina em pergunta ou CTA específico).",
+                    description:
+                      "Mensagem PRONTA para enviar no WhatsApp (2-5 linhas, termina em pergunta ou CTA específico).",
                   },
                   expected_conversion: {
                     type: "string",
@@ -661,8 +778,12 @@ export const suggestApproachPlan = createServerFn({ method: "POST" })
 export const getAiAgentSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const settings = await readAiAgentSettings(context.supabase);
-    return { settings };
+    const [settings, { data: profiles }] = await Promise.all([
+      readAiAgentSettings(context.supabase),
+      // Para escolher quem recebe o bastão de consultoria.
+      context.supabase.from("profiles").select("id, full_name, email").order("full_name"),
+    ]);
+    return { settings, profiles: profiles ?? [] };
   });
 
 export const updateAiAgentSettings = createServerFn({ method: "POST" })
@@ -683,10 +804,15 @@ export const generateInitialOutreach = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const settings = await readAiAgentSettings(context.supabase);
     if (!settings.enabled) throw new Error("IA de atendimento desativada");
-    const { conv, messages, notes, stage, icp } = await loadContext(context.supabase, data.conversationId, 10);
+    const { conv, messages, notes, stage, icp } = await loadContext(
+      context.supabase,
+      data.conversationId,
+      10,
+    );
     const lead = (conv.leads ?? {}) as Record<string, unknown>;
+    const assinatura = await assinaturaDaConversa(context.supabase, lead, settings);
     const result = await callAI([
-      { role: "system", content: buildAgentSystemPrompt(settings) },
+      { role: "system", content: buildAgentSystemPrompt(settings, assinatura) },
       {
         role: "user",
         content:
@@ -703,7 +829,11 @@ export const generateInitialOutreach = createServerFn({ method: "POST" })
 
 export const autoReplyToConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ conversationId: z.string().uuid(), instruction: z.string().max(1000).optional() }).parse(d))
+  .inputValidator((d) =>
+    z
+      .object({ conversationId: z.string().uuid(), instruction: z.string().max(1000).optional() })
+      .parse(d),
+  )
   .handler(async ({ data, context }) => {
     return generateAutoReplyInternal(context.supabase, data.conversationId, data.instruction);
   });
@@ -711,10 +841,12 @@ export const autoReplyToConversation = createServerFn({ method: "POST" })
 export const triggerManualAiTest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({
-      phone: z.string().min(8).max(30),
-      name: z.string().max(200).optional(),
-    }).parse(d),
+    z
+      .object({
+        phone: z.string().min(8).max(30),
+        name: z.string().max(200).optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }): Promise<ManualAiTestResult> => {
     const settings = await readAiAgentSettings(context.supabase);
@@ -745,7 +877,10 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
     }
 
     const phone = data.phone.replace(/\D+/g, "").replace(/^0+/, "");
-    const normalizedPhone = (phone.length === 10 || phone.length === 11) && !phone.startsWith("55") ? `55${phone}` : phone;
+    const normalizedPhone =
+      (phone.length === 10 || phone.length === 11) && !phone.startsWith("55")
+        ? `55${phone}`
+        : phone;
 
     let contactId: string | null = null;
     let leadId: string | null = null;
@@ -799,17 +934,23 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
     if (!contactId) {
       const { data: createdContact, error: contactCreateErr } = await context.supabase
         .from("whatsapp_contacts")
-        .upsert({
-          phone: normalizedPhone,
-          lead_id: leadId,
-          name: data.name?.trim() || null,
-        }, { onConflict: "phone" })
+        .upsert(
+          {
+            phone: normalizedPhone,
+            lead_id: leadId,
+            name: data.name?.trim() || null,
+          },
+          { onConflict: "phone" },
+        )
         .select("id")
         .single();
       if (contactCreateErr) throw new Error(contactCreateErr.message);
       contactId = createdContact.id;
     } else if (leadId) {
-      await context.supabase.from("whatsapp_contacts").update({ lead_id: leadId }).eq("id", contactId);
+      await context.supabase
+        .from("whatsapp_contacts")
+        .update({ lead_id: leadId })
+        .eq("id", contactId);
     }
 
     const { data: existingConversation, error: existingConvErr } = await context.supabase
@@ -898,9 +1039,13 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
 
     const preferredAccountId = isConsultoria
       ? settings.consultoriaAccountId
-      : settings.defaultAccountId ?? conv.account_id;
+      : (settings.defaultAccountId ?? conv.account_id);
     const accountQuery = preferredAccountId
-      ? supabaseAdmin.from("whatsapp_accounts").select("*").eq("id", preferredAccountId).maybeSingle()
+      ? supabaseAdmin
+          .from("whatsapp_accounts")
+          .select("*")
+          .eq("id", preferredAccountId)
+          .maybeSingle()
       : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
     const { data: account } = await accountQuery;
     if (!account) {
@@ -999,7 +1144,10 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
       return { ok: true, conversationId: conv.id, providerMessageId: result.providerMessageId };
     } catch (e) {
       const message = e instanceof Error ? e.message : "Falha no teste manual";
-      await supabaseAdmin.from("whatsapp_messages").update({ status: "failed", error: message }).eq("id", msg.id);
+      await supabaseAdmin
+        .from("whatsapp_messages")
+        .update({ status: "failed", error: message })
+        .eq("id", msg.id);
       throw new Error(message);
     }
   });
