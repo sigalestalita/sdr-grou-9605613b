@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/use-auth";
 import {
   Kanban as KanbanIcon,
   BarChart3,
+  Target,
   Settings as SettingsIcon,
   LogOut,
   PanelLeftClose,
@@ -95,6 +96,32 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/whatsapp", label: "Caixa de entrada", icon: Inbox, team: "cs" },
       { to: "/cs-emails", label: "E-mails", icon: Mail, team: "cs" },
       { to: "/cs-agenda", label: "Agenda", icon: CalendarDays, team: "cs" },
+    ],
+  },
+  {
+    label: "Comercial",
+    items: [
+      {
+        to: "/comercial",
+        label: "Visão geral",
+        icon: BarChart3,
+        team: "comercial",
+        roles: ["executivo"],
+      },
+      {
+        to: "/comercial-pipeline",
+        label: "Pipeline de negócios",
+        icon: KanbanIcon,
+        team: "comercial",
+        roles: ["executivo"],
+      },
+      {
+        to: "/comercial-metas",
+        label: "Metas",
+        icon: Target,
+        team: "comercial",
+        roles: ["executivo"],
+      },
     ],
   },
   {

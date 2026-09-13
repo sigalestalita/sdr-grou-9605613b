@@ -34,6 +34,9 @@ import { Route as AppCsCadenciaRouteImport } from './routes/_app.cs-cadencia'
 import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
 import { Route as AppCsRouteImport } from './routes/_app.cs'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
+import { Route as AppComercialPipelineRouteImport } from './routes/_app.comercial-pipeline'
+import { Route as AppComercialMetasRouteImport } from './routes/_app.comercial-metas'
+import { Route as AppComercialRouteImport } from './routes/_app.comercial'
 import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
 import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
@@ -188,6 +191,21 @@ const AppCsRoute = AppCsRouteImport.update({
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialPipelineRoute = AppComercialPipelineRouteImport.update({
+  id: '/comercial-pipeline',
+  path: '/comercial-pipeline',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialMetasRoute = AppComercialMetasRouteImport.update({
+  id: '/comercial-metas',
+  path: '/comercial-metas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialRoute = AppComercialRouteImport.update({
+  id: '/comercial',
+  path: '/comercial',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCadenciaRoute = AppCadenciaRouteImport.update({
@@ -364,6 +382,9 @@ export interface FileRoutesByFullPath {
   '/agenda': typeof AppAgendaRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/cadencia': typeof AppCadenciaRoute
+  '/comercial': typeof AppComercialRoute
+  '/comercial-metas': typeof AppComercialMetasRoute
+  '/comercial-pipeline': typeof AppComercialPipelineRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
@@ -421,6 +442,9 @@ export interface FileRoutesByTo {
   '/agenda': typeof AppAgendaRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/cadencia': typeof AppCadenciaRoute
+  '/comercial': typeof AppComercialRoute
+  '/comercial-metas': typeof AppComercialMetasRoute
+  '/comercial-pipeline': typeof AppComercialPipelineRoute
   '/configuracoes': typeof AppConfiguracoesRoute
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
@@ -479,6 +503,9 @@ export interface FileRoutesById {
   '/_app/agenda': typeof AppAgendaRoute
   '/_app/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/_app/cadencia': typeof AppCadenciaRoute
+  '/_app/comercial': typeof AppComercialRoute
+  '/_app/comercial-metas': typeof AppComercialMetasRoute
+  '/_app/comercial-pipeline': typeof AppComercialPipelineRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
   '/_app/cs': typeof AppCsRoute
   '/_app/cs-agenda': typeof AppCsAgendaRoute
@@ -538,6 +565,9 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/analytics-chat'
     | '/cadencia'
+    | '/comercial'
+    | '/comercial-metas'
+    | '/comercial-pipeline'
     | '/configuracoes'
     | '/cs'
     | '/cs-agenda'
@@ -595,6 +625,9 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/analytics-chat'
     | '/cadencia'
+    | '/comercial'
+    | '/comercial-metas'
+    | '/comercial-pipeline'
     | '/configuracoes'
     | '/cs'
     | '/cs-agenda'
@@ -652,6 +685,9 @@ export interface FileRouteTypes {
     | '/_app/agenda'
     | '/_app/analytics-chat'
     | '/_app/cadencia'
+    | '/_app/comercial'
+    | '/_app/comercial-metas'
+    | '/_app/comercial-pipeline'
     | '/_app/configuracoes'
     | '/_app/cs'
     | '/_app/cs-agenda'
@@ -900,6 +936,27 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial-pipeline': {
+      id: '/_app/comercial-pipeline'
+      path: '/comercial-pipeline'
+      fullPath: '/comercial-pipeline'
+      preLoaderRoute: typeof AppComercialPipelineRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial-metas': {
+      id: '/_app/comercial-metas'
+      path: '/comercial-metas'
+      fullPath: '/comercial-metas'
+      preLoaderRoute: typeof AppComercialMetasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial': {
+      id: '/_app/comercial'
+      path: '/comercial'
+      fullPath: '/comercial'
+      preLoaderRoute: typeof AppComercialRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cadencia': {
@@ -1176,6 +1233,9 @@ interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
   AppAnalyticsChatRoute: typeof AppAnalyticsChatRouteWithChildren
   AppCadenciaRoute: typeof AppCadenciaRoute
+  AppComercialRoute: typeof AppComercialRoute
+  AppComercialMetasRoute: typeof AppComercialMetasRoute
+  AppComercialPipelineRoute: typeof AppComercialPipelineRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
   AppCsRoute: typeof AppCsRoute
   AppCsAgendaRoute: typeof AppCsAgendaRoute
@@ -1204,6 +1264,9 @@ const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
   AppAnalyticsChatRoute: AppAnalyticsChatRouteWithChildren,
   AppCadenciaRoute: AppCadenciaRoute,
+  AppComercialRoute: AppComercialRoute,
+  AppComercialMetasRoute: AppComercialMetasRoute,
+  AppComercialPipelineRoute: AppComercialPipelineRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
   AppCsRoute: AppCsRoute,
   AppCsAgendaRoute: AppCsAgendaRoute,
