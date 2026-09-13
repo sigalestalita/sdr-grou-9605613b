@@ -23,7 +23,8 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Save } from "lucide-react";
+import { AlertTriangle, Bot, Save } from "lucide-react";
+import { pareceConterPreco } from "@/lib/whatsapp/ofertas";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -240,6 +241,98 @@ function WhatsAppAiPage() {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ofertas que a IA pode citar</CardTitle>
+          <CardDescription>
+            A IA só fala de valor que estiver nesta lista e dentro do prazo. Sem oferta vigente, ela
+            é instruída a não citar preço nenhum e a conduzir para a pessoa responsável.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {(form.ofertas ?? []).length === 0 && (
+            <p className="text-[12px] text-muted-foreground">
+              Nenhuma oferta cadastrada. A IA não vai citar valores.
+            </p>
+          )}
+          {(form.ofertas ?? []).map((o, i) => {
+            const vencida = !!o.validoAte && new Date(`${o.validoAte}T23:59:59`) < new Date();
+            return (
+              <div
+                key={i}
+                className={`space-y-2 rounded-md border p-3 ${vencida ? "border-amber-500/40 bg-amber-500/5" : "border-border"}`}
+              >
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={o.titulo}
+                    placeholder="Licença Bronze com 5 créditos"
+                    onChange={(e) => {
+                      const next = [...(form.ofertas ?? [])];
+                      next[i] = { ...o, titulo: e.target.value };
+                      patch({ ofertas: next });
+                    }}
+                  />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    onClick={() =>
+                      patch({ ofertas: (form.ofertas ?? []).filter((_, j) => j !== i) })
+                    }
+                  >
+                    Remover
+                  </Button>
+                </div>
+                <Textarea
+                  value={o.detalhe}
+                  rows={2}
+                  placeholder="Condição exatamente como a IA pode dizer"
+                  onChange={(e) => {
+                    const next = [...(form.ofertas ?? [])];
+                    next[i] = { ...o, detalhe: e.target.value };
+                    patch({ ofertas: next });
+                  }}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="text-[11px] text-muted-foreground">Válida até</label>
+                  <Input
+                    type="date"
+                    className="w-44"
+                    value={o.validoAte ?? ""}
+                    onChange={(e) => {
+                      const next = [...(form.ofertas ?? [])];
+                      next[i] = { ...o, validoAte: e.target.value || null };
+                      patch({ ofertas: next });
+                    }}
+                  />
+                  {vencida && (
+                    <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                      Vencida — a IA já parou de citar
+                    </span>
+                  )}
+                  {!o.validoAte && (
+                    <span className="text-[11px] text-muted-foreground">
+                      Sem prazo: vale até alguém remover
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              patch({
+                ofertas: [...(form.ofertas ?? []), { titulo: "", detalhe: "", validoAte: null }],
+              })
+            }
+          >
+            Adicionar oferta
+          </Button>
         </CardContent>
       </Card>
 
@@ -513,9 +606,19 @@ function WhatsAppAiPage() {
               placeholder="Diferenciais, objeções, segmentos, FAQ, criativos, contexto das campanhas..."
             />
             <p className="text-[11px] text-muted-foreground mt-1">
-              Inclua aqui contexto de campanhas Meta Ads, criativos, formulários e objeções por
-              segmento para a IA usar no primeiro atendimento.
+              Contexto de campanhas, criativos, formulários e objeções por segmento. Não escreva
+              preço aqui: valor vive no bloco de ofertas, que tem prazo de validade.
             </p>
+            {pareceConterPreco(form.knowledgeBase) && (
+              <div className="mt-2 flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <p>
+                  Parece haver valor ou promoção escrita aqui. Texto solto não vence sozinho, e foi
+                  assim que uma campanha encerrada continuou sendo oferecida. Mova para o bloco de
+                  ofertas, com data de fim.
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

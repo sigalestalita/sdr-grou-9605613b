@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { blocoDeOfertas } from "./whatsapp/ofertas";
 import { renderTemplate } from "./whatsapp-templates.functions";
 import { GROU_PLAYBOOK } from "./grou-playbook";
 import { resolveTemplateSendParams } from "./whatsapp/template-send.server";
@@ -24,6 +25,7 @@ type AiAgentSettings = {
   firstMessagePrompt: string;
   replyPrompt: string;
   handoffPrompt: string;
+  ofertas: Array<{ titulo: string; detalhe: string; validoAte: string | null }>;
   assinaturaFallback: string;
   empresaMaxFuncionarios: number;
   consultoriaAtendeTudo: boolean;
@@ -115,6 +117,20 @@ const AiAgentSettingsSchema = z.object({
     .default(
       "Faça handoff para humano imediatamente quando o lead pedir falar com uma pessoa, demonstrar intenção comercial clara, pedir proposta/demonstração/agendamento, trouxer negociação sensível ou quando a conversa estiver madura para um SDR assumir e marcar agenda.",
     ),
+  /** Ofertas que a IA pode citar. Fora desta lista, nenhum valor existe. */
+  ofertas: z
+    .array(
+      z.object({
+        titulo: z.string().max(160),
+        detalhe: z.string().max(600),
+        validoAte: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable()
+          .default(null),
+      }),
+    )
+    .default([]),
   /** Nome usado quando o lead não tem SDR responsável. */
   assinaturaFallback: z.string().max(120).default("Equipe Grou"),
   /** Acima disso, lead empresa não é atendido pela IA. */
@@ -186,6 +202,7 @@ function buildAgentSystemPrompt(settings: AiAgentSettings, assinatura?: string) 
     `Objetivo principal: ${settings.qualificationObjective}`,
     `Guia de tom: ${settings.toneGuide}`,
     `Restrições obrigatórias: ${settings.prohibitedClaims}`,
+    blocoDeOfertas(settings.ofertas ?? []),
     `Regras de handoff: ${settings.handoffPrompt}`,
     "Base de conhecimento comercial da operação:",
     GROU_PLAYBOOK,
