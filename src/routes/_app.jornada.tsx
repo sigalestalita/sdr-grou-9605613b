@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { z } from "zod";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format } from "date-fns";
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/jornada")({
+  validateSearch: z.object({ empresa: z.string().uuid().optional() }),
   component: JornadaPage,
   head: () => ({
     meta: [
@@ -68,7 +70,12 @@ const SINAL_LABEL: Record<string, string> = {
 function JornadaPage() {
   const listFn = useServerFn(listEmpresasComJornada);
   const fn = useServerFn(getJornadaCliente);
-  const [empresaId, setEmpresaId] = useState<string>("");
+  // A busca do topo manda a empresa pela URL.
+  const { empresa: empresaDaUrl } = Route.useSearch();
+  const [empresaId, setEmpresaId] = useState<string>(empresaDaUrl ?? "");
+  useEffect(() => {
+    if (empresaDaUrl) setEmpresaId(empresaDaUrl);
+  }, [empresaDaUrl]);
 
   const lista = useQuery({
     queryKey: ["jornada-empresas"],

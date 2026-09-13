@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listKanbanData } from "@/lib/leads.functions";
+import { buscaGlobal, type ResultadoBusca } from "@/lib/busca.functions";
 import {
   CommandDialog,
   CommandEmpty,
@@ -40,26 +40,30 @@ export function CommandPalette({
 }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
-  const fetchKanban = useServerFn(listKanbanData);
+  const buscar = useServerFn(buscaGlobal);
+  // ordem em que os grupos aparecem para quem busca
+  const TIPOS: Array<[ResultadoBusca["tipo"], string]> = [
+    ["empresa", "Empresas"],
+    ["cliente", "Clientes do CS"],
+    ["lead", "Leads"],
+  ];
+  const termo = query.trim();
 
-  const { data } = useQuery({
-    queryKey: ["kanban"],
-    queryFn: () => fetchKanban(),
-    enabled: open,
-    staleTime: 60_000,
+  // Consulta o banco em vez de baixar o kanban inteiro para filtrar aqui.
+  const { data, isFetching } = useQuery({
+    queryKey: ["busca-global", termo],
+    queryFn: () => buscar({ data: { q: termo } }),
+    enabled: open && termo.length >= 2,
+    staleTime: 30_000,
   });
 
-  const leadResults = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q || q.length < 2 || !data?.leads) return [];
-    return (data.leads as any[])
-      .filter((l) => {
-        return [l.name, l.company, l.email, l.phone, l.job_title]
-          .filter(Boolean)
-          .some((v: string) => String(v).toLowerCase().includes(q));
-      })
-      .slice(0, 8);
-  }, [query, data]);
+  const porTipo = useMemo(() => {
+    const map = new Map<ResultadoBusca["tipo"], ResultadoBusca[]>();
+    for (const r of data?.resultados ?? []) {
+      map.set(r.tipo, [...(map.get(r.tipo) ?? []), r]);
+    }
+    return map;
+  }, [data]);
 
   function go(to: string) {
     onOpenChange(false);
@@ -83,23 +87,35 @@ export function CommandPalette({
         onValueChange={setQuery}
       />
       <CommandList>
-        <CommandEmpty>Nada encontrado para “{query}”.</CommandEmpty>
-        {leadResults.length > 0 && (
-          <CommandGroup heading="Leads">
-            {leadResults.map((l) => (
-              <CommandItem
-                key={l.id}
-                value={`lead-${l.id}-${l.name ?? ""}-${l.company ?? ""}`}
-                onSelect={() => go(`/lead/${l.id}`)}
-              >
-                <span className="truncate font-medium">{l.name || "Sem nome"}</span>
-                {l.company && (
-                  <span className="ml-2 truncate text-xs text-muted-foreground">{l.company}</span>
-                )}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
+        <CommandEmpty>
+          {termo.length < 2
+            ? "Digite ao menos duas letras."
+            : isFetching
+              ? "Procurando…"
+              : `Nada encontrado para “${query}”.`}
+        </CommandEmpty>
+        {TIPOS.map(([tipo, titulo]) => {
+          const itens = porTipo.get(tipo) ?? [];
+          if (itens.length === 0) return null;
+          return (
+            <CommandGroup key={tipo} heading={titulo}>
+              {itens.map((r) => (
+                <CommandItem
+                  key={`${r.tipo}-${r.id}`}
+                  value={`${r.tipo}-${r.id}-${r.titulo}`}
+                  onSelect={() => go(r.to)}
+                >
+                  <span className="truncate font-medium">{r.titulo}</span>
+                  {r.subtitulo && (
+                    <span className="ml-2 truncate text-xs text-muted-foreground">
+                      {r.subtitulo}
+                    </span>
+                  )}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          );
+        })}
         {groups.map(([group, items]) => (
           <CommandGroup key={group} heading={group}>
             {items.map((r) => (
