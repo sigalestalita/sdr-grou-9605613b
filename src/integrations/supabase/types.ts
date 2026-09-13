@@ -97,6 +97,65 @@ export type Database = {
         }
         Relationships: []
       }
+      commercial_goals: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          escopo: string
+          id: string
+          meta_agendas: number | null
+          meta_contatos: number | null
+          meta_propostas: number | null
+          meta_quantidade: number
+          meta_valor: number
+          observacao: string | null
+          periodo: string
+          pipeline_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          escopo?: string
+          id?: string
+          meta_agendas?: number | null
+          meta_contatos?: number | null
+          meta_propostas?: number | null
+          meta_quantidade?: number
+          meta_valor?: number
+          observacao?: string | null
+          periodo: string
+          pipeline_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          escopo?: string
+          id?: string
+          meta_agendas?: number | null
+          meta_contatos?: number | null
+          meta_propostas?: number | null
+          meta_quantidade?: number
+          meta_valor?: number
+          observacao?: string | null
+          periodo?: string
+          pipeline_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_goals_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           analista_pda_declarado: boolean
@@ -1823,6 +1882,8 @@ export type Database = {
       }
       deals: {
         Row: {
+          adm_checked_at: string | null
+          adm_checked_by: string | null
           agendado_em: string | null
           amount: number
           campanha: string | null
@@ -1831,13 +1892,17 @@ export type Database = {
           closed_at_original: string | null
           company_id: string | null
           contact_id: string | null
+          contrato_assinado_em: string | null
           created_at: string
           created_at_original: string | null
           created_by: string | null
+          cs_entregue_em: string | null
           currency: string
           devolutiva_em: string | null
           devolutiva_user_id: string | null
+          esteira: string
           executivo_user_id: string | null
+          faturado_em: string | null
           fonte: string | null
           fonte_original: string | null
           hubspot_id: string | null
@@ -1847,10 +1912,13 @@ export type Database = {
           motivo_venda: string | null
           nome: string
           observacao_adm: string | null
+          ordem_compra_em: string | null
+          ordem_compra_numero: string | null
           owner_original: string | null
           owner_user_id: string | null
           pipeline_id: string | null
           produtos_texto: string | null
+          proposta_aceita_em: string | null
           provenance: Json
           rd_deal_id: string | null
           rd_pipeline: string | null
@@ -1866,6 +1934,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          adm_checked_at?: string | null
+          adm_checked_by?: string | null
           agendado_em?: string | null
           amount?: number
           campanha?: string | null
@@ -1874,13 +1944,17 @@ export type Database = {
           closed_at_original?: string | null
           company_id?: string | null
           contact_id?: string | null
+          contrato_assinado_em?: string | null
           created_at?: string
           created_at_original?: string | null
           created_by?: string | null
+          cs_entregue_em?: string | null
           currency?: string
           devolutiva_em?: string | null
           devolutiva_user_id?: string | null
+          esteira?: string
           executivo_user_id?: string | null
+          faturado_em?: string | null
           fonte?: string | null
           fonte_original?: string | null
           hubspot_id?: string | null
@@ -1890,10 +1964,13 @@ export type Database = {
           motivo_venda?: string | null
           nome: string
           observacao_adm?: string | null
+          ordem_compra_em?: string | null
+          ordem_compra_numero?: string | null
           owner_original?: string | null
           owner_user_id?: string | null
           pipeline_id?: string | null
           produtos_texto?: string | null
+          proposta_aceita_em?: string | null
           provenance?: Json
           rd_deal_id?: string | null
           rd_pipeline?: string | null
@@ -1909,6 +1986,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          adm_checked_at?: string | null
+          adm_checked_by?: string | null
           agendado_em?: string | null
           amount?: number
           campanha?: string | null
@@ -1917,13 +1996,17 @@ export type Database = {
           closed_at_original?: string | null
           company_id?: string | null
           contact_id?: string | null
+          contrato_assinado_em?: string | null
           created_at?: string
           created_at_original?: string | null
           created_by?: string | null
+          cs_entregue_em?: string | null
           currency?: string
           devolutiva_em?: string | null
           devolutiva_user_id?: string | null
+          esteira?: string
           executivo_user_id?: string | null
+          faturado_em?: string | null
           fonte?: string | null
           fonte_original?: string | null
           hubspot_id?: string | null
@@ -1933,10 +2016,13 @@ export type Database = {
           motivo_venda?: string | null
           nome?: string
           observacao_adm?: string | null
+          ordem_compra_em?: string | null
+          ordem_compra_numero?: string | null
           owner_original?: string | null
           owner_user_id?: string | null
           pipeline_id?: string | null
           produtos_texto?: string | null
+          proposta_aceita_em?: string | null
           provenance?: Json
           rd_deal_id?: string | null
           rd_pipeline?: string | null
@@ -3851,6 +3937,10 @@ export type Database = {
             Args: { _renewal?: string; _start: string }
             Returns: Database["public"]["Enums"]["cs_journey_stage"]
           }
+      deal_data_ganho: {
+        Args: { _deal: Database["public"]["Tables"]["deals"]["Row"] }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
