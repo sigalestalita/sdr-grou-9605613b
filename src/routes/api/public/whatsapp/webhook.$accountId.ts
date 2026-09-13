@@ -116,6 +116,22 @@ async function handleInbound(
     senderName?: string;
   },
 ) {
+  /*
+   * A Meta reentrega o webhook quando não recebe 200 rápido, e às vezes repete
+   * mesmo sem erro. Sem esta porteira, cada reentrega criava outro balão do
+   * lead e disparava a IA de novo — o que aparecia como duas respostas quase
+   * iguais na mesma conversa.
+   */
+  if (msg.providerMessageId) {
+    const { data: jaEntrou } = await admin
+      .from("whatsapp_messages")
+      .select("id")
+      .eq("provider_message_id", msg.providerMessageId)
+      .limit(1)
+      .maybeSingle();
+    if (jaEntrou) return;
+  }
+
   const phone = msg.from.replace(/\D+/g, "");
 
   // 1) acha contato → lead
@@ -256,7 +272,7 @@ async function handleInbound(
   }
 
   // 4) grava mensagem
-  await admin.from("whatsapp_messages").insert({
+  const { error: erroInsercao } = await admin.from("whatsapp_messages").insert({
     conversation_id: conv.id,
     lead_id: leadId,
     sender_type: "lead",
@@ -270,6 +286,12 @@ async function handleInbound(
     sent_at: ts,
     delivered_at: ts,
   });
+  // Duas entregas simultâneas passam pela checagem do topo; o índice único
+  // barra a segunda aqui. Nesse caso a mensagem já foi tratada, então para.
+  if (erroInsercao) {
+    if (erroInsercao.code === "23505") return;
+    throw new Error(erroInsercao.message);
+  }
 
   let conversationStatus: "open" | "pending" = "open";
   let conversationAssignee = conv.assigned_user_id ?? null;
