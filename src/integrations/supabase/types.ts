@@ -168,6 +168,7 @@ export type Database = {
           created_by: string | null
           dominio: string | null
           estado: string | null
+          exemplo: boolean
           fonte_original: string | null
           hubspot_id: string | null
           id: string
@@ -207,6 +208,7 @@ export type Database = {
           created_by?: string | null
           dominio?: string | null
           estado?: string | null
+          exemplo?: boolean
           fonte_original?: string | null
           hubspot_id?: string | null
           id?: string
@@ -246,6 +248,7 @@ export type Database = {
           created_by?: string | null
           dominio?: string | null
           estado?: string | null
+          exemplo?: boolean
           fonte_original?: string | null
           hubspot_id?: string | null
           id?: string
@@ -717,6 +720,7 @@ export type Database = {
           data_renovacao: string | null
           dg_ativo: boolean
           diagnostico_causa: string | null
+          exemplo: boolean
           health_score: number
           id: string
           journey_stage: Database["public"]["Enums"]["cs_journey_stage"]
@@ -761,6 +765,7 @@ export type Database = {
           data_renovacao?: string | null
           dg_ativo?: boolean
           diagnostico_causa?: string | null
+          exemplo?: boolean
           health_score?: number
           id?: string
           journey_stage?: Database["public"]["Enums"]["cs_journey_stage"]
@@ -805,6 +810,7 @@ export type Database = {
           data_renovacao?: string | null
           dg_ativo?: boolean
           diagnostico_causa?: string | null
+          exemplo?: boolean
           health_score?: number
           id?: string
           journey_stage?: Database["public"]["Enums"]["cs_journey_stage"]
@@ -1902,6 +1908,7 @@ export type Database = {
           devolutiva_user_id: string | null
           esteira: string
           executivo_user_id: string | null
+          exemplo: boolean
           faturado_em: string | null
           fonte: string | null
           fonte_original: string | null
@@ -1954,6 +1961,7 @@ export type Database = {
           devolutiva_user_id?: string | null
           esteira?: string
           executivo_user_id?: string | null
+          exemplo?: boolean
           faturado_em?: string | null
           fonte?: string | null
           fonte_original?: string | null
@@ -2006,6 +2014,7 @@ export type Database = {
           devolutiva_user_id?: string | null
           esteira?: string
           executivo_user_id?: string | null
+          exemplo?: boolean
           faturado_em?: string | null
           fonte?: string | null
           fonte_original?: string | null
@@ -2373,6 +2382,7 @@ export type Database = {
           campaign: string | null
           channel: string | null
           company_description: string | null
+          company_id: string | null
           company_linkedin: string | null
           company_location: string | null
           company_name: string | null
@@ -2382,11 +2392,13 @@ export type Database = {
           company_website: string | null
           converted_at: string | null
           created_at: string
+          deal_id: string | null
           demo_free: boolean | null
           email: string | null
           enriched_at: string | null
           enrichment_status: Database["public"]["Enums"]["enrichment_status"]
           executivo_id: string | null
+          exemplo: boolean
           first_approach_at: string | null
           form_name: string | null
           form_payload: Json | null
@@ -2440,6 +2452,7 @@ export type Database = {
           campaign?: string | null
           channel?: string | null
           company_description?: string | null
+          company_id?: string | null
           company_linkedin?: string | null
           company_location?: string | null
           company_name?: string | null
@@ -2449,11 +2462,13 @@ export type Database = {
           company_website?: string | null
           converted_at?: string | null
           created_at?: string
+          deal_id?: string | null
           demo_free?: boolean | null
           email?: string | null
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
           executivo_id?: string | null
+          exemplo?: boolean
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
@@ -2507,6 +2522,7 @@ export type Database = {
           campaign?: string | null
           channel?: string | null
           company_description?: string | null
+          company_id?: string | null
           company_linkedin?: string | null
           company_location?: string | null
           company_name?: string | null
@@ -2516,11 +2532,13 @@ export type Database = {
           company_website?: string | null
           converted_at?: string | null
           created_at?: string
+          deal_id?: string | null
           demo_free?: boolean | null
           email?: string | null
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
           executivo_id?: string | null
+          exemplo?: boolean
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
@@ -2564,6 +2582,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_stage_id_fkey"
             columns: ["stage_id"]
