@@ -20,6 +20,7 @@ import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
 import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
+import { Route as AppJornadaRouteImport } from './routes/_app.jornada'
 import { Route as AppInicioRouteImport } from './routes/_app.inicio'
 import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
@@ -121,6 +122,11 @@ const AppLeadsAnalyticsRoute = AppLeadsAnalyticsRouteImport.update({
 const AppKanbanRoute = AppKanbanRouteImport.update({
   id: '/kanban',
   path: '/kanban',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppJornadaRoute = AppJornadaRouteImport.update({
+  id: '/jornada',
+  path: '/jornada',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInicioRoute = AppInicioRouteImport.update({
@@ -399,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
   '/inicio': typeof AppInicioRoute
+  '/jornada': typeof AppJornadaRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/novidades': typeof AppNovidadesRoute
@@ -459,6 +466,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
   '/inicio': typeof AppInicioRoute
+  '/jornada': typeof AppJornadaRoute
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/novidades': typeof AppNovidadesRoute
@@ -520,6 +528,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/diagnostico': typeof AppDiagnosticoRoute
   '/_app/inicio': typeof AppInicioRoute
+  '/_app/jornada': typeof AppJornadaRoute
   '/_app/kanban': typeof AppKanbanRoute
   '/_app/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/_app/novidades': typeof AppNovidadesRoute
@@ -582,6 +591,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/inicio'
+    | '/jornada'
     | '/kanban'
     | '/leads-analytics'
     | '/novidades'
@@ -642,6 +652,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/inicio'
+    | '/jornada'
     | '/kanban'
     | '/leads-analytics'
     | '/novidades'
@@ -702,6 +713,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/diagnostico'
     | '/_app/inicio'
+    | '/_app/jornada'
     | '/_app/kanban'
     | '/_app/leads-analytics'
     | '/_app/novidades'
@@ -838,6 +850,13 @@ declare module '@tanstack/react-router' {
       path: '/kanban'
       fullPath: '/kanban'
       preLoaderRoute: typeof AppKanbanRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jornada': {
+      id: '/_app/jornada'
+      path: '/jornada'
+      fullPath: '/jornada'
+      preLoaderRoute: typeof AppJornadaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/inicio': {
@@ -1250,6 +1269,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppDiagnosticoRoute: typeof AppDiagnosticoRoute
   AppInicioRoute: typeof AppInicioRoute
+  AppJornadaRoute: typeof AppJornadaRoute
   AppKanbanRoute: typeof AppKanbanRoute
   AppLeadsAnalyticsRoute: typeof AppLeadsAnalyticsRoute
   AppNovidadesRoute: typeof AppNovidadesRoute
@@ -1281,6 +1301,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppDiagnosticoRoute: AppDiagnosticoRoute,
   AppInicioRoute: AppInicioRoute,
+  AppJornadaRoute: AppJornadaRoute,
   AppKanbanRoute: AppKanbanRoute,
   AppLeadsAnalyticsRoute: AppLeadsAnalyticsRoute,
   AppNovidadesRoute: AppNovidadesRoute,

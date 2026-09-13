@@ -6,6 +6,7 @@ import {
   Kanban as KanbanIcon,
   BarChart3,
   Target,
+  Route as RouteIcon,
   Settings as SettingsIcon,
   LogOut,
   PanelLeftClose,
@@ -77,6 +78,13 @@ const NAV_OBJECTS: NavItem[] = [
     also: ["/empresas"],
   },
   { to: "/cs-follow-ups", label: "Tarefas", icon: ListChecks, team: "cs", roles: ["executivo"] },
+  {
+    to: "/jornada",
+    label: "Jornada do cliente",
+    icon: RouteIcon,
+    team: "cs",
+    roles: ["executivo"],
+  },
 ];
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [

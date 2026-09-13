@@ -168,6 +168,7 @@ export type Database = {
           created_by: string | null
           dominio: string | null
           estado: string | null
+          exemplo: boolean
           fonte_original: string | null
           hubspot_id: string | null
           id: string
@@ -207,6 +208,7 @@ export type Database = {
           created_by?: string | null
           dominio?: string | null
           estado?: string | null
+          exemplo?: boolean
           fonte_original?: string | null
           hubspot_id?: string | null
           id?: string
@@ -246,6 +248,7 @@ export type Database = {
           created_by?: string | null
           dominio?: string | null
           estado?: string | null
+          exemplo?: boolean
           fonte_original?: string | null
           hubspot_id?: string | null
           id?: string
@@ -716,6 +719,7 @@ export type Database = {
           data_inicio_contrato: string | null
           data_renovacao: string | null
           dg_ativo: boolean
+          exemplo: boolean
           diagnostico_causa: string | null
           health_score: number
           id: string
@@ -760,6 +764,7 @@ export type Database = {
           data_inicio_contrato?: string | null
           data_renovacao?: string | null
           dg_ativo?: boolean
+          exemplo?: boolean
           diagnostico_causa?: string | null
           health_score?: number
           id?: string
@@ -804,6 +809,7 @@ export type Database = {
           data_inicio_contrato?: string | null
           data_renovacao?: string | null
           dg_ativo?: boolean
+          exemplo?: boolean
           diagnostico_causa?: string | null
           health_score?: number
           id?: string
@@ -1900,6 +1906,7 @@ export type Database = {
           contrato_assinado_em: string | null
           cs_entregue_em: string | null
           esteira: string
+          exemplo: boolean
           faturado_em: string | null
           ordem_compra_em: string | null
           ordem_compra_numero: string | null
@@ -1952,6 +1959,7 @@ export type Database = {
           contrato_assinado_em?: string | null
           cs_entregue_em?: string | null
           esteira?: string
+          exemplo?: boolean
           faturado_em?: string | null
           ordem_compra_em?: string | null
           ordem_compra_numero?: string | null
@@ -2004,6 +2012,7 @@ export type Database = {
           contrato_assinado_em?: string | null
           cs_entregue_em?: string | null
           esteira?: string
+          exemplo?: boolean
           faturado_em?: string | null
           ordem_compra_em?: string | null
           ordem_compra_numero?: string | null
@@ -2387,6 +2396,9 @@ export type Database = {
           enriched_at: string | null
           enrichment_status: Database["public"]["Enums"]["enrichment_status"]
           executivo_id: string | null
+          company_id: string | null
+          deal_id: string | null
+          exemplo: boolean
           first_approach_at: string | null
           form_name: string | null
           form_payload: Json | null
@@ -2454,6 +2466,9 @@ export type Database = {
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
           executivo_id?: string | null
+          company_id?: string | null
+          deal_id?: string | null
+          exemplo?: boolean
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
@@ -2521,6 +2536,9 @@ export type Database = {
           enriched_at?: string | null
           enrichment_status?: Database["public"]["Enums"]["enrichment_status"]
           executivo_id?: string | null
+          company_id?: string | null
+          deal_id?: string | null
+          exemplo?: boolean
           first_approach_at?: string | null
           form_name?: string | null
           form_payload?: Json | null
