@@ -50,6 +50,12 @@ const BY_CODE: Record<string, Omit<SendFailure, "code">> = {
     action: "A conta passou do ritmo permitido pela Meta. Espere e reduza a cadência de disparos.",
     scope: "conta",
   },
+  "131049": {
+    title: "A Meta segurou a mensagem de marketing",
+    action:
+      "Não é erro de configuração: a Meta limita quantas mensagens de marketing cada pessoa recebe e corta quando a chance de engajamento é baixa. Espere pelo menos 24h antes de tentar de novo com a mesma pessoa. Aviso ligado a um compromisso já combinado costuma passar como template de utilidade.",
+    scope: "conversa",
+  },
   "131048": {
     title: "A Meta limitou a conta por qualidade/spam",
     action:
@@ -141,6 +147,11 @@ const BY_TEXT: Array<{ match: RegExp; value: Omit<SendFailure, "code"> }> = [
   {
     match: /rate limit/i,
     value: BY_CODE["130429"],
+  },
+  {
+    // A Meta manda esse texto às vezes sem o código junto.
+    match: /healthy ecosystem|ecosystem engagement/i,
+    value: BY_CODE["131049"],
   },
   {
     match: /fetch failed|network|ETIMEDOUT|ECONNRESET/i,

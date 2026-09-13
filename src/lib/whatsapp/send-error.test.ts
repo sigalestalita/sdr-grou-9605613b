@@ -51,3 +51,20 @@ describe("explainWhatsappError", () => {
     expect(explainWhatsappError("").code).toBeNull();
   });
 });
+
+describe("limite de marketing da Meta", () => {
+  it("reconhece o corte por engajamento, com ou sem código", () => {
+    const comCodigo = explainWhatsappError(
+      "(#131049) This message was not delivered to maintain healthy ecosystem engagement.",
+    );
+    expect(comCodigo.code).toBe("131049");
+    expect(comCodigo.title).toContain("marketing");
+    expect(comCodigo.scope).toBe("conversa");
+
+    const semCodigo = explainWhatsappError(
+      "This message was not delivered to maintain healthy ecosystem engagement.",
+    );
+    expect(semCodigo.title).toContain("marketing");
+    expect(semCodigo.action).toContain("24h");
+  });
+});
