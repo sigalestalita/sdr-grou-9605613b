@@ -204,7 +204,7 @@ export type HealthOptions = {
 export const DEFAULT_HEALTH_OPTIONS: HealthOptions = { renormalizar_sem_sinaleira: true };
 
 export type DailyTarget = { contatos_por_dia: number };
-export const DEFAULT_DAILY_TARGET: DailyTarget = { contatos_por_dia: 5 };
+export const DEFAULT_DAILY_TARGET: DailyTarget = { contatos_por_dia: 8 };
 
 export type StageSla = {
   onboarding: number;

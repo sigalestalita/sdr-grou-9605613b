@@ -30,6 +30,7 @@ import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integraco
 import { Route as AppCsFollowUpsRouteImport } from './routes/_app.cs-follow-ups'
 import { Route as AppCsEmailsRouteImport } from './routes/_app.cs-emails'
 import { Route as AppCsDashboardRouteImport } from './routes/_app.cs-dashboard'
+import { Route as AppCsConsultoriasRouteImport } from './routes/_app.cs-consultorias'
 import { Route as AppCsConfiguracoesRouteImport } from './routes/_app.cs-configuracoes'
 import { Route as AppCsCadenciaRouteImport } from './routes/_app.cs-cadencia'
 import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
@@ -173,6 +174,11 @@ const AppCsEmailsRoute = AppCsEmailsRouteImport.update({
 const AppCsDashboardRoute = AppCsDashboardRouteImport.update({
   id: '/cs-dashboard',
   path: '/cs-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsConsultoriasRoute = AppCsConsultoriasRouteImport.update({
+  id: '/cs-consultorias',
+  path: '/cs-consultorias',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCsConfiguracoesRoute = AppCsConfiguracoesRouteImport.update({
@@ -403,6 +409,7 @@ export interface FileRoutesByFullPath {
   '/cs-agenda': typeof AppCsAgendaRoute
   '/cs-cadencia': typeof AppCsCadenciaRoute
   '/cs-configuracoes': typeof AppCsConfiguracoesRoute
+  '/cs-consultorias': typeof AppCsConsultoriasRoute
   '/cs-dashboard': typeof AppCsDashboardRoute
   '/cs-emails': typeof AppCsEmailsRoute
   '/cs-follow-ups': typeof AppCsFollowUpsRoute
@@ -465,6 +472,7 @@ export interface FileRoutesByTo {
   '/cs-agenda': typeof AppCsAgendaRoute
   '/cs-cadencia': typeof AppCsCadenciaRoute
   '/cs-configuracoes': typeof AppCsConfiguracoesRoute
+  '/cs-consultorias': typeof AppCsConsultoriasRoute
   '/cs-dashboard': typeof AppCsDashboardRoute
   '/cs-emails': typeof AppCsEmailsRoute
   '/cs-follow-ups': typeof AppCsFollowUpsRoute
@@ -528,6 +536,7 @@ export interface FileRoutesById {
   '/_app/cs-agenda': typeof AppCsAgendaRoute
   '/_app/cs-cadencia': typeof AppCsCadenciaRoute
   '/_app/cs-configuracoes': typeof AppCsConfiguracoesRoute
+  '/_app/cs-consultorias': typeof AppCsConsultoriasRoute
   '/_app/cs-dashboard': typeof AppCsDashboardRoute
   '/_app/cs-emails': typeof AppCsEmailsRoute
   '/_app/cs-follow-ups': typeof AppCsFollowUpsRoute
@@ -592,6 +601,7 @@ export interface FileRouteTypes {
     | '/cs-agenda'
     | '/cs-cadencia'
     | '/cs-configuracoes'
+    | '/cs-consultorias'
     | '/cs-dashboard'
     | '/cs-emails'
     | '/cs-follow-ups'
@@ -654,6 +664,7 @@ export interface FileRouteTypes {
     | '/cs-agenda'
     | '/cs-cadencia'
     | '/cs-configuracoes'
+    | '/cs-consultorias'
     | '/cs-dashboard'
     | '/cs-emails'
     | '/cs-follow-ups'
@@ -716,6 +727,7 @@ export interface FileRouteTypes {
     | '/_app/cs-agenda'
     | '/_app/cs-cadencia'
     | '/_app/cs-configuracoes'
+    | '/_app/cs-consultorias'
     | '/_app/cs-dashboard'
     | '/_app/cs-emails'
     | '/_app/cs-follow-ups'
@@ -932,6 +944,13 @@ declare module '@tanstack/react-router' {
       path: '/cs-dashboard'
       fullPath: '/cs-dashboard'
       preLoaderRoute: typeof AppCsDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-consultorias': {
+      id: '/_app/cs-consultorias'
+      path: '/cs-consultorias'
+      fullPath: '/cs-consultorias'
+      preLoaderRoute: typeof AppCsConsultoriasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cs-configuracoes': {
@@ -1280,6 +1299,7 @@ interface AppRouteChildren {
   AppCsAgendaRoute: typeof AppCsAgendaRoute
   AppCsCadenciaRoute: typeof AppCsCadenciaRoute
   AppCsConfiguracoesRoute: typeof AppCsConfiguracoesRoute
+  AppCsConsultoriasRoute: typeof AppCsConsultoriasRoute
   AppCsDashboardRoute: typeof AppCsDashboardRoute
   AppCsEmailsRoute: typeof AppCsEmailsRoute
   AppCsFollowUpsRoute: typeof AppCsFollowUpsRoute
@@ -1313,6 +1333,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCsAgendaRoute: AppCsAgendaRoute,
   AppCsCadenciaRoute: AppCsCadenciaRoute,
   AppCsConfiguracoesRoute: AppCsConfiguracoesRoute,
+  AppCsConsultoriasRoute: AppCsConsultoriasRoute,
   AppCsDashboardRoute: AppCsDashboardRoute,
   AppCsEmailsRoute: AppCsEmailsRoute,
   AppCsFollowUpsRoute: AppCsFollowUpsRoute,

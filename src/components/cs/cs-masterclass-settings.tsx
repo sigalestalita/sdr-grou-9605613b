@@ -16,7 +16,7 @@ const COR_LABEL = {
 } as const;
 const num = (v: string) => (v === "" ? undefined : Number(v));
 
-/** Catálogo dos módulos, regra de oferta por cor/tempo e marcos de sucesso. */
+/** Catálogo dos módulos e regra de oferta por cor e tempo. */
 export function MasterclassSettings({
   value,
   onChange,
@@ -226,73 +226,6 @@ export function MasterclassSettings({
         >
           <Plus className="mr-1 h-3.5 w-3.5" /> Regra
         </Button>
-      </div>
-
-      <div className="space-y-2">
-        <h3 className="text-sm font-semibold">Marcos de sucesso</h3>
-        <p className="max-w-[80ch] text-[13px] text-muted-foreground">
-          Atingido o marco, o sistema registra nas observações e na timeline da empresa.
-        </p>
-        {(["primeiro", "segundo"] as const).map((k) => (
-          <div
-            key={k}
-            className="grid max-w-2xl gap-2 sm:grid-cols-[8rem_1fr_1fr_1fr] sm:items-center"
-          >
-            <span className="text-sm">{k === "primeiro" ? "1º Sucesso" : "2º Sucesso"}</span>
-            <label className="space-y-0.5 text-[11px] text-muted-foreground">
-              Módulos
-              <Input
-                className={inputCls}
-                value={value.sucesso[k].modulos.join(", ")}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    sucesso: {
-                      ...value.sucesso,
-                      [k]: { ...value.sucesso[k], modulos: mods(e.target.value) },
-                    },
-                  })
-                }
-              />
-            </label>
-            <label className="space-y-0.5 text-[11px] text-muted-foreground">
-              Participações (distintas)
-              <Input
-                className={inputCls}
-                type="number"
-                min={1}
-                value={value.sucesso[k].participacoes}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    sucesso: {
-                      ...value.sucesso,
-                      [k]: { ...value.sucesso[k], participacoes: Number(e.target.value) },
-                    },
-                  })
-                }
-              />
-            </label>
-            <label className="space-y-0.5 text-[11px] text-muted-foreground">
-              Usos em projeto real
-              <Input
-                className={inputCls}
-                type="number"
-                min={0}
-                value={value.sucesso[k].usos}
-                onChange={(e) =>
-                  onChange({
-                    ...value,
-                    sucesso: {
-                      ...value.sucesso,
-                      [k]: { ...value.sucesso[k], usos: Number(e.target.value) },
-                    },
-                  })
-                }
-              />
-            </label>
-          </div>
-        ))}
       </div>
     </div>
   );

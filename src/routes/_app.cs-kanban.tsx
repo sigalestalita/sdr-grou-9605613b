@@ -13,6 +13,7 @@ import { listCadenceTasks, upsertCadenceTask } from "@/lib/cs-cadence-kanban.fun
 import { CADENCE_URGENCY_LABEL, URGENCY_TONE, WEEKDAY_LABEL } from "@/lib/cs/cadence";
 import { CS_SIGNAL_LABEL, CS_STAGE_LABEL, mondayOf, type CsSignal } from "@/lib/cs-types";
 import { useAuth } from "@/lib/use-auth";
+import { useCurrentRole } from "@/lib/use-role";
 import {
   CalendarClock,
   CheckCircle2,
@@ -157,6 +158,7 @@ function CadenceKanbanCard({
 
 function CsKanbanPage() {
   const { user } = useAuth();
+  const role = useCurrentRole();
   const qc = useQueryClient();
   const fetchCadence = useServerFn(getCsCadence);
   const fetchTasks = useServerFn(listCadenceTasks);
@@ -198,7 +200,9 @@ function CsKanbanPage() {
   });
 
   const myOwnerId = user?.id ?? "";
-  const effectiveOwner = ownerId || myOwnerId;
+  // "todos" só para a gestão: mostra a carteira do time inteiro num quadro só.
+  const verTodos = ownerId === "todos";
+  const effectiveOwner = verTodos ? "" : ownerId || myOwnerId;
 
   const cards = useMemo(() => {
     const tasks = new Map((tasksQ.data ?? []).map((t) => [t.clientUid, t]));
@@ -207,7 +211,7 @@ function CsKanbanPage() {
     for (const row of cadenceQ.data?.rows ?? []) {
       const task = tasks.get(row.clientUid);
       if (!row.plan.due && !task) continue;
-      if (effectiveOwner && row.ownerId !== effectiveOwner) continue;
+      if (!verTodos && effectiveOwner && row.ownerId !== effectiveOwner) continue;
       if (
         q &&
         !row.clientName.toLowerCase().includes(q) &&
@@ -219,7 +223,7 @@ function CsKanbanPage() {
       out.push({ row, weekday: task?.weekday ?? row.plan.suggestedWeekday, done });
     }
     return out;
-  }, [cadenceQ.data, tasksQ.data, effectiveOwner, search, hideDone]);
+  }, [cadenceQ.data, tasksQ.data, effectiveOwner, verTodos, search, hideDone]);
 
   const byDay = useMemo(() => {
     const map: Record<number, TaskCard[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
@@ -230,7 +234,9 @@ function CsKanbanPage() {
 
   const doneCount = cards.filter((c) => c.done).length;
   const owners = cadenceQ.data?.owners ?? [];
-  const ownerName = owners.find((o) => o.id === effectiveOwner)?.name ?? "Minha carteira";
+  const ownerName = verTodos
+    ? "Todos os analistas"
+    : (owners.find((o) => o.id === effectiveOwner)?.name ?? "Minha carteira");
 
   function toggle(card: TaskCard, done: boolean) {
     mutation.mutate({
@@ -306,6 +312,7 @@ function CsKanbanPage() {
             onChange={(e) => setOwnerId(e.target.value)}
           >
             <option value="">Minha carteira</option>
+            {role.canAccessAll && <option value="todos">Todos os analistas</option>}
             {owners.map((o) => (
               <option key={o.id} value={o.id}>
                 {o.name}

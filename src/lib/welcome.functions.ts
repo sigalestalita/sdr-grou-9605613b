@@ -96,7 +96,6 @@ export type CsMetrics = {
   tarefasAtrasadas: number;
   contatosNoPeriodo: number;
   reunioesNoPeriodo: number;
-  primeirosSucessos: number;
 };
 
 export type TeamRow = {
@@ -350,7 +349,7 @@ export const getWelcome = createServerFn({ method: "GET" })
     if (show.cs) {
       const { data: clients } = await supabase
         .from("cs_clients")
-        .select("client_uid, current_signal, primeiro_sucesso_at")
+        .select("client_uid, current_signal")
         .eq("ativo", true)
         .eq("cs_responsavel_id", target);
       const uids = (clients ?? []).map((c) => c.client_uid);
@@ -380,8 +379,6 @@ export const getWelcome = createServerFn({ method: "GET" })
         tarefasAtrasadas: (tasks ?? []).filter((t) => t.due_at && new Date(t.due_at) < now).length,
         contatosNoPeriodo: (contatos ?? []).length,
         reunioesNoPeriodo: (contatos ?? []).filter((c) => c.channel === "reuniao").length,
-        primeirosSucessos: (clients ?? []).filter((c) => inRange(c.primeiro_sucesso_at, from, to))
-          .length,
       };
     }
 

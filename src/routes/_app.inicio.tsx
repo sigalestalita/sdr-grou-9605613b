@@ -444,7 +444,7 @@ function WelcomePage() {
               hint={
                 d.cs.tarefasAtrasadas
                   ? `${d.cs.tarefasAtrasadas} atrasadas`
-                  : `${d.cs.primeirosSucessos} 1º sucesso no período`
+                  : `${d.cs.reunioesNoPeriodo} reuniões no período`
               }
               tone={d.cs.tarefasAtrasadas ? "warn" : undefined}
             />

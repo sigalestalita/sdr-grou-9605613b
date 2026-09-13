@@ -75,7 +75,10 @@ export const getCsCadence = createServerFn({ method: "GET" })
               "client_uid, nome_empresa, tipo_lead, journey_stage, health_score, aporte_valor, cs_responsavel_id, comercial_responsavel_id, data_inicio_contrato, data_renovacao, last_contact_at, current_signal, pda_consumo_pct, ativo, tag_uso, diagnostico_causa",
             )
             .eq("ativo", true);
+          // "all" quer dizer toda a carteira de atendimento, e consultoria não
+          // faz parte dela: é acompanhada só pela renovação, em aba separada.
           if (data.tipo !== "all") q = q.eq("tipo_lead", data.tipo);
+          else q = q.neq("tipo_lead", "consultoria");
           if (data.ownerId) q = q.eq("cs_responsavel_id", data.ownerId);
           return q.range(f, t);
         }),

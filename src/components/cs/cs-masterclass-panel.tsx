@@ -21,7 +21,6 @@ const fmt = (d: string | null) =>
 /**
  * Masterclasses da empresa: o que oferecer agora (regra de cor/tempo),
  * participações com comprovação de uso em projeto real e os marcos de
- * 1º/2º Sucesso, que o sistema registra sozinho nas observações.
  */
 export function CsMasterclassPanel({ clientUid }: { clientUid: string }) {
   const getFn = useServerFn(getCsMasterclass);
@@ -57,13 +56,8 @@ export function CsMasterclassPanel({ clientUid }: { clientUid: string }) {
           usedNote: form!.usedNote || null,
         },
       }),
-    onSuccess: (r) => {
+    onSuccess: () => {
       toast.success("Masterclass registrada");
-      const prev = q.data?.milestones;
-      if (r.milestones.primeiro && !prev?.primeiro)
-        toast.success("🏆 1º Sucesso atingido — registrado nas observações");
-      if (r.milestones.segundo && !prev?.segundo)
-        toast.success("🏆 2º Sucesso atingido — registrado nas observações");
       setForm(null);
       refresh();
     },
@@ -102,30 +96,6 @@ export function CsMasterclassPanel({ clientUid }: { clientUid: string }) {
   return (
     <div className="space-y-3 text-[12px]">
       <div className="flex flex-wrap items-center gap-1.5">
-        <Badge
-          variant="outline"
-          className={
-            d.milestones.primeiro
-              ? "gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
-              : "gap-1 text-muted-foreground"
-          }
-          title="2 masterclasses dos módulos 1–3 e 1 uso em projeto real"
-        >
-          <Award className="h-3 w-3" /> 1º Sucesso{" "}
-          {d.milestones.primeiro ? `· ${fmt(d.milestones.primeiro)}` : "· pendente"}
-        </Badge>
-        <Badge
-          variant="outline"
-          className={
-            d.milestones.segundo
-              ? "gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-600"
-              : "gap-1 text-muted-foreground"
-          }
-          title="Módulo 5 (Liderança) com uso comprovado"
-        >
-          <Award className="h-3 w-3" /> 2º Sucesso{" "}
-          {d.milestones.segundo ? `· ${fmt(d.milestones.segundo)}` : "· pendente"}
-        </Badge>
         <Button size="sm" variant="outline" className="ml-auto h-7" onClick={() => openNew()}>
           <Plus className="mr-1 h-3.5 w-3.5" /> Registrar
         </Button>

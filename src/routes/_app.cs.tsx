@@ -125,7 +125,6 @@ const BUILTIN_VIEWS: SavedView<Filters>[] = [
   { id: "minha", label: "Minha carteira", builtin: true, filters: { mine: true } },
   { id: "vermelho5", label: "Vermelhos 5+ semanas", builtin: true, filters: { redWeeks: 5 } },
   { id: "renov60", label: "Renovação ≤ 60 d", builtin: true, filters: { renewalDays: 60 } },
-  { id: "consultorias", label: "Consultorias", builtin: true, filters: { tipo: "consultoria" } },
   { id: "todas", label: "Todas as empresas", builtin: true, filters: { ativo: "todos" } },
 ];
 

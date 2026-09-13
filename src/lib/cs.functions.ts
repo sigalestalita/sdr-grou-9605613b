@@ -53,8 +53,15 @@ export const listCsBoard = createServerFn({ method: "GET" })
       features,
       journey,
     ] = await Promise.all([
+      // Consultoria não entra aqui: ela só é acompanhada na aba própria, onde
+      // o que importa é a renovação, não a sinaleira.
       fetchAllRows((f, t) =>
-        supabase.from("cs_clients").select("*").order("nome_empresa").range(f, t),
+        supabase
+          .from("cs_clients")
+          .select("*")
+          .neq("tipo_lead", "consultoria")
+          .order("nome_empresa")
+          .range(f, t),
       ),
       fetchAllRows((f, t) =>
         supabase
@@ -957,7 +964,8 @@ export const saveCsMeeting = createServerFn({ method: "POST" })
         id: z.string().uuid().optional(),
         clientUid: z.string().min(1),
         title: z.string().min(1),
-        categoryId: z.string().uuid().nullable().optional(),
+        // Obrigatório: é o tipo que decide se a reunião vira tag de masterclass.
+        categoryId: z.string().uuid({ message: "Escolha o tipo da reunião" }),
         occurredAt: z.string().min(1),
         durationMinutes: z.number().int().positive().nullable().optional(),
         status: z.enum(["realizada", "agendada", "cancelada", "no_show"]).default("realizada"),
@@ -974,7 +982,7 @@ export const saveCsMeeting = createServerFn({ method: "POST" })
     const row = {
       client_uid: data.clientUid,
       title: data.title,
-      category_id: data.categoryId ?? null,
+      category_id: data.categoryId,
       occurred_at: new Date(data.occurredAt).toISOString(),
       duration_minutes: data.durationMinutes ?? null,
       status: data.status,
@@ -1019,6 +1027,30 @@ export const saveCsMeeting = createServerFn({ method: "POST" })
         .from("cs_clients")
         .update({ last_contact_at: row.occurred_at } as never)
         .eq("client_uid", data.clientUid);
+
+      /*
+       * Reunião de masterclass registrada vira tag na empresa, com a agenda
+       * que a originou. É por isso que o tipo é obrigatório: sem ele não dá
+       * para saber se a reunião conta como masterclass.
+       */
+      const { data: categoria } = await supabase
+        .from("cs_meeting_categories")
+        .select("name, slug")
+        .eq("id", data.categoryId)
+        .maybeSingle();
+      const rotulo = `${categoria?.slug ?? ""} ${categoria?.name ?? ""}`;
+      if (/masterclass/i.test(rotulo)) {
+        const { addClientTag } = await import("@/lib/cs/cs-core.server");
+        await addClientTag(supabase, {
+          client_uid: data.clientUid,
+          tag: (categoria?.slug || categoria?.name || "masterclass")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "_"),
+          origem_agenda_id: meetingId,
+          created_by: userId,
+        });
+      }
     }
 
     return { ok: true, id: meetingId };
@@ -1308,4 +1340,86 @@ export const deleteCsDelegation = createServerFn({ method: "POST" })
     const { error } = await context.supabase.from("cs_delegations").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/**
+ * Consultorias — acompanhamento por renovação.
+ *
+ * Consultoria não entra na carteira de atendimento nem na sinaleira: o que se
+ * olha nela é o vencimento. A janela padrão é 15 dias para trás, para pegar o
+ * que venceu e ninguém tratou, e 15 para frente, para agir antes.
+ */
+export const listCsConsultorias = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        diasAntes: z.number().int().min(1).max(180).default(15),
+        diasDepois: z.number().int().min(1).max(180).default(15),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const de = new Date(hoje.getTime() - data.diasAntes * 86400000);
+    const ate = new Date(hoje.getTime() + data.diasDepois * 86400000);
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+
+    const [{ data: todas, error }, { data: profiles }] = await Promise.all([
+      supabase
+        .from("cs_clients")
+        .select(
+          "client_uid, nome_empresa, cnpj, data_inicio_contrato, data_renovacao, aporte_valor, cs_responsavel_id, comercial_responsavel_id, login_pda, site_url, last_contact_at, ativo",
+        )
+        .eq("tipo_lead", "consultoria")
+        .eq("ativo", true)
+        .order("data_renovacao"),
+      supabase.from("profiles").select("id, full_name, email"),
+    ]);
+    if (error) throw new Error(error.message);
+
+    const nomeDe = new Map(
+      (profiles ?? []).map((p: { id: string; full_name: string | null; email: string | null }) => [
+        p.id,
+        p.full_name || p.email || p.id,
+      ]),
+    );
+
+    const linhas = (todas ?? []).map((c) => {
+      const venc = c.data_renovacao as string | null;
+      const dias = venc
+        ? Math.round((new Date(`${venc}T12:00:00`).getTime() - hoje.getTime()) / 86400000)
+        : null;
+      return {
+        clientUid: c.client_uid as string,
+        nome: c.nome_empresa as string,
+        dataRenovacao: venc,
+        diasParaVencer: dias,
+        aporte: Number(c.aporte_valor ?? 0),
+        responsavel: nomeDe.get(c.cs_responsavel_id as string) ?? null,
+        comercial: nomeDe.get(c.comercial_responsavel_id as string) ?? null,
+        loginPda: (c.login_pda as string | null) ?? null,
+        ultimoContato: (c.last_contact_at as string | null) ?? null,
+      };
+    });
+
+    const naJanela = linhas.filter(
+      (l) => l.dataRenovacao && l.dataRenovacao >= iso(de) && l.dataRenovacao <= iso(ate),
+    );
+
+    return {
+      janela: {
+        de: iso(de),
+        ate: iso(ate),
+        diasAntes: data.diasAntes,
+        diasDepois: data.diasDepois,
+      },
+      // vencidas primeiro, porque são as que já passaram do ponto
+      vencidas: naJanela.filter((l) => (l.diasParaVencer ?? 0) < 0),
+      aVencer: naJanela.filter((l) => (l.diasParaVencer ?? 0) >= 0),
+      totalConsultorias: linhas.length,
+      semDataRenovacao: linhas.filter((l) => !l.dataRenovacao).length,
+    };
   });

@@ -81,7 +81,7 @@ export function CsMeetingsTab({
   const categories = data?.categories ?? [];
   const catName = useMemo(() => {
     const map = new Map(categories.map((c) => [c.id, c.name] as const));
-    return (id: string | null) => (id ? map.get(id) ?? "Sem categoria" : "Sem categoria");
+    return (id: string | null) => (id ? (map.get(id) ?? "Sem categoria") : "Sem categoria");
   }, [categories]);
 
   const reset = () => {
@@ -108,7 +108,7 @@ export function CsMeetingsTab({
           id: form.id,
           clientUid,
           title: form.title.trim(),
-          categoryId: form.categoryId || null,
+          categoryId: form.categoryId,
           occurredAt: form.occurredAt,
           durationMinutes: form.durationMinutes ? Number(form.durationMinutes) : null,
           status: form.status,
@@ -167,11 +167,13 @@ export function CsMeetingsTab({
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
             <select
-              className="h-9 rounded-md border bg-background px-2 text-sm"
+              className={`h-9 rounded-md border bg-background px-2 text-sm ${
+                form.categoryId ? "" : "border-amber-500/60"
+              }`}
               value={form.categoryId}
               onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
             >
-              <option value="">Categoria…</option>
+              <option value="">Tipo da reunião (obrigatório)…</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -256,7 +258,7 @@ export function CsMeetingsTab({
               </Button>
               <Button
                 size="sm"
-                disabled={form.title.trim().length < 2 || save.isPending}
+                disabled={form.title.trim().length < 2 || !form.categoryId || save.isPending}
                 onClick={() => save.mutate()}
               >
                 Salvar reunião
