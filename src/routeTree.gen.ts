@@ -37,6 +37,7 @@ import { Route as AppCsRouteImport } from './routes/_app.cs'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
 import { Route as AppComercialPipelineRouteImport } from './routes/_app.comercial-pipeline'
 import { Route as AppComercialMetasRouteImport } from './routes/_app.comercial-metas'
+import { Route as AppComercialAnaliseRouteImport } from './routes/_app.comercial-analise'
 import { Route as AppComercialRouteImport } from './routes/_app.comercial'
 import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
 import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
@@ -207,6 +208,11 @@ const AppComercialPipelineRoute = AppComercialPipelineRouteImport.update({
 const AppComercialMetasRoute = AppComercialMetasRouteImport.update({
   id: '/comercial-metas',
   path: '/comercial-metas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialAnaliseRoute = AppComercialAnaliseRouteImport.update({
+  id: '/comercial-analise',
+  path: '/comercial-analise',
   getParentRoute: () => AppRoute,
 } as any)
 const AppComercialRoute = AppComercialRouteImport.update({
@@ -389,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/cadencia': typeof AppCadenciaRoute
   '/comercial': typeof AppComercialRoute
+  '/comercial-analise': typeof AppComercialAnaliseRoute
   '/comercial-metas': typeof AppComercialMetasRoute
   '/comercial-pipeline': typeof AppComercialPipelineRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -450,6 +457,7 @@ export interface FileRoutesByTo {
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/cadencia': typeof AppCadenciaRoute
   '/comercial': typeof AppComercialRoute
+  '/comercial-analise': typeof AppComercialAnaliseRoute
   '/comercial-metas': typeof AppComercialMetasRoute
   '/comercial-pipeline': typeof AppComercialPipelineRoute
   '/configuracoes': typeof AppConfiguracoesRoute
@@ -512,6 +520,7 @@ export interface FileRoutesById {
   '/_app/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/_app/cadencia': typeof AppCadenciaRoute
   '/_app/comercial': typeof AppComercialRoute
+  '/_app/comercial-analise': typeof AppComercialAnaliseRoute
   '/_app/comercial-metas': typeof AppComercialMetasRoute
   '/_app/comercial-pipeline': typeof AppComercialPipelineRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
@@ -575,6 +584,7 @@ export interface FileRouteTypes {
     | '/analytics-chat'
     | '/cadencia'
     | '/comercial'
+    | '/comercial-analise'
     | '/comercial-metas'
     | '/comercial-pipeline'
     | '/configuracoes'
@@ -636,6 +646,7 @@ export interface FileRouteTypes {
     | '/analytics-chat'
     | '/cadencia'
     | '/comercial'
+    | '/comercial-analise'
     | '/comercial-metas'
     | '/comercial-pipeline'
     | '/configuracoes'
@@ -697,6 +708,7 @@ export interface FileRouteTypes {
     | '/_app/analytics-chat'
     | '/_app/cadencia'
     | '/_app/comercial'
+    | '/_app/comercial-analise'
     | '/_app/comercial-metas'
     | '/_app/comercial-pipeline'
     | '/_app/configuracoes'
@@ -969,6 +981,13 @@ declare module '@tanstack/react-router' {
       path: '/comercial-metas'
       fullPath: '/comercial-metas'
       preLoaderRoute: typeof AppComercialMetasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial-analise': {
+      id: '/_app/comercial-analise'
+      path: '/comercial-analise'
+      fullPath: '/comercial-analise'
+      preLoaderRoute: typeof AppComercialAnaliseRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/comercial': {
@@ -1253,6 +1272,7 @@ interface AppRouteChildren {
   AppAnalyticsChatRoute: typeof AppAnalyticsChatRouteWithChildren
   AppCadenciaRoute: typeof AppCadenciaRoute
   AppComercialRoute: typeof AppComercialRoute
+  AppComercialAnaliseRoute: typeof AppComercialAnaliseRoute
   AppComercialMetasRoute: typeof AppComercialMetasRoute
   AppComercialPipelineRoute: typeof AppComercialPipelineRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
@@ -1285,6 +1305,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnalyticsChatRoute: AppAnalyticsChatRouteWithChildren,
   AppCadenciaRoute: AppCadenciaRoute,
   AppComercialRoute: AppComercialRoute,
+  AppComercialAnaliseRoute: AppComercialAnaliseRoute,
   AppComercialMetasRoute: AppComercialMetasRoute,
   AppComercialPipelineRoute: AppComercialPipelineRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,

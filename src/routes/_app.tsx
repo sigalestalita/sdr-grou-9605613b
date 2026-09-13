@@ -159,6 +159,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/leads-analytics", label: "Performance SDR", icon: LineChart, team: "comercial" },
       {
+        to: "/comercial-analise",
+        label: "Análise comercial",
+        icon: BarChart3,
+        team: "comercial",
+        roles: ["executivo"],
+      },
+      {
         to: "/cs-dashboard",
         label: "Dashboard CS",
         icon: BarChart3,

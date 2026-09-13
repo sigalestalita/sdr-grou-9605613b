@@ -431,3 +431,201 @@ export const removerMetaComercial = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// ---------------------------------------------------------------------------
+// Análise comercial
+// ---------------------------------------------------------------------------
+
+/** Colunas que só existem depois da migration do módulo comercial. */
+const COLS_NOVAS =
+  "ordem_compra_em, proposta_aceita_em, faturado_em, cs_entregue_em, adm_checked_at, esteira";
+const COLS_BASE =
+  "id, nome, company_id, executivo_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, tipo_venda, categoria_venda, motivo_venda, reuniao_em, agendado_em, closed_at, lost_reason, created_at";
+
+/**
+ * Busca os negócios tolerando a migration ainda não aplicada. Se as colunas
+ * novas não existirem, repete a consulta só com as antigas — assim a análise
+ * roda sobre o histórico que já veio do RD, sem esperar o SQL.
+ */
+async function negociosParaAnalise(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  desde: Date,
+): Promise<{ linhas: Array<Record<string, unknown>>; temColunasNovas: boolean }> {
+  const buscar = async (cols: string) => {
+    const out: Array<Record<string, unknown>> = [];
+    for (let page = 0; page < 30; page++) {
+      const { data, error } = await supabase
+        .from("deals")
+        .select(cols)
+        .or(
+          `status.eq.open,created_at.gte.${desde.toISOString()},closed_at.gte.${desde.toISOString()}`,
+        )
+        .order("created_at", { ascending: false })
+        .range(page * PAGE, page * PAGE + PAGE - 1);
+      if (error) throw new Error(error.message);
+      const rows = (data ?? []) as Array<Record<string, unknown>>;
+      out.push(...rows);
+      if (rows.length < PAGE) break;
+    }
+    return out;
+  };
+
+  try {
+    return { linhas: await buscar(`${COLS_BASE}, ${COLS_NOVAS}`), temColunasNovas: true };
+  } catch {
+    return { linhas: await buscar(COLS_BASE), temColunasNovas: false };
+  }
+}
+
+export const getComercialAnalise = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        meses: z.number().int().min(3).max(24).default(12),
+        pipelineId: z.string().uuid().optional(),
+        executivoId: z.string().uuid().optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { agrupar, cicloMedianoDias, funilComConversao, porMes, taxaVitoria } =
+      await import("@/lib/comercial/analise");
+    type NegocioAnalise = import("@/lib/comercial/analise").NegocioAnalise;
+
+    const hoje = new Date();
+    const desde = new Date(hoje.getFullYear(), hoje.getMonth() - (data.meses - 1), 1);
+
+    const [{ data: isManager }, { data: pipelinesRaw }, { data: stagesRaw }, { data: profiles }] =
+      await Promise.all([
+        supabase.rpc("is_manager", { _user_id: userId }),
+        supabase
+          .from("pipelines")
+          .select("id, nome, slug, ordem")
+          .eq("tipo", "comercial")
+          .order("ordem"),
+        supabase
+          .from("pipeline_stages")
+          .select("id, pipeline_id, nome, ordem, kind")
+          .order("ordem"),
+        supabase.from("profiles").select("id, full_name, email"),
+      ]);
+
+    const { linhas, temColunasNovas } = await negociosParaAnalise(supabase, desde);
+
+    // Quem não é gestão analisa a própria carteira.
+    const foco = isManager ? (data.executivoId ?? null) : userId;
+
+    let negocios: NegocioAnalise[] = linhas.map((r) => ({
+      id: String(r.id),
+      status: String(r.status ?? "open"),
+      amount: r.amount == null ? null : Number(r.amount),
+      created_at: String(r.created_at),
+      closed_at: (r.closed_at as string | null) ?? null,
+      // A regra da gestora: vale a ordem de compra; sem ela, o fechamento antigo.
+      ganho_em:
+        r.status === "won"
+          ? ((r.ordem_compra_em as string | null) ?? (r.closed_at as string | null) ?? null)
+          : null,
+      executivo_user_id: (r.executivo_user_id as string | null) ?? null,
+      stage_id: (r.stage_id as string | null) ?? null,
+      fonte: (r.fonte as string | null) ?? null,
+      campanha: (r.campanha as string | null) ?? null,
+      tipo_venda: (r.tipo_venda as string | null) ?? null,
+      motivo_venda: (r.motivo_venda as string | null) ?? null,
+      lost_reason: (r.lost_reason as string | null) ?? null,
+      reuniao_em: (r.reuniao_em as string | null) ?? null,
+      agendado_em: (r.agendado_em as string | null) ?? null,
+    }));
+
+    const pipelineDe = new Map(
+      (linhas ?? []).map((r) => [String(r.id), (r.pipeline_id as string | null) ?? null]),
+    );
+    if (data.pipelineId)
+      negocios = negocios.filter((n) => pipelineDe.get(n.id) === data.pipelineId);
+    if (foco) negocios = negocios.filter((n) => n.executivo_user_id === foco);
+
+    // ---- funil com conversão ----
+    const stages = (stagesRaw ?? []) as Array<{
+      id: string;
+      pipeline_id: string;
+      nome: string;
+      ordem: number;
+      kind: string;
+    }>;
+    const abertos = negocios.filter((n) => n.status === "open");
+    const contagem = new Map<string, { quantidade: number; valor: number }>();
+    for (const n of abertos) {
+      if (!n.stage_id) continue;
+      const a = contagem.get(n.stage_id) ?? { quantidade: 0, valor: 0 };
+      a.quantidade += 1;
+      a.valor += Number(n.amount ?? 0);
+      contagem.set(n.stage_id, a);
+    }
+    const etapasDoFunil = stages
+      .filter((s) => s.kind === "open")
+      .filter((s) => (data.pipelineId ? s.pipeline_id === data.pipelineId : true))
+      .map((s) => ({ id: s.id, nome: s.nome, ordem: s.ordem }));
+
+    // ---- ranking de executivos ----
+    const nomeDe = new Map(
+      (profiles ?? []).map((p: { id: string; full_name: string | null; email: string | null }) => [
+        p.id,
+        p.full_name || p.email || p.id,
+      ]),
+    );
+    const porPessoa = new Map<string, { valor: number; quantidade: number; perdidos: number }>();
+    for (const n of negocios) {
+      const id = n.executivo_user_id;
+      if (!id) continue;
+      const a = porPessoa.get(id) ?? { valor: 0, quantidade: 0, perdidos: 0 };
+      if (n.ganho_em) {
+        a.valor += Number(n.amount ?? 0);
+        a.quantidade += 1;
+      } else if (n.status === "lost" && n.closed_at) a.perdidos += 1;
+      porPessoa.set(id, a);
+    }
+    const ranking = [...porPessoa.entries()]
+      .map(([id, v]) => ({
+        id,
+        nome: nomeDe.get(id) ?? id,
+        ...v,
+        taxa:
+          v.quantidade + v.perdidos
+            ? Math.round((v.quantidade / (v.quantidade + v.perdidos)) * 100)
+            : null,
+      }))
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 10);
+
+    const ganhos = negocios.filter((n) => n.ganho_em);
+    const valorGanho = ganhos.reduce((a, n) => a + Number(n.amount ?? 0), 0);
+
+    return {
+      isManager: !!isManager,
+      temColunasNovas,
+      pipelines: (pipelinesRaw ?? []) as Array<{ id: string; nome: string }>,
+      executivos: [...porPessoa.keys()].map((id) => ({ id, nome: nomeDe.get(id) ?? id })),
+      resumo: {
+        valorGanho,
+        quantidade: ganhos.length,
+        ticketMedio: ganhos.length ? Math.round(valorGanho / ganhos.length) : 0,
+        taxaVitoria: taxaVitoria(negocios),
+        cicloDias: cicloMedianoDias(negocios),
+        abertos: abertos.length,
+        valorAberto: abertos.reduce((a, n) => a + Number(n.amount ?? 0), 0),
+      },
+      serieMensal: porMes(negocios, data.meses, hoje),
+      funil: funilComConversao(etapasDoFunil, contagem),
+      origens: agrupar(ganhos, (n) => n.fonte, { topo: 7 }),
+      tiposVenda: agrupar(ganhos, (n) => n.tipo_venda, { topo: 6 }),
+      motivosPerda: agrupar(
+        negocios.filter((n) => n.status === "lost"),
+        (n) => n.lost_reason ?? n.motivo_venda,
+        { topo: 7, ordenarPor: "quantidade" },
+      ),
+      ranking,
+    };
+  });
