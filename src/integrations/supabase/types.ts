@@ -1808,6 +1808,64 @@ export type Database = {
         }
         Relationships: []
       }
+      deal_activities: {
+        Row: {
+          author_id: string | null
+          created_at: string
+          de_stage_id: string | null
+          deal_id: string
+          descricao: string | null
+          id: string
+          occurred_at: string
+          para_stage_id: string | null
+          tipo: string
+        }
+        Insert: {
+          author_id?: string | null
+          created_at?: string
+          de_stage_id?: string | null
+          deal_id: string
+          descricao?: string | null
+          id?: string
+          occurred_at?: string
+          para_stage_id?: string | null
+          tipo: string
+        }
+        Update: {
+          author_id?: string | null
+          created_at?: string
+          de_stage_id?: string | null
+          deal_id?: string
+          descricao?: string | null
+          id?: string
+          occurred_at?: string
+          para_stage_id?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_activities_de_stage_id_fkey"
+            columns: ["de_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_para_stage_id_fkey"
+            columns: ["para_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_contacts: {
         Row: {
           contact_id: string
@@ -1927,6 +1985,8 @@ export type Database = {
           produtos_texto: string | null
           proposta_aceita_em: string | null
           provenance: Json
+          proximo_passo: string | null
+          proximo_passo_em: string | null
           rd_deal_id: string | null
           rd_pipeline: string | null
           rd_stage: string | null
@@ -1980,6 +2040,8 @@ export type Database = {
           produtos_texto?: string | null
           proposta_aceita_em?: string | null
           provenance?: Json
+          proximo_passo?: string | null
+          proximo_passo_em?: string | null
           rd_deal_id?: string | null
           rd_pipeline?: string | null
           rd_stage?: string | null
@@ -2033,6 +2095,8 @@ export type Database = {
           produtos_texto?: string | null
           proposta_aceita_em?: string | null
           provenance?: Json
+          proximo_passo?: string | null
+          proximo_passo_em?: string | null
           rd_deal_id?: string | null
           rd_pipeline?: string | null
           rd_stage?: string | null
