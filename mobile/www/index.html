@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Compass</title>
+    <style>
+      :root { color-scheme: dark; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: grid;
+        place-items: center;
+        padding: 2rem calc(1.5rem + env(safe-area-inset-left));
+        background: #0f1724;
+        color: #e6edf5;
+        font: 15px/1.6 -apple-system, system-ui, sans-serif;
+        text-align: center;
+      }
+      h1 { font-size: 1.1rem; margin: 0 0 0.5rem; }
+      p { margin: 0; color: #93a4b8; max-width: 30ch; }
+    </style>
+  </head>
+  <body>
+    <!-- Só aparece quando o telefone não alcança compass.groupp.com. -->
+    <div>
+      <h1>Sem conexão</h1>
+      <p>O Compass precisa de internet para carregar. Verifique a rede e abra de novo.</p>
+    </div>
+  </body>
+</html>

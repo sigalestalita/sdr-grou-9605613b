@@ -1,0 +1,22 @@
+{
+  "name": "compass-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Casca nativa iOS do Grou Compass (Capacitor). Não faz parte do build web.",
+  "scripts": {
+    "add:ios": "cap add ios",
+    "sync": "cap sync ios",
+    "open": "cap open ios"
+  },
+  "dependencies": {
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0",
+    "@capacitor/splash-screen": "^8.0.0",
+    "@capacitor/status-bar": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.0.0"
+  }
+}
