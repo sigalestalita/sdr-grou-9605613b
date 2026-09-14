@@ -98,6 +98,22 @@ export type CsMetrics = {
   reunioesNoPeriodo: number;
 };
 
+export type GestaoComercialMetrics = {
+  mesLabel: string;
+  agendas: number;
+  agendasPorExecutivo: Array<{ id: string; name: string; n: number }>;
+  base: "faturamento" | "venda";
+  faturado: number;
+  vendido: number;
+  ganhoSemFaturar: number;
+  porFunil: Array<{ slug: string; nome: string; faturado: number; vendido: number; n: number }>;
+  ranking: Array<{ id: string; name: string; valor: number; vendas: number }>;
+  meta: number;
+  realizado: number;
+  progressoPct: number;
+  fracaoDoMesPct: number;
+};
+
 export type TeamRow = {
   id: string;
   name: string;
@@ -214,11 +230,28 @@ export const getWelcome = createServerFn({ method: "GET" })
           ).map((r) => r.role as string);
     const targetIsManager = targetRoles.includes("super_admin") || targetRoles.includes("gestao");
 
+    /*
+     * Gestão de SDR e gestão comercial são as duas "gestao" do módulo
+     * comercial, e até aqui davam no mesmo — a gestora de vendas via o bloco
+     * de SDR, que não é o time dela.
+     *
+     * A diferença está no time que a pessoa gere: o time de SDR tem gente com
+     * acesso sdr, o de vendas tem gente com acesso executivo. Super admin
+     * continua vendo os dois.
+     */
+    const timesQueGere = targetMemberships
+      .filter((m) => m.access.includes("gestao") && teamBySlug.get(m.team)?.modulo === "comercial")
+      .map((m) => m.team);
+    const temNoTime = (acesso: string) =>
+      links.some((l) => timesQueGere.includes(l.team) && l.access.includes(acesso));
+    const superAdmin = targetRoles.includes("super_admin");
+
     const show = {
       sdr: has(target, "sdr", "comercial"),
       executivo: has(target, "executivo", "comercial") || targetRoles.includes("executivo"),
       cs: targetMemberships.some((m) => teamBySlug.get(m.team)?.modulo === "cs"),
-      gestaoSdr: targetIsManager || has(target, "gestao", "comercial"),
+      gestaoSdr: superAdmin || temNoTime("sdr"),
+      gestaoComercial: superAdmin || temNoTime("executivo"),
     };
 
     // ---- pessoas que a gestão pode escolher ----
@@ -423,6 +456,158 @@ export const getWelcome = createServerFn({ method: "GET" })
       }
     }
 
+    // ---- Gestão comercial (executivos) ----
+    /*
+     * Mês fechado, não o período do seletor: a meta da empresa é mensal e o
+     * faturamento também. O seletor de cima continua valendo para os blocos
+     * individuais.
+     */
+    let gestaoComercial: GestaoComercialMetrics | null = null;
+    if (show.gestaoComercial) {
+      const mesIni = new Date(from.getFullYear(), from.getMonth(), 1);
+      const mesFim = new Date(from.getFullYear(), from.getMonth() + 1, 1);
+
+      const execIds = [
+        ...new Set(
+          links
+            .filter(
+              (l) =>
+                l.access.includes("executivo") && teamBySlug.get(l.team)?.modulo === "comercial",
+            )
+            .map((l) => l.user_id),
+        ),
+      ];
+      const { data: execRoles } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "executivo");
+      for (const r of execRoles ?? []) {
+        if (!execIds.includes(r.user_id as string)) execIds.push(r.user_id as string);
+      }
+
+      const [{ data: pipes }, { data: negocios }, { data: leadsDoMes }, { data: cfg }] =
+        await Promise.all([
+          supabaseAdmin.from("pipelines").select("id, nome, slug").eq("tipo", "comercial"),
+          supabaseAdmin
+            .from("deals")
+            .select(
+              "id, amount, status, pipeline_id, executivo_user_id, reuniao_em, closed_at, ordem_compra_em, faturado_em",
+            )
+            .or(
+              [
+                `faturado_em.gte.${mesIni.toISOString()}`,
+                `closed_at.gte.${mesIni.toISOString()}`,
+                `ordem_compra_em.gte.${mesIni.toISOString()}`,
+                `reuniao_em.gte.${mesIni.toISOString()}`,
+              ].join(","),
+            ),
+          execIds.length
+            ? supabaseAdmin
+                .from("leads")
+                .select("id, executivo_id, meeting_at")
+                .in("executivo_id", execIds)
+                .gte("meeting_at", mesIni.toISOString())
+                .lt("meeting_at", mesFim.toISOString())
+            : Promise.resolve({ data: [] as Array<{ executivo_id: string; meeting_at: string }> }),
+          supabaseAdmin.from("app_settings").select("value").eq("key", "comercial").maybeSingle(),
+        ]);
+
+      const conf = (cfg?.value ?? {}) as {
+        meta_faturamento_mensal?: number;
+        meta_base?: string;
+      };
+      const meta = Number(conf.meta_faturamento_mensal ?? 775000);
+      const base: "faturamento" | "venda" = conf.meta_base === "venda" ? "venda" : "faturamento";
+
+      type DealLite = {
+        id: string;
+        amount: number | null;
+        status: string;
+        pipeline_id: string | null;
+        executivo_user_id: string | null;
+        reuniao_em: string | null;
+        closed_at: string | null;
+        ordem_compra_em: string | null;
+        faturado_em: string | null;
+      };
+      const rows = (negocios ?? []) as DealLite[];
+      const noMes = (iso: string | null) => inRange(iso, mesIni, mesFim);
+      // Venda vale pela ordem de compra; sem ela, pela data de fechamento.
+      const dataDaVenda = (d: DealLite) => d.ordem_compra_em ?? d.closed_at;
+
+      const faturados = rows.filter((d) => noMes(d.faturado_em));
+      const vendidos = rows.filter((d) => d.status === "won" && noMes(dataDaVenda(d)));
+      const soma = (list: DealLite[]) => list.reduce((a, d) => a + Number(d.amount ?? 0), 0);
+
+      const porFunil = (pipes ?? []).map((p) => {
+        const id = p.id as string;
+        const f = faturados.filter((d) => d.pipeline_id === id);
+        const v = vendidos.filter((d) => d.pipeline_id === id);
+        return {
+          slug: p.slug as string,
+          nome: p.nome as string,
+          faturado: soma(f),
+          vendido: soma(v),
+          n: (base === "faturamento" ? f : v).length,
+        };
+      });
+
+      // Agendas do time comercial: as reuniões dos negócios mais as que o SDR
+      // marcou para o executivo. Uma reunião de lead que virou negócio pode
+      // constar nos dois lugares, então conta uma vez por executivo/minuto.
+      const chaves = new Set<string>();
+      const porExec = new Map<string, number>();
+      const marcar = (execId: string | null, quando: string | null) => {
+        if (!execId || !quando || !noMes(quando)) return;
+        const k = `${execId}|${quando.slice(0, 16)}`;
+        if (chaves.has(k)) return;
+        chaves.add(k);
+        porExec.set(execId, (porExec.get(execId) ?? 0) + 1);
+      };
+      for (const d of rows) marcar(d.executivo_user_id, d.reuniao_em);
+      for (const l of leadsDoMes ?? [])
+        marcar(l.executivo_id as string, l.meeting_at as string | null);
+
+      const baseDoRanking = base === "faturamento" ? faturados : vendidos;
+      const ranking = [
+        ...baseDoRanking.reduce((m, d) => {
+          const id = d.executivo_user_id;
+          if (!id) return m;
+          const atual = m.get(id) ?? { valor: 0, vendas: 0 };
+          m.set(id, { valor: atual.valor + Number(d.amount ?? 0), vendas: atual.vendas + 1 });
+          return m;
+        }, new Map<string, { valor: number; vendas: number }>()),
+      ]
+        .map(([id, v]) => ({ id, name: nameOf.get(id) ?? id, ...v }))
+        .sort((a, b) => b.valor - a.valor);
+
+      const realizado = base === "faturamento" ? soma(faturados) : soma(vendidos);
+      const decorrido = Math.min(
+        1,
+        Math.max(0, (now.getTime() - mesIni.getTime()) / (mesFim.getTime() - mesIni.getTime())),
+      );
+
+      gestaoComercial = {
+        mesLabel: mesIni.toLocaleDateString("pt-BR", { month: "long", year: "numeric" }),
+        agendas: chaves.size,
+        agendasPorExecutivo: [...porExec]
+          .map(([id, n]) => ({ id, name: nameOf.get(id) ?? id, n }))
+          .sort((a, b) => b.n - a.n),
+        base,
+        faturado: soma(faturados),
+        vendido: soma(vendidos),
+        ganhoSemFaturar: soma(vendidos.filter((d) => !d.faturado_em)),
+        // Todos os funis, inclusive os zerados: a ausência de cross sell no mês
+        // é informação para a gestão, não um item a esconder.
+        porFunil,
+        ranking,
+        meta,
+        realizado,
+        progressoPct: meta > 0 ? Math.round((realizado / meta) * 100) : 0,
+        fracaoDoMesPct: Math.round(decorrido * 100),
+      };
+    }
+
     return {
       me: { id: me, name: nameOf.get(me) ?? "", isManager },
       viewing: {
@@ -441,6 +626,7 @@ export const getWelcome = createServerFn({ method: "GET" })
       executivo,
       cs,
       team,
+      gestaoComercial,
       stageNames: Object.fromEntries(
         stages.map((s) => [s.id, stageById.get(s.id)?.name ?? s.slug]),
       ),

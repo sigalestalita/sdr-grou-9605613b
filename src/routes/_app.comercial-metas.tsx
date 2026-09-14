@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight, Lightbulb, Target, Trash2 } from "lucide-react";
 import {
   listMetasComerciais,
+  salvarMetaDaEmpresa,
   removerMetaComercial,
   salvarMetaComercial,
 } from "@/lib/comercial.functions";
@@ -63,6 +64,7 @@ const ESCOPO_LABEL: Record<string, string> = {
  */
 function MetasPage() {
   const listFn = useServerFn(listMetasComerciais);
+  const salvarEmpresaFn = useServerFn(salvarMetaDaEmpresa);
   const salvarFn = useServerFn(salvarMetaComercial);
   const removerFn = useServerFn(removerMetaComercial);
   const qc = useQueryClient();
@@ -71,10 +73,22 @@ function MetasPage() {
   const periodo = useMemo(() => format(ref, "yyyy-MM-01"), [ref]);
   const [editando, setEditando] = useState<MetaRow | null>(null);
   const [novo, setNovo] = useState(false);
+  const [metaEmpresa, setMetaEmpresa] = useState("");
+  const [metaBase, setMetaBase] = useState<"faturamento" | "venda">("faturamento");
 
   const { data, isLoading } = useQuery({
     queryKey: ["metas-comerciais", periodo],
     queryFn: () => listFn({ data: { periodo } }),
+  });
+
+  const salvarEmpresa = useMutation({
+    mutationFn: () => salvarEmpresaFn({ data: { valor: Number(metaEmpresa), base: metaBase } }),
+    onSuccess: () => {
+      toast.success("Meta da empresa salva");
+      qc.invalidateQueries({ queryKey: ["metas-comerciais"] });
+      qc.invalidateQueries({ queryKey: ["welcome"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
   const remover = useMutation({
@@ -126,6 +140,48 @@ function MetasPage() {
           </Button>
         </div>
       </header>
+
+      {/* A meta da empresa é o número da tela inicial da gestão comercial, e
+          não é a soma das metas individuais — por isso mora aqui em cima. */}
+      <div className="surface-panel space-y-2 p-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <p className="section-label">Meta mensal da empresa</p>
+          <p className="metric-value text-2xl">{moeda(data?.metaEmpresa ?? 0)}</p>
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Vale para todos os meses e aparece na tela inicial da gestão comercial. Contada por{" "}
+          {(data?.metaBase ?? "faturamento") === "faturamento"
+            ? "faturamento (data em que o ADM faturou)"
+            : "venda (data da ordem de compra)"}
+          .
+        </p>
+        {podeEditar && (
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="number"
+              value={metaEmpresa}
+              onChange={(e) => setMetaEmpresa(e.target.value)}
+              placeholder={String(data?.metaEmpresa ?? 775000)}
+              className="h-8 w-40 text-xs"
+            />
+            <select
+              value={metaBase}
+              onChange={(e) => setMetaBase(e.target.value as "faturamento" | "venda")}
+              className="h-8 rounded-md border bg-background px-2 text-xs"
+            >
+              <option value="faturamento">Por faturamento</option>
+              <option value="venda">Por venda (ordem de compra)</option>
+            </select>
+            <Button
+              size="sm"
+              disabled={!metaEmpresa || salvarEmpresa.isPending}
+              onClick={() => salvarEmpresa.mutate()}
+            >
+              Salvar
+            </Button>
+          </div>
+        )}
+      </div>
 
       {metas.length > 0 && (
         <div className="flex flex-wrap gap-3">

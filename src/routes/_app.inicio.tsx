@@ -11,12 +11,15 @@ import {
   KanbanSquare,
   LifeBuoy,
   Send,
+  Target,
+  Trophy,
   Users,
 } from "lucide-react";
 import { useAuth } from "@/lib/use-auth";
 import { useCurrentRole } from "@/lib/use-role";
-import { getWelcome } from "@/lib/welcome.functions";
+import { getWelcome, type GestaoComercialMetrics } from "@/lib/welcome.functions";
 import { accessLabel, TEAM_COLORS } from "@/lib/teams";
+import { moeda } from "@/lib/comercial/metas";
 import { CsHomeSections, Empty, Section } from "@/components/cs/cs-home";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -179,15 +182,20 @@ function WelcomePage() {
       {q.isLoading && <Empty>Carregando suas métricas…</Empty>}
       {q.error && <Empty>{q.error instanceof Error ? q.error.message : "Erro ao carregar"}</Empty>}
 
-      {d && !d.show.sdr && !d.show.executivo && !d.show.cs && !d.show.gestaoSdr && (
-        <Section icon={LifeBuoy} title="Sem time ainda">
-          <Empty>
-            {viewingSelf
-              ? "Seu usuário ainda não está em nenhum time. Peça à gestão para incluir você em Administração → Usuários."
-              : "Essa pessoa ainda não está em nenhum time."}
-          </Empty>
-        </Section>
-      )}
+      {d &&
+        !d.show.sdr &&
+        !d.show.executivo &&
+        !d.show.cs &&
+        !d.show.gestaoSdr &&
+        !d.show.gestaoComercial && (
+          <Section icon={LifeBuoy} title="Sem time ainda">
+            <Empty>
+              {viewingSelf
+                ? "Seu usuário ainda não está em nenhum time. Peça à gestão para incluir você em Administração → Usuários."
+                : "Essa pessoa ainda não está em nenhum time."}
+            </Empty>
+          </Section>
+        )}
 
       {/* ---------------- SDR ---------------- */}
       {d?.sdr && (
@@ -413,6 +421,18 @@ function WelcomePage() {
         </Section>
       )}
 
+      {/* ---------------- Gestão comercial ---------------- */}
+      {d?.gestaoComercial && (
+        <Section
+          icon={Target}
+          title={`Comercial · ${d.gestaoComercial.mesLabel}`}
+          to="/comercial-analise"
+          toLabel="Ver análise"
+        >
+          <GestaoComercialBloco g={d.gestaoComercial} />
+        </Section>
+      )}
+
       {/* ---------------- CS ---------------- */}
       {d?.cs && (
         <Section
@@ -454,6 +474,127 @@ function WelcomePage() {
 
       {/* Blocos do dia do CS (sempre sobre a pessoa logada) */}
       {d?.show.cs && viewingSelf && !role.loading && <CsHomeSections />}
+    </div>
+  );
+}
+
+/**
+ * O que a gestão comercial olha no mês: quanto entrou, de qual funil, quem
+ * puxou e quanto falta para a meta.
+ *
+ * O mês é fechado de propósito — a meta da empresa é mensal, então o seletor
+ * de período do topo não manda neste bloco.
+ */
+function GestaoComercialBloco({ g }: { g: GestaoComercialMetrics }) {
+  const top = g.ranking[0] ?? null;
+  const adiantado = g.progressoPct >= g.fracaoDoMesPct;
+  const falta = Math.max(0, g.meta - g.realizado);
+  const baseLabel = g.base === "faturamento" ? "faturado" : "vendido";
+
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Metric
+          label="Agendas do time"
+          value={g.agendas}
+          hint={
+            g.agendasPorExecutivo.length
+              ? g.agendasPorExecutivo
+                  .slice(0, 3)
+                  .map((e) => `${e.name.split(" ")[0]} ${e.n}`)
+                  .join(" · ")
+              : "reuniões dos executivos no mês"
+          }
+        />
+        <Metric
+          label={g.base === "faturamento" ? "Faturado no mês" : "Vendido no mês"}
+          value={moeda(g.realizado)}
+          hint={
+            g.base === "faturamento"
+              ? `${moeda(g.vendido)} vendido`
+              : `${moeda(g.faturado)} faturado`
+          }
+          tone={adiantado ? "good" : undefined}
+        />
+        <Metric
+          label="Top vendedor"
+          value={top ? top.name.split(" ")[0] : "—"}
+          hint={
+            top ? `${moeda(top.valor)} · ${top.vendas} venda(s)` : `sem venda ${baseLabel} ainda`
+          }
+        />
+        <Metric
+          label="Meta do mês"
+          value={`${g.progressoPct}%`}
+          hint={`${moeda(g.realizado)} de ${moeda(g.meta)}`}
+          tone={adiantado ? "good" : "warn"}
+        />
+      </div>
+
+      {/* A barra compara com o quanto do mês já passou: 60% da meta no dia 10
+          é uma notícia diferente de 60% no dia 28. */}
+      <div>
+        <div className="relative h-2.5 overflow-hidden rounded-full bg-muted">
+          <div
+            className={`h-full rounded-full ${adiantado ? "bg-emerald-500" : "bg-primary"}`}
+            style={{ width: `${Math.min(100, g.progressoPct)}%` }}
+          />
+          <div
+            className="absolute top-0 h-full w-px bg-foreground/50"
+            style={{ left: `${Math.min(100, g.fracaoDoMesPct)}%` }}
+            title={`${g.fracaoDoMesPct}% do mês`}
+          />
+        </div>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          {g.fracaoDoMesPct}% do mês decorrido · faltam {moeda(falta)}
+          {g.ganhoSemFaturar > 0 && g.base === "faturamento"
+            ? ` · ${moeda(g.ganhoSemFaturar)} vendido aguardando faturamento`
+            : ""}
+        </p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {g.porFunil.map((f) => (
+          <div key={f.slug} className="surface-panel p-2.5">
+            <p className="truncate text-[11px] font-medium" title={f.nome}>
+              {f.nome}
+            </p>
+            <p className="metric-value mt-0.5 text-lg">
+              {moeda(g.base === "faturamento" ? f.faturado : f.vendido)}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {f.n} negócio(s)
+              {g.base === "faturamento" && f.vendido !== f.faturado
+                ? ` · ${moeda(f.vendido)} vendido`
+                : ""}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {g.ranking.length > 1 && (
+        <div>
+          <p className="section-label mb-1 flex items-center gap-1">
+            <Trophy className="h-3.5 w-3.5" /> Ranking do mês
+          </p>
+          <ul className="divide-y">
+            {g.ranking.map((r, i) => (
+              <li key={r.id} className="flex items-center justify-between gap-2 py-1.5 text-[12px]">
+                <span className="min-w-0 truncate">
+                  <span className="mr-1.5 text-muted-foreground tabular-nums">{i + 1}º</span>
+                  {r.name}
+                </span>
+                <span className="shrink-0 tabular-nums">
+                  {moeda(r.valor)}
+                  <span className="ml-1 text-[10px] text-muted-foreground">
+                    {r.vendas} venda(s)
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

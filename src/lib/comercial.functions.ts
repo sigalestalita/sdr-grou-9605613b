@@ -391,13 +391,58 @@ export const listMetasComerciais = createServerFn({ method: "GET" })
         supabase.from("profiles").select("id, full_name, email").order("full_name"),
         supabase.from("app_settings").select("value").eq("key", "comercial").maybeSingle(),
       ]);
-    const conf = (cfg?.value ?? {}) as { ticket_medio?: number };
+    const conf = (cfg?.value ?? {}) as {
+      ticket_medio?: number;
+      meta_faturamento_mensal?: number;
+      meta_base?: string;
+    };
     return {
       isManager: !!isManager,
       metas: metas ?? [],
       profiles: profiles ?? [],
       ticketMedio: Number(conf.ticket_medio ?? 4500),
+      metaEmpresa: Number(conf.meta_faturamento_mensal ?? 775000),
+      metaBase: conf.meta_base === "venda" ? ("venda" as const) : ("faturamento" as const),
     };
+  });
+
+/**
+ * Meta mensal da empresa inteira, que é o número da tela inicial da gestão.
+ *
+ * A base é escolhida aqui porque as duas leituras existem e não dão o mesmo
+ * número: a venda conta na ordem de compra, o faturamento conta dias depois,
+ * quando o ADM fatura.
+ */
+export const salvarMetaDaEmpresa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        valor: z.number().min(0).max(1_000_000_000),
+        base: z.enum(["faturamento", "venda"]),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: isManager } = await supabase.rpc("is_manager", { _user_id: userId });
+    if (!isManager) throw new Error("Apenas a gestão define a meta da empresa");
+
+    const { data: atual } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "comercial")
+      .maybeSingle();
+    const value = {
+      ...((atual?.value ?? {}) as Record<string, unknown>),
+      meta_faturamento_mensal: data.valor,
+      meta_base: data.base,
+    };
+    const { error } = await supabase
+      .from("app_settings")
+      .upsert({ key: "comercial", value, updated_at: new Date().toISOString() } as never);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 export const salvarMetaComercial = createServerFn({ method: "POST" })
