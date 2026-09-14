@@ -39,6 +39,7 @@ import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoe
 import { Route as AppComercialPipelineRouteImport } from './routes/_app.comercial-pipeline'
 import { Route as AppComercialMetasRouteImport } from './routes/_app.comercial-metas'
 import { Route as AppComercialAnaliseRouteImport } from './routes/_app.comercial-analise'
+import { Route as AppComercialAgendaRouteImport } from './routes/_app.comercial-agenda'
 import { Route as AppComercialRouteImport } from './routes/_app.comercial'
 import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
 import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
@@ -220,6 +221,11 @@ const AppComercialMetasRoute = AppComercialMetasRouteImport.update({
 const AppComercialAnaliseRoute = AppComercialAnaliseRouteImport.update({
   id: '/comercial-analise',
   path: '/comercial-analise',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialAgendaRoute = AppComercialAgendaRouteImport.update({
+  id: '/comercial-agenda',
+  path: '/comercial-agenda',
   getParentRoute: () => AppRoute,
 } as any)
 const AppComercialRoute = AppComercialRouteImport.update({
@@ -407,6 +413,7 @@ export interface FileRoutesByFullPath {
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/cadencia': typeof AppCadenciaRoute
   '/comercial': typeof AppComercialRoute
+  '/comercial-agenda': typeof AppComercialAgendaRoute
   '/comercial-analise': typeof AppComercialAnaliseRoute
   '/comercial-metas': typeof AppComercialMetasRoute
   '/comercial-pipeline': typeof AppComercialPipelineRoute
@@ -471,6 +478,7 @@ export interface FileRoutesByTo {
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/cadencia': typeof AppCadenciaRoute
   '/comercial': typeof AppComercialRoute
+  '/comercial-agenda': typeof AppComercialAgendaRoute
   '/comercial-analise': typeof AppComercialAnaliseRoute
   '/comercial-metas': typeof AppComercialMetasRoute
   '/comercial-pipeline': typeof AppComercialPipelineRoute
@@ -536,6 +544,7 @@ export interface FileRoutesById {
   '/_app/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/_app/cadencia': typeof AppCadenciaRoute
   '/_app/comercial': typeof AppComercialRoute
+  '/_app/comercial-agenda': typeof AppComercialAgendaRoute
   '/_app/comercial-analise': typeof AppComercialAnaliseRoute
   '/_app/comercial-metas': typeof AppComercialMetasRoute
   '/_app/comercial-pipeline': typeof AppComercialPipelineRoute
@@ -602,6 +611,7 @@ export interface FileRouteTypes {
     | '/analytics-chat'
     | '/cadencia'
     | '/comercial'
+    | '/comercial-agenda'
     | '/comercial-analise'
     | '/comercial-metas'
     | '/comercial-pipeline'
@@ -666,6 +676,7 @@ export interface FileRouteTypes {
     | '/analytics-chat'
     | '/cadencia'
     | '/comercial'
+    | '/comercial-agenda'
     | '/comercial-analise'
     | '/comercial-metas'
     | '/comercial-pipeline'
@@ -730,6 +741,7 @@ export interface FileRouteTypes {
     | '/_app/analytics-chat'
     | '/_app/cadencia'
     | '/_app/comercial'
+    | '/_app/comercial-agenda'
     | '/_app/comercial-analise'
     | '/_app/comercial-metas'
     | '/_app/comercial-pipeline'
@@ -1021,6 +1033,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppComercialAnaliseRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/comercial-agenda': {
+      id: '/_app/comercial-agenda'
+      path: '/comercial-agenda'
+      fullPath: '/comercial-agenda'
+      preLoaderRoute: typeof AppComercialAgendaRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/comercial': {
       id: '/_app/comercial'
       path: '/comercial'
@@ -1310,6 +1329,7 @@ interface AppRouteChildren {
   AppAnalyticsChatRoute: typeof AppAnalyticsChatRouteWithChildren
   AppCadenciaRoute: typeof AppCadenciaRoute
   AppComercialRoute: typeof AppComercialRoute
+  AppComercialAgendaRoute: typeof AppComercialAgendaRoute
   AppComercialAnaliseRoute: typeof AppComercialAnaliseRoute
   AppComercialMetasRoute: typeof AppComercialMetasRoute
   AppComercialPipelineRoute: typeof AppComercialPipelineRoute
@@ -1345,6 +1365,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAnalyticsChatRoute: AppAnalyticsChatRouteWithChildren,
   AppCadenciaRoute: AppCadenciaRoute,
   AppComercialRoute: AppComercialRoute,
+  AppComercialAgendaRoute: AppComercialAgendaRoute,
   AppComercialAnaliseRoute: AppComercialAnaliseRoute,
   AppComercialMetasRoute: AppComercialMetasRoute,
   AppComercialPipelineRoute: AppComercialPipelineRoute,

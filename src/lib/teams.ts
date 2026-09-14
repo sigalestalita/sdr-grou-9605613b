@@ -187,6 +187,7 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/comercial", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-pipeline", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-metas", teams: ["comercial"], roles: ["executivo"] },
+  { prefix: "/comercial-agenda", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/dashboard", teams: ["comercial"] },
   { prefix: "/kanban", teams: ["comercial"] },
   { prefix: "/lead", teams: ["comercial"], roles: ["executivo"] },

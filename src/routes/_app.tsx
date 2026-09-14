@@ -124,6 +124,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         roles: ["executivo"],
       },
       {
+        to: "/comercial-agenda",
+        label: "Agenda",
+        icon: CalendarDays,
+        team: "comercial",
+        roles: ["executivo"],
+      },
+      {
         to: "/comercial-metas",
         label: "Metas",
         icon: Target,
