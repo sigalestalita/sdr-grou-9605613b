@@ -4,7 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Building2, CalendarDays, FileCheck2, Flame, User as UserIcon } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  FileCheck2,
+  Flame,
+  Sparkles,
+  User as UserIcon,
+} from "lucide-react";
 import { listComercialDeals } from "@/lib/comercial.functions";
 import { moeda } from "@/lib/comercial/metas";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +38,7 @@ type Deal = {
   reuniao_em: string | null;
   ordem_compra_em: string | null;
   proposta_aceita_em: string | null;
+  fonte: string | null;
   companies?: { id: string; nome: string | null } | null;
 };
 
@@ -194,6 +202,14 @@ function PipelinePage() {
                           <span className="inline-flex items-center gap-0.5">
                             <CalendarDays className="h-3 w-3" />
                             {format(new Date(d.reuniao_em), "dd/MM", { locale: ptBR })}
+                          </span>
+                        )}
+                        {/* O card que veio da carteira precisa se identificar:
+                            o executivo não pediu por ele, ele chegou. */}
+                        {d.fonte === "Sinalização do CS" && (
+                          <span className="inline-flex items-center gap-0.5 text-violet-600 dark:text-violet-400">
+                            <Sparkles className="h-3 w-3" />
+                            do CS
                           </span>
                         )}
                         {d.ordem_compra_em && (

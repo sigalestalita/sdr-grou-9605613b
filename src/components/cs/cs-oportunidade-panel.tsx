@@ -17,8 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
 const STATUS_LABEL: Record<string, string> = {
-  aberta: "Aguardando o comercial",
-  assumida: "Assumida pelo comercial",
+  aberta: "No funil, sem dono",
+  assumida: "No funil, com o executivo",
   descartada: "Descartada",
 };
 
@@ -26,9 +26,10 @@ const moeda = (v: number) =>
   v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
 /**
- * O analista de CS sinaliza a oportunidade que viu na carteira. Quem abre e
- * trabalha o negócio é o executivo de carteira — aqui o CS só passa o que
- * enxergou, com o contexto.
+ * O analista de CS sinaliza a oportunidade que viu na carteira. A sinalização
+ * já vira card no funil certo (recompra ou cross sell), na primeira etapa e no
+ * nome do responsável comercial da conta. Aqui o CS só passa o que enxergou,
+ * com o contexto; quem negocia é o executivo.
  */
 export function CsOportunidadePanel({ clientUid }: { clientUid: string }) {
   const listFn = useServerFn(listOportunidadesDoCliente);
@@ -57,8 +58,12 @@ export function CsOportunidadePanel({ clientUid }: { clientUid: string }) {
           valorEstimado: valor ? Number(valor) : null,
         },
       }),
-    onSuccess: () => {
-      toast.success("Oportunidade sinalizada ao comercial");
+    onSuccess: (r) => {
+      toast.success(
+        r.temDono
+          ? "Card criado no funil da carteira, com o executivo responsável"
+          : "Card criado no funil da carteira — a conta não tem executivo, ficou na fila",
+      );
       setAberto(false);
       setMotivo("");
       setProduto("");
@@ -146,7 +151,7 @@ export function CsOportunidadePanel({ clientUid }: { clientUid: string }) {
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground">
-            O executivo de carteira é quem abre e trabalha o negócio.
+            Entra como card no funil da carteira, no nome do executivo responsável pela conta.
           </p>
         </div>
       )}
@@ -192,7 +197,7 @@ export function CsOportunidadePanel({ clientUid }: { clientUid: string }) {
                 </span>
               </div>
               {o.assumidaPor && (
-                <p className="text-[10px] text-muted-foreground">Assumida por {o.assumidaPor}</p>
+                <p className="text-[10px] text-muted-foreground">Com {o.assumidaPor}</p>
               )}
             </li>
           ))}

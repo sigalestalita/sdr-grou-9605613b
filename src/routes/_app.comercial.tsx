@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { endOfMonth, format, startOfMonth, subMonths } from "date-fns";
@@ -484,9 +484,15 @@ function MinhaFila() {
 }
 
 /**
- * O que o CS sinalizou e ninguém assumiu. Assumir cria o negócio já no funil
- * certo: recompra vai para o funil curto, cross sell para o longo, que tem
- * agenda de identificação de necessidade antes de virar oportunidade.
+ * O que chegou do CS.
+ *
+ * A sinalização não espera numa caixa de entrada: ela já entra como card no
+ * funil da carteira, na primeira etapa — que no cross sell se chama justamente
+ * "Clientes selecionados" —, no nome de quem é o responsável comercial da
+ * conta. Esta seção é só o aviso de que chegou, com o atalho para o card.
+ *
+ * Quando a conta não tem responsável comercial o card nasce sem dono, e aí sim
+ * alguém precisa assumir.
  */
 function SinalizacoesDoCs() {
   const listFn = useServerFn(listOportunidadesAbertas);
@@ -503,7 +509,7 @@ function SinalizacoesDoCs() {
   const assumir = useMutation({
     mutationFn: (id: string) => assumirFn({ data: { id } }),
     onSuccess: (r) => {
-      toast.success("Negócio criado no funil da carteira");
+      toast.success("Negócio agora está no seu nome");
       qc.invalidateQueries({ queryKey: ["oportunidades-abertas"] });
       qc.invalidateQueries({ queryKey: ["comercial"] });
       navigate({ to: "/negocio/$id", params: { id: r.dealId } });
@@ -511,44 +517,77 @@ function SinalizacoesDoCs() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
-  const lista = data?.oportunidades ?? [];
-  if (lista.length === 0) return null;
+  const minhas = data?.minhas ?? [];
+  const semDono = data?.semDono ?? [];
+  if (minhas.length === 0 && semDono.length === 0) return null;
+
+  // Função, não componente: as duas listas usam o mesmo desenho de linha.
+  const linha = (o: (typeof semDono)[number], acao: ReactNode) => (
+    <li key={o.id} className="flex flex-wrap items-center gap-2 py-2.5">
+      <div className="min-w-0 flex-1">
+        <p className="text-[13px] font-medium">{o.empresa}</p>
+        <p className="text-[11px] text-muted-foreground">{o.motivo}</p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground">
+          {format(new Date(o.sinalizadaEm), "dd/MM", { locale: ptBR })}
+          {o.sinalizadaPor ? ` · ${o.sinalizadaPor}` : ""}
+          {o.produtoSugerido ? ` · ${o.produtoSugerido}` : ""}
+        </p>
+      </div>
+      <Badge variant="outline" className="text-[9px]">
+        {o.tipo === "cross_sell" ? "Cross sell" : o.tipo === "recompra" ? "Recompra" : "Renovação"}
+      </Badge>
+      {o.valorEstimado ? (
+        <span className="text-[12px] tabular-nums text-muted-foreground">
+          {moeda(o.valorEstimado)}
+        </span>
+      ) : null}
+      {acao}
+    </li>
+  );
 
   return (
     <Section icon={Sparkles} title="Sinalizações do CS" to="/cs" toLabel="Ver carteira">
-      <p className="mb-2 text-[11px] text-muted-foreground">
-        O analista viu a oportunidade no cliente. Assumir abre o negócio no seu nome.
-      </p>
-      <ul className="divide-y">
-        {lista.map((o) => (
-          <li key={o.id} className="flex flex-wrap items-center gap-2 py-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="text-[13px] font-medium">{o.empresa}</p>
-              <p className="text-[11px] text-muted-foreground">{o.motivo}</p>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">
-                {format(new Date(o.sinalizadaEm), "dd/MM", { locale: ptBR })}
-                {o.sinalizadaPor ? ` · ${o.sinalizadaPor}` : ""}
-                {o.produtoSugerido ? ` · ${o.produtoSugerido}` : ""}
-              </p>
-            </div>
-            <Badge variant="outline" className="text-[9px]">
-              {o.tipo === "cross_sell"
-                ? "Cross sell"
-                : o.tipo === "recompra"
-                  ? "Recompra"
-                  : "Renovação"}
-            </Badge>
-            {o.valorEstimado ? (
-              <span className="text-[12px] tabular-nums text-muted-foreground">
-                {moeda(o.valorEstimado)}
-              </span>
-            ) : null}
-            <Button size="sm" disabled={assumir.isPending} onClick={() => assumir.mutate(o.id)}>
-              Assumir
-            </Button>
-          </li>
-        ))}
-      </ul>
+      {minhas.length > 0 && (
+        <>
+          <p className="mb-2 text-[11px] text-muted-foreground">
+            Já entraram como card na primeira etapa do funil da carteira, no seu nome.
+          </p>
+          <ul className="divide-y">
+            {minhas.map((o) =>
+              linha(
+                o,
+                o.dealId ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigate({ to: "/negocio/$id", params: { id: o.dealId! } })}
+                  >
+                    Abrir card
+                  </Button>
+                ) : null,
+              ),
+            )}
+          </ul>
+        </>
+      )}
+
+      {semDono.length > 0 && (
+        <>
+          <p className="mb-2 mt-3 text-[11px] text-muted-foreground">
+            Sem responsável comercial na conta — o card está no funil, mas sem dono.
+          </p>
+          <ul className="divide-y">
+            {semDono.map((o) =>
+              linha(
+                o,
+                <Button size="sm" disabled={assumir.isPending} onClick={() => assumir.mutate(o.id)}>
+                  Assumir
+                </Button>,
+              ),
+            )}
+          </ul>
+        </>
+      )}
     </Section>
   );
 }
