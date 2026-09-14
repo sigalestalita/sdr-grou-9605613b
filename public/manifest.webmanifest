@@ -1,7 +1,7 @@
 {
-  "name": "SDR GROU",
-  "short_name": "SDR GROU",
-  "description": "Central de qualificação de leads inbound com CRM, leads e operação de WhatsApp.",
+  "name": "Grou Compass",
+  "short_name": "Compass",
+  "description": "CRM da Grou: leads, WhatsApp, comercial e Customer Success.",
   "id": "/",
   "start_url": "/",
   "scope": "/",

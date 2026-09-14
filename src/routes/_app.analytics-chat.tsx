@@ -1,4 +1,11 @@
-import { createFileRoute, Link, Outlet, useNavigate, useParams, useRouter } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  Outlet,
+  useNavigate,
+  useParams,
+  useRouter,
+} from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { createThread, deleteThread, listThreads } from "@/lib/analytics-chat.functions";
@@ -35,7 +42,7 @@ function AnalyticsChatLayout() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-0px)] min-h-0">
+    <div className="flex h-full min-h-0">
       <div className="w-64 shrink-0 border-r border-white/5 bg-card/30 flex flex-col">
         <div className="p-3 border-b border-white/5">
           <Button onClick={onNew} className="w-full" size="sm">

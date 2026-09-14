@@ -30,6 +30,8 @@ import {
   ShieldAlert,
   ChevronRight,
   Wand2,
+  Menu,
+  X,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -37,6 +39,7 @@ import { CommandPalette, useCommandPalette } from "@/components/app-shell/comman
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
 import { CsFollowUpNotifier } from "@/components/app-shell/cs-followup-notifier";
 import { useCurrentRole } from "@/lib/use-role";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { TEAM_LABEL, teamForPath, type AppRole, type AppTeam } from "@/lib/teams";
 
 export const Route = createFileRoute("/_app")({
@@ -252,12 +255,21 @@ function AppShell() {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("sidebar:collapsed") === "1";
   });
+  // No celular o menu vira gaveta sobre a tela; no desktop nada muda.
+  const isMobile = useIsMobile();
+  const [drawer, setDrawer] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("sidebar:collapsed", collapsed ? "1" : "0");
     }
   }, [collapsed]);
+
+  // Fecha a gaveta ao navegar: no celular o menu cobre a tela inteira, e
+  // continuar aberto sobre a página recém-aberta não faz sentido.
+  useEffect(() => {
+    setDrawer(false);
+  }, [router.state.location.pathname]);
 
   useEffect(() => {
     if (!loading && !user && !redirecting) {
@@ -301,6 +313,13 @@ function AppShell() {
         (g) => g.items.length > 0,
       );
 
+  // No celular a gaveta abre sempre por extenso: recolher para 52px só faz
+  // sentido quando o menu divide a tela com o conteúdo.
+  const menuRecolhido = !isMobile && collapsed;
+
+  // Barra inferior: os quatro primeiros destinos da pessoa + o menu completo.
+  const atalhosMobile = [...visibleObjects, ...visibleGroups.flatMap((g) => g.items)].slice(0, 4);
+
   const paletteRoutes = [
     ...visibleObjects.map((i) => ({ to: i.to, label: i.label, group: "Objetos" })),
     ...visibleGroups.flatMap((g) =>
@@ -318,10 +337,10 @@ function AppShell() {
       <Link
         key={n.to}
         to={n.to}
-        title={collapsed ? n.label : undefined}
+        title={menuRecolhido ? n.label : undefined}
         data-active={active || undefined}
         className={`group flex h-8 items-center gap-2.5 rounded-md text-[13px] transition-colors ${
-          collapsed ? "justify-center px-0" : "px-2.5"
+          menuRecolhido ? "justify-center px-0" : "px-2.5"
         } ${
           active
             ? `font-medium text-sidebar-foreground ${glass ? "glass-item-active rounded-lg" : "bg-sidebar-accent"}`
@@ -329,39 +348,61 @@ function AppShell() {
         }`}
       >
         <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-        {!collapsed && <span className="truncate">{n.label}</span>}
+        {!menuRecolhido && <span className="truncate">{n.label}</span>}
       </Link>
     );
   };
 
   return (
-    // h-screen + overflow-hidden: a rolagem fica dentro de <main>, e telas de
+    // 100dvh + overflow-hidden: a rolagem fica dentro de <main>, e telas de
     // painéis (Inbox, Cadência, Visão geral) ganham altura definida para rolar
-    // cada coluna por conta própria em vez de arrastar a página inteira.
-    <div className={`flex h-screen overflow-hidden bg-surface ${glass ? "glass-bg" : ""}`}>
+    // cada coluna por conta própria em vez de arrastar a página inteira. dvh e
+    // não vh porque no iOS a barra do Safari some ao rolar e o vh pula junto.
+    <div className={`flex h-[100dvh] overflow-hidden bg-surface ${glass ? "glass-bg" : ""}`}>
+      {/* Fundo da gaveta: fecha ao tocar fora, como todo menu de celular. */}
+      {drawer && (
+        <button
+          aria-label="Fechar menu"
+          onClick={() => setDrawer(false)}
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+        />
+      )}
       <aside
-        className={`${collapsed ? "w-[52px]" : "w-[228px]"} shrink-0 text-sidebar-foreground flex flex-col transition-[width] duration-150 ${
+        className={`${collapsed ? "w-[228px] md:w-[52px]" : "w-[228px]"} shrink-0 text-sidebar-foreground flex flex-col fixed inset-y-0 left-0 z-50 border-r border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:pt-0 md:pb-0 md:shadow-none md:transition-[width] md:duration-150 ${
+          drawer ? "translate-x-0" : "-translate-x-full"
+        } ${
           glass
-            ? "glass-nav m-3 mr-0 h-[calc(100vh-1.5rem)] rounded-2xl"
-            : "border-r border-sidebar-border bg-sidebar"
+            ? "md:glass-nav md:m-3 md:mr-0 md:h-[calc(100dvh-1.5rem)] md:rounded-2xl md:border-0"
+            : ""
         }`}
       >
         <div
-          className={`h-12 shrink-0 flex items-center justify-between gap-2 border-b border-sidebar-border ${collapsed ? "px-2" : "px-3"}`}
+          className={`h-12 shrink-0 flex items-center justify-between gap-2 border-b border-sidebar-border ${menuRecolhido ? "px-2" : "px-3"}`}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <img src={lidiLogo} alt="Grou" className={collapsed ? "h-5 w-auto" : "h-6 w-auto"} />
-            {!collapsed && (
+            <img
+              src={lidiLogo}
+              alt="Grou"
+              className={menuRecolhido ? "h-5 w-auto" : "h-6 w-auto"}
+            />
+            {!menuRecolhido && (
               <span className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
                 compass
               </span>
             )}
           </div>
+          <button
+            onClick={() => setDrawer(false)}
+            title="Fechar menu"
+            className="rounded p-2 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden"
+          >
+            <X className="h-5 w-5" />
+          </button>
           {!collapsed && (
             <button
               onClick={() => setCollapsed(true)}
               title="Recolher menu"
-              className="rounded p-1 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+              className="hidden rounded p-1 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:block"
             >
               <PanelLeftClose className="h-4 w-4" />
             </button>
@@ -372,7 +413,7 @@ function AppShell() {
           <button
             onClick={() => setCollapsed(false)}
             title="Expandir menu"
-            className="mx-auto mt-2 rounded p-1.5 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            className="mx-auto mt-2 hidden rounded p-1.5 text-sidebar-foreground/60 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground md:block"
           >
             <PanelLeft className="h-4 w-4" />
           </button>
@@ -389,10 +430,10 @@ function AppShell() {
           {/* Áreas */}
           {visibleGroups.map((group) => {
             const groupActive = group.items.some((n) => isActive(n, currentPath));
-            const open = collapsed ? true : (openGroups[group.label] ?? groupActive);
+            const open = menuRecolhido ? true : (openGroups[group.label] ?? groupActive);
             return (
               <div key={group.label} className="mb-2 last:mb-0">
-                {!collapsed && (
+                {!menuRecolhido && (
                   <button
                     onClick={() => toggleGroup(group.label, open)}
                     className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-sidebar-accent/60"
@@ -412,7 +453,7 @@ function AppShell() {
                   </button>
                 )}
                 {open && (
-                  <div className={`space-y-0.5 ${collapsed ? "" : "pl-1"}`}>
+                  <div className={`space-y-0.5 ${menuRecolhido ? "" : "pl-1"}`}>
                     {group.items.map(renderItem)}
                   </div>
                 )}
@@ -421,20 +462,20 @@ function AppShell() {
           })}
         </nav>
 
-        <div className={`border-t border-sidebar-border py-2 ${collapsed ? "px-1.5" : "px-2"}`}>
+        <div className={`border-t border-sidebar-border py-2 ${menuRecolhido ? "px-1.5" : "px-2"}`}>
           <div
-            className={`flex items-center gap-2 rounded-md px-1 py-1.5 ${collapsed ? "justify-center" : ""}`}
+            className={`flex items-center gap-2 rounded-md px-1 py-1.5 ${menuRecolhido ? "justify-center" : ""}`}
           >
             <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-sidebar-accent text-[10px] font-semibold text-sidebar-foreground">
               {initials}
             </span>
-            {!collapsed && (
+            {!menuRecolhido && (
               <span className="min-w-0 flex-1 truncate text-[11px] text-sidebar-foreground/60">
                 {user.email}
               </span>
             )}
           </div>
-          <div className={`mt-1 flex items-center gap-1 ${collapsed ? "flex-col" : ""}`}>
+          <div className={`mt-1 flex items-center gap-1 ${menuRecolhido ? "flex-col" : ""}`}>
             <button
               onClick={() => setNavStyle(glass ? "classico" : "flutuante")}
               title={glass ? "Usar visual clássico" : "Usar visual de vidro (liquid glass)"}
@@ -454,11 +495,11 @@ function AppShell() {
               onClick={signOut}
               title="Sair"
               className={`flex h-8 items-center gap-2 rounded-md px-2 text-[13px] text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground ${
-                collapsed ? "" : "flex-1"
+                menuRecolhido ? "" : "flex-1"
               }`}
             >
               <LogOut className="h-4 w-4" strokeWidth={1.75} />
-              {!collapsed && "Sair"}
+              {!menuRecolhido && "Sair"}
             </button>
           </div>
         </div>
@@ -466,17 +507,25 @@ function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header
-          className={`flex h-12 shrink-0 items-center gap-3 px-4 ${
-            glass ? "glass-bar z-10 mx-3 mt-3 rounded-full" : "border-b border-border bg-background"
+          className={`flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-4 pt-[env(safe-area-inset-top)] [height:calc(3rem+env(safe-area-inset-top))] md:pt-0 md:[height:3rem] ${
+            glass ? "md:glass-bar md:z-10 md:mx-3 md:mt-3 md:rounded-full md:border-0" : ""
           }`}
         >
+          <button
+            onClick={() => setDrawer(true)}
+            aria-label="Abrir menu"
+            className="-ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
+          >
+            <Menu className="h-5 w-5" strokeWidth={1.75} />
+          </button>
           <button
             onClick={() => palette.setOpen(true)}
             className="flex h-8 w-full max-w-md items-center gap-2 rounded-full border border-border bg-surface px-3 text-[13px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
           >
             <Search className="h-3.5 w-3.5" strokeWidth={1.75} />
-            <span>Encontrar ou perguntar</span>
-            <kbd className="ml-auto rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            <span className="truncate md:hidden">Buscar</span>
+            <span className="hidden truncate md:inline">Encontrar ou perguntar</span>
+            <kbd className="ml-auto hidden rounded border border-border px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground md:block">
               ⌘K
             </kbd>
           </button>
@@ -485,7 +534,11 @@ function AppShell() {
             {role.canAccessTeam("cs") && <CsFollowUpNotifier />}
           </div>
         </header>
-        <main className={`min-h-0 flex-1 overflow-auto ${glass ? "px-3 pb-3 pt-3" : ""}`}>
+        <main
+          className={`min-h-0 flex-1 overflow-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 ${
+            glass ? "md:px-3 md:pb-3 md:pt-3" : ""
+          }`}
+        >
           {blocked ? (
             <div className="grid min-h-full place-items-center p-8">
               <div className="max-w-md rounded-lg border border-border bg-background p-6 text-center">
@@ -517,6 +570,34 @@ function AppShell() {
             <Outlet />
           )}
         </main>
+
+        {/* Barra inferior: o que a pessoa mais usa fica a um toque, e o quinto
+            botão abre o menu inteiro — nada fica inalcançável. */}
+        <nav className="fixed inset-x-0 bottom-0 z-30 flex items-stretch border-t border-border bg-background pb-[env(safe-area-inset-bottom)] md:hidden">
+          {atalhosMobile.map((n) => {
+            const Icon = n.icon;
+            const active = isActive(n, currentPath);
+            return (
+              <Link
+                key={n.to}
+                to={n.to}
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] transition-colors ${
+                  active ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                <Icon className="h-5 w-5" strokeWidth={active ? 2 : 1.75} />
+                <span className="max-w-full truncate px-1">{n.label}</span>
+              </Link>
+            );
+          })}
+          <button
+            onClick={() => setDrawer(true)}
+            className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] text-muted-foreground"
+          >
+            <Menu className="h-5 w-5" strokeWidth={1.75} />
+            <span>Menu</span>
+          </button>
+        </nav>
       </div>
 
       <CommandPalette open={palette.open} onOpenChange={palette.setOpen} routes={paletteRoutes} />
