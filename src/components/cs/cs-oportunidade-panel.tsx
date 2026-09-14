@@ -157,37 +157,43 @@ export function CsOportunidadePanel({ clientUid }: { clientUid: string }) {
         </p>
       ) : (
         <ul className="divide-y">
+          {/* Empilhado: este painel vive numa coluna estreita, e em linha o selo
+              de status espremia o texto até ele quebrar letra por letra. */}
           {lista.map((o) => (
-            <li key={o.id} className="flex flex-wrap items-start gap-2 py-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-[12px] font-medium">
+            <li key={o.id} className="space-y-1 py-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <p className="min-w-0 text-[12px] font-medium">
                   {TIPOS_OPORTUNIDADE.find((t) => t.valor === o.tipo)?.rotulo ?? o.tipo}
                   {o.produtoSugerido ? ` · ${o.produtoSugerido}` : ""}
                 </p>
-                <p className="text-[11px] text-muted-foreground">{o.motivo}</p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                {o.valorEstimado ? (
+                  <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+                    {moeda(o.valorEstimado)}
+                  </span>
+                ) : null}
+              </div>
+              <p className="text-[11px] leading-relaxed text-muted-foreground">{o.motivo}</p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className={`text-[9px] ${
+                    o.status === "assumida"
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                      : o.status === "aberta"
+                        ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        : ""
+                  }`}
+                >
+                  {STATUS_LABEL[o.status] ?? o.status}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground">
                   {format(new Date(o.sinalizadaEm), "dd/MM/yyyy", { locale: ptBR })}
                   {o.sinalizadaPor ? ` · ${o.sinalizadaPor}` : ""}
-                  {o.assumidaPor ? ` · assumida por ${o.assumidaPor}` : ""}
-                </p>
-              </div>
-              {o.valorEstimado ? (
-                <span className="text-[11px] tabular-nums text-muted-foreground">
-                  {moeda(o.valorEstimado)}
                 </span>
-              ) : null}
-              <Badge
-                variant="outline"
-                className={`text-[9px] ${
-                  o.status === "assumida"
-                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                    : o.status === "aberta"
-                      ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                      : ""
-                }`}
-              >
-                {STATUS_LABEL[o.status] ?? o.status}
-              </Badge>
+              </div>
+              {o.assumidaPor && (
+                <p className="text-[10px] text-muted-foreground">Assumida por {o.assumidaPor}</p>
+              )}
             </li>
           ))}
         </ul>

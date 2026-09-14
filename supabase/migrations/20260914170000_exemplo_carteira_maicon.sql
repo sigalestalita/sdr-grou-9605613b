@@ -15,6 +15,8 @@ DECLARE
   v_company uuid;
   v_deal1 uuid;
   v_deal2 uuid;
+  v_lead uuid;
+  v_stage_lead uuid;
   v_client text := 'EXEMPLO-VALE-NORTE';
   v_maicon uuid;
   v_cs uuid;
@@ -61,6 +63,41 @@ BEGIN
           'Metalurgia', 'grande', 820, 'Caxias do Sul', 'RS', 'empresa', 'cliente', true)
   RETURNING id INTO v_company;
 
+  -- ---- lead: a conversão que começou tudo ----
+  SELECT id INTO v_stage_lead FROM public.stages WHERE slug = 'comercial';
+
+  INSERT INTO public.leads (
+    name, email, phone, company_name, position, source, channel, campaign, ad_name, form_name,
+    stage_id, priority, score, lead_type, assigned_to, executivo_id,
+    company_id, company_segment, company_size, linkedin_company_size,
+    created_at, first_approach_at, converted_at, meeting_at, meeting_booked_at,
+    stage_entered_at, last_touch_at, touch_count, bant, probable_pain, exemplo
+  ) VALUES (
+    'Juliana Bertoldi (exemplo)', 'juliana.bertoldi@exemplo.valenorte.com.br', '5554999880000',
+    'Metalúrgica Vale Norte (exemplo)', 'Gerente de Desenvolvimento',
+    'Meta Ads', 'inbound', 'PDA Assessment — Indústria',
+    'Carrossel | Turnover na produção', 'Quero conhecer o PDA',
+    v_stage_lead, 'alta', 91, 'empresa', v_sdr, v_maicon,
+    v_company, 'Metalurgia', '501-1000', '501-1000',
+    v_inicio,
+    v_inicio + interval '11 minutes',
+    v_inicio,
+    v_inicio + interval '9 days',
+    v_inicio + interval '5 days',
+    v_inicio + interval '14 days',
+    v_inicio + interval '12 days',
+    6,
+    jsonb_build_object(
+      'budget',    jsonb_build_object('status','ok','notes','Verba de treinamento aprovada para o ano.'),
+      'authority', jsonb_build_object('status','ok','notes','Gerente de Desenvolvimento conduz; diretor industrial assina.'),
+      'need',      jsonb_build_object('status','ok','notes','Turnover alto na produção e promoções sem critério.'),
+      'timeline',  jsonb_build_object('status','ok','notes','Querem aplicar antes do ciclo de avaliação.'),
+      'summary',   'Indústria de 820 pessoas, veio do anúncio sobre turnover na produção. Dor clara e verba aprovada.'
+    ),
+    'Turnover na produção e promoção de líderes sem critério',
+    true
+  ) RETURNING id INTO v_lead;
+
   -- ---- 1. negócio novo ----
   INSERT INTO public.deals (
     nome, company_id, executivo_user_id, sdr_user_id, pipeline_id, stage_id,
@@ -90,6 +127,8 @@ BEGIN
     true
   ) RETURNING id INTO v_deal1;
 
+  UPDATE public.leads SET deal_id = v_deal1 WHERE id = v_lead;
+
   INSERT INTO public.deal_activities (deal_id, tipo, descricao, author_id, occurred_at) VALUES
     (v_deal1, 'reuniao', 'Reunião de apresentação do PDA com RH e diretoria industrial.',
      v_maicon, v_inicio + interval '9 days'),
@@ -115,11 +154,76 @@ BEGIN
     v_sinal, true, true
   );
 
-  -- ---- 2. a agenda do CS onde a oportunidade aparece ----
+  -- ---- 2. os 14 meses de atendimento do CS ----
+  -- Onboarding (meses 1 e 2), atendimento (3 a 10) e a virada comercial.
   INSERT INTO public.cs_timeline_events (client_uid, event_type, channel, title, description, author_id, occurred_at)
   VALUES
     (v_client, 'nota', NULL, 'Cliente recebido do comercial',
-     'Bastão passado pelo ADM após o faturamento.', v_cs, v_entrega),
+     'Bastão passado pelo ADM após o faturamento. Briefing do comercial no negócio.',
+     v_cs, v_entrega),
+    (v_client, 'contato', 'email', 'E-mail de boas-vindas',
+     'Apresentação da analista responsável e convite para o kickoff.',
+     v_cs, v_entrega + interval '1 day'),
+    (v_client, 'reuniao', 'reuniao', 'Kickoff de onboarding',
+     'Cronograma de aplicação definido: 4 lotes por área, começando pela produção. '
+     || 'Definidos os 40 líderes que recebem devolutiva.',
+     v_cs, v_entrega + interval '6 days'),
+    (v_client, 'contato', 'whatsapp', 'Acompanhamento da aplicação',
+     'Convites enviados para os 820 colaboradores. 38% responderam na primeira semana.',
+     v_cs, v_entrega + interval '13 days'),
+    (v_client, 'contato', 'whatsapp', 'Cobrança de adesão',
+     'Adesão em 61%. Combinado disparo de lembrete pelos gestores de área.',
+     v_cs, v_entrega + interval '21 days'),
+    (v_client, 'contato', 'email', 'Fechamento da aplicação',
+     'Aplicação encerrada com 94% de adesão. Relatórios liberados na plataforma.',
+     v_cs, v_entrega + interval '34 days'),
+    (v_client, 'reuniao', 'reuniao', 'Devolutiva para a liderança',
+     'Devolutiva dos perfis para os 40 líderes, em dois grupos. '
+     || 'Boa recepção; RH pediu material de apoio para conversas de desenvolvimento.',
+     v_cs, v_entrega + interval '48 days'),
+    (v_client, 'contato', 'email', 'Material de apoio enviado',
+     'Guia de conversas de desenvolvimento e roteiro de feedback.',
+     v_cs, v_entrega + interval '52 days'),
+    (v_client, 'reuniao', 'reuniao', 'Revisão de onboarding (60 dias)',
+     'Fechamento da fase de onboarding. Cliente usando os relatórios nas reuniões de área.',
+     v_cs, v_entrega + interval '62 days'),
+    (v_client, 'contato', 'ligacao', 'Check-in mensal',
+     'PDA sendo usado em promoções internas. Dois líderes novos entraram e precisam de perfil.',
+     v_cs, v_entrega + interval '95 days'),
+    (v_client, 'contato', 'email', 'Créditos avulsos liberados',
+     'Liberados perfis para os dois líderes novos, dentro do saldo do contrato.',
+     v_cs, v_entrega + interval '99 days'),
+    (v_client, 'reuniao', 'reuniao', 'Reunião trimestral de resultados',
+     'Turnover da produção caiu de 31% para 24% no trimestre. RH atribuiu parte ao critério novo de promoção.',
+     v_cs, v_entrega + interval '130 days'),
+    (v_client, 'contato', 'whatsapp', 'Check-in mensal',
+     'Tudo correndo bem. Cliente perguntou sobre formação de líderes, sem detalhar.',
+     v_cs, v_entrega + interval '165 days'),
+    (v_client, 'contato', 'ligacao', 'Check-in mensal',
+     'Sem novidades. Uso do PDA estável nas promoções.',
+     v_cs, v_entrega + interval '198 days'),
+    (v_client, 'reuniao', 'reuniao', 'Reunião trimestral de resultados',
+     'Apresentado o comparativo de turnover por área. Diretor industrial participou.',
+     v_cs, v_entrega + interval '225 days'),
+    (v_client, 'contato', 'email', 'Convite para masterclass',
+     'Convite para a masterclass de leitura de perfil. Quatro pessoas do RH inscritas.',
+     v_cs, v_entrega + interval '258 days'),
+    (v_client, 'contato', 'whatsapp', 'Check-in mensal',
+     'RH comentou que a liderança de turno é o ponto mais difícil hoje.',
+     v_cs, v_entrega + interval '290 days'),
+    (v_client, 'reuniao', 'reuniao', 'Preparação de renovação',
+     'Aberta a conversa de renovação, 60 dias antes do vencimento. Cliente sinalizou intenção de seguir.',
+     v_cs, v_entrega + interval '320 days'),
+    (v_client, 'contato', 'email', 'Proposta de renovação enviada',
+     'Renovação por mais 12 meses, mesmo escopo.',
+     v_cs, v_entrega + interval '330 days'),
+    (v_client, 'nota', NULL, 'Renovação confirmada',
+     'Contrato renovado por mais 12 meses.',
+     v_cs, v_entrega + interval '352 days'),
+    (v_client, 'contato', 'ligacao', 'Check-in mensal',
+     'Primeiro mês do novo ciclo. Cliente pediu para incluir os supervisores no próximo lote.',
+     v_cs, v_entrega + interval '385 days'),
+    -- a reunião onde a oportunidade aparece
     (v_client, 'reuniao', 'reuniao', 'Reunião de acompanhamento',
      'Cliente relatou dificuldade em formar a liderança de turno e perguntou se a Grou tem '
      || 'algo específico para desenvolvimento de líderes. Apresentado o Master Líder.',
