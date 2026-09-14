@@ -7,6 +7,7 @@ import { ptBR } from "date-fns/locale";
 import {
   Building2,
   CalendarDays,
+  CheckCircle2,
   FileCheck2,
   Flame,
   Sparkles,
@@ -15,6 +16,7 @@ import {
 import { listComercialDeals } from "@/lib/comercial.functions";
 import { moeda } from "@/lib/comercial/metas";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -52,6 +54,11 @@ type Stage = {
   kind: string;
 };
 
+const STAGE_TONE: Record<string, string> = {
+  won: "text-emerald-600 dark:text-emerald-400",
+  lost: "text-muted-foreground",
+};
+
 const TEMP_TONE: Record<string, string> = {
   quente: "text-red-500",
   morno: "text-amber-500",
@@ -67,21 +74,25 @@ function PipelinePage() {
   const fn = useServerFn(listComercialDeals);
   const [pipelineId, setPipelineId] = useState<string | undefined>(undefined);
   const [executivo, setExecutivo] = useState<string>("todos");
+  // O funil sem as colunas de fechado esconde justamente a venda: quem procura
+  // um negócio ganho no kanban não achava nada.
+  const [mostrarFechados, setMostrarFechados] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["comercial-pipeline", pipelineId, executivo],
+    queryKey: ["comercial-pipeline", pipelineId, executivo, mostrarFechados],
     queryFn: () =>
       fn({
         data: {
           ...(pipelineId ? { pipelineId } : {}),
           ...(executivo !== "todos" ? { executivoId: executivo } : {}),
+          ...(mostrarFechados ? { somenteAbertos: false } : {}),
         },
       }),
     staleTime: 30_000,
   });
 
   const stages = ((data?.stages ?? []) as Stage[])
-    .filter((s) => s.kind === "open")
+    .filter((s) => mostrarFechados || s.kind === "open")
     .sort((a, b) => a.ordem - b.ordem);
   const deals = (data?.deals ?? []) as Deal[];
   const nomeDe = new Map(
@@ -102,7 +113,8 @@ function PipelinePage() {
         <div>
           <h1 className="text-lg font-semibold">Pipeline comercial</h1>
           <p className="text-[12px] text-muted-foreground">
-            {deals.length} negócios abertos neste funil
+            {deals.length}{" "}
+            {mostrarFechados ? "negócios neste funil" : "negócios abertos neste funil"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -135,6 +147,15 @@ function PipelinePage() {
               ))}
             </SelectContent>
           </Select>
+          <Button
+            size="sm"
+            variant={mostrarFechados ? "default" : "outline"}
+            className="h-8 text-xs"
+            onClick={() => setMostrarFechados((v) => !v)}
+          >
+            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+            {mostrarFechados ? "Ocultar fechados" : "Mostrar fechados"}
+          </Button>
         </div>
       </header>
 
@@ -152,12 +173,18 @@ function PipelinePage() {
             return (
               <div key={s.id} className="flex w-[260px] shrink-0 flex-col">
                 <div className="mb-2 flex items-baseline justify-between gap-2">
-                  <p className="truncate text-[12px] font-semibold" title={s.nome}>
+                  <p
+                    className={`truncate text-[12px] font-semibold ${STAGE_TONE[s.kind] ?? ""}`}
+                    title={s.nome}
+                  >
                     {s.nome}
                   </p>
-                  <Badge variant="outline" className="text-[9px]">
-                    {s.probabilidade}%
-                  </Badge>
+                  {/* Em ganho e perda a probabilidade não diz nada: já aconteceu. */}
+                  {s.kind === "open" && (
+                    <Badge variant="outline" className="text-[9px]">
+                      {s.probabilidade}%
+                    </Badge>
+                  )}
                 </div>
                 <p className="mb-2 text-[11px] text-muted-foreground">
                   {daEtapa.length} · {moeda(total)}
