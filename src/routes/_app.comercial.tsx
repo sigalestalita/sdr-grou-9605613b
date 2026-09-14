@@ -14,6 +14,7 @@ import {
   Users,
 } from "lucide-react";
 import { getComercialDashboard } from "@/lib/comercial.functions";
+import { minhaFilaComercial } from "@/lib/comercial-negocio.functions";
 import {
   fracaoDoPeriodo,
   moeda,
@@ -192,6 +193,8 @@ function ComercialPage() {
               hint={`${d.resumo.perdidos} perdas no período`}
             />
           </div>
+
+          <MinhaFila />
 
           {d.resumo.semOrdemCompra > 0 && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-700 dark:text-amber-300">
@@ -396,5 +399,81 @@ function Section({
       </div>
       {children}
     </section>
+  );
+}
+
+/**
+ * A fila do executivo: o que ele combinou de fazer e ainda não fez. Negócio
+ * aberto sem próximo passo aparece junto, porque é o que some do radar.
+ */
+function MinhaFila() {
+  const fn = useServerFn(minhaFilaComercial);
+  const { data } = useQuery({
+    queryKey: ["comercial-fila"],
+    queryFn: () => fn({ data: { dias: 7 } }),
+    staleTime: 60_000,
+  });
+  if (!data) return null;
+  const { fila, semProximoPasso } = data;
+  if (fila.length === 0 && semProximoPasso.length === 0) return null;
+
+  return (
+    <Section
+      icon={CalendarClock}
+      title="Meus próximos passos"
+      to="/comercial-pipeline"
+      toLabel="Ver pipeline"
+    >
+      {fila.length === 0 ? (
+        <p className="py-1 text-[12px] text-muted-foreground">
+          Nada combinado para os próximos dias.
+        </p>
+      ) : (
+        <ul className="divide-y">
+          {fila.map((f) => (
+            <li key={f.id} className="flex flex-wrap items-center gap-2 py-2">
+              <div className="min-w-0 flex-1">
+                <Link
+                  to="/negocio/$id"
+                  params={{ id: f.id }}
+                  className="text-[13px] font-medium hover:underline"
+                >
+                  {f.empresa || f.nome}
+                </Link>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {f.proximoPasso || "Sem descrição"}
+                </p>
+              </div>
+              <span
+                className={`whitespace-nowrap text-[11px] ${f.atrasado ? "font-medium text-destructive" : "text-muted-foreground"}`}
+              >
+                {f.atrasado ? "atrasado · " : ""}
+                {format(new Date(f.quando), "dd/MM HH:mm", { locale: ptBR })}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {semProximoPasso.length > 0 && (
+        <div className="mt-3 border-t pt-3">
+          <p className="mb-1.5 text-[11px] font-medium text-muted-foreground">
+            {semProximoPasso.length} negócio(s) aberto(s) sem próximo passo combinado
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {semProximoPasso.slice(0, 8).map((f) => (
+              <Link
+                key={f.id}
+                to="/negocio/$id"
+                params={{ id: f.id }}
+                className="rounded-full border border-dashed border-border px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+              >
+                {f.empresa || f.nome}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </Section>
   );
 }

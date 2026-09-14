@@ -214,6 +214,29 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
       ]),
     );
 
+    /*
+     * Atividade registrada por pessoa no período: é o "quantos e-mails, quantas
+     * ligações" do briefing, e o que fecha a micrometa de contatos. Tolera a
+     * migration de execução ainda não aplicada.
+     */
+    const contatosPorPessoa = new Map<string, number>();
+    try {
+      const { data: atividades } = await supabase
+        .from("deal_activities")
+        .select("author_id")
+        .neq("tipo", "etapa")
+        .gte("occurred_at", de.toISOString())
+        .lt("occurred_at", ate.toISOString())
+        .limit(20000);
+      for (const a of atividades ?? []) {
+        const id = a.author_id as string | null;
+        if (!id) continue;
+        contatosPorPessoa.set(id, (contatosPorPessoa.get(id) ?? 0) + 1);
+      }
+    } catch {
+      // sem a tabela ainda, a micrometa de contatos fica zerada
+    }
+
     // ---- uma linha por executivo ----
     const ids = new Set<string>();
     for (const d of negocios) if (d.executivo_user_id) ids.add(d.executivo_user_id);
@@ -259,7 +282,7 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
             quantidade: ganhosList.length,
             agendas,
             propostas,
-            contatos: 0,
+            contatos: contatosPorPessoa.get(id) ?? 0,
           } satisfies Realizado,
         };
       })

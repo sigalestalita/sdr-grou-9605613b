@@ -161,7 +161,12 @@ function PipelinePage() {
                     </p>
                   )}
                   {daEtapa.map((d) => (
-                    <article key={d.id} className="surface-panel space-y-1 p-2.5">
+                    <Link
+                      key={d.id}
+                      to="/negocio/$id"
+                      params={{ id: d.id }}
+                      className="surface-panel block space-y-1 p-2.5 transition-colors hover:border-primary/50"
+                    >
                       <p className="truncate text-[12px] font-medium" title={d.nome ?? ""}>
                         {d.nome || "Sem nome"}
                       </p>
@@ -203,7 +208,7 @@ function PipelinePage() {
                           {nomeDe.get(d.executivo_user_id)}
                         </p>
                       )}
-                    </article>
+                    </Link>
                   ))}
                 </div>
               </div>
@@ -213,7 +218,8 @@ function PipelinePage() {
       )}
 
       <footer className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground lg:px-6">
-        Venda só entra como ganha com a ordem de compra registrada.{" "}
+        Clique no card para trabalhar o negócio. Venda só entra como ganha com a ordem de compra
+        registrada.{" "}
         <Link to="/comercial" className="text-primary hover:underline">
           Ver funil e metas
         </Link>

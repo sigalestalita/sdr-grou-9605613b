@@ -182,6 +182,7 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/cs-emails", teams: ["cs"] },
   { prefix: "/cs-integracoes", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/jornada", teams: ["comercial", "cs"], roles: ["executivo"] },
+  { prefix: "/negocio", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-analise", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-pipeline", teams: ["comercial"], roles: ["executivo"] },

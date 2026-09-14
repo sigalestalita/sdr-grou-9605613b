@@ -52,6 +52,7 @@ import { Route as AppWhatsappContasRouteImport } from './routes/_app.whatsapp.co
 import { Route as AppWhatsappCampanhasRouteImport } from './routes/_app.whatsapp.campanhas'
 import { Route as AppWhatsappAutomacoesRouteImport } from './routes/_app.whatsapp.automacoes'
 import { Route as AppWhatsappAlertasRouteImport } from './routes/_app.whatsapp.alertas'
+import { Route as AppNegocioIdRouteImport } from './routes/_app.negocio.$id'
 import { Route as AppLeadIdRouteImport } from './routes/_app.lead.$id'
 import { Route as AppEmpresasUidRouteImport } from './routes/_app.empresas.$uid'
 import { Route as AppAnalyticsChatThreadIdRouteImport } from './routes/_app.analytics-chat.$threadId'
@@ -286,6 +287,11 @@ const AppWhatsappAlertasRoute = AppWhatsappAlertasRouteImport.update({
   path: '/alertas',
   getParentRoute: () => AppWhatsappRoute,
 } as any)
+const AppNegocioIdRoute = AppNegocioIdRouteImport.update({
+  id: '/negocio/$id',
+  path: '/negocio/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLeadIdRoute = AppLeadIdRouteImport.update({
   id: '/lead/$id',
   path: '/lead/$id',
@@ -429,6 +435,7 @@ export interface FileRoutesByFullPath {
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
+  '/negocio/$id': typeof AppNegocioIdRoute
   '/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
   '/whatsapp/campanhas': typeof AppWhatsappCampanhasRouteWithChildren
@@ -491,6 +498,7 @@ export interface FileRoutesByTo {
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
+  '/negocio/$id': typeof AppNegocioIdRoute
   '/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
   '/whatsapp/campanhas': typeof AppWhatsappCampanhasRouteWithChildren
@@ -556,6 +564,7 @@ export interface FileRoutesById {
   '/_app/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/_app/empresas/$uid': typeof AppEmpresasUidRoute
   '/_app/lead/$id': typeof AppLeadIdRoute
+  '/_app/negocio/$id': typeof AppNegocioIdRoute
   '/_app/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/_app/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
   '/_app/whatsapp/campanhas': typeof AppWhatsappCampanhasRouteWithChildren
@@ -621,6 +630,7 @@ export interface FileRouteTypes {
     | '/analytics-chat/$threadId'
     | '/empresas/$uid'
     | '/lead/$id'
+    | '/negocio/$id'
     | '/whatsapp/alertas'
     | '/whatsapp/automacoes'
     | '/whatsapp/campanhas'
@@ -683,6 +693,7 @@ export interface FileRouteTypes {
     | '/analytics-chat/$threadId'
     | '/empresas/$uid'
     | '/lead/$id'
+    | '/negocio/$id'
     | '/whatsapp/alertas'
     | '/whatsapp/automacoes'
     | '/whatsapp/campanhas'
@@ -747,6 +758,7 @@ export interface FileRouteTypes {
     | '/_app/analytics-chat/$threadId'
     | '/_app/empresas/$uid'
     | '/_app/lead/$id'
+    | '/_app/negocio/$id'
     | '/_app/whatsapp/alertas'
     | '/_app/whatsapp/automacoes'
     | '/_app/whatsapp/campanhas'
@@ -1100,6 +1112,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWhatsappAlertasRouteImport
       parentRoute: typeof AppWhatsappRoute
     }
+    '/_app/negocio/$id': {
+      id: '/_app/negocio/$id'
+      path: '/negocio/$id'
+      fullPath: '/negocio/$id'
+      preLoaderRoute: typeof AppNegocioIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/lead/$id': {
       id: '/_app/lead/$id'
       path: '/lead/$id'
@@ -1318,6 +1337,7 @@ interface AppRouteChildren {
   AppWhatsappRoute: typeof AppWhatsappRouteWithChildren
   AppEmpresasUidRoute: typeof AppEmpresasUidRoute
   AppLeadIdRoute: typeof AppLeadIdRoute
+  AppNegocioIdRoute: typeof AppNegocioIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1352,6 +1372,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppWhatsappRoute: AppWhatsappRouteWithChildren,
   AppEmpresasUidRoute: AppEmpresasUidRoute,
   AppLeadIdRoute: AppLeadIdRoute,
+  AppNegocioIdRoute: AppNegocioIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
