@@ -1442,6 +1442,13 @@ export type Database = {
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
           },
+          {
+            foreignKeyName: "cs_oportunidades_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cs_playbook_blocks: {
@@ -1906,10 +1913,24 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "deal_activities_de_stage_id_fkey"
+            columns: ["de_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "deal_activities_deal_id_fkey"
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deal_activities_para_stage_id_fkey"
+            columns: ["para_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
             referencedColumns: ["id"]
           },
         ]
@@ -2032,9 +2053,9 @@ export type Database = {
           pipeline_id: string | null
           produtos_texto: string | null
           proposta_aceita_em: string | null
+          provenance: Json
           proximo_passo: string | null
           proximo_passo_em: string | null
-          provenance: Json
           rd_deal_id: string | null
           rd_pipeline: string | null
           rd_stage: string | null
@@ -2087,9 +2108,9 @@ export type Database = {
           pipeline_id?: string | null
           produtos_texto?: string | null
           proposta_aceita_em?: string | null
+          provenance?: Json
           proximo_passo?: string | null
           proximo_passo_em?: string | null
-          provenance?: Json
           rd_deal_id?: string | null
           rd_pipeline?: string | null
           rd_stage?: string | null
@@ -2142,9 +2163,9 @@ export type Database = {
           pipeline_id?: string | null
           produtos_texto?: string | null
           proposta_aceita_em?: string | null
+          provenance?: Json
           proximo_passo?: string | null
           proximo_passo_em?: string | null
-          provenance?: Json
           rd_deal_id?: string | null
           rd_pipeline?: string | null
           rd_stage?: string | null
