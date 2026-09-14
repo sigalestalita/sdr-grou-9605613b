@@ -1,7 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
-import { DEFAULT_FEATURES_CONFIG, type FeaturesConfig } from "@/lib/cs/features";
 import { DEFAULT_JOURNEY_CONFIG, type JourneyConfig } from "@/lib/cs/journey";
 import {
   CS_AGENDA_TAG,
@@ -96,9 +95,6 @@ export function getMasterclassConfig(db: DB) {
 }
 export function getJourneyConfigDb(db: DB) {
   return getCsSetting<JourneyConfig>(db, "journey_emails", DEFAULT_JOURNEY_CONFIG);
-}
-export function getFeaturesConfig(db: DB) {
-  return getCsSetting<FeaturesConfig>(db, "features", DEFAULT_FEATURES_CONFIG);
 }
 export function getEscalationConfig(db: DB) {
   return getCsSetting<EscalationConfig>(db, "escalation", DEFAULT_ESCALATION_CONFIG);

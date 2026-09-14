@@ -1382,6 +1382,68 @@ export type Database = {
           },
         ]
       }
+      cs_oportunidades: {
+        Row: {
+          assumida_em: string | null
+          assumida_por: string | null
+          client_uid: string
+          created_at: string
+          deal_id: string | null
+          descartada_motivo: string | null
+          id: string
+          motivo: string
+          produto_sugerido: string | null
+          sinalizada_em: string
+          sinalizada_por: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          valor_estimado: number | null
+        }
+        Insert: {
+          assumida_em?: string | null
+          assumida_por?: string | null
+          client_uid: string
+          created_at?: string
+          deal_id?: string | null
+          descartada_motivo?: string | null
+          id?: string
+          motivo: string
+          produto_sugerido?: string | null
+          sinalizada_em?: string
+          sinalizada_por?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+          valor_estimado?: number | null
+        }
+        Update: {
+          assumida_em?: string | null
+          assumida_por?: string | null
+          client_uid?: string
+          created_at?: string
+          deal_id?: string | null
+          descartada_motivo?: string | null
+          id?: string
+          motivo?: string
+          produto_sugerido?: string | null
+          sinalizada_em?: string
+          sinalizada_por?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_estimado?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_oportunidades_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+        ]
+      }
       cs_playbook_blocks: {
         Row: {
           ativo: boolean

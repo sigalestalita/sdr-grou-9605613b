@@ -37,8 +37,6 @@ import {
 import { fmtDate } from "@/components/cs/cs-client-sections";
 import { MasterclassSettings } from "@/components/cs/cs-masterclass-settings";
 import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
-import { FeaturesSettings } from "@/components/cs/cs-features-settings";
-import { DEFAULT_FEATURES_CONFIG, type FeaturesConfig } from "@/lib/cs/features";
 import { JourneySettings } from "@/components/cs/cs-journey-settings";
 import { DEFAULT_JOURNEY_CONFIG, type JourneyConfig } from "@/lib/cs/journey";
 import { Plus, Save, Trash2, Upload } from "lucide-react";
@@ -50,7 +48,6 @@ const TABS = [
   "metas",
   "evidencia",
   "masterclass",
-  "funcionalidades",
   "jornadas",
   "sla",
   "roteamento",
@@ -63,7 +60,6 @@ const TAB_LABEL: Record<Tab, string> = {
   metas: "Metas",
   evidencia: "Tarefas e evidência",
   masterclass: "Masterclasses",
-  funcionalidades: "Funcionalidades",
   jornadas: "Jornadas Reais",
   sla: "SLA da jornada",
   roteamento: "Roteamento",
@@ -81,7 +77,6 @@ export function CsSettingsPanel({
   evidence,
   escalation,
   masterclass,
-  features,
   journey,
   sla,
   routing,
@@ -95,7 +90,6 @@ export function CsSettingsPanel({
   evidence?: EvidenceConfig;
   escalation?: EscalationConfig;
   masterclass?: MasterclassConfig;
-  features?: FeaturesConfig;
   journey?: JourneyConfig;
   sla?: StageSla;
   routing?: RoutingConfig;
@@ -112,7 +106,6 @@ export function CsSettingsPanel({
   const [ev, setEv] = useState<EvidenceConfig>(evidence ?? DEFAULT_EVIDENCE_CONFIG);
   const [esc, setEsc] = useState<EscalationConfig>(escalation ?? DEFAULT_ESCALATION_CONFIG);
   const [mc, setMc] = useState<MasterclassConfig>(masterclass ?? DEFAULT_MASTERCLASS_CONFIG);
-  const [feat, setFeat] = useState<FeaturesConfig>(features ?? DEFAULT_FEATURES_CONFIG);
   const [jour, setJour] = useState<JourneyConfig>(journey ?? DEFAULT_JOURNEY_CONFIG);
   const [s, setS] = useState<StageSla>(sla ?? DEFAULT_STAGE_SLA);
   const [r, setR] = useState<RoutingConfig>(routing ?? DEFAULT_ROUTING);
@@ -138,9 +131,6 @@ export function CsSettingsPanel({
     if (masterclass) setMc(masterclass);
   }, [masterclass]);
   useEffect(() => {
-    if (features) setFeat(features);
-  }, [features]);
-  useEffect(() => {
     if (journey) setJour(journey);
   }, [journey]);
   useEffect(() => {
@@ -161,7 +151,6 @@ export function CsSettingsPanel({
           evidence: ev,
           escalation: esc,
           masterclass: mc,
-          features: feat,
           journey: jour,
           sla: s,
           routing: r,
@@ -505,13 +494,6 @@ export function CsSettingsPanel({
         {tab === "masterclass" && (
           <>
             <MasterclassSettings value={mc} onChange={setMc} />
-            {saveBar}
-          </>
-        )}
-
-        {tab === "funcionalidades" && (
-          <>
-            <FeaturesSettings value={feat} onChange={setFeat} />
             {saveBar}
           </>
         )}

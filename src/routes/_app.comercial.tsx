@@ -1,6 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { endOfMonth, format, startOfMonth, subMonths } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -9,12 +9,14 @@ import {
   ArrowRight,
   CalendarClock,
   KanbanSquare,
+  Sparkles,
   Target,
   TrendingUp,
   Users,
 } from "lucide-react";
 import { getComercialDashboard } from "@/lib/comercial.functions";
 import { minhaFilaComercial } from "@/lib/comercial-negocio.functions";
+import { assumirOportunidade, listOportunidadesAbertas } from "@/lib/oportunidades.functions";
 import {
   fracaoDoPeriodo,
   moeda,
@@ -24,6 +26,8 @@ import {
   type Ritmo,
 } from "@/lib/comercial/metas";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -195,6 +199,7 @@ function ComercialPage() {
           </div>
 
           <MinhaFila />
+          <SinalizacoesDoCs />
 
           {d.resumo.semOrdemCompra > 0 && (
             <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-[12px] text-amber-700 dark:text-amber-300">
@@ -474,6 +479,76 @@ function MinhaFila() {
           </div>
         </div>
       )}
+    </Section>
+  );
+}
+
+/**
+ * O que o CS sinalizou e ninguém assumiu. Assumir cria o negócio já no funil
+ * certo: recompra vai para o funil curto, cross sell para o longo, que tem
+ * agenda de identificação de necessidade antes de virar oportunidade.
+ */
+function SinalizacoesDoCs() {
+  const listFn = useServerFn(listOportunidadesAbertas);
+  const assumirFn = useServerFn(assumirOportunidade);
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+
+  const { data } = useQuery({
+    queryKey: ["oportunidades-abertas"],
+    queryFn: () => listFn(),
+    staleTime: 60_000,
+  });
+
+  const assumir = useMutation({
+    mutationFn: (id: string) => assumirFn({ data: { id } }),
+    onSuccess: (r) => {
+      toast.success("Negócio criado no funil da carteira");
+      qc.invalidateQueries({ queryKey: ["oportunidades-abertas"] });
+      qc.invalidateQueries({ queryKey: ["comercial"] });
+      navigate({ to: "/negocio/$id", params: { id: r.dealId } });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  const lista = data?.oportunidades ?? [];
+  if (lista.length === 0) return null;
+
+  return (
+    <Section icon={Sparkles} title="Sinalizações do CS" to="/cs" toLabel="Ver carteira">
+      <p className="mb-2 text-[11px] text-muted-foreground">
+        O analista viu a oportunidade no cliente. Assumir abre o negócio no seu nome.
+      </p>
+      <ul className="divide-y">
+        {lista.map((o) => (
+          <li key={o.id} className="flex flex-wrap items-center gap-2 py-2.5">
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium">{o.empresa}</p>
+              <p className="text-[11px] text-muted-foreground">{o.motivo}</p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                {format(new Date(o.sinalizadaEm), "dd/MM", { locale: ptBR })}
+                {o.sinalizadaPor ? ` · ${o.sinalizadaPor}` : ""}
+                {o.produtoSugerido ? ` · ${o.produtoSugerido}` : ""}
+              </p>
+            </div>
+            <Badge variant="outline" className="text-[9px]">
+              {o.tipo === "cross_sell"
+                ? "Cross sell"
+                : o.tipo === "recompra"
+                  ? "Recompra"
+                  : "Renovação"}
+            </Badge>
+            {o.valorEstimado ? (
+              <span className="text-[12px] tabular-nums text-muted-foreground">
+                {moeda(o.valorEstimado)}
+              </span>
+            ) : null}
+            <Button size="sm" disabled={assumir.isPending} onClick={() => assumir.mutate(o.id)}>
+              Assumir
+            </Button>
+          </li>
+        ))}
+      </ul>
     </Section>
   );
 }

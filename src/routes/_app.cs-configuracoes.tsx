@@ -49,7 +49,6 @@ function CsSettingsPage() {
           evidence={data?.evidence}
           escalation={data?.escalation}
           masterclass={data?.masterclass}
-          features={data?.features}
           journey={data?.journey}
           sla={data?.sla}
           routing={data?.routing}

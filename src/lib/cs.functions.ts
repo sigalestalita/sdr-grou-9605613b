@@ -29,7 +29,6 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getEvidenceConfig,
       getEscalationConfig,
       getMasterclassConfig,
-      getFeaturesConfig,
       getJourneyConfigDb,
       fetchAllRows,
     } = await import("@/lib/cs/cs-core.server");
@@ -50,7 +49,6 @@ export const listCsBoard = createServerFn({ method: "GET" })
       evidence,
       escalation,
       masterclass,
-      features,
       journey,
     ] = await Promise.all([
       // Consultoria não entra aqui: ela só é acompanhada na aba própria, onde
@@ -87,7 +85,6 @@ export const listCsBoard = createServerFn({ method: "GET" })
       getEvidenceConfig(supabase),
       getEscalationConfig(supabase),
       getMasterclassConfig(supabase),
-      getFeaturesConfig(supabase),
       getJourneyConfigDb(supabase),
     ]);
 
@@ -107,7 +104,6 @@ export const listCsBoard = createServerFn({ method: "GET" })
       evidence,
       escalation,
       masterclass,
-      features,
       journey,
     };
   });
@@ -722,28 +718,6 @@ export const saveCsSettings = createServerFn({ method: "POST" })
             ),
           })
           .optional(),
-        features: z
-          .object({
-            reoferta_dias: z.number().int().min(1).max(730),
-            recusa_dias: z.number().int().min(1).max(730),
-            funcionalidades: z.array(
-              z.object({
-                id: z.string().min(1),
-                nome: z.string().max(120),
-                para_quem: z.string().max(300),
-                tag_uso: z.array(z.string()),
-                dias_min: z.number().int().min(0).optional(),
-                sinaleiras: z.array(z.string()),
-                verde_consolidado: z.boolean().optional(),
-                pessoas_min: z.number().int().min(0).optional(),
-                junto_modulo: z.number().int().min(1).optional(),
-                nao_vermelho_inicial: z.boolean().optional(),
-                resolve: z.string().max(400),
-                gancho: z.string().max(400),
-              }),
-            ),
-          })
-          .optional(),
         sla: z
           .object({
             onboarding: z.number().int().min(1).max(400),
@@ -776,7 +750,6 @@ export const saveCsSettings = createServerFn({ method: "POST" })
     if (data.evidence) await saveCsSetting(supabase, "evidence", data.evidence);
     if (data.escalation) await saveCsSetting(supabase, "escalation", data.escalation);
     if (data.masterclass) await saveCsSetting(supabase, "masterclass", data.masterclass);
-    if (data.features) await saveCsSetting(supabase, "features", data.features);
     if (data.journey) await saveCsSetting(supabase, "journey_emails", data.journey);
     if (data.sla) await saveCsSetting(supabase, "stage_sla_days", data.sla);
     if (data.routing) {
