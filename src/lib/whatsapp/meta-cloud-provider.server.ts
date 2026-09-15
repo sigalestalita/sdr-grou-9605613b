@@ -89,7 +89,11 @@ export const metaCloudProvider: WhatsAppProvider = {
       return { providerMessageId: "", status: "failed", error: "access_token ausente na conta" };
     }
     if (!account.provider_instance_id) {
-      return { providerMessageId: "", status: "failed", error: "phone_number_id (provider_instance_id) ausente" };
+      return {
+        providerMessageId: "",
+        status: "failed",
+        error: "phone_number_id (provider_instance_id) ausente",
+      };
     }
     const base = (account.provider_base_url || DEFAULT_BASE).replace(/\/+$/, "");
     const url = `${base}/${account.provider_instance_id}/messages`;
@@ -106,7 +110,11 @@ export const metaCloudProvider: WhatsAppProvider = {
       });
       const text = await res.text();
       let json: { messages?: Array<{ id: string }>; error?: { message?: string } } = {};
-      try { json = JSON.parse(text); } catch { /* ignore */ }
+      try {
+        json = JSON.parse(text);
+      } catch {
+        /* ignore */
+      }
       if (!res.ok) {
         const errMsg = json?.error?.message || `HTTP ${res.status}: ${text.slice(0, 300)}`;
         return { providerMessageId: "", status: "failed", error: errMsg };
@@ -114,7 +122,11 @@ export const metaCloudProvider: WhatsAppProvider = {
       const id = json.messages?.[0]?.id ?? "";
       return { providerMessageId: id, status: "sending" };
     } catch (e) {
-      return { providerMessageId: "", status: "failed", error: e instanceof Error ? e.message : String(e) };
+      return {
+        providerMessageId: "",
+        status: "failed",
+        error: e instanceof Error ? e.message : String(e),
+      };
     }
   },
 
@@ -137,6 +149,7 @@ export const metaCloudProvider: WhatsAppProvider = {
     let payload: {
       entry?: Array<{
         changes?: Array<{
+          field?: string;
           value?: {
             metadata?: { display_phone_number?: string };
             contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
@@ -149,7 +162,13 @@ export const metaCloudProvider: WhatsAppProvider = {
               image?: { id?: string; mime_type?: string; caption?: string; url?: string };
               video?: { id?: string; mime_type?: string; caption?: string; url?: string };
               audio?: { id?: string; mime_type?: string; url?: string };
-              document?: { id?: string; mime_type?: string; filename?: string; caption?: string; url?: string };
+              document?: {
+                id?: string;
+                mime_type?: string;
+                filename?: string;
+                caption?: string;
+                url?: string;
+              };
             }>;
             statuses?: Array<{
               id: string;
@@ -161,12 +180,30 @@ export const metaCloudProvider: WhatsAppProvider = {
         }>;
       }>;
     } = {};
-    try { payload = JSON.parse(rawBody); } catch { return []; }
+    try {
+      payload = JSON.parse(rawBody);
+    } catch {
+      return [];
+    }
 
     const events: WaWebhookEvent[] = [];
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
         const value = change.value ?? {};
+        /*
+         * Campo que não é "messages": guarda para diagnóstico.
+         *
+         * É por aqui que a coexistência vai aparecer — eco das mensagens que o
+         * SDR digita no próprio celular, histórico das conversas antigas,
+         * sincronização de contatos. Os nomes exatos dos campos a Meta muda com
+         * o tempo, então nada é adivinhado: o evento fica registrado com o nome
+         * que veio e o corpo cru.
+         */
+        const campo = (change as { field?: string }).field ?? "";
+        if (campo && campo !== "messages") {
+          events.push({ kind: "unknown", field: campo, value });
+          continue;
+        }
         const toNumber = value.metadata?.display_phone_number ?? "";
         const contactName = value.contacts?.[0]?.profile?.name;
 
@@ -177,12 +214,38 @@ export const metaCloudProvider: WhatsAppProvider = {
           let mediaUrl: string | undefined;
           let mediaMime: string | undefined;
           switch (m.type) {
-            case "text": body = m.text?.body; break;
-            case "image": type = "image"; body = m.image?.caption; mediaId = m.image?.id; mediaUrl = m.image?.url; mediaMime = m.image?.mime_type; break;
-            case "video": type = "video"; body = m.video?.caption; mediaId = m.video?.id; mediaUrl = m.video?.url; mediaMime = m.video?.mime_type; break;
-            case "audio": type = "audio"; mediaId = m.audio?.id; mediaUrl = m.audio?.url; mediaMime = m.audio?.mime_type; break;
-            case "document": type = "file"; body = m.document?.caption ?? m.document?.filename; mediaId = m.document?.id; mediaUrl = m.document?.url; mediaMime = m.document?.mime_type; break;
-            default: body = `[${m.type} não suportado]`;
+            case "text":
+              body = m.text?.body;
+              break;
+            case "image":
+              type = "image";
+              body = m.image?.caption;
+              mediaId = m.image?.id;
+              mediaUrl = m.image?.url;
+              mediaMime = m.image?.mime_type;
+              break;
+            case "video":
+              type = "video";
+              body = m.video?.caption;
+              mediaId = m.video?.id;
+              mediaUrl = m.video?.url;
+              mediaMime = m.video?.mime_type;
+              break;
+            case "audio":
+              type = "audio";
+              mediaId = m.audio?.id;
+              mediaUrl = m.audio?.url;
+              mediaMime = m.audio?.mime_type;
+              break;
+            case "document":
+              type = "file";
+              body = m.document?.caption ?? m.document?.filename;
+              mediaId = m.document?.id;
+              mediaUrl = m.document?.url;
+              mediaMime = m.document?.mime_type;
+              break;
+            default:
+              body = `[${m.type} não suportado]`;
           }
           const inbound: WaInboundMessage = {
             providerMessageId: m.id,
@@ -201,9 +264,13 @@ export const metaCloudProvider: WhatsAppProvider = {
 
         for (const s of value.statuses ?? []) {
           const mapped: WaStatusUpdate["status"] =
-            s.status === "read" ? "read" :
-            s.status === "delivered" ? "delivered" :
-            s.status === "sent" ? "sent" : "failed";
+            s.status === "read"
+              ? "read"
+              : s.status === "delivered"
+                ? "delivered"
+                : s.status === "sent"
+                  ? "sent"
+                  : "failed";
           const errText = s.errors?.[0]?.message || s.errors?.[0]?.title;
           events.push({
             kind: "status",

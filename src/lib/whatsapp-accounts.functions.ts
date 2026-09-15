@@ -272,3 +272,58 @@ export const registerCloudNumber = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+/**
+ * Eventos de webhook que o parser ainda não trata.
+ *
+ * Serve para a habilitação da coexistência: quando a Meta começar a mandar o
+ * eco das mensagens digitadas no celular do SDR, o histórico das conversas ou
+ * a sincronização de contatos, é aqui que dá para ver com que nome de campo e
+ * em que formato eles chegam — antes de escrever o tratamento.
+ */
+export const listWebhookEventosNaoTratados = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: isManager } = await supabase.rpc("is_manager", { _user_id: userId });
+    if (!isManager) return { disponivel: true, eventos: [], porCampo: [] };
+
+    // A tabela é nova; os tipos gerados só a conhecem depois da migration.
+    const db = supabase as unknown as {
+      from: (t: string) => {
+        select: (c: string) => {
+          order: (
+            c: string,
+            o: { ascending: boolean },
+          ) => {
+            limit: (n: number) => Promise<{
+              data: Array<Record<string, unknown>> | null;
+              error: { message: string } | null;
+            }>;
+          };
+        };
+      };
+    };
+    const { data, error } = await db
+      .from("whatsapp_webhook_events")
+      .select("id, field, payload, received_at")
+      .order("received_at", { ascending: false })
+      .limit(50);
+    // Sem a migration aplicada a tabela não existe — e isso é informação útil,
+    // não erro: quem abre a tela precisa saber por que a lista está vazia.
+    if (error) return { disponivel: false, eventos: [], porCampo: [] };
+
+    const eventos = (data ?? []).map((e) => ({
+      id: e.id as string,
+      field: e.field as string,
+      recebidoEm: e.received_at as string,
+      resumo: JSON.stringify(e.payload ?? {}).slice(0, 4000),
+    }));
+    const contagem = new Map<string, number>();
+    for (const e of eventos) contagem.set(e.field, (contagem.get(e.field) ?? 0) + 1);
+    return {
+      disponivel: true,
+      eventos,
+      porCampo: [...contagem].map(([field, n]) => ({ field, n })).sort((a, b) => b.n - a.n),
+    };
+  });

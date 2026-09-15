@@ -84,6 +84,30 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
             await handleInbound(supabaseAdmin, account.id, accountConfig, ev.data);
           } else if (ev.kind === "status") {
             await handleStatus(supabaseAdmin, ev.data);
+          } else {
+            /*
+             * Campo novo (coexistência, entre outros): registra em vez de
+             * descartar, para dar para ver o formato real antes de tratar.
+             *
+             * Nunca pode derrubar o webhook: se a tabela ainda não existe, a
+             * Meta não tem culpa e a mensagem legítima do mesmo lote precisa
+             * seguir. Por isso o try, e por isso o cast — os tipos gerados só
+             * conhecem a tabela depois que a migration roda.
+             */
+            try {
+              const db = supabaseAdmin as unknown as {
+                from: (t: string) => {
+                  insert: (row: Record<string, unknown>) => Promise<{ error: unknown }>;
+                };
+              };
+              await db.from("whatsapp_webhook_events").insert({
+                account_id: account.id,
+                field: ev.field,
+                payload: ev.value ?? {},
+              });
+            } catch (e) {
+              console.warn("[wa webhook] campo não tratado:", ev.field, e);
+            }
           }
         }
         return Response.json({ ok: true, processed: events.length });

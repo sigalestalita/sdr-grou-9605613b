@@ -8,6 +8,7 @@ import {
   deleteAccount,
   testSendAccount,
   registerCloudNumber,
+  listWebhookEventosNaoTratados,
 } from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -143,8 +144,7 @@ function ContasPage() {
   });
 
   const test = useMutation({
-    mutationFn: () =>
-      testFn({ data: { id: testOpen!.id, to: testTo, body: testBody } }),
+    mutationFn: () => testFn({ data: { id: testOpen!.id, to: testTo, body: testBody } }),
     onSuccess: (r) => {
       if (r.status === "failed") toast.error(`Falhou: ${r.error ?? "erro"}`);
       else toast.success(`Enviado (id: ${r.providerMessageId || "—"})`);
@@ -173,8 +173,8 @@ function ContasPage() {
         <div>
           <h2 className="text-lg font-semibold">Contas de WhatsApp</h2>
           <p className="text-xs text-muted-foreground">
-            Configure uma ou mais contas <strong>Meta WhatsApp Cloud API</strong>. Cada conta
-            tem seu webhook próprio.
+            Configure uma ou mais contas <strong>Meta WhatsApp Cloud API</strong>. Cada conta tem
+            seu webhook próprio.
           </p>
         </div>
         <Button size="sm" onClick={openCreate}>
@@ -185,9 +185,12 @@ function ContasPage() {
       {isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
       {!isLoading && accounts.length === 0 && (
         <div className="border border-dashed border-white/10 rounded-lg p-8 text-center text-sm text-muted-foreground">
-          Nenhuma conta configurada. Clique em <strong>Nova conta</strong> para conectar a Meta Cloud API.
+          Nenhuma conta configurada. Clique em <strong>Nova conta</strong> para conectar a Meta
+          Cloud API.
         </div>
       )}
+
+      <EventosNaoTratados />
 
       <div className="grid gap-3">
         {accounts.map((a) => {
@@ -198,7 +201,9 @@ function ContasPage() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm font-medium truncate">{a.label || a.phone_number}</p>
-                    <Badge variant="outline" className="text-[10px]">{a.provider}</Badge>
+                    <Badge variant="outline" className="text-[10px]">
+                      {a.provider}
+                    </Badge>
                     <Badge
                       variant="outline"
                       className={`text-[10px] ${a.status === "active" ? "border-green-500/40 text-green-400" : "border-muted-foreground/30"}`}
@@ -247,7 +252,10 @@ function ContasPage() {
                       size="icon"
                       variant="ghost"
                       title="Registrar número na Cloud API"
-                      onClick={() => { setRegOpen(a); setRegPin(""); }}
+                      onClick={() => {
+                        setRegOpen(a);
+                        setRegPin("");
+                      }}
                     >
                       <ShieldCheck className="h-4 w-4" />
                     </Button>
@@ -270,7 +278,8 @@ function ContasPage() {
                     size="icon"
                     variant="ghost"
                     onClick={() => {
-                      if (confirm(`Excluir conta "${a.label || a.phone_number}"?`)) del.mutate(a.id);
+                      if (confirm(`Excluir conta "${a.label || a.phone_number}"?`))
+                        del.mutate(a.id);
                     }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -292,12 +301,21 @@ function ContasPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground">Rótulo</label>
-                <Input value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} placeholder="Grou · SDR" />
+                <Input
+                  value={form.label}
+                  onChange={(e) => setForm({ ...form, label: e.target.value })}
+                  placeholder="Grou · SDR"
+                />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">Provider</label>
-                <Select value={form.provider} onValueChange={(v) => setForm({ ...form, provider: v as "meta_cloud" | "mock" })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={form.provider}
+                  onValueChange={(v) => setForm({ ...form, provider: v as "meta_cloud" | "mock" })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="meta_cloud">Meta WhatsApp Cloud API</SelectItem>
                     <SelectItem value="mock">Mock (desenvolvimento)</SelectItem>
@@ -309,18 +327,28 @@ function ContasPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground">Número (E.164)</label>
-                <Input value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} placeholder="+5511999999999" />
+                <Input
+                  value={form.phone_number}
+                  onChange={(e) => setForm({ ...form, phone_number: e.target.value })}
+                  placeholder="+5511999999999"
+                />
               </div>
               <div>
                 <label className="text-xs text-muted-foreground">Phone Number ID (Meta)</label>
-                <Input value={form.provider_instance_id} onChange={(e) => setForm({ ...form, provider_instance_id: e.target.value })} placeholder="123456789012345" />
+                <Input
+                  value={form.provider_instance_id}
+                  onChange={(e) => setForm({ ...form, provider_instance_id: e.target.value })}
+                  placeholder="123456789012345"
+                />
               </div>
             </div>
 
             <div>
               <label className="text-xs text-muted-foreground">
                 Access Token permanente (System User)
-                {form.id && <span className="ml-1 text-[10px]">— deixe em branco para manter o atual</span>}
+                {form.id && (
+                  <span className="ml-1 text-[10px]">— deixe em branco para manter o atual</span>
+                )}
               </label>
               <Input
                 value={form.access_token}
@@ -360,21 +388,37 @@ function ContasPage() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground">WABA ID (opcional)</label>
-                <Input value={form.waba_id} onChange={(e) => setForm({ ...form, waba_id: e.target.value })} placeholder="WhatsApp Business Account ID" />
+                <Input
+                  value={form.waba_id}
+                  onChange={(e) => setForm({ ...form, waba_id: e.target.value })}
+                  placeholder="WhatsApp Business Account ID"
+                />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">Base URL override (opcional)</label>
-                <Input value={form.provider_base_url} onChange={(e) => setForm({ ...form, provider_base_url: e.target.value })} placeholder="https://graph.facebook.com/v21.0" />
+                <label className="text-xs text-muted-foreground">
+                  Base URL override (opcional)
+                </label>
+                <Input
+                  value={form.provider_base_url}
+                  onChange={(e) => setForm({ ...form, provider_base_url: e.target.value })}
+                  placeholder="https://graph.facebook.com/v21.0"
+                />
               </div>
             </div>
 
             <div className="flex items-center justify-between gap-3 pt-2">
               <div className="flex items-center gap-2">
-                <Switch checked={form.is_default} onCheckedChange={(v) => setForm({ ...form, is_default: v })} />
+                <Switch
+                  checked={form.is_default}
+                  onCheckedChange={(v) => setForm({ ...form, is_default: v })}
+                />
                 <span className="text-xs">Conta padrão para envios</span>
               </div>
               <div className="flex items-center gap-2">
-                <Switch checked={form.status === "active"} onCheckedChange={(v) => setForm({ ...form, status: v ? "active" : "disabled" })} />
+                <Switch
+                  checked={form.status === "active"}
+                  onCheckedChange={(v) => setForm({ ...form, status: v ? "active" : "disabled" })}
+                />
                 <span className="text-xs">Ativa</span>
               </div>
             </div>
@@ -409,10 +453,14 @@ function ContasPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setOpen(false)}>
+              Cancelar
+            </Button>
             <Button
               onClick={() => save.mutate()}
-              disabled={save.isPending || !form.label || !form.phone_number || !form.provider_instance_id}
+              disabled={
+                save.isPending || !form.label || !form.phone_number || !form.provider_instance_id
+              }
             >
               {save.isPending ? "Salvando…" : "Salvar"}
             </Button>
@@ -429,11 +477,18 @@ function ContasPage() {
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
               Via conta <strong>{testOpen?.label || testOpen?.phone_number}</strong>. O destinatário
-              precisa ter conversado com seu número nas últimas 24h ou estar dentro de um template aprovado.
+              precisa ter conversado com seu número nas últimas 24h ou estar dentro de um template
+              aprovado.
             </p>
             <div>
-              <label className="text-xs text-muted-foreground">Para (E.164, ex: 5511999999999)</label>
-              <Input value={testTo} onChange={(e) => setTestTo(e.target.value)} placeholder="5511999999999" />
+              <label className="text-xs text-muted-foreground">
+                Para (E.164, ex: 5511999999999)
+              </label>
+              <Input
+                value={testTo}
+                onChange={(e) => setTestTo(e.target.value)}
+                placeholder="5511999999999"
+              />
             </div>
             <div>
               <label className="text-xs text-muted-foreground">Mensagem</label>
@@ -441,7 +496,9 @@ function ContasPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setTestOpen(null)}>Fechar</Button>
+            <Button variant="outline" onClick={() => setTestOpen(null)}>
+              Fechar
+            </Button>
             <Button onClick={() => test.mutate()} disabled={test.isPending || !testTo || !testBody}>
               {test.isPending ? "Enviando…" : "Enviar"}
             </Button>
@@ -458,8 +515,9 @@ function ContasPage() {
           <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
               Executa <code>POST /{regOpen?.provider_instance_id}/register</code> na Meta. Faça isso
-              uma única vez por número, antes de enviar mensagens. Defina um <strong>PIN de 6 dígitos</strong>{" "}
-              (verificação em duas etapas) — guarde-o, pode ser pedido em re-verificações futuras.
+              uma única vez por número, antes de enviar mensagens. Defina um{" "}
+              <strong>PIN de 6 dígitos</strong> (verificação em duas etapas) — guarde-o, pode ser
+              pedido em re-verificações futuras.
             </p>
             <div>
               <label className="text-xs text-muted-foreground">PIN (6 dígitos)</label>
@@ -472,18 +530,86 @@ function ContasPage() {
               />
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Erros comuns: <code>#133006</code> número já registrado em outro app (precisa de recovery
-              token); <code>#100</code> token sem acesso à WABA; <code>#133005</code> PIN antigo divergente.
+              Erros comuns: <code>#133006</code> número já registrado em outro app (precisa de
+              recovery token); <code>#100</code> token sem acesso à WABA; <code>#133005</code> PIN
+              antigo divergente.
             </p>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRegOpen(null)}>Cancelar</Button>
-            <Button onClick={() => register.mutate()} disabled={register.isPending || regPin.length !== 6}>
+            <Button variant="outline" onClick={() => setRegOpen(null)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => register.mutate()}
+              disabled={register.isPending || regPin.length !== 6}
+            >
               {register.isPending ? "Registrando…" : "Registrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+/**
+ * O que chega no webhook e o sistema ainda não sabe tratar.
+ *
+ * É a janela para a habilitação da coexistência com os WhatsApp Business do
+ * time: o eco das mensagens digitadas no celular, o histórico e a
+ * sincronização de contatos chegam por este mesmo webhook, em campos que a
+ * Meta renomeia de tempos em tempos. Em vez de adivinhar o nome, olha-se aqui.
+ */
+function EventosNaoTratados() {
+  const fn = useServerFn(listWebhookEventosNaoTratados);
+  const [aberto, setAberto] = useState(false);
+  const { data } = useQuery({
+    queryKey: ["wa-webhook-eventos"],
+    queryFn: () => fn(),
+    refetchInterval: aberto ? 15_000 : false,
+  });
+
+  if (!data) return null;
+  if (data.disponivel && data.eventos.length === 0) return null;
+
+  return (
+    <div className="mb-4 rounded-lg border border-white/10 bg-card/50 p-4">
+      <button
+        onClick={() => setAberto((v) => !v)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <div className="min-w-0">
+          <p className="text-sm font-medium">Eventos de webhook ainda não tratados</p>
+          <p className="text-xs text-muted-foreground">
+            {data.disponivel
+              ? `${data.porCampo.map((c) => `${c.field} (${c.n})`).join(" · ")}`
+              : "Registro ainda não criado — falta aplicar a migration do diagnóstico."}
+          </p>
+        </div>
+        <Badge variant="outline" className="shrink-0 text-[10px]">
+          {aberto ? "ocultar" : "ver"}
+        </Badge>
+      </button>
+
+      {aberto && data.eventos.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {data.eventos.map((e) => (
+            <li key={e.id} className="rounded-md border border-white/5 p-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className="text-[10px]">
+                  {e.field}
+                </Badge>
+                <span className="text-[10px] text-muted-foreground">
+                  {new Date(e.recebidoEm).toLocaleString("pt-BR")}
+                </span>
+              </div>
+              <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap break-all text-[10px] text-muted-foreground">
+                {e.resumo}
+              </pre>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

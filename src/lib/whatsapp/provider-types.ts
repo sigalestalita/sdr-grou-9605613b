@@ -59,11 +59,24 @@ export interface WaStatusUpdate {
 
 export type WaWebhookEvent =
   | { kind: "message"; data: WaInboundMessage }
-  | { kind: "status"; data: WaStatusUpdate };
+  | { kind: "status"; data: WaStatusUpdate }
+  /**
+   * Campo que o parser ainda não entende.
+   *
+   * A coexistência com os WhatsApp Business do time traz campos novos no mesmo
+   * webhook (eco das mensagens digitadas no celular, histórico, contatos). Em
+   * vez de descartar em silêncio, o evento é guardado para diagnóstico — é o
+   * que permite ver o formato real antes de escrever o tratamento.
+   */
+  | { kind: "unknown"; field: string; value: unknown };
 
 export interface WhatsAppProvider {
   readonly id: string;
   sendMessage(input: WaSendInput): Promise<WaSendResult>;
-  parseWebhook(rawBody: string, headers: Record<string, string>, account: WaAccountConfig): WaWebhookEvent[];
+  parseWebhook(
+    rawBody: string,
+    headers: Record<string, string>,
+    account: WaAccountConfig,
+  ): WaWebhookEvent[];
   verifySignature?(rawBody: string, headers: Record<string, string>, secret: string): boolean;
 }
