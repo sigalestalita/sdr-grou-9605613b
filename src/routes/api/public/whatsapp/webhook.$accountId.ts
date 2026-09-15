@@ -69,6 +69,8 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
           provider_base_url: account.provider_base_url,
           access_token: account.access_token,
           webhook_secret: account.webhook_secret,
+          // Número pessoal de trabalho: espelha a conversa, não cria lead.
+          espelhada: (account as { espelhada?: boolean }).espelhada === true,
         };
 
         let events;
@@ -111,6 +113,7 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
             provider_base_url: outra.provider_base_url,
             access_token: outra.access_token,
             webhook_secret: outra.webhook_secret,
+            espelhada: (outra as { espelhada?: boolean }).espelhada === true,
           };
           contaPorNumero.set(phoneNumberId, cfg);
           return cfg;
@@ -119,7 +122,7 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
         for (const ev of events) {
           if (ev.kind === "message") {
             const alvo = await contaDoEvento(ev.data.toPhoneNumberId);
-            await handleInbound(supabaseAdmin, alvo.id, alvo, ev.data);
+            await handleInbound(supabaseAdmin, alvo.id, alvo, ev.data, alvo.espelhada === true);
           } else if (ev.kind === "status") {
             await handleStatus(supabaseAdmin, ev.data);
           } else {
@@ -177,6 +180,7 @@ async function handleInbound(
     timestamp: number;
     senderName?: string;
   },
+  espelhada = false,
 ) {
   /*
    * A Meta reentrega o webhook quando não recebe 200 rápido, e às vezes repete
@@ -216,6 +220,19 @@ async function handleInbound(
     leadId = leadMatch?.id ?? null;
   }
 
+  /*
+   * Número espelhado: se o contato ainda não é lead, ele não vira lead.
+   *
+   * Nesse número escreve fornecedor, colega, família. Criar um card para cada
+   * um suja o pipeline, e deixar a IA responder é pior ainda — ela se
+   * apresentaria como a SDR para quem não é lead. Quando a SDR reconhecer que
+   * o contato é lead de verdade, ela promove pela conversa.
+   *
+   * Se o número JÁ é de um lead conhecido, a conversa segue ligada a ele: é a
+   * mesma pessoa, independente de por qual número escreveu.
+   */
+  const semLead = espelhada && !leadId;
+
   if (!contact) {
     const ins = await admin
       .from("whatsapp_contacts")
@@ -225,7 +242,7 @@ async function handleInbound(
     contact = ins.data;
   }
 
-  if (!leadId) {
+  if (!leadId && !semLead) {
     // cria lead "incoming" automático pra não perder a mensagem
     const ins = await admin
       .from("leads")
@@ -252,24 +269,47 @@ async function handleInbound(
   }
 
   // 2) acha/cria conversa
-  let conv = (
-    await admin.from("whatsapp_conversations").select("*").eq("lead_id", leadId).maybeSingle()
-  ).data;
+  // Sem lead, quem identifica a conversa é o par conta + contato.
+  let conv = leadId
+    ? (await admin.from("whatsapp_conversations").select("*").eq("lead_id", leadId).maybeSingle())
+        .data
+    : contact
+      ? (
+          await admin
+            .from("whatsapp_conversations")
+            .select("*")
+            .is("lead_id", null)
+            .eq("account_id", accountId)
+            .eq("contact_id", contact.id)
+            .maybeSingle()
+        ).data
+      : null;
   if (!conv) {
-    const { data: lead } = await admin
-      .from("leads")
-      .select("assigned_to")
-      .eq("id", leadId)
-      .maybeSingle();
+    const { data: lead } = leadId
+      ? await admin.from("leads").select("assigned_to").eq("id", leadId).maybeSingle()
+      : { data: null };
+    // Conversa espelhada nasce com o dono do número, que é quem atende ali.
+    const { data: dono } = semLead
+      ? await admin
+          .from("whatsapp_accounts")
+          .select("owner_user_id")
+          .eq("id", accountId)
+          .maybeSingle()
+      : { data: null };
     const ins = await admin
       .from("whatsapp_conversations")
       .insert({
         lead_id: leadId,
         contact_id: contact?.id ?? null,
         account_id: accountId,
-        assigned_user_id: lead?.assigned_to ?? null,
+        assigned_user_id:
+          lead?.assigned_to ??
+          (dono as { owner_user_id?: string | null } | null)?.owner_user_id ??
+          null,
         status: "open",
-      })
+        // as never: a coluna passa a aceitar nulo na migration das conversas
+        // espelhadas; os tipos gerados só sabem disso depois que ela roda.
+      } as never)
       .select("*")
       .single();
     conv = ins.data;
@@ -340,7 +380,7 @@ async function handleInbound(
   // 4) grava mensagem
   const { error: erroInsercao } = await admin.from("whatsapp_messages").insert({
     conversation_id: conv.id,
-    lead_id: leadId,
+    lead_id: leadId as string,
     sender_type: "lead",
     message_type: msg.type,
     body: msg.body ?? null,
@@ -364,25 +404,27 @@ async function handleInbound(
 
   // 4a) resposta a uma campanha de WhatsApp → avisa a SDR responsável e tira a IA da conversa
   let isCampaignReply = false;
-  try {
-    const { maybeAlertCampaignReply } = await import("@/lib/whatsapp/campaign-reply-alert.server");
-    const res = await maybeAlertCampaignReply({
-      admin,
-      leadId,
-      conversationId: conv.id,
-      replyText: msg.body ?? null,
-    });
-    isCampaignReply = res.isCampaignReply;
-    if (isCampaignReply) {
-      conversationStatus = "pending";
-      conversationAssignee = conv.assigned_user_id ?? null;
+  if (leadId)
+    try {
+      const { maybeAlertCampaignReply } =
+        await import("@/lib/whatsapp/campaign-reply-alert.server");
+      const res = await maybeAlertCampaignReply({
+        admin,
+        leadId,
+        conversationId: conv.id,
+        replyText: msg.body ?? null,
+      });
+      isCampaignReply = res.isCampaignReply;
+      if (isCampaignReply) {
+        conversationStatus = "pending";
+        conversationAssignee = conv.assigned_user_id ?? null;
+      }
+    } catch (e) {
+      console.error("[wa webhook] campaign reply alert error", e);
     }
-  } catch (e) {
-    console.error("[wa webhook] campaign reply alert error", e);
-  }
 
   // 4b) qualquer outra resposta do lead → avisa a SDR responsável no WhatsApp dela
-  if (!isCampaignReply) {
+  if (leadId && !isCampaignReply) {
     try {
       const { maybeAlertInboundReply } = await import("@/lib/whatsapp/inbound-reply-alert.server");
       await maybeAlertInboundReply({
@@ -410,6 +452,15 @@ async function handleInbound(
       assigned_user_id: conversationAssignee,
     })
     .eq("id", conv.id);
+
+  /*
+   * Daqui para baixo é a IA, e ela pressupõe lead.
+   *
+   * Numa conversa espelhada sem lead não há atendimento a conduzir: é a caixa
+   * pessoal de trabalho da SDR. A IA se apresentando como ela para um
+   * fornecedor seria pior do que não responder nada.
+   */
+  if (!leadId) return;
 
   // 4) resposta automática da IA quando habilitada
   try {

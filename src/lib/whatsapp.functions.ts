@@ -21,6 +21,8 @@ export const listConversations = createServerFn({ method: "GET" })
         assigned: z.enum(["all", "me", "unassigned"]).optional(),
         unread: z.boolean().optional(),
         search: z.string().optional(),
+        /** Número: "todos" ou o id da conta. Vazio = a conta da própria pessoa. */
+        accountId: z.string().optional(),
       })
       .optional()
       .parse(d ?? {}),
@@ -38,6 +40,30 @@ export const listConversations = createServerFn({ method: "GET" })
     if (data?.assigned === "me") q = q.eq("assigned_user_id", userId);
     if (data?.assigned === "unassigned") q = q.is("assigned_user_id", null);
     if (data?.unread) q = q.gt("unread_count", 0);
+    /*
+     * Filtro por número.
+     *
+     * Com a coexistência cada SDR tem o próprio número espelhado, e sem isso a
+     * caixa de entrada vira a mistura das conversas de todo mundo. Sem valor
+     * escolhido, mostra o número da própria pessoa; quem não é dono de número
+     * nenhum continua vendo tudo, que é o caso da gestão.
+     */
+    const { data: minhasContas } = await supabase
+      .from("whatsapp_accounts")
+      .select("id, label, phone_number, owner_user_id");
+    const contas = (minhasContas ?? []) as Array<{
+      id: string;
+      label: string | null;
+      phone_number: string;
+      owner_user_id: string | null;
+    }>;
+    const minhas = contas.filter((c) => c.owner_user_id === userId).map((c) => c.id);
+    if (data?.accountId && data.accountId !== "todos") {
+      q = q.eq("account_id", data.accountId);
+    } else if (!data?.accountId && minhas.length > 0) {
+      q = q.in("account_id", minhas);
+    }
+
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     let result = rows ?? [];
@@ -92,7 +118,99 @@ export const listConversations = createServerFn({ method: "GET" })
       };
     }
 
-    return { conversations: result, profiles: profiles ?? [], windows };
+    return {
+      conversations: result,
+      profiles: profiles ?? [],
+      windows,
+      contas: contas.map((c) => ({
+        id: c.id,
+        nome: c.label || c.phone_number,
+        minha: c.owner_user_id === userId,
+      })),
+      // Sem número próprio (gestão), o padrão é ver tudo.
+      padraoTodos: minhas.length === 0,
+    };
+  });
+
+/**
+ * Promove o contato de uma conversa espelhada a lead.
+ *
+ * A conversa do número pessoal de trabalho nasce sem lead de propósito — lá
+ * escreve muita gente que não é lead. Quando a SDR reconhece que aquele
+ * contato é de verdade, este é o caminho: cria o lead, liga a conversa e o
+ * contato a ele, e aí sim o pipeline passa a enxergar.
+ */
+export const promoverConversaALead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        conversationId: z.string().uuid(),
+        nome: z.string().min(1).max(200),
+        empresa: z.string().max(200).nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: conv, error: convErr } = await supabase
+      .from("whatsapp_conversations")
+      .select("id, lead_id, contact_id, assigned_user_id")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (convErr) throw new Error(convErr.message);
+    if (!conv) throw new Error("Conversa não encontrada");
+    if (conv.lead_id) throw new Error("Esta conversa já tem lead.");
+
+    const { data: contato } = await supabase
+      .from("whatsapp_contacts")
+      .select("id, phone, name")
+      .eq("id", conv.contact_id ?? "")
+      .maybeSingle();
+    if (!contato?.phone) throw new Error("Conversa sem telefone — não dá para criar o lead.");
+
+    // Pode já existir lead com esse número, criado por outro caminho.
+    const { acharLeadPorTelefone } = await import("./whatsapp/lead-match.server");
+    const existente = await acharLeadPorTelefone(supabase, contato.phone);
+
+    let leadId = existente?.id ?? null;
+    if (!leadId) {
+      const { data: stage } = await supabase
+        .from("stages")
+        .select("id")
+        .eq("slug", "novo")
+        .maybeSingle();
+      const { data: novo, error } = await supabase
+        .from("leads")
+        .insert({
+          name: data.nome.trim(),
+          company_name: data.empresa?.trim() || null,
+          phone: contato.phone,
+          source: "whatsapp_espelho",
+          channel: "whatsapp",
+          assigned_to: conv.assigned_user_id ?? userId,
+          stage_id: stage?.id ?? null,
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      leadId = novo.id;
+    }
+
+    await supabase.from("whatsapp_contacts").update({ lead_id: leadId }).eq("id", contato.id);
+    const { error: upErr } = await supabase
+      .from("whatsapp_conversations")
+      .update({ lead_id: leadId })
+      .eq("id", conv.id);
+    if (upErr) throw new Error(upErr.message);
+
+    await supabase
+      .from("whatsapp_messages")
+      .update({ lead_id: leadId })
+      .is("lead_id", null)
+      .eq("conversation_id", conv.id);
+
+    return { ok: true, leadId };
   });
 
 /** Busca/cria conversa para um lead. */
