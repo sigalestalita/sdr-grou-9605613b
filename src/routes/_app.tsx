@@ -96,7 +96,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/dashboard", label: "Visão geral", icon: BarChart3, team: "comercial" },
       { to: "/kanban", label: "Pipeline", icon: KanbanIcon, team: "comercial", also: ["/lead"] },
-      { to: "/whatsapp", label: "Inbox", icon: Inbox, team: "comercial" },
+      { to: "/whatsapp", label: "WhatsApp", icon: Inbox, team: "comercial" },
       { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
       { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
     ],
