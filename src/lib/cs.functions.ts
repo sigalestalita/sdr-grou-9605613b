@@ -220,14 +220,16 @@ export const getCsClient = createServerFn({ method: "GET" })
             .filter((c) => digits(c.whatsapp).length >= 8)
             .map((c) => [digits(c.whatsapp), c.nome] as const),
         );
-        waMessages = (msgs ?? []).map((m) => {
-          const info = byLead.get(m.lead_id);
-          return {
-            ...m,
-            phone: info?.phone ?? null,
-            contact_name: (info?.phone ? nameByPhone.get(info.phone) : null) ?? info?.name ?? null,
-          };
-        });
+        waMessages = (msgs ?? [])
+          .filter((m): m is typeof m & { lead_id: string } => Boolean(m.lead_id))
+          .map((m) => {
+            const info = byLead.get(m.lead_id);
+            return {
+              ...m,
+              phone: info?.phone ?? null,
+              contact_name: (info?.phone ? nameByPhone.get(info.phone) : null) ?? info?.name ?? null,
+            };
+          });
       }
     }
 
