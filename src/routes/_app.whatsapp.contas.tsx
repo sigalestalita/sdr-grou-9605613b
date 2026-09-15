@@ -591,6 +591,43 @@ function ContasPage() {
               </div>
             </div>
 
+            {/* Número pessoal de trabalho: muda o comportamento inteiro do
+                webhook, então fica visível junto dos outros interruptores. */}
+            <div className="rounded-md border border-white/10 p-3">
+              <div className="flex items-start gap-2">
+                <Switch
+                  checked={form.espelhada}
+                  onCheckedChange={(v) => setForm({ ...form, espelhada: v })}
+                />
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Número pessoal de trabalho (espelhado)</p>
+                  <p className="text-xs text-muted-foreground">
+                    O WhatsApp Business de alguém do time. As conversas aparecem no inbox, mas quem
+                    escreve não vira lead sozinho e a IA nunca responde — lá também escreve
+                    fornecedor, colega, família. A pessoa promove a lead quando for o caso.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3">
+                <label className="text-xs text-muted-foreground">De quem é este número</label>
+                <select
+                  value={form.ownerUserId}
+                  onChange={(e) => setForm({ ...form, ownerUserId: e.target.value })}
+                  className="mt-1 h-9 w-full rounded-md border bg-background px-2 text-sm"
+                >
+                  <option value="">— ninguém em especial —</option>
+                  {(cfgPessoas ?? []).map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.nome}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  É o que faz o inbox dessa pessoa abrir já no número dela.
+                </p>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between gap-3 pt-2">
               <div className="flex items-center gap-2">
                 <Switch
