@@ -11,6 +11,7 @@ import {
   listWebhookEventosNaoTratados,
   listarNumerosDoWaba,
   assinarWebhookDaConta,
+  diagnosticarConta,
 } from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Copy, Send, CheckCircle2, ShieldCheck, Link2 } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Copy,
+  Send,
+  CheckCircle2,
+  ShieldCheck,
+  Link2,
+  Stethoscope,
+} from "lucide-react";
 import { toast } from "sonner";
 import { EmbeddedSignupButton } from "@/components/whatsapp/embedded-signup-button";
 
@@ -76,6 +87,8 @@ function ContasPage() {
   const registerFn = useServerFn(registerCloudNumber);
   const numerosFn = useServerFn(listarNumerosDoWaba);
   const assinarFn = useServerFn(assinarWebhookDaConta);
+  const diagFn = useServerFn(diagnosticarConta);
+  const [diagDe, setDiagDe] = useState<string | null>(null);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -111,6 +124,16 @@ function ContasPage() {
     onSuccess: (r) =>
       toast.success(`App assinado no WABA ${r.wabaId}. As mensagens já podem chegar.`),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao assinar"),
+  });
+
+  // "Credenciais ok" só diz que o token responde; o diagnóstico pergunta à
+  // Meta o que está entre isso e a mensagem chegar no inbox.
+  const diagnostico = useMutation({
+    mutationFn: (id: string) => {
+      setDiagDe(id);
+      return diagFn({ data: { id } });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha no diagnóstico"),
   });
 
   const buscarNumeros = useMutation({
@@ -292,6 +315,17 @@ function ContasPage() {
                     <Button
                       size="icon"
                       variant="ghost"
+                      title="Diagnosticar: por que não está recebendo?"
+                      disabled={diagnostico.isPending}
+                      onClick={() => diagnostico.mutate(a.id)}
+                    >
+                      <Stethoscope className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {a.provider === "meta_cloud" && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
                       title="Assinar o app no WABA (habilita a chegada de mensagens)"
                       disabled={assinar.isPending}
                       onClick={() => assinar.mutate(a.id)}
@@ -338,6 +372,33 @@ function ContasPage() {
                   </Button>
                 </div>
               </div>
+
+              {diagDe === a.id && diagnostico.data && (
+                <ul className="mt-3 space-y-1.5 border-t border-white/5 pt-3">
+                  {diagnostico.data.checks.map((c, i) => (
+                    <li key={i} className="flex items-start gap-2 text-[12px]">
+                      <span
+                        className={`mt-0.5 shrink-0 ${
+                          c.ok === true
+                            ? "text-emerald-500"
+                            : c.ok === false
+                              ? "text-destructive"
+                              : "text-amber-500"
+                        }`}
+                      >
+                        {c.ok === true ? "✓" : c.ok === false ? "✕" : "!"}
+                      </span>
+                      <span className="min-w-0">
+                        <strong className="font-medium">{c.titulo}</strong>{" "}
+                        <span className="text-muted-foreground">{c.detalhe}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {diagDe === a.id && diagnostico.isPending && (
+                <p className="mt-3 text-[12px] text-muted-foreground">Perguntando à Meta…</p>
+              )}
             </div>
           );
         })}

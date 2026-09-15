@@ -603,3 +603,145 @@ export const assinarWebhookDaConta = createServerFn({ method: "POST" })
     await assinarWebhookDoWaba(wabaId, conta.access_token);
     return { ok: true, wabaId };
   });
+
+/**
+ * Pergunta à Meta por que uma conta não está recebendo.
+ *
+ * "Credenciais ok" só diz que o token responde. Entre isso e a mensagem
+ * aparecer no inbox há três coisas que falham em silêncio, e nenhuma delas dá
+ * erro em lugar nenhum:
+ *
+ *   1. o app não está assinado naquela conta do WhatsApp Business;
+ *   2. o número não é de coexistência, então o que é digitado no celular nem
+ *      passa pela API;
+ *   3. o campo de eco não está assinado no webhook do app.
+ *
+ * Os dois primeiros a Meta responde. O terceiro depende do token do app, que
+ * nem sempre está à mão — então a tela diz o que conferir à mão.
+ */
+export const diagnosticarConta = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isMgr) throw new Error("Apenas gestores.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conta, error } = await supabaseAdmin
+      .from("whatsapp_accounts")
+      .select("access_token, metadata, provider, provider_instance_id, provider_base_url")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error || !conta) throw new Error(error?.message || "Conta não encontrada");
+
+    const base = (conta.provider_base_url || "https://graph.facebook.com/v21.0").replace(
+      /\/+$/,
+      "",
+    );
+    const token = conta.access_token ?? "";
+    const wabaId = (conta.metadata as { waba_id?: string } | null)?.waba_id ?? null;
+    const checks: Array<{ ok: boolean | null; titulo: string; detalhe: string }> = [];
+
+    if (!token) {
+      checks.push({ ok: false, titulo: "Token", detalhe: "A conta não tem Access Token salvo." });
+      return { checks };
+    }
+
+    // 1) o app está assinado no WABA?
+    if (!wabaId) {
+      checks.push({
+        ok: false,
+        titulo: "WABA ID",
+        detalhe: "Sem WABA ID não dá para assinar o app nem conferir a assinatura.",
+      });
+    } else {
+      try {
+        const res = await fetch(`${base}/${encodeURIComponent(wabaId)}/subscribed_apps`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const json = (await res.json()) as {
+          data?: Array<{ whatsapp_business_api_data?: { name?: string; id?: string } }>;
+          error?: { message?: string };
+        };
+        if (!res.ok) {
+          checks.push({
+            ok: false,
+            titulo: "App assinado na conta",
+            detalhe: json.error?.message ?? `Meta respondeu ${res.status}`,
+          });
+        } else {
+          const apps = (json.data ?? [])
+            .map((a) => a.whatsapp_business_api_data?.name)
+            .filter(Boolean);
+          checks.push({
+            ok: apps.length > 0,
+            titulo: "App assinado na conta",
+            detalhe: apps.length
+              ? `Assinado: ${apps.join(", ")}`
+              : "Nenhum app assinado — clique no botão de assinar. Sem isso a Meta não envia webhook nenhum.",
+          });
+        }
+      } catch (e) {
+        checks.push({
+          ok: false,
+          titulo: "App assinado na conta",
+          detalhe: e instanceof Error ? e.message : "Falha ao consultar",
+        });
+      }
+    }
+
+    // 2) o número é de coexistência?
+    if (conta.provider_instance_id) {
+      try {
+        const res = await fetch(
+          `${base}/${encodeURIComponent(conta.provider_instance_id)}?fields=platform_type,display_phone_number,verified_name,quality_rating`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const json = (await res.json()) as {
+          platform_type?: string;
+          display_phone_number?: string;
+          error?: { message?: string };
+        };
+        if (!res.ok) {
+          checks.push({
+            ok: false,
+            titulo: "Número na Meta",
+            detalhe: json.error?.message ?? `Meta respondeu ${res.status}`,
+          });
+        } else {
+          const p = json.platform_type ?? "";
+          const coex = p.toUpperCase().includes("SMB") || p.toUpperCase().includes("BUSINESS_APP");
+          checks.push({
+            ok: true,
+            titulo: "Número na Meta",
+            detalhe: `${json.display_phone_number ?? ""} · plataforma ${p || "não informada"}`,
+          });
+          checks.push({
+            ok: coex ? true : null,
+            titulo: "Coexistência",
+            detalhe: coex
+              ? "É um número do app WhatsApp Business: o que for digitado no celular chega por eco."
+              : "A Meta não marca este número como vindo do app WhatsApp Business. Se ele roda no celular de alguém, a coexistência não foi concluída — e nesse caso o que é digitado lá não passa pela API.",
+          });
+        }
+      } catch (e) {
+        checks.push({
+          ok: false,
+          titulo: "Número na Meta",
+          detalhe: e instanceof Error ? e.message : "Falha ao consultar",
+        });
+      }
+    }
+
+    // 3) campos do webhook: só o token do app responde, então é conferência manual
+    checks.push({
+      ok: null,
+      titulo: "Campos do webhook",
+      detalhe:
+        "Confira no app, em WhatsApp → Configuração → Campos do webhook, se messages e smb_message_echoes estão assinados. O eco é o que traz a mensagem digitada no celular; sem ele só chega o que o lead envia.",
+    });
+
+    return { checks };
+  });
