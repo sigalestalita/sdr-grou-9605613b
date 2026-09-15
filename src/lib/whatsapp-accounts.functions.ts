@@ -511,3 +511,60 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, id: criada.id, criada: true, numero: info.displayPhoneNumber };
   });
+
+/**
+ * Lista os números de uma conta do WhatsApp Business, pelo token.
+ *
+ * Existe para não depender de alguém copiar o Phone Number ID à mão de outra
+ * tela — é um número de 15 dígitos, e um dígito errado dá "conta não
+ * encontrada" sem dizer por quê. Com o WABA ID e o token, a própria Meta
+ * responde quais números existem e qual é o id de cada um.
+ */
+export const listarNumerosDoWaba = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        wabaId: z.string().min(3),
+        accessToken: z.string().min(20),
+        baseUrl: z.string().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isMgr) throw new Error("Apenas gestores.");
+
+    const base = (data.baseUrl || "https://graph.facebook.com/v21.0").replace(/\/+$/, "");
+    const url =
+      `${base}/${encodeURIComponent(data.wabaId)}/phone_numbers` +
+      `?fields=id,display_phone_number,verified_name,quality_rating,platform_type`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${data.accessToken}` } });
+    const json = (await res.json()) as {
+      data?: Array<{
+        id?: string;
+        display_phone_number?: string;
+        verified_name?: string;
+        quality_rating?: string;
+        platform_type?: string;
+      }>;
+      error?: { message?: string; error_user_msg?: string };
+    };
+    if (!res.ok) {
+      throw new Error(
+        json.error?.error_user_msg || json.error?.message || `Meta respondeu ${res.status}`,
+      );
+    }
+    return {
+      numeros: (json.data ?? []).map((n) => ({
+        id: (n.id as string) ?? "",
+        numero: n.display_phone_number ?? "",
+        nome: n.verified_name ?? "",
+        qualidade: n.quality_rating ?? null,
+        // "CLOUD_API" ou o app do celular: diz se o número é de coexistência.
+        plataforma: n.platform_type ?? null,
+      })),
+    };
+  });

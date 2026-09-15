@@ -9,6 +9,7 @@ import {
   testSendAccount,
   registerCloudNumber,
   listWebhookEventosNaoTratados,
+  listarNumerosDoWaba,
 } from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,7 @@ function ContasPage() {
   const delFn = useServerFn(deleteAccount);
   const testFn = useServerFn(testSendAccount);
   const registerFn = useServerFn(registerCloudNumber);
+  const numerosFn = useServerFn(listarNumerosDoWaba);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -88,6 +90,25 @@ function ContasPage() {
   const [testBody, setTestBody] = useState("Teste de integração WhatsApp Cloud API ✅");
   const [regOpen, setRegOpen] = useState<AccountRow | null>(null);
   const [regPin, setRegPin] = useState("");
+
+  /*
+   * Buscar o Phone Number ID em vez de digitar.
+   *
+   * É um número de 15 dígitos copiado de outra tela; um dígito errado dá
+   * "conta não encontrada" sem dizer por quê. Com o WABA ID e o token, a Meta
+   * responde a lista e a pessoa escolhe.
+   */
+  const buscarNumeros = useMutation({
+    mutationFn: () =>
+      numerosFn({
+        data: {
+          wabaId: form.waba_id.trim(),
+          accessToken: form.access_token.trim(),
+          baseUrl: form.provider_base_url.trim() || undefined,
+        },
+      }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao consultar a Meta"),
+  });
 
   // Endereço público do sistema, não o do navegador: aberta pela
   // pré-visualização, a tela mostrava o domínio da pré-visualização e esse
@@ -345,6 +366,63 @@ function ContasPage() {
                   onChange={(e) => setForm({ ...form, provider_instance_id: e.target.value })}
                   placeholder="123456789012345"
                 />
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[11px]"
+                    disabled={
+                      !form.waba_id.trim() ||
+                      form.access_token.trim().length < 20 ||
+                      buscarNumeros.isPending
+                    }
+                    onClick={() => buscarNumeros.mutate()}
+                  >
+                    {buscarNumeros.isPending ? "Buscando…" : "Buscar números do WABA"}
+                  </Button>
+                  {!form.waba_id.trim() || form.access_token.trim().length < 20 ? (
+                    <span className="text-[10px] text-muted-foreground">
+                      preencha o WABA ID e o token abaixo
+                    </span>
+                  ) : null}
+                </div>
+                {buscarNumeros.data && (
+                  <ul className="mt-2 space-y-1">
+                    {buscarNumeros.data.numeros.length === 0 && (
+                      <li className="text-[11px] text-muted-foreground">
+                        Esse WABA não tem número nenhum ainda.
+                      </li>
+                    )}
+                    {buscarNumeros.data.numeros.map((n) => (
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              provider_instance_id: n.id,
+                              phone_number: n.numero.replace(/\D+/g, "") || f.phone_number,
+                              label: f.label || n.nome,
+                            }))
+                          }
+                          className={`w-full rounded-md border px-2 py-1.5 text-left text-[11px] transition-colors hover:border-primary/50 ${
+                            form.provider_instance_id === n.id
+                              ? "border-primary/60 bg-primary/10"
+                              : "border-border"
+                          }`}
+                        >
+                          <span className="font-medium">{n.numero || n.id}</span>
+                          {n.nome ? ` · ${n.nome}` : ""}
+                          <span className="ml-1 font-mono text-muted-foreground">{n.id}</span>
+                          {n.plataforma ? (
+                            <span className="ml-1 text-muted-foreground">· {n.plataforma}</span>
+                          ) : null}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </div>
 
