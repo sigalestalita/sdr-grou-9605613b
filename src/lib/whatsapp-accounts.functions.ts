@@ -354,31 +354,82 @@ export const getEmbeddedSignupConfig = createServerFn({ method: "GET" })
     if (!isMgr)
       return {
         pronto: false,
-        appId: null,
-        configId: null,
+        appId: null as string | null,
+        configId: null as string | null,
+        temSecret: false,
         faltando: [] as string[],
         pessoas: [] as Array<{ id: string; nome: string }>,
       };
 
+    /*
+     * O App ID e o config_id não são segredo: aparecem na URL do fluxo da
+     * Meta. Ficam em app_settings, editáveis na tela, para não depender de
+     * variável de ambiente — que no Lovable é recurso de plano pago. Só o App
+     * Secret continua no ambiente, porque esse é segredo de verdade.
+     */
+    const [{ data: cfgRow }, { data: perfis }] = await Promise.all([
+      context.supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "whatsapp_embedded_signup")
+        .maybeSingle(),
+      context.supabase.from("profiles").select("id, full_name, email").order("full_name"),
+    ]);
+    const cfg = (cfgRow?.value ?? {}) as { app_id?: string; config_id?: string };
+
+    const appId = (cfg.app_id || process.env.META_APP_ID || "").trim() || null;
+    const configId = (cfg.config_id || process.env.META_ES_CONFIG_ID || "").trim() || null;
+    const temSecret = !!process.env.META_APP_SECRET;
+
     // Quem pode ser dono de um número: o SDR cujo celular está no aparelho.
-    const { data: perfis } = await context.supabase
-      .from("profiles")
-      .select("id, full_name, email")
-      .order("full_name");
     const pessoas = (perfis ?? []).map((p) => ({
       id: p.id as string,
       nome: (p.full_name || p.email || p.id) as string,
     }));
 
-    const appId = process.env.META_APP_ID ?? null;
-    const configId = process.env.META_ES_CONFIG_ID ?? null;
-    const temSecret = !!process.env.META_APP_SECRET;
     const faltando = [
-      appId ? null : "META_APP_ID",
-      configId ? null : "META_ES_CONFIG_ID",
+      appId ? null : "App ID",
+      configId ? null : "ID da configuração (config_id)",
       temSecret ? null : "META_APP_SECRET",
     ].filter(Boolean) as string[];
-    return { pronto: faltando.length === 0, appId, configId, faltando, pessoas };
+
+    return { pronto: faltando.length === 0, appId, configId, temSecret, faltando, pessoas };
+  });
+
+/** Guarda App ID e config_id, que são públicos, direto na tela. */
+export const salvarEmbeddedSignupConfig = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        appId: z.string().regex(/^\d{6,}$/, "O App ID é só números"),
+        configId: z.string().regex(/^\d{6,}$/, "O config_id é só números"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isMgr) throw new Error("Apenas gestores configuram a conexão com a Meta.");
+
+    const { data: atual } = await context.supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "whatsapp_embedded_signup")
+      .maybeSingle();
+    const value = {
+      ...((atual?.value ?? {}) as Record<string, unknown>),
+      app_id: data.appId.trim(),
+      config_id: data.configId.trim(),
+    };
+    const { error } = await context.supabase.from("app_settings").upsert({
+      key: "whatsapp_embedded_signup",
+      value,
+      updated_at: new Date().toISOString(),
+    } as never);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /**

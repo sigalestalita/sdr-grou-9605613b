@@ -3,8 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Smartphone } from "lucide-react";
-import { concluirEmbeddedSignup, getEmbeddedSignupConfig } from "@/lib/whatsapp-accounts.functions";
+import {
+  concluirEmbeddedSignup,
+  getEmbeddedSignupConfig,
+  salvarEmbeddedSignupConfig,
+} from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -68,8 +73,12 @@ function carregarSdk(appId: string): Promise<void> {
 
 export function EmbeddedSignupButton() {
   const configFn = useServerFn(getEmbeddedSignupConfig);
+  const salvarCfgFn = useServerFn(salvarEmbeddedSignupConfig);
   const concluirFn = useServerFn(concluirEmbeddedSignup);
   const qc = useQueryClient();
+
+  const [appId, setAppId] = useState("");
+  const [configId, setConfigId] = useState("");
 
   const [dono, setDono] = useState<string>("");
   const [ocupado, setOcupado] = useState(false);
@@ -80,6 +89,15 @@ export function EmbeddedSignupButton() {
     queryKey: ["wa-embedded-signup-config"],
     queryFn: () => configFn(),
     staleTime: 5 * 60_000,
+  });
+
+  const salvarCfg = useMutation({
+    mutationFn: () => salvarCfgFn({ data: { appId: appId.trim(), configId: configId.trim() } }),
+    onSuccess: () => {
+      toast.success("Configuração salva");
+      qc.invalidateQueries({ queryKey: ["wa-embedded-signup-config"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
   });
 
   const concluir = useMutation({
@@ -171,14 +189,54 @@ export function EmbeddedSignupButton() {
 
   if (!cfg.pronto) {
     return (
-      <div className="mb-4 rounded-lg border border-dashed border-white/15 p-4">
-        <p className="text-sm font-medium">Conectar os WhatsApp Business do time</p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Falta configurar no ambiente:{" "}
-          <code className="text-[11px]">{cfg.faltando.join(", ")}</code>. O App ID e o segredo estão
-          em Configurações do app → Básico, no Meta for Developers; o config_id é criado em Login do
-          Facebook para Empresas → Configurações.
-        </p>
+      <div className="mb-4 space-y-3 rounded-lg border border-dashed border-white/15 p-4">
+        <div>
+          <p className="text-sm font-medium">Conectar os WhatsApp Business do time</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Falta: <strong>{cfg.faltando.join(", ")}</strong>.
+          </p>
+        </div>
+
+        {/* App ID e config_id não são segredo — aparecem na URL do fluxo da
+            Meta —, então ficam aqui em vez de virar variável de ambiente. */}
+        {(!cfg.appId || !cfg.configId) && (
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                value={appId}
+                onChange={(e) => setAppId(e.target.value)}
+                placeholder="App ID (Configurações do app → Básico)"
+                className="h-8 min-w-[240px] flex-1 text-xs"
+              />
+              <Input
+                value={configId}
+                onChange={(e) => setConfigId(e.target.value)}
+                placeholder="config_id (Login do Facebook para Empresas)"
+                className="h-8 min-w-[240px] flex-1 text-xs"
+              />
+              <Button
+                size="sm"
+                disabled={!appId.trim() || !configId.trim() || salvarCfg.isPending}
+                onClick={() => salvarCfg.mutate()}
+              >
+                Salvar
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Os dois são públicos: aparecem na própria URL do fluxo da Meta.
+            </p>
+          </div>
+        )}
+
+        {!cfg.temSecret && (
+          <p className="text-xs text-muted-foreground">
+            Falta também o <code className="text-[11px]">META_APP_SECRET</code>. Esse é segredo de
+            verdade e não pode ficar no banco: peça ao Lovable, no chat, para adicionar a variável
+            de ambiente <code className="text-[11px]">META_APP_SECRET</code> — ele abre um campo
+            seguro para colar o valor. Está em Meta for Developers → Configurações do app → Básico →
+            Chave Secreta.
+          </p>
+        )}
       </div>
     );
   }
