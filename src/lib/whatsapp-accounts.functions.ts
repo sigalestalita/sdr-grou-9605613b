@@ -568,3 +568,38 @@ export const listarNumerosDoWaba = createServerFn({ method: "POST" })
       })),
     };
   });
+
+/**
+ * Assina o app no WABA da conta.
+ *
+ * Sem isso o número fica conectado, as credenciais aparecem ok e mensagem
+ * nenhuma chega — porque a Meta só entrega webhook para apps assinados
+ * naquela conta. É o passo que some no cadastro manual: o fluxo do Embedded
+ * Signup faz sozinho, o formulário não fazia.
+ */
+export const assinarWebhookDaConta = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isMgr) throw new Error("Apenas gestores.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conta, error } = await supabaseAdmin
+      .from("whatsapp_accounts")
+      .select("access_token, metadata, provider")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error || !conta) throw new Error(error?.message || "Conta não encontrada");
+    if (conta.provider !== "meta_cloud") throw new Error("Só vale para Meta Cloud API.");
+
+    const wabaId = (conta.metadata as { waba_id?: string } | null)?.waba_id;
+    if (!wabaId) throw new Error("Conta sem WABA ID — preencha o campo antes de assinar.");
+    if (!conta.access_token) throw new Error("Conta sem Access Token salvo.");
+
+    const { assinarWebhookDoWaba } = await import("@/lib/whatsapp/embedded-signup.server");
+    await assinarWebhookDoWaba(wabaId, conta.access_token);
+    return { ok: true, wabaId };
+  });

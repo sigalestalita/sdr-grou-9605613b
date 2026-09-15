@@ -10,6 +10,7 @@ import {
   registerCloudNumber,
   listWebhookEventosNaoTratados,
   listarNumerosDoWaba,
+  assinarWebhookDaConta,
 } from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Copy, Send, CheckCircle2, ShieldCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy, Send, CheckCircle2, ShieldCheck, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { EmbeddedSignupButton } from "@/components/whatsapp/embedded-signup-button";
 
@@ -74,6 +75,7 @@ function ContasPage() {
   const testFn = useServerFn(testSendAccount);
   const registerFn = useServerFn(registerCloudNumber);
   const numerosFn = useServerFn(listarNumerosDoWaba);
+  const assinarFn = useServerFn(assinarWebhookDaConta);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -98,6 +100,19 @@ function ContasPage() {
    * "conta não encontrada" sem dizer por quê. Com o WABA ID e o token, a Meta
    * responde a lista e a pessoa escolhe.
    */
+  /*
+   * Assinar o app no WABA.
+   *
+   * Sem isso o número fica conectado, as credenciais aparecem ok e mensagem
+   * nenhuma chega. O Embedded Signup faz sozinho; o cadastro manual não fazia.
+   */
+  const assinar = useMutation({
+    mutationFn: (id: string) => assinarFn({ data: { id } }),
+    onSuccess: (r) =>
+      toast.success(`App assinado no WABA ${r.wabaId}. As mensagens já podem chegar.`),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao assinar"),
+  });
+
   const buscarNumeros = useMutation({
     mutationFn: () =>
       numerosFn({
@@ -277,7 +292,18 @@ function ContasPage() {
                     <Button
                       size="icon"
                       variant="ghost"
-                      title="Registrar número na Cloud API"
+                      title="Assinar o app no WABA (habilita a chegada de mensagens)"
+                      disabled={assinar.isPending}
+                      onClick={() => assinar.mutate(a.id)}
+                    >
+                      <Link2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {a.provider === "meta_cloud" && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Registrar número na Cloud API — NÃO use em número de coexistência"
                       onClick={() => {
                         setRegOpen(a);
                         setRegPin("");
