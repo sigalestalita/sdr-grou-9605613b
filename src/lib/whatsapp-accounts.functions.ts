@@ -682,6 +682,25 @@ export const diagnosticarConta = createServerFn({ method: "POST" })
               ? `Assinado: ${apps.join(", ")}`
               : "Nenhum app assinado — clique no botão de assinar. Sem isso a Meta não envia webhook nenhum.",
           });
+          /*
+           * Mais de um app assinado merece aviso.
+           *
+           * Todos os apps assinados recebem o mesmo webhook, e qualquer um
+           * deles pode responder ao lead. É assim que uma resposta automática
+           * que ninguém no time configurou aparece na conversa — e, de dentro
+           * do sistema, isso parece defeito nosso.
+           */
+          if (apps.length > 1) {
+            checks.push({
+              ok: null,
+              titulo: "Mais de um app nesta conta",
+              detalhe: `Além do nosso, também recebe: ${apps
+                .filter((n) => n !== "SDR CRM")
+                .join(
+                  ", ",
+                )}. Todo app assinado recebe as mesmas mensagens e pode responder ao lead por conta própria. Se aparecerem respostas que ninguém do time escreveu, é por aqui que começa a investigação.`,
+            });
+          }
         }
       } catch (e) {
         checks.push({
