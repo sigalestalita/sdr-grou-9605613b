@@ -55,6 +55,10 @@ const upsertSchema = z.object({
   provider_base_url: z.string().optional(),
   is_default: z.boolean().default(false),
   status: z.enum(["active", "disabled"]).default("active"),
+  /** Número pessoal de trabalho: espelha a conversa e não cria lead sozinho. */
+  espelhada: z.boolean().default(false),
+  /** De quem é o número. É o que faz o inbox abrir no número da própria pessoa. */
+  ownerUserId: z.string().uuid().nullable().optional(),
 });
 
 export const upsertAccount = createServerFn({ method: "POST" })
@@ -106,7 +110,9 @@ export const upsertAccount = createServerFn({ method: "POST" })
       metadata: nextMeta,
       is_default: data.is_default,
       status: data.status,
-      owner_user_id: userId,
+      espelhada: data.espelhada,
+      // Dono é quem atende naquele número, não quem cadastrou.
+      owner_user_id: data.ownerUserId ?? (data.id ? undefined : userId),
     };
 
     if (!payload.webhook_secret && data.provider === "meta_cloud") {
@@ -123,14 +129,19 @@ export const upsertAccount = createServerFn({ method: "POST" })
         .neq("id", data.id ?? "00000000-0000-0000-0000-000000000000");
     }
 
+    // as never: "espelhada" entra na migration das conversas espelhadas; os
+    // tipos gerados só conhecem a coluna depois que ela roda.
     if (data.id) {
-      const { error } = await supabase.from("whatsapp_accounts").update(payload).eq("id", data.id);
+      const { error } = await supabase
+        .from("whatsapp_accounts")
+        .update(payload as never)
+        .eq("id", data.id);
       if (error) throw new Error(error.message);
       return { ok: true, id: data.id };
     }
     const { data: ins, error } = await supabase
       .from("whatsapp_accounts")
-      .insert(payload)
+      .insert(payload as never)
       .select("id")
       .single();
     if (error) throw new Error(error.message);

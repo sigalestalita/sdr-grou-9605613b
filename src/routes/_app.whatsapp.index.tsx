@@ -8,6 +8,7 @@ import {
   assignConversation,
   assumeConversation,
   listConversations,
+  promoverConversaALead,
   setConversationStatus,
 } from "@/lib/whatsapp.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,6 +41,7 @@ function WhatsappInbox() {
   const roleLabel = useOwnerLabel();
   const { user } = useAuth();
   const fn = useServerFn(listConversations);
+  const promoverFn = useServerFn(promoverConversaALead);
   const setStatusFn = useServerFn(setConversationStatus);
   const assignFn = useServerFn(assignConversation);
   const assumeFn = useServerFn(assumeConversation);
@@ -48,6 +50,9 @@ function WhatsappInbox() {
   const navigate = useNavigate({ from: "/whatsapp/" });
   const [status, setStatus] = useState<"all" | "open" | "pending" | "closed">("all");
   const [assigned, setAssigned] = useState<"all" | "me" | "unassigned">("all");
+  // "meu" é sentinela: o servidor entende a ausência de filtro como
+  // "o número da própria pessoa". O Radix não aceita item de valor vazio.
+  const [conta, setConta] = useState<string>("meu");
   const [unread, setUnread] = useState(false);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string | null>(routeSearch.c ?? null);
@@ -58,8 +63,17 @@ function WhatsappInbox() {
   }, [routeSearch.c]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["wa-conversations", status, assigned, unread, search],
-    queryFn: () => fn({ data: { status, assigned, unread, search: search || undefined } }),
+    queryKey: ["wa-conversations", status, assigned, unread, search, conta],
+    queryFn: () =>
+      fn({
+        data: {
+          status,
+          assigned,
+          unread,
+          search: search || undefined,
+          accountId: conta === "meu" ? undefined : conta,
+        },
+      }),
     refetchInterval: 15000,
   });
 
@@ -82,6 +96,16 @@ function WhatsappInbox() {
   const conversations = data?.conversations ?? [];
   const profiles = data?.profiles ?? [];
   const selectedConv = conversations.find((c) => c.id === selected) ?? null;
+
+  const promover = useMutation({
+    mutationFn: (p: { conversationId: string; nome: string; empresa: string | null }) =>
+      promoverFn({ data: p }),
+    onSuccess: () => {
+      toast.success("Lead criado e ligado a esta conversa.");
+      qc.invalidateQueries({ queryKey: ["wa-conversations"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao criar o lead"),
+  });
   const waitingForLisiane = conversations.filter(
     (c) => c.status === "pending" && c.assigned_user_id === LISIANE_USER_ID,
   );
@@ -176,6 +200,27 @@ function WhatsappInbox() {
               </SelectContent>
             </Select>
           </div>
+          {/* Um número por SDR: sem isto a caixa vira a mistura das conversas
+              de todo mundo. Abre no próprio número de quem entrou. */}
+          {(data?.contas?.length ?? 0) > 1 && (
+            <Select value={conta} onValueChange={setConta}>
+              <SelectTrigger className="h-8 text-xs">
+                <SelectValue placeholder={data?.padraoTodos ? "Todos os números" : "Meu número"} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="meu">
+                  {data?.padraoTodos ? "Todos os números" : "Meu número"}
+                </SelectItem>
+                {!data?.padraoTodos && <SelectItem value="todos">Todos os números</SelectItem>}
+                {(data?.contas ?? []).map((c: { id: string; nome: string; minha: boolean }) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                    {c.minha ? " · meu" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
             <input type="checkbox" checked={unread} onChange={(e) => setUnread(e.target.checked)} />
             Somente não lidas
@@ -345,7 +390,7 @@ function WhatsappInbox() {
                   >
                     {selectedConv.status === "closed" ? "Reabrir conversa" : "Encerrar conversa"}
                   </Button>
-                  {(selectedConv.leads as unknown as { id?: string } | null)?.id && (
+                  {(selectedConv.leads as unknown as { id?: string } | null)?.id ? (
                     <Link
                       to="/lead/$id"
                       params={{ id: (selectedConv.leads as unknown as { id: string }).id }}
@@ -353,6 +398,26 @@ function WhatsappInbox() {
                     >
                       Abrir lead <ExternalLink className="h-3 w-3" />
                     </Link>
+                  ) : (
+                    /* Conversa espelhada: nasceu sem lead de propósito. Vira
+                       lead quando a SDR reconhece que aquele contato é um. */
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={promover.isPending}
+                      onClick={() => {
+                        const nome = prompt("Nome do lead")?.trim();
+                        if (!nome) return;
+                        const empresa = prompt("Empresa (opcional)")?.trim() || null;
+                        promover.mutate({
+                          conversationId: selectedConv.id,
+                          nome,
+                          empresa,
+                        });
+                      }}
+                    >
+                      {promover.isPending ? "Criando…" : "Virar lead"}
+                    </Button>
                   )}
                 </div>
               </div>

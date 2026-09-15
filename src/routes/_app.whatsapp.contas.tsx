@@ -12,6 +12,7 @@ import {
   listarNumerosDoWaba,
   assinarWebhookDaConta,
   diagnosticarConta,
+  getEmbeddedSignupConfig,
 } from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,8 @@ const emptyForm = {
   provider_base_url: "",
   is_default: false,
   status: "active" as "active" | "disabled",
+  espelhada: false,
+  ownerUserId: "" as string,
 };
 
 function ContasPage() {
@@ -88,6 +91,14 @@ function ContasPage() {
   const numerosFn = useServerFn(listarNumerosDoWaba);
   const assinarFn = useServerFn(assinarWebhookDaConta);
   const diagFn = useServerFn(diagnosticarConta);
+  // Reaproveita a lista de pessoas que a configuração da Meta já traz.
+  const pessoasFn = useServerFn(getEmbeddedSignupConfig);
+  const { data: cfgSignup } = useQuery({
+    queryKey: ["wa-embedded-signup-config"],
+    queryFn: () => pessoasFn(),
+    staleTime: 5 * 60_000,
+  });
+  const cfgPessoas = cfgSignup?.pessoas;
   const [diagDe, setDiagDe] = useState<string | null>(null);
   const qc = useQueryClient();
 
@@ -164,6 +175,8 @@ function ContasPage() {
       phone_number: a.phone_number,
       provider: (a.provider as "meta_cloud" | "mock") ?? "meta_cloud",
       provider_instance_id: a.provider_instance_id ?? "",
+      espelhada: (a as { espelhada?: boolean }).espelhada === true,
+      ownerUserId: (a as { owner_user_id?: string | null }).owner_user_id ?? "",
       access_token: "",
       webhook_secret: "",
       verify_token: "",
@@ -188,6 +201,8 @@ function ContasPage() {
           webhook_secret: form.webhook_secret || undefined,
           verify_token: form.verify_token || undefined,
           waba_id: form.waba_id || undefined,
+          espelhada: form.espelhada,
+          ownerUserId: form.ownerUserId || null,
           provider_base_url: form.provider_base_url || undefined,
           is_default: form.is_default,
           status: form.status,
