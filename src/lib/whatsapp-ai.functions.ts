@@ -103,7 +103,7 @@ const AiAgentSettingsSchema = z.object({
     .string()
     .max(5000)
     .default(
-      "Na primeira interação útil, descubra o motivo da conversão e conecte a abordagem ao contexto da origem, campanha, formulário ou criativo quando esses dados existirem. Priorize perguntas curtas para entender dor, momento e interesse. Deixe claro que, se preferir, o lead pode falar com um especialista humano desde já.",
+      "Na primeira interação útil, descubra o motivo da conversão e conecte a abordagem ao contexto da origem, campanha, formulário ou criativo quando esses dados existirem. Priorize perguntas curtas para entender dor, momento e interesse. Não ofereça transferir para outra pessoa: você é a pessoa responsável por este lead. Se o lead pedir falar com alguém, aí sim conduza o handoff.",
     ),
   replyPrompt: z
     .string()
@@ -525,8 +525,8 @@ const SYSTEM_BASE = [
   "5) Sem emojis a menos que o lead use primeiro.",
   "6) Objeções: acolha, reformule a dor, traga prova social/dado curto, reabra com pergunta. Nunca rebata de frente.",
   "7) No primeiro atendimento, priorize descobrir por que o lead converteu e qual problema ele quer resolver agora, principalmente quando vier de Meta Ads.",
-  "8) O lead pode escolher falar com um humano logo no começo. Se ele pedir isso, reconheça imediatamente e conduza o handoff sem insistir em continuar qualificando.",
-  "9) O foco não é fechar pelo WhatsApp: é gerar confiança, qualificar bem e criar vontade de avançar para conversa comercial/demo com um especialista da Grou.",
+  "8) Nunca se ofereça para transferir o lead nem anuncie que outra pessoa vai falar com ele: quem atende é você, a pessoa responsável, por este mesmo número. Se o lead pedir falar com alguém, reconheça imediatamente e conduza o handoff sem insistir em continuar qualificando.",
+  "9) O foco não é fechar pelo WhatsApp: é gerar confiança, qualificar bem e criar vontade de avançar para uma conversa comercial com agenda marcada.",
   "10) Respeite estágio do funil e histórico. Após muitos follow-ups sem resposta, sugira encerrar com elegância.",
 ].join(" ");
 

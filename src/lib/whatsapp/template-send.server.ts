@@ -15,6 +15,12 @@ type ResolveTemplateParamsInput = {
   metaTemplateId?: string | null;
   storedVariables?: unknown;
   lead?: LeadForTemplateParams | null;
+  /**
+   * Quem assina a mensagem. A primeira mensagem sai no nome do SDR
+   * responsável, não "um especialista da nossa equipe" — quem responde quando
+   * o lead escrever de volta é esse mesmo SDR, pelo mesmo número.
+   */
+  responsavel?: string | null;
 };
 
 type ResolvedTemplateParams = {
@@ -29,15 +35,22 @@ function extractPlaceholderCount(text?: string | null) {
   return matches.reduce((max, match) => Math.max(max, Number(match[1] ?? 0)), 0);
 }
 
-function leadValueMap(lead?: LeadForTemplateParams | null): Record<string, string> {
+function leadValueMap(
+  lead?: LeadForTemplateParams | null,
+  responsavel?: string | null,
+): Record<string, string> {
   const fullName = lead?.name?.trim() ?? "";
   const firstName = fullName.split(/\s+/).filter(Boolean)[0] ?? "";
   const company = lead?.company_name?.trim() ?? "";
+  // Só o primeiro nome: é assim que uma pessoa se apresenta no WhatsApp.
+  const sdr = (responsavel ?? "").trim().split(/\s+/).filter(Boolean)[0] ?? "";
 
   return {
     nome: fullName,
     primeiro_nome: firstName,
     empresa: company,
+    sdr,
+    responsavel: sdr,
   };
 }
 
@@ -56,11 +69,21 @@ function normalizeParamValues(values: string[], expectedCount: number, fallbacks
   return normalized.map((value) => value || " ");
 }
 
-export async function resolveTemplateSendParams(input: ResolveTemplateParamsInput): Promise<ResolvedTemplateParams> {
-  const namedValues = leadValueMap(input.lead);
-  const storedVariables = Array.isArray(input.storedVariables) ? input.storedVariables.map(String) : [];
+export async function resolveTemplateSendParams(
+  input: ResolveTemplateParamsInput,
+): Promise<ResolvedTemplateParams> {
+  const namedValues = leadValueMap(input.lead, input.responsavel);
+  const storedVariables = Array.isArray(input.storedVariables)
+    ? input.storedVariables.map(String)
+    : [];
   const orderedStoredValues = storedVariables.map((name) => namedValues[name] ?? " ");
-  const genericFallbacks = [namedValues.primeiro_nome, namedValues.nome, namedValues.empresa, " "];
+  const genericFallbacks = [
+    namedValues.primeiro_nome,
+    namedValues.sdr,
+    namedValues.nome,
+    namedValues.empresa,
+    " ",
+  ];
 
   let headerCount = 0;
   let bodyCount = storedVariables.length;

@@ -174,6 +174,9 @@ export const submitTemplateToMeta = createServerFn({ method: "POST" })
           return "Maria Silva";
         case "empresa":
           return "Acme";
+        case "sdr":
+        case "responsavel":
+          return "Camila";
         default:
           return v;
       }

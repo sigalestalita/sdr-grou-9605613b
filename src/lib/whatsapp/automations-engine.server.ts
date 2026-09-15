@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getProvider } from "./provider-registry.server";
 import { resolveTemplateSendParams } from "./template-send.server";
+import { phoneDigits } from "./phone";
 import { renderTemplate } from "../whatsapp-templates.functions";
 
 type AiAgentSettings = {
@@ -10,6 +11,8 @@ type AiAgentSettings = {
   defaultAccountId: string | null;
   consultoriaAccountId: string | null;
   consultoriaInitialTemplateId: string | null;
+  /** Nome que assina quando o lead ainda não tem SDR responsável. */
+  assinaturaFallback: string;
 };
 
 type RuleRow = {
@@ -104,6 +107,10 @@ async function getAiAgentSettings(): Promise<AiAgentSettings> {
       typeof value.consultoriaInitialTemplateId === "string"
         ? value.consultoriaInitialTemplateId
         : null,
+    assinaturaFallback:
+      typeof value.assinaturaFallback === "string" && value.assinaturaFallback.trim()
+        ? value.assinaturaFallback
+        : "Equipe Grou",
   };
 }
 
@@ -276,6 +283,77 @@ async function executeRuleForLead(
   }
 }
 
+/**
+ * Garante o contato do WhatsApp do lead.
+ *
+ * É por contato que o webhook acha o lead quando a pessoa responde. Sem isso a
+ * resposta chega órfã e vira um lead novo — foi o que aconteceu com o lead da
+ * ELOS DH.
+ */
+async function garantirContato(lead: LeadLite): Promise<string | null> {
+  const telefone = phoneDigits(lead.phone);
+  if (!telefone) return null;
+
+  const { data: jaExiste } = await supabaseAdmin
+    .from("whatsapp_contacts")
+    .select("id, lead_id")
+    .eq("phone", telefone)
+    .maybeSingle();
+  if (jaExiste) {
+    // Só adota o contato órfão; um que já é de outro lead não muda de dono.
+    if (!jaExiste.lead_id) {
+      await supabaseAdmin
+        .from("whatsapp_contacts")
+        .update({ lead_id: lead.id })
+        .eq("id", jaExiste.id);
+    }
+    return jaExiste.id;
+  }
+  const { data: novo } = await supabaseAdmin
+    .from("whatsapp_contacts")
+    .insert({ phone: telefone, lead_id: lead.id, name: lead.name })
+    .select("id")
+    .maybeSingle();
+  return novo?.id ?? null;
+}
+
+/**
+ * Move o lead de etapa quando o atendimento avança.
+ *
+ * Só avança: se o lead já passou de "Em qualificação", receber a mensagem
+ * automática não pode puxá-lo de volta.
+ */
+export async function moverEtapaDoLead(leadId: string, slug: "qualificacao" | "em_contato") {
+  const { data: stages } = await supabaseAdmin.from("stages").select("id, slug, position");
+  const destino = (stages ?? []).find((s) => s.slug === slug);
+  if (!destino) return;
+
+  const { data: lead } = await supabaseAdmin
+    .from("leads")
+    .select("stage_id, first_approach_at")
+    .eq("id", leadId)
+    .maybeSingle();
+  if (!lead) return;
+  if (lead.stage_id === destino.id) return;
+
+  const atual = (stages ?? []).find((s) => s.id === lead.stage_id);
+  if (atual && Number(atual.position ?? 0) > Number(destino.position ?? 0)) return;
+
+  const patch: Record<string, unknown> = {
+    stage_id: destino.id,
+    stage_entered_at: new Date().toISOString(),
+    last_action_at: new Date().toISOString(),
+  };
+  // "Em contato" é o marco de primeira abordagem humana, como no kanban.
+  if (slug === "em_contato" && !lead.first_approach_at) {
+    patch.first_approach_at = new Date().toISOString();
+  }
+  await supabaseAdmin
+    .from("leads")
+    .update(patch as never)
+    .eq("id", leadId);
+}
+
 async function executeAiInitialOutreachForLead(
   lead: LeadLite,
 ): Promise<{ ok: boolean; error?: string }> {
@@ -297,10 +375,32 @@ async function executeAiInitialOutreachForLead(
     .maybeSingle();
   if (!tmpl?.provider_template_name) return { ok: false, error: "Template HSM inicial inválido" };
 
+  /*
+   * Quem assina a primeira mensagem é o SDR responsável pelo lead.
+   *
+   * A mensagem antiga dizia "em breve um especialista da nossa equipe vai
+   * falar com você", e isso não descrevia o que acontece: quando o lead
+   * responde, quem atende é esse mesmo SDR, por esse mesmo número. A promessa
+   * de um segundo contato que nunca vem só atrapalha a conversa.
+   */
+  const { assinaturaDaIa } = await import("./ai-elegibilidade");
+  let nomeDoSdr: string | null = null;
+  if (lead.assigned_to) {
+    const { data: perfil } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, email")
+      .eq("id", lead.assigned_to)
+      .maybeSingle();
+    nomeDoSdr = perfil?.full_name || perfil?.email || null;
+  }
+  const assinatura = assinaturaDaIa(nomeDoSdr, settings.assinaturaFallback);
+
   const renderedBody = renderTemplate(tmpl.body ?? "", {
     nome: lead.name ?? "",
     primeiro_nome: (lead.name ?? "").split(" ")[0] ?? "",
     empresa: lead.company_name ?? "",
+    sdr: assinatura,
+    responsavel: assinatura,
   }).trim();
 
   const preferredAccountId = isConsultoria
@@ -312,19 +412,28 @@ async function executeAiInitialOutreachForLead(
     return { ok: false, error: "Conta WhatsApp não permite este tipo de lead" };
   }
 
+  const contactId = await garantirContato(lead);
+
   let convId: string | null = null;
   const { data: existing } = await supabaseAdmin
     .from("whatsapp_conversations")
-    .select("id")
+    .select("id, contact_id")
     .eq("lead_id", lead.id)
     .maybeSingle();
   if (existing) {
     convId = existing.id;
+    if (!existing.contact_id && contactId) {
+      await supabaseAdmin
+        .from("whatsapp_conversations")
+        .update({ contact_id: contactId })
+        .eq("id", convId);
+    }
   } else {
     const { data: created } = await supabaseAdmin
       .from("whatsapp_conversations")
       .insert({
         lead_id: lead.id,
+        contact_id: contactId,
         account_id: account.id,
         assigned_user_id: lead.assigned_to,
         status: "open",
@@ -346,6 +455,7 @@ async function executeAiInitialOutreachForLead(
       name: lead.name,
       company_name: lead.company_name,
     },
+    responsavel: assinatura,
   });
 
   const { data: msg } = await supabaseAdmin
@@ -408,6 +518,15 @@ async function executeAiInitialOutreachForLead(
         status: "open",
       })
       .eq("id", convId);
+
+    /*
+     * Recebida a primeira mensagem, o lead deixa de ser "Novo": o atendimento
+     * começou. Vai para "Em qualificação" e só sai de lá na passada de bastão,
+     * quando vira "Em contato".
+     */
+    if (result.status !== "failed") {
+      await moverEtapaDoLead(lead.id, "qualificacao");
+    }
 
     return { ok: result.status !== "failed", error: result.error };
   } catch (e) {

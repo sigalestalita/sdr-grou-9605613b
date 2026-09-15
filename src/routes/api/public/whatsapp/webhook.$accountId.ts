@@ -458,6 +458,11 @@ async function handleInbound(
         .update({ assigned_to: donoDoBastao, last_action_at: new Date().toISOString() })
         .eq("id", leadId);
 
+      // Bastão passado: o card sai de "Em qualificação" e vai para "Em contato",
+      // que é o marco de primeira abordagem humana no kanban.
+      const { moverEtapaDoLead } = await import("@/lib/whatsapp/automations-engine.server");
+      await moverEtapaDoLead(leadId, "em_contato");
+
       await admin.from("lead_interactions").insert({
         lead_id: leadId,
         author_id: null,
