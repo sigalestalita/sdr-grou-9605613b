@@ -402,6 +402,7 @@ export const seedTemplatesDoSistema = createServerFn({ method: "POST" })
         buttons: t.buttons as never,
         status: "draft",
         created_by: userId,
+        valido_ate: t.validoAte ?? null,
       })) as never,
     );
     if (error) throw new Error(error.message);

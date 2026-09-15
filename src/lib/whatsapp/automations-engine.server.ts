@@ -370,10 +370,32 @@ async function executeAiInitialOutreachForLead(
 
   const { data: tmpl } = await supabaseAdmin
     .from("whatsapp_templates")
-    .select("provider_template_name, language, variables, meta_template_id, body")
+    // "*" porque valido_ate entra na migration da campanha de setembro; os
+    // tipos gerados só conhecem a coluna depois que ela roda.
+    .select("*")
     .eq("id", templateId)
     .maybeSingle();
   if (!tmpl?.provider_template_name) return { ok: false, error: "Template HSM inicial inválido" };
+
+  /*
+   * Template de campanha vencido não sai.
+   *
+   * O corpo aprovado na Meta é fixo: um que diz "até 30 de setembro"
+   * continuaria prometendo em outubro uma condição encerrada. É a mesma
+   * armadilha da oferta em texto livre, do outro lado. Vencido, o disparo
+   * simplesmente não acontece — melhor calar do que prometer o que não existe.
+   */
+  const validade = (tmpl as { valido_ate?: string | null }).valido_ate ?? null;
+  if (validade) {
+    const hoje = new Date();
+    const fim = new Date(`${validade}T23:59:59`);
+    if (Number.isFinite(fim.getTime()) && fim.getTime() < hoje.getTime()) {
+      return {
+        ok: false,
+        error: `Template "${tmpl.provider_template_name}" venceu em ${validade}. Aponte a IA para um template sem campanha em Inbox → IA.`,
+      };
+    }
+  }
 
   /*
    * Quem assina a primeira mensagem é o SDR responsável pelo lead.

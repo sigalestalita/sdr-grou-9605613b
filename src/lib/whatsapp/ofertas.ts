@@ -9,12 +9,29 @@
  * sozinha do prompt, sem ninguém precisar lembrar de apagar.
  */
 
+/**
+ * Para quem a oferta vale.
+ *
+ * Consultoria e empresa compram coisas diferentes, e a campanha reflete isso —
+ * consultoria ganha condição por faixa de crédito, empresa não. Sem separar, a
+ * IA ofereceria à consultoria o desconto da empresa e vice-versa.
+ */
+export type PublicoDaOferta = "consultoria" | "empresa" | "todos";
+
 export type Oferta = {
   titulo: string;
   detalhe: string;
   /** Último dia de validade, "2026-09-30". Sem data, vale por tempo indeterminado. */
   validoAte: string | null;
+  /** Ausente vale como "todos", para as ofertas antigas seguirem funcionando. */
+  publico?: PublicoDaOferta;
 };
+
+/** A trilha do lead decide quais ofertas existem para ele. */
+export function ofertasDoPublico(ofertas: Oferta[], publico: PublicoDaOferta): Oferta[] {
+  if (publico === "todos") return ofertas;
+  return ofertas.filter((o) => !o.publico || o.publico === "todos" || o.publico === publico);
+}
 
 /** Só o que ainda está no prazo. */
 export function ofertasVigentes(ofertas: Oferta[], hoje: Date = new Date()): Oferta[] {
@@ -37,8 +54,12 @@ export function ofertasVencidas(ofertas: Oferta[], hoje: Date = new Date()): Ofe
  * Trecho do prompt sobre valores. Quando não há oferta vigente, a instrução
  * é o oposto: não falar de preço nenhum.
  */
-export function blocoDeOfertas(ofertas: Oferta[], hoje: Date = new Date()): string {
-  const vigentes = ofertasVigentes(ofertas, hoje);
+export function blocoDeOfertas(
+  ofertas: Oferta[],
+  hoje: Date = new Date(),
+  publico: PublicoDaOferta = "todos",
+): string {
+  const vigentes = ofertasDoPublico(ofertasVigentes(ofertas, hoje), publico);
   if (vigentes.length === 0) {
     return [
       "VALORES E CAMPANHAS: não existe nenhuma oferta vigente no momento.",
@@ -49,12 +70,19 @@ export function blocoDeOfertas(ofertas: Oferta[], hoje: Date = new Date()): stri
   const lista = vigentes
     .map((o) => {
       const prazo = o.validoAte ? ` (válida até ${o.validoAte})` : "";
-      return `- ${o.titulo}${prazo}: ${o.detalhe}`;
+      const alvo =
+        o.publico && o.publico !== "todos"
+          ? ` [só para ${o.publico === "consultoria" ? "consultorias" : "empresas e pessoa física"}]`
+          : "";
+      return `- ${o.titulo}${prazo}${alvo}: ${o.detalhe}`;
     })
     .join("\n");
   return [
     "VALORES E CAMPANHAS: só pode citar as ofertas abaixo, exatamente como estão escritas.",
     "Qualquer preço, desconto ou condição que não esteja nesta lista não existe e não pode ser mencionado.",
+    // Oferta marcada para um público é errada para o outro: consultoria compra
+    // por faixa de crédito, empresa não. Citar a errada queima a condição.
+    "Antes de citar uma oferta marcada para um público, confirme que o lead é daquele público.",
     "",
     lista,
   ].join("\n");

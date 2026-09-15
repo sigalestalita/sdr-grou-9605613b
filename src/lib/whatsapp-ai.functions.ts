@@ -25,7 +25,12 @@ type AiAgentSettings = {
   firstMessagePrompt: string;
   replyPrompt: string;
   handoffPrompt: string;
-  ofertas: Array<{ titulo: string; detalhe: string; validoAte: string | null }>;
+  ofertas: Array<{
+    titulo: string;
+    detalhe: string;
+    validoAte: string | null;
+    publico?: "consultoria" | "empresa" | "todos";
+  }>;
   assinaturaFallback: string;
   empresaMaxFuncionarios: number;
   consultoriaAtendeTudo: boolean;
@@ -128,6 +133,8 @@ const AiAgentSettingsSchema = z.object({
           .regex(/^\d{4}-\d{2}-\d{2}$/)
           .nullable()
           .default(null),
+        // Consultoria e empresa compram coisas diferentes; a campanha separa.
+        publico: z.enum(["consultoria", "empresa", "todos"]).default("todos"),
       }),
     )
     .default([]),
@@ -191,7 +198,21 @@ async function assinaturaDaConversa(
   return assinaturaDaIa(data?.full_name ?? data?.email ?? null, settings.assinaturaFallback);
 }
 
-function buildAgentSystemPrompt(settings: AiAgentSettings, assinatura?: string) {
+/**
+ * De qual trilha de oferta o lead é.
+ *
+ * lead_type vem do formulário e é o que temos; a IA confirma na conversa antes
+ * de citar condição, porque consultoria se cadastrando como empresa é comum.
+ */
+function publicoDoLead(lead: Record<string, unknown>): "consultoria" | "empresa" {
+  return (lead?.lead_type as string | null) === "consultoria" ? "consultoria" : "empresa";
+}
+
+function buildAgentSystemPrompt(
+  settings: AiAgentSettings,
+  assinatura?: string,
+  publico: "consultoria" | "empresa" | "todos" = "todos",
+) {
   return [
     SYSTEM_BASE,
     "Você está operando como a IA de atendimento ativo da Lidi no WhatsApp.",
@@ -202,7 +223,17 @@ function buildAgentSystemPrompt(settings: AiAgentSettings, assinatura?: string) 
     `Objetivo principal: ${settings.qualificationObjective}`,
     `Guia de tom: ${settings.toneGuide}`,
     `Restrições obrigatórias: ${settings.prohibitedClaims}`,
-    blocoDeOfertas(settings.ofertas ?? []),
+    blocoDeOfertas(settings.ofertas ?? [], new Date(), publico),
+    /*
+     * Lead marcado como "empresa" pode ser consultoria na prática — muita
+     * consultoria preenche o formulário com o nome da própria empresa. Antes de
+     * citar condição de um público, a IA confirma de qual lado o lead está.
+     */
+    publico === "empresa"
+      ? "Este lead está cadastrado como empresa ou pessoa física, mas isso vem do formulário e pode estar errado. " +
+        "Antes de falar de qualquer condição, descubra em uma pergunta se a pessoa busca para a própria empresa " +
+        "ou se atende clientes como consultoria — as condições são diferentes, e citar a errada queima a oferta."
+      : "",
     `Regras de handoff: ${settings.handoffPrompt}`,
     "Base de conhecimento comercial da operação:",
     GROU_PLAYBOOK,
@@ -292,7 +323,10 @@ export async function evaluateAiHandoffInternal(
   const assinatura = await assinaturaDaConversa(supabase, lead, settings);
   const result = await callAI(
     [
-      { role: "system", content: buildAgentSystemPrompt(settings, assinatura) },
+      {
+        role: "system",
+        content: buildAgentSystemPrompt(settings, assinatura, publicoDoLead(lead)),
+      },
       {
         role: "user",
         content:
@@ -343,7 +377,7 @@ export async function generateAutoReplyInternal(
   if (!lastLead) throw new Error("Nenhuma mensagem recente do lead para responder");
   const assinatura = await assinaturaDaConversa(supabase, lead, settings);
   const result = await callAI([
-    { role: "system", content: buildAgentSystemPrompt(settings, assinatura) },
+    { role: "system", content: buildAgentSystemPrompt(settings, assinatura, publicoDoLead(lead)) },
     {
       role: "user",
       content:
@@ -829,7 +863,10 @@ export const generateInitialOutreach = createServerFn({ method: "POST" })
     const lead = (conv.leads ?? {}) as Record<string, unknown>;
     const assinatura = await assinaturaDaConversa(context.supabase, lead, settings);
     const result = await callAI([
-      { role: "system", content: buildAgentSystemPrompt(settings, assinatura) },
+      {
+        role: "system",
+        content: buildAgentSystemPrompt(settings, assinatura, publicoDoLead(lead)),
+      },
       {
         role: "user",
         content:

@@ -8,7 +8,16 @@ import { RETOMADA_TEMPLATES, type RetomadaTemplate } from "./retomada-templates"
  * o seed pula os que já existem pelo nome do HSM.
  */
 
-export type TemplateDoSistema = RetomadaTemplate;
+export type TemplateDoSistema = RetomadaTemplate & {
+  /**
+   * Último dia de disparo, para template de campanha.
+   *
+   * O corpo aprovado na Meta é fixo: um template que diz "até 30 de setembro"
+   * continuaria sendo enviado em outubro, prometendo condição encerrada. Com
+   * data, o disparo inicial ignora o vencido e cai no neutro.
+   */
+  validoAte?: string | null;
+};
 
 /**
  * A primeira mensagem, no nome do SDR responsável.
@@ -55,8 +64,54 @@ export const PRIMEIRO_CONTATO_TEMPLATES: TemplateDoSistema[] = [
   },
 ];
 
+/**
+ * Primeiro contato com a antecipação da Black September.
+ *
+ * Cita a condição de leve e já abre a pergunta de qualificação — a promoção
+ * serve para acelerar a resposta, não para ser o assunto. As condições de cada
+ * público estão em Inbox → IA, e é de lá que a IA fala de valor; aqui o
+ * template só avisa que existe prazo.
+ */
+export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
+  {
+    name: "Primeiro contato — setembro (consultoria)",
+    provider_template_name: "primeiro_contato_setembro_consultoria",
+    // Marketing, e não utility: a Meta reclassifica template que cita promoção.
+    category: "marketing",
+    language: "pt_BR",
+    body:
+      "Oi {{primeiro_nome}}, tudo bem? Aqui é {{sdr}}, da Grou 😊\n\n" +
+      "Vi que você buscou a Grou e queria entender melhor como você trabalha hoje.\n\n" +
+      "Aproveitando: até 30 de setembro estamos com condições especiais para consultorias que abrem licença PDA, e em todo o portfólio de capacitações.\n\n" +
+      "Você atende clientes como consultor ou está buscando para a sua própria empresa?",
+    variables: ["primeiro_nome", "sdr"],
+    footer_text: null,
+    buttons: [],
+    quando: "Primeira mensagem de lead consultoria, enquanto a campanha de setembro vale",
+    validoAte: "2026-09-30",
+  },
+  {
+    name: "Primeiro contato — setembro (empresa)",
+    provider_template_name: "primeiro_contato_setembro_empresa",
+    category: "marketing",
+    language: "pt_BR",
+    body:
+      "Oi {{primeiro_nome}}, tudo bem? Aqui é {{sdr}}, da Grou 😊\n\n" +
+      "Vi que você buscou nossas soluções de gestão de pessoas e queria entender melhor o seu contexto.\n\n" +
+      "Aproveitando: até 30 de setembro estamos com condições especiais na abertura de licença PDA e em todos os nossos treinamentos.\n\n" +
+      "Qual é hoje o principal desafio de gestão de pessoas na sua empresa?",
+    variables: ["primeiro_nome", "sdr"],
+    footer_text: null,
+    buttons: [],
+    quando:
+      "Primeira mensagem de lead empresa ou pessoa física, enquanto a campanha de setembro vale",
+    validoAte: "2026-09-30",
+  },
+];
+
 /** Tudo que o botão da aba Templates sabe criar. */
 export const TEMPLATES_DO_SISTEMA: TemplateDoSistema[] = [
+  ...CAMPANHA_TEMPLATES,
   ...PRIMEIRO_CONTATO_TEMPLATES,
   ...RETOMADA_TEMPLATES,
 ];
