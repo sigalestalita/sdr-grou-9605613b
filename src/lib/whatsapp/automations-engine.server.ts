@@ -133,20 +133,62 @@ async function executeRuleForLead(
     empresa: lead.company_name ?? "",
   });
 
+  /*
+   * Garante o contato antes da conversa.
+   *
+   * A automação abria a conversa sem contato nenhum, e era por contato que o
+   * webhook achava o lead quando a pessoa respondia. Sem essa linha, a
+   * resposta chegava órfã e virava um lead novo.
+   */
+  const { phoneDigits } = await import("./phone");
+  const telefone = phoneDigits(lead.phone);
+  let contactId: string | null = null;
+  if (telefone) {
+    const { data: jaExiste } = await supabaseAdmin
+      .from("whatsapp_contacts")
+      .select("id, lead_id")
+      .eq("phone", telefone)
+      .maybeSingle();
+    if (jaExiste) {
+      contactId = jaExiste.id;
+      // Só adota o contato órfão; um que já é de outro lead não muda de dono.
+      if (!jaExiste.lead_id) {
+        await supabaseAdmin
+          .from("whatsapp_contacts")
+          .update({ lead_id: lead.id })
+          .eq("id", jaExiste.id);
+      }
+    } else {
+      const { data: novo } = await supabaseAdmin
+        .from("whatsapp_contacts")
+        .insert({ phone: telefone, lead_id: lead.id, name: lead.name })
+        .select("id")
+        .maybeSingle();
+      contactId = novo?.id ?? null;
+    }
+  }
+
   // garante conversa
   let convId: string | null = null;
   const { data: existing } = await supabaseAdmin
     .from("whatsapp_conversations")
-    .select("id")
+    .select("id, contact_id")
     .eq("lead_id", lead.id)
     .maybeSingle();
   if (existing) {
     convId = existing.id;
+    if (!existing.contact_id && contactId) {
+      await supabaseAdmin
+        .from("whatsapp_conversations")
+        .update({ contact_id: contactId })
+        .eq("id", convId);
+    }
   } else {
     const { data: created } = await supabaseAdmin
       .from("whatsapp_conversations")
       .insert({
         lead_id: lead.id,
+        contact_id: contactId,
         account_id: account.id,
         assigned_user_id: lead.assigned_to,
         status: "open",

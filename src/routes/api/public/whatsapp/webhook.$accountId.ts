@@ -134,19 +134,23 @@ async function handleInbound(
 
   const phone = msg.from.replace(/\D+/g, "");
 
-  // 1) acha contato → lead
-  let contact = (await admin.from("whatsapp_contacts").select("*").eq("phone", phone).maybeSingle())
-    .data;
+  /*
+   * 1) acha contato → lead
+   *
+   * Aqui nascia o lead fantasma. A busca antiga comparava os dígitos do
+   * webhook contra o telefone do lead como texto — e o lead que veio do
+   * formulário está gravado "+55 (11) 95667-2656". Os oito dígitos finais
+   * ficam partidos pelo hífen, o ilike não casava, e o webhook criava outro
+   * lead com o nome do perfil do WhatsApp e sem e-mail.
+   */
+  const { acharLeadPorTelefone, acharContatoPorTelefone } =
+    await import("@/lib/whatsapp/lead-match.server");
 
-  let leadId = contact?.lead_id ?? null;
+  let contact = await acharContatoPorTelefone(admin, phone);
+
+  let leadId = (contact?.lead_id as string | null) ?? null;
   if (!leadId) {
-    // tenta achar lead por telefone (qualquer formato dígitos)
-    const { data: leadMatch } = await admin
-      .from("leads")
-      .select("id")
-      .filter("phone", "ilike", `%${phone.slice(-8)}%`)
-      .limit(1)
-      .maybeSingle();
+    const leadMatch = await acharLeadPorTelefone(admin, phone, "id, phone");
     leadId = leadMatch?.id ?? null;
   }
 

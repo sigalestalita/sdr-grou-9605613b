@@ -848,13 +848,8 @@ export const getOrCreateConversationForPhone = createServerFn({ method: "POST" }
     }
 
     if (!leadId) {
-      const { data: existingLead, error: leadLookupErr } = await supabase
-        .from("leads")
-        .select("id, assigned_to")
-        .filter("phone", "ilike", `%${phone.slice(-8)}%`)
-        .limit(1)
-        .maybeSingle();
-      if (leadLookupErr) throw new Error(leadLookupErr.message);
+      const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
+      const existingLead = await acharLeadPorTelefone(supabase, phone);
       if (existingLead) leadId = existingLead.id;
     }
 

@@ -128,7 +128,9 @@ export const getCampaign = createServerFn({ method: "GET" })
     const list = msgs ?? [];
     const stats = {
       total: list.length,
-      sent: list.filter((m) => m.status === "sent" || m.status === "delivered" || m.status === "read").length,
+      sent: list.filter(
+        (m) => m.status === "sent" || m.status === "delivered" || m.status === "read",
+      ).length,
       delivered: list.filter((m) => m.status === "delivered" || m.status === "read").length,
       read: list.filter((m) => m.status === "read").length,
       failed: list.filter((m) => m.status === "failed").length,
@@ -183,7 +185,9 @@ export const listCampaignReplies = createServerFn({ method: "GET" })
       .select("id, name, company_name, phone, assigned_to, priority")
       .in("id", [...new Set(relevant.map((m) => m.lead_id!))]);
 
-    const ownerIds = [...new Set((leads ?? []).map((l) => l.assigned_to).filter((v): v is string => !!v))];
+    const ownerIds = [
+      ...new Set((leads ?? []).map((l) => l.assigned_to).filter((v): v is string => !!v)),
+    ];
     const { data: owners } = ownerIds.length
       ? await supabase.from("profiles").select("id, full_name, email").in("id", ownerIds)
       : { data: [] as Array<{ id: string; full_name: string | null; email: string | null }> };
@@ -240,7 +244,10 @@ export const previewAudience = createServerFn({ method: "POST" })
       const phones = (audience.phones ?? [])
         .map((p) => ({ ...p, phone: normPhone(p.phone) }))
         .filter((p) => p.phone)
-        .filter((p) => !isExcluded({ name: p.name ?? null, company_name: p.company ?? null, phone: p.phone }));
+        .filter(
+          (p) =>
+            !isExcluded({ name: p.name ?? null, company_name: p.company ?? null, phone: p.phone }),
+        );
       return {
         count: phones.length,
         sample: phones.slice(0, 20).map((p, i) => ({
@@ -328,7 +335,9 @@ export const createCampaign = createServerFn({ method: "POST" })
 export const launchCampaign = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ id: z.string().uuid(), limit: z.number().int().min(1).max(500).default(200) }).parse(d),
+    z
+      .object({ id: z.string().uuid(), limit: z.number().int().min(1).max(500).default(200) })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -346,14 +355,16 @@ export const launchCampaign = createServerFn({ method: "POST" })
     if (!campaign) throw new Error("Campanha não encontrada");
     const tmpl = (campaign as { whatsapp_templates: { body: string } | null }).whatsapp_templates;
     if (!tmpl?.body) throw new Error("Template inválido");
-    const tmplFull = (campaign as {
-      whatsapp_templates: {
-        body: string;
-        provider_template_name: string | null;
-        language: string | null;
-        variables: unknown;
-      } | null;
-    }).whatsapp_templates!;
+    const tmplFull = (
+      campaign as {
+        whatsapp_templates: {
+          body: string;
+          provider_template_name: string | null;
+          language: string | null;
+          variables: unknown;
+        } | null;
+      }
+    ).whatsapp_templates!;
     const useHsm = !!tmplFull.provider_template_name;
     const tmplVarNames = Array.isArray(tmplFull.variables)
       ? (tmplFull.variables as unknown[]).map((v) => String(v))
@@ -365,25 +376,37 @@ export const launchCampaign = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { getProvider } = await import("./whatsapp/provider-registry.server");
 
-    type Target = { id: string; name: string | null; company_name: string | null; phone: string | null; assigned_to: string | null };
+    type Target = {
+      id: string;
+      name: string | null;
+      company_name: string | null;
+      phone: string | null;
+      assigned_to: string | null;
+    };
     let targets: Target[] = [];
 
     if (audience.source === "phones") {
       const isExcludedEntry = makeExclusionMatcher(audience.exclusions);
       const entries = (audience.phones ?? [])
-        .filter((e) => !isExcludedEntry({ name: e.name ?? null, company_name: e.company ?? null, phone: e.phone }))
+        .filter(
+          (e) =>
+            !isExcludedEntry({
+              name: e.name ?? null,
+              company_name: e.company ?? null,
+              phone: e.phone,
+            }),
+        )
         .slice(0, data.limit);
       for (const e of entries) {
         const phone = normPhone(e.phone);
         if (!phone) continue;
-        // tenta achar lead existente pelo final do telefone
-        const tail = phone.slice(-8);
-        const { data: match } = await supabaseAdmin
-          .from("leads")
-          .select("id, name, company_name, phone, assigned_to")
-          .filter("phone", "ilike", `%${tail}%`)
-          .limit(1)
-          .maybeSingle();
+        // tenta achar lead existente pelo número, em qualquer formato
+        const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
+        const match = await acharLeadPorTelefone(
+          supabaseAdmin,
+          phone,
+          "id, name, company_name, phone, assigned_to",
+        );
         if (match) {
           targets.push(match as Target);
           continue;
@@ -436,7 +459,11 @@ export const launchCampaign = createServerFn({ method: "POST" })
     if (targets.length === 0) {
       await supabase
         .from("whatsapp_campaigns")
-        .update({ status: "completed", started_at: new Date().toISOString(), completed_at: new Date().toISOString() })
+        .update({
+          status: "completed",
+          started_at: new Date().toISOString(),
+          completed_at: new Date().toISOString(),
+        })
         .eq("id", data.id);
       return { ok: true, queued: 0, sent: 0, failed: 0 };
     }
@@ -447,7 +474,11 @@ export const launchCampaign = createServerFn({ method: "POST" })
       .eq("id", data.id);
 
     const accountQuery = campaign.account_id
-      ? supabaseAdmin.from("whatsapp_accounts").select("*").eq("id", campaign.account_id).maybeSingle()
+      ? supabaseAdmin
+          .from("whatsapp_accounts")
+          .select("*")
+          .eq("id", campaign.account_id)
+          .maybeSingle()
       : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
     const { data: account } = await accountQuery;
     if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
@@ -605,16 +636,24 @@ export const getCampaignFilterMeta = createServerFn({ method: "GET" })
     const { supabase } = context;
     const [{ data: stages }, { data: types }, { data: sizes }, { data: lost }] = await Promise.all([
       supabase.from("stages").select("id, name, position").order("position"),
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+
       supabase.from("leads").select("lead_type").not("lead_type", "is", null).limit(2000),
       supabase.from("leads").select("company_size").not("company_size", "is", null).limit(2000),
       supabase.from("leads").select("lost_reason").not("lost_reason", "is", null).limit(5000),
     ]);
     const leadTypes = Array.from(
-      new Set((types ?? []).map((r) => (r as { lead_type: string | null }).lead_type).filter(Boolean) as string[]),
+      new Set(
+        (types ?? [])
+          .map((r) => (r as { lead_type: string | null }).lead_type)
+          .filter(Boolean) as string[],
+      ),
     );
     const companySizes = Array.from(
-      new Set((sizes ?? []).map((r) => (r as { company_size: string | null }).company_size).filter(Boolean) as string[]),
+      new Set(
+        (sizes ?? [])
+          .map((r) => (r as { company_size: string | null }).company_size)
+          .filter(Boolean) as string[],
+      ),
     ).sort();
     const lostCounts = new Map<string, number>();
     for (const row of (lost ?? []) as { lost_reason: string | null }[]) {

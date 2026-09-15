@@ -5,7 +5,9 @@ import type { Json } from "@/integrations/supabase/types";
 
 const REDACT = "••••••";
 
-function redact<T extends { access_token?: string | null; webhook_secret?: string | null; metadata?: unknown }>(row: T) {
+function redact<
+  T extends { access_token?: string | null; webhook_secret?: string | null; metadata?: unknown },
+>(row: T) {
   const meta = (row.metadata ?? {}) as Record<string, unknown>;
   return {
     ...row,
@@ -54,7 +56,11 @@ export const upsertAccount = createServerFn({ method: "POST" })
     if (!isMgr) throw new Error("Apenas gestores podem editar contas de WhatsApp.");
 
     // carrega atual para preservar segredos quando vazios
-    let current: { access_token: string | null; webhook_secret: string; metadata: Record<string, unknown> } | null = null;
+    let current: {
+      access_token: string | null;
+      webhook_secret: string;
+      metadata: Record<string, unknown>;
+    } | null = null;
     if (data.id) {
       const { data: row } = await supabase
         .from("whatsapp_accounts")
@@ -83,7 +89,9 @@ export const upsertAccount = createServerFn({ method: "POST" })
       provider_instance_id: data.provider_instance_id.trim(),
       provider_base_url: data.provider_base_url?.trim() || null,
       access_token: data.access_token ? data.access_token.trim() : (current?.access_token ?? null),
-      webhook_secret: data.webhook_secret ? data.webhook_secret.trim() : (current?.webhook_secret?.trim() ?? ""),
+      webhook_secret: data.webhook_secret
+        ? data.webhook_secret.trim()
+        : (current?.webhook_secret?.trim() ?? ""),
       metadata: nextMeta,
       is_default: data.is_default,
       status: data.status,
@@ -91,12 +99,17 @@ export const upsertAccount = createServerFn({ method: "POST" })
     };
 
     if (!payload.webhook_secret && data.provider === "meta_cloud") {
-      throw new Error("Informe o App Secret (webhook_secret) — usado para validar a assinatura HMAC.");
+      throw new Error(
+        "Informe o App Secret (webhook_secret) — usado para validar a assinatura HMAC.",
+      );
     }
 
     // garante apenas uma default
     if (data.is_default) {
-      await supabase.from("whatsapp_accounts").update({ is_default: false }).neq("id", data.id ?? "00000000-0000-0000-0000-000000000000");
+      await supabase
+        .from("whatsapp_accounts")
+        .update({ is_default: false })
+        .neq("id", data.id ?? "00000000-0000-0000-0000-000000000000");
     }
 
     if (data.id) {
@@ -126,7 +139,9 @@ export const deleteAccount = createServerFn({ method: "POST" })
 export const testSendAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ id: z.string().uuid(), to: z.string().min(5), body: z.string().min(1).max(1000) }).parse(d),
+    z
+      .object({ id: z.string().uuid(), to: z.string().min(5), body: z.string().min(1).max(1000) })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { data: isMgr } = await context.supabase.rpc("is_manager", { _user_id: context.userId });
@@ -159,13 +174,8 @@ export const testSendAccount = createServerFn({ method: "POST" })
     let inboxLinked: { leadId: string; conversationId: string } | null = null;
     if (result.status !== "failed") {
       const phone = data.to.replace(/\D+/g, "");
-      const tail = phone.slice(-8);
-      const { data: leadMatch } = await supabaseAdmin
-        .from("leads")
-        .select("id, assigned_to")
-        .filter("phone", "ilike", `%${tail}%`)
-        .limit(1)
-        .maybeSingle();
+      const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
+      const leadMatch = await acharLeadPorTelefone(supabaseAdmin, phone);
       if (leadMatch) {
         let { data: conv } = await supabaseAdmin
           .from("whatsapp_conversations")
@@ -215,7 +225,9 @@ export const testSendAccount = createServerFn({ method: "POST" })
 export const registerCloudNumber = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ id: z.string().uuid(), pin: z.string().regex(/^\d{6}$/, "PIN deve ter 6 dígitos") }).parse(d),
+    z
+      .object({ id: z.string().uuid(), pin: z.string().regex(/^\d{6}$/, "PIN deve ter 6 dígitos") })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { data: isMgr } = await context.supabase.rpc("is_manager", { _user_id: context.userId });
@@ -227,10 +239,14 @@ export const registerCloudNumber = createServerFn({ method: "POST" })
       .eq("id", data.id)
       .maybeSingle();
     if (error || !account) throw new Error(error?.message || "Conta não encontrada.");
-    if (account.provider !== "meta_cloud") throw new Error("Disponível apenas para Meta Cloud API.");
+    if (account.provider !== "meta_cloud")
+      throw new Error("Disponível apenas para Meta Cloud API.");
     if (!account.access_token) throw new Error("Conta sem Access Token salvo.");
     if (!account.provider_instance_id) throw new Error("Conta sem Phone Number ID.");
-    const base = (account.provider_base_url || "https://graph.facebook.com/v21.0").replace(/\/+$/, "");
+    const base = (account.provider_base_url || "https://graph.facebook.com/v21.0").replace(
+      /\/+$/,
+      "",
+    );
     const url = `${base}/${account.provider_instance_id}/register`;
     const res = await fetch(url, {
       method: "POST",
@@ -241,8 +257,15 @@ export const registerCloudNumber = createServerFn({ method: "POST" })
       body: JSON.stringify({ messaging_product: "whatsapp", pin: data.pin }),
     });
     const text = await res.text();
-    let json: { success?: boolean; error?: { message?: string; code?: number; error_subcode?: number } } = {};
-    try { json = JSON.parse(text); } catch { /* ignore */ }
+    let json: {
+      success?: boolean;
+      error?: { message?: string; code?: number; error_subcode?: number };
+    } = {};
+    try {
+      json = JSON.parse(text);
+    } catch {
+      /* ignore */
+    }
     if (!res.ok || !json.success) {
       const msg = json.error?.message || `HTTP ${res.status}: ${text.slice(0, 300)}`;
       throw new Error(msg);

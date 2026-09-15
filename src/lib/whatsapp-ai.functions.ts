@@ -915,13 +915,12 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
     }
 
     if (!leadId) {
-      const { data: existingLead, error: leadLookupErr } = await context.supabase
-        .from("leads")
-        .select("id")
-        .filter("phone", "ilike", `%${normalizedPhone.slice(-8)}%`)
-        .limit(1)
-        .maybeSingle();
-      if (leadLookupErr) throw new Error(leadLookupErr.message);
+      const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
+      const existingLead = await acharLeadPorTelefone(
+        context.supabase,
+        normalizedPhone,
+        "id, phone",
+      );
       if (existingLead) leadId = existingLead.id;
     }
 

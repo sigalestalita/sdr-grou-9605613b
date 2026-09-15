@@ -1,0 +1,48 @@
+-- Casar o número recebido com o lead que já existe.
+--
+-- O mesmo telefone chega escrito de jeitos diferentes: "+55 (11) 95667-2656"
+-- pelo formulário, "5511956672656" pelo webhook da Meta. A busca do webhook
+-- comparava os dígitos do webhook contra o texto formatado do lead
+-- (ilike '%56672656%'), e o hífen de "95667-2656" parte justamente esses oito
+-- dígitos no meio — então o lead nunca era encontrado e um novo nascia.
+--
+-- Aqui a comparação passa a ser por uma chave normalizada: DDD + últimos 8
+-- dígitos. O DDD entra porque "56672656" sozinho colide entre estados, e os
+-- últimos 8 porque o wa_id da Meta às vezes vem sem o nono dígito do celular.
+
+CREATE OR REPLACE FUNCTION public.phone_key(raw text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
+PARALLEL SAFE
+AS $$
+  WITH d AS (
+    SELECT regexp_replace(regexp_replace(COALESCE(raw, ''), '\D', '', 'g'), '^0+', '') AS v
+  ),
+  nacional AS (
+    -- Tira o código do país só quando ele está claramente lá.
+    SELECT CASE WHEN length(v) >= 12 AND left(v, 2) = '55' THEN substr(v, 3) ELSE v END AS v
+    FROM d
+  )
+  SELECT CASE
+    WHEN length(v) = 0 THEN NULL
+    WHEN length(v) BETWEEN 10 AND 11 THEN left(v, 2) || right(v, 8)  -- Brasil: DDD + 8
+    WHEN length(v) < 10 OR length(v) > 13 THEN v                      -- curto ou estrangeiro
+    ELSE right(v, 8)
+  END
+  FROM nacional;
+$$;
+
+COMMENT ON FUNCTION public.phone_key(text) IS
+  'Chave de comparação de telefone: DDD + últimos 8 dígitos. Espelha src/lib/whatsapp/phone.ts.';
+
+ALTER TABLE public.leads
+  ADD COLUMN IF NOT EXISTS phone_key text
+  GENERATED ALWAYS AS (public.phone_key(phone)) STORED;
+
+ALTER TABLE public.whatsapp_contacts
+  ADD COLUMN IF NOT EXISTS phone_key text
+  GENERATED ALWAYS AS (public.phone_key(phone)) STORED;
+
+CREATE INDEX IF NOT EXISTS idx_leads_phone_key ON public.leads (phone_key) WHERE phone_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_whatsapp_contacts_phone_key ON public.whatsapp_contacts (phone_key) WHERE phone_key IS NOT NULL;
