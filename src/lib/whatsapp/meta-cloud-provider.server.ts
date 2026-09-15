@@ -151,7 +151,7 @@ export const metaCloudProvider: WhatsAppProvider = {
         changes?: Array<{
           field?: string;
           value?: {
-            metadata?: { display_phone_number?: string };
+            metadata?: { display_phone_number?: string; phone_number_id?: string };
             contacts?: Array<{ wa_id?: string; profile?: { name?: string } }>;
             messages?: Array<{
               id: string;
@@ -205,6 +205,8 @@ export const metaCloudProvider: WhatsAppProvider = {
           continue;
         }
         const toNumber = value.metadata?.display_phone_number ?? "";
+        // Todas as contas do app caem na mesma URL; é este id que diz de quem é.
+        const toPhoneNumberId = value.metadata?.phone_number_id;
         const contactName = value.contacts?.[0]?.profile?.name;
 
         for (const m of value.messages ?? []) {
@@ -257,6 +259,7 @@ export const metaCloudProvider: WhatsAppProvider = {
             mediaUrl,
             mediaMime,
             timestamp: Number(m.timestamp) * 1000,
+            toPhoneNumberId,
             senderName: contactName,
           };
           events.push({ kind: "message", data: inbound });

@@ -48,6 +48,14 @@ export interface WaInboundMessage {
   mediaMime?: string;
   timestamp: number; // ms
   senderName?: string;
+  /**
+   * Número da Meta que recebeu a mensagem.
+   *
+   * A Meta entrega os eventos de TODAS as contas do app numa única URL de
+   * callback — o webhook é configurado no app, não em cada conta. Sem este
+   * campo não há como saber de qual número do time o evento é.
+   */
+  toPhoneNumberId?: string;
 }
 
 export interface WaStatusUpdate {

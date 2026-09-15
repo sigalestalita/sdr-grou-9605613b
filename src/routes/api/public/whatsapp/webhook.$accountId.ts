@@ -79,9 +79,47 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
           return new Response("parse error", { status: 400 });
         }
 
+        /*
+         * A Meta entrega tudo numa URL só.
+         *
+         * O webhook é configurado no APP, não em cada conta: todas as contas
+         * assinadas naquele app mandam os eventos para o mesmo endereço. Com
+         * um número por SDR, isso significa que a URL cadastrada na Meta é a
+         * de uma conta qualquer e os eventos das outras chegam junto.
+         *
+         * Então quem manda é o phone_number_id do payload, não o id da URL. A
+         * URL vira só o padrão, para o que não trouxer essa informação.
+         */
+        const contaPorNumero = new Map<string, typeof accountConfig>();
+        async function contaDoEvento(phoneNumberId?: string) {
+          if (!phoneNumberId || phoneNumberId === accountConfig.provider_instance_id) {
+            return accountConfig;
+          }
+          const cache = contaPorNumero.get(phoneNumberId);
+          if (cache) return cache;
+          const { data: outra } = await supabaseAdmin
+            .from("whatsapp_accounts")
+            .select("*")
+            .eq("provider_instance_id", phoneNumberId)
+            .maybeSingle();
+          if (!outra) return accountConfig;
+          const cfg = {
+            id: outra.id,
+            phone_number: outra.phone_number,
+            provider: outra.provider,
+            provider_instance_id: outra.provider_instance_id,
+            provider_base_url: outra.provider_base_url,
+            access_token: outra.access_token,
+            webhook_secret: outra.webhook_secret,
+          };
+          contaPorNumero.set(phoneNumberId, cfg);
+          return cfg;
+        }
+
         for (const ev of events) {
           if (ev.kind === "message") {
-            await handleInbound(supabaseAdmin, account.id, accountConfig, ev.data);
+            const alvo = await contaDoEvento(ev.data.toPhoneNumberId);
+            await handleInbound(supabaseAdmin, alvo.id, alvo, ev.data);
           } else if (ev.kind === "status") {
             await handleStatus(supabaseAdmin, ev.data);
           } else {
