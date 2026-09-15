@@ -2558,6 +2558,7 @@ export type Database = {
           oculto_sdr: boolean
           original_company_name: string | null
           phone: string | null
+          phone_key: string | null
           position: string | null
           priority: Database["public"]["Enums"]["lead_priority"]
           probable_pain: string | null
@@ -2628,6 +2629,7 @@ export type Database = {
           oculto_sdr?: boolean
           original_company_name?: string | null
           phone?: string | null
+          phone_key?: string | null
           position?: string | null
           priority?: Database["public"]["Enums"]["lead_priority"]
           probable_pain?: string | null
@@ -2698,6 +2700,7 @@ export type Database = {
           oculto_sdr?: boolean
           original_company_name?: string | null
           phone?: string | null
+          phone_key?: string | null
           position?: string | null
           priority?: Database["public"]["Enums"]["lead_priority"]
           probable_pain?: string | null
@@ -3627,6 +3630,7 @@ export type Database = {
           name: string | null
           opt_in: boolean
           phone: string
+          phone_key: string | null
           updated_at: string
         }
         Insert: {
@@ -3637,6 +3641,7 @@ export type Database = {
           name?: string | null
           opt_in?: boolean
           phone: string
+          phone_key?: string | null
           updated_at?: string
         }
         Update: {
@@ -3647,6 +3652,7 @@ export type Database = {
           name?: string | null
           opt_in?: boolean
           phone?: string
+          phone_key?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -4126,6 +4132,7 @@ export type Database = {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: boolean
       }
+      phone_key: { Args: { raw: string }; Returns: string }
       sync_user_roles: { Args: { _user_id: string }; Returns: undefined }
       team_access_types: { Args: { _modulo: string }; Returns: string[] }
     }
