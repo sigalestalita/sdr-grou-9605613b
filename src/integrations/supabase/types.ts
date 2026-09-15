@@ -4040,6 +4040,38 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_webhook_events: {
+        Row: {
+          account_id: string | null
+          field: string
+          id: string
+          payload: Json
+          received_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          field: string
+          id?: string
+          payload?: Json
+          received_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          field?: string
+          id?: string
+          payload?: Json
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_webhook_events_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
