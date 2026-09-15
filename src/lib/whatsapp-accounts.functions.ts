@@ -327,3 +327,125 @@ export const listWebhookEventosNaoTratados = createServerFn({ method: "GET" })
       porCampo: [...contagem].map(([field, n]) => ({ field, n })).sort((a, b) => b.n - a.n),
     };
   });
+
+/**
+ * Configuração pública do Embedded Signup, para a tela montar o pop-up.
+ *
+ * O App ID e o config_id não são segredo — aparecem na URL do fluxo da Meta.
+ * O App Secret nunca sai do servidor.
+ */
+export const getEmbeddedSignupConfig = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isMgr)
+      return {
+        pronto: false,
+        appId: null,
+        configId: null,
+        faltando: [] as string[],
+        pessoas: [] as Array<{ id: string; nome: string }>,
+      };
+
+    // Quem pode ser dono de um número: o SDR cujo celular está no aparelho.
+    const { data: perfis } = await context.supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .order("full_name");
+    const pessoas = (perfis ?? []).map((p) => ({
+      id: p.id as string,
+      nome: (p.full_name || p.email || p.id) as string,
+    }));
+
+    const appId = process.env.META_APP_ID ?? null;
+    const configId = process.env.META_ES_CONFIG_ID ?? null;
+    const temSecret = !!process.env.META_APP_SECRET;
+    const faltando = [
+      appId ? null : "META_APP_ID",
+      configId ? null : "META_ES_CONFIG_ID",
+      temSecret ? null : "META_APP_SECRET",
+    ].filter(Boolean) as string[];
+    return { pronto: faltando.length === 0, appId, configId, faltando, pessoas };
+  });
+
+/**
+ * Conclui a conexão de um número que já roda no app WhatsApp Business.
+ *
+ * Recebe o que o pop-up da Meta devolveu, troca o código pelo token
+ * permanente, assina o webhook no WABA e cria (ou atualiza) a conta no
+ * sistema, já no nome do SDR dono do aparelho.
+ *
+ * Não chama /register de propósito: registrar um número de coexistência
+ * desconecta o app do celular, que é exatamente o que não queremos.
+ */
+export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        code: z.string().min(10),
+        phoneNumberId: z.string().min(3),
+        wabaId: z.string().min(3),
+        ownerUserId: z.string().uuid().nullable().optional(),
+        label: z.string().max(120).nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isMgr) throw new Error("Apenas gestores conectam contas de WhatsApp.");
+
+    const { trocarCodigoPorToken, assinarWebhookDoWaba, dadosDoNumero } =
+      await import("@/lib/whatsapp/embedded-signup.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const token = await trocarCodigoPorToken(data.code);
+    await assinarWebhookDoWaba(data.wabaId, token);
+    const info = await dadosDoNumero(data.phoneNumberId, token);
+
+    // Mesmo número reconectado: atualiza em vez de duplicar a conta.
+    const { data: existente } = await supabaseAdmin
+      .from("whatsapp_accounts")
+      .select("id, metadata")
+      .eq("provider_instance_id", data.phoneNumberId)
+      .maybeSingle();
+
+    const metadata = {
+      ...(((existente?.metadata as Record<string, unknown>) ?? {}) as Record<string, unknown>),
+      waba_id: data.wabaId,
+      coexistencia: true,
+      conectado_em: new Date().toISOString(),
+    };
+    const patch = {
+      label: data.label?.trim() || info.verifiedName || info.displayPhoneNumber || "WhatsApp",
+      phone_number: (info.displayPhoneNumber ?? "").replace(/\D+/g, "") || data.phoneNumberId,
+      provider: "meta_cloud",
+      provider_instance_id: data.phoneNumberId,
+      access_token: token,
+      status: "connected",
+      owner_user_id: data.ownerUserId ?? null,
+      metadata,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (existente) {
+      const { error } = await supabaseAdmin
+        .from("whatsapp_accounts")
+        .update(patch as never)
+        .eq("id", existente.id);
+      if (error) throw new Error(error.message);
+      return { ok: true, id: existente.id, criada: false, numero: info.displayPhoneNumber };
+    }
+
+    const { data: criada, error } = await supabaseAdmin
+      .from("whatsapp_accounts")
+      .insert(patch as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { ok: true, id: criada.id, criada: true, numero: info.displayPhoneNumber };
+  });

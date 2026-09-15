@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Plus, Pencil, Trash2, Copy, Send, CheckCircle2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { EmbeddedSignupButton } from "@/components/whatsapp/embedded-signup-button";
 
 export const Route = createFileRoute("/_app/whatsapp/contas")({
   component: ContasPage,
@@ -190,6 +191,7 @@ function ContasPage() {
         </div>
       )}
 
+      <EmbeddedSignupButton />
       <EventosNaoTratados />
 
       <div className="grid gap-3">
