@@ -711,19 +711,31 @@ export const diagnosticarConta = createServerFn({ method: "POST" })
             detalhe: json.error?.message ?? `Meta respondeu ${res.status}`,
           });
         } else {
-          const p = json.platform_type ?? "";
-          const coex = p.toUpperCase().includes("SMB") || p.toUpperCase().includes("BUSINESS_APP");
+          const p = (json.platform_type ?? "").toUpperCase();
+          const naCloud = p === "CLOUD_API";
+          const doApp = p.includes("SMB") || p.includes("BUSINESS_APP");
           checks.push({
             ok: true,
             titulo: "Número na Meta",
             detalhe: `${json.display_phone_number ?? ""} · plataforma ${p || "não informada"}`,
           });
+          /*
+           * platform_type é o que decide se a integração pode existir.
+           *
+           * Vincular o WhatsApp Business ao portfólio empresarial dá um ativo e
+           * um phone_number_id, e isso faz a conta parecer pronta. Mas enquanto
+           * o número não estiver hospedado na Cloud API, nada trafega pela API:
+           * nem envio, nem recebimento, nem eco. ON_PREMISE ou NOT_APPLICABLE
+           * quer dizer exatamente isso — vinculado, não conectado.
+           */
           checks.push({
-            ok: coex ? true : null,
-            titulo: "Coexistência",
-            detalhe: coex
-              ? "É um número do app WhatsApp Business: o que for digitado no celular chega por eco."
-              : "A Meta não marca este número como vindo do app WhatsApp Business. Se ele roda no celular de alguém, a coexistência não foi concluída — e nesse caso o que é digitado lá não passa pela API.",
+            ok: naCloud || doApp ? true : false,
+            titulo: "Pronto para a API",
+            detalhe: naCloud
+              ? "Número hospedado na Cloud API: envio e recebimento passam por aqui."
+              : doApp
+                ? "Número do app WhatsApp Business em coexistência: o que for digitado no celular chega por eco."
+                : `A Meta devolve "${p || "vazio"}", e não CLOUD_API. O número está vinculado ao portfólio, mas não conectado à API — é o que dá um phone_number_id e faz a conta parecer pronta. Enquanto o onboarding de coexistência não for concluído no WhatsApp Manager, nada trafega: nem envio, nem recebimento, nem eco. Nenhum ajuste de webhook resolve isso.`,
           });
         }
       } catch (e) {
