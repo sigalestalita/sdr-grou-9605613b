@@ -89,7 +89,10 @@ function ContasPage() {
   const [regOpen, setRegOpen] = useState<AccountRow | null>(null);
   const [regPin, setRegPin] = useState("");
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  // Endereço público do sistema, não o do navegador: aberta pela
+  // pré-visualização, a tela mostrava o domínio da pré-visualização e esse
+  // endereço colado na Meta manda os webhooks para o lugar errado.
+  const origin = data?.publicUrl ?? "";
 
   function openCreate() {
     setForm(emptyForm);

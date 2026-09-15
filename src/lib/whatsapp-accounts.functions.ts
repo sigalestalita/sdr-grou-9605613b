@@ -28,7 +28,18 @@ export const listAccounts = createServerFn({ method: "GET" })
       .select("*")
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
-    return { accounts: (data ?? []).map(redact) };
+    /*
+     * A URL do webhook precisa ser a pública, não a do navegador.
+     *
+     * A tela montava o endereço com window.location.origin. Aberta pela
+     * pré-visualização do Lovable, ela exibia o domínio da pré-visualização —
+     * e esse endereço, colado na Meta, manda os webhooks para o lugar errado,
+     * de um jeito que só aparece quando mensagem nenhuma chega.
+     */
+    return {
+      accounts: (data ?? []).map(redact),
+      publicUrl: (process.env.APP_PUBLIC_URL || "https://compass.groupp.com").replace(/\/+$/, ""),
+    };
   });
 
 const upsertSchema = z.object({
