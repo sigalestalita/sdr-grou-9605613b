@@ -243,11 +243,21 @@ export function EmbeddedSignupButton() {
 
   return (
     <div className="mb-4 rounded-lg border border-white/10 bg-card/50 p-4">
-      <p className="text-sm font-medium">Conectar os WhatsApp Business do time</p>
+      <p className="text-sm font-medium">Conectar o WhatsApp de outra empresa</p>
       <p className="mt-1 text-xs text-muted-foreground">
         O número continua funcionando no celular: as conversas passam a aparecer aqui também, e o
         disparo sai pelo número da própria pessoa. Tenha o aparelho em mãos — a Meta pede uma
         confirmação por leitura de QR code.
+      </p>
+      {/* A Meta bloqueia, no Embedded Signup, o portfólio que é dono do app —
+          e o SDR CRM pertence ao GROU.adm. Dizer isso aqui evita descobrir no
+          meio do fluxo, com o celular do SDR na mão. */}
+      <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
+        <strong>Não serve para os números da própria Grou.</strong> A Meta não deixa escolher, aqui,
+        o portfólio que é dono do app (GROU.adm) — este fluxo é para conectar o WhatsApp de um
+        cliente. Para um número do time, adicione pelo WhatsApp Manager, na conta do WhatsApp
+        Business da Grou, e depois cadastre em <strong>Nova conta</strong> com o Phone Number ID e o
+        token do usuário do sistema.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Select value={dono} onValueChange={setDono}>
