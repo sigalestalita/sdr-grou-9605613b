@@ -675,11 +675,12 @@ function EventosNaoTratados() {
   const { data } = useQuery({
     queryKey: ["wa-webhook-eventos"],
     queryFn: () => fn(),
-    refetchInterval: aberto ? 15_000 : false,
+    // Fica olhando sozinho: durante a conexão de um número, a pessoa manda uma
+    // mensagem pelo celular e volta para esta tela esperando algo aparecer.
+    refetchInterval: 15_000,
   });
 
   if (!data) return null;
-  if (data.disponivel && data.eventos.length === 0) return null;
 
   return (
     <div className="mb-4 rounded-lg border border-white/10 bg-card/50 p-4">
@@ -690,9 +691,11 @@ function EventosNaoTratados() {
         <div className="min-w-0">
           <p className="text-sm font-medium">Eventos de webhook ainda não tratados</p>
           <p className="text-xs text-muted-foreground">
-            {data.disponivel
-              ? `${data.porCampo.map((c) => `${c.field} (${c.n})`).join(" · ")}`
-              : "Registro ainda não criado — falta aplicar a migration do diagnóstico."}
+            {!data.disponivel
+              ? "Registro ainda não criado — falta aplicar a migration do diagnóstico."
+              : data.eventos.length === 0
+                ? "Nada chegou ainda. Ao conectar um número, mande uma mensagem pelo celular e o que a Meta enviar aparece aqui."
+                : data.porCampo.map((c) => `${c.field} (${c.n})`).join(" · ")}
           </p>
         </div>
         <Badge variant="outline" className="shrink-0 text-[10px]">
