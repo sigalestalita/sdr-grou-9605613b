@@ -9,6 +9,10 @@
 -- qualificação. {{sdr}} é resolvido em tempo de envio, a partir do
 -- assigned_to do lead; sem responsável, cai na assinatura padrão da IA.
 --
+-- Esta migration é redundante com o botão "Criar templates do sistema" na aba
+-- Templates, que faz o mesmo sem depender de SQL aplicado. As duas são
+-- idempotentes e pulam o que já existe, então rodar as duas não duplica nada.
+--
 -- ATENÇÃO: o corpo que a pessoa recebe é o que está APROVADO na Meta, não este.
 -- Este texto serve para a pré-visualização no inbox e para o envio à Meta.
 -- Depois de aplicar, é preciso enviar o template para aprovação em

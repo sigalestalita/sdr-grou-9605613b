@@ -357,21 +357,22 @@ export const syncTemplatesFromMeta = createServerFn({ method: "POST" })
     return { ok: true, updated, imported, remoteCount: remote.length };
   });
 /**
- * Cria os templates de retomada que ainda não existem.
+ * Cria os templates que o sistema mantém em código e ainda não existem.
  *
- * São os modelos usados quando a janela de 24h fecha. Ficam definidos em
- * código (whatsapp/retomada-templates.ts) e entram como rascunho, para a
- * gestão revisar o texto antes de mandar para aprovação da Meta. Repetir a
- * ação não duplica nada: pula os que já existem pelo nome do HSM.
+ * São a primeira mensagem no nome do SDR e os modelos de retomada usados
+ * quando a janela de 24h fecha. Ficam definidos em
+ * whatsapp/templates-do-sistema.ts e entram como rascunho, para a gestão
+ * revisar o texto antes de mandar para aprovação da Meta. Repetir a ação não
+ * duplica nada: pula os que já existem pelo nome do HSM.
  */
-export const seedRetomadaTemplates = createServerFn({ method: "POST" })
+export const seedTemplatesDoSistema = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { RETOMADA_TEMPLATES, validateRetomadaTemplate } =
-      await import("./whatsapp/retomada-templates");
+    const { validateRetomadaTemplate } = await import("./whatsapp/retomada-templates");
+    const { TEMPLATES_DO_SISTEMA } = await import("./whatsapp/templates-do-sistema");
 
-    const nomes = RETOMADA_TEMPLATES.map((t) => t.provider_template_name);
+    const nomes = TEMPLATES_DO_SISTEMA.map((t) => t.provider_template_name);
     const { data: existentes, error: exErr } = await supabase
       .from("whatsapp_templates")
       .select("provider_template_name")
@@ -379,7 +380,7 @@ export const seedRetomadaTemplates = createServerFn({ method: "POST" })
     if (exErr) throw new Error(exErr.message);
     const jaTem = new Set((existentes ?? []).map((t) => t.provider_template_name as string));
 
-    const faltando = RETOMADA_TEMPLATES.filter((t) => !jaTem.has(t.provider_template_name));
+    const faltando = TEMPLATES_DO_SISTEMA.filter((t) => !jaTem.has(t.provider_template_name));
     if (faltando.length === 0) return { ok: true, criados: 0, jaExistiam: jaTem.size };
 
     for (const t of faltando) {

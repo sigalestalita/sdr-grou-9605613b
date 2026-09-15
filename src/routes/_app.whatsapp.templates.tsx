@@ -9,9 +9,9 @@ import {
   deleteTemplate,
   submitTemplateToMeta,
   syncTemplatesFromMeta,
-  seedRetomadaTemplates,
+  seedTemplatesDoSistema,
 } from "@/lib/whatsapp-templates.functions";
-import { RETOMADA_TEMPLATES } from "@/lib/whatsapp/retomada-templates";
+import { TEMPLATES_DO_SISTEMA } from "@/lib/whatsapp/templates-do-sistema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -71,7 +71,7 @@ function TemplatesPage() {
   const deleteFn = useServerFn(deleteTemplate);
   const submitFn = useServerFn(submitTemplateToMeta);
   const syncFn = useServerFn(syncTemplatesFromMeta);
-  const seedFn = useServerFn(seedRetomadaTemplates);
+  const seedFn = useServerFn(seedTemplatesDoSistema);
   const qc = useQueryClient();
 
   const { data, isLoading } = useQuery({
@@ -79,13 +79,13 @@ function TemplatesPage() {
     queryFn: () => listFn(),
   });
 
-  // Quantos dos modelos de retomada ainda não existem — o botão some quando zera.
+  // Quantos dos modelos versionados em código ainda não existem — o botão some quando zera.
   const existentes = new Set(
     (data?.templates ?? []).map((t: { provider_template_name?: string | null }) =>
       (t.provider_template_name ?? "").toLowerCase(),
     ),
   );
-  const faltamRetomada = RETOMADA_TEMPLATES.filter(
+  const faltamDoSistema = TEMPLATES_DO_SISTEMA.filter(
     (t) => !existentes.has(t.provider_template_name),
   ).length;
 
@@ -94,8 +94,8 @@ function TemplatesPage() {
     onSuccess: (r) => {
       toast.success(
         r.criados > 0
-          ? `${r.criados} template(s) de retomada criado(s) como rascunho. Revise e envie para a Meta.`
-          : "Os templates de retomada já existem.",
+          ? `${r.criados} template(s) criado(s) como rascunho. Revise e envie para a Meta.`
+          : "Os templates do sistema já existem.",
       );
       qc.invalidateQueries({ queryKey: ["wa-templates"] });
     },
@@ -217,16 +217,16 @@ function TemplatesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {faltamRetomada > 0 && (
+          {faltamDoSistema > 0 && (
             <Button
               size="sm"
               variant="outline"
               onClick={() => seed.mutate()}
               disabled={seed.isPending}
-              title="Cria os modelos usados quando a janela de 24h fecha: retomada de contato, remarcar reunião e envio de material"
+              title="Cria os modelos que o sistema mantém: primeiro contato no nome do SDR e as retomadas de janela de 24h"
             >
               <Plus className={`h-4 w-4 mr-1 ${seed.isPending ? "animate-spin" : ""}`} />
-              Criar templates de retomada ({faltamRetomada})
+              Criar templates do sistema ({faltamDoSistema})
             </Button>
           )}
           <Button
