@@ -626,9 +626,11 @@ function ContasPage() {
                     <Copy className="h-3.5 w-3.5" />
                   </Button>
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2">
+                <p className="mt-2 text-[10px] text-muted-foreground">
                   Use o <strong>mesmo Verify Token</strong> acima. Inscreva os campos{" "}
-                  <code>messages</code> e <code>message_template_status_update</code>.
+                  <code>messages</code> e <code>message_template_status_update</code>. Em número
+                  espelhado, também <code>smb_message_echoes</code> — é ele que traz a mensagem
+                  digitada no celular; sem ele só chega o que a outra pessoa envia.
                 </p>
               </div>
             )}
