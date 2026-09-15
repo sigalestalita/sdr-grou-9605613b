@@ -3341,6 +3341,7 @@ export type Database = {
         Row: {
           access_token: string | null
           created_at: string
+          espelhada: boolean
           id: string
           is_default: boolean
           label: string | null
@@ -3359,6 +3360,7 @@ export type Database = {
         Insert: {
           access_token?: string | null
           created_at?: string
+          espelhada?: boolean
           id?: string
           is_default?: boolean
           label?: string | null
@@ -3377,6 +3379,7 @@ export type Database = {
         Update: {
           access_token?: string | null
           created_at?: string
+          espelhada?: boolean
           id?: string
           is_default?: boolean
           label?: string | null
@@ -3678,7 +3681,7 @@ export type Database = {
           id: string
           last_message_at: string | null
           last_preview: string | null
-          lead_id: string
+          lead_id: string | null
           status: string
           temperature: string | null
           temperature_at: string | null
@@ -3698,7 +3701,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           last_preview?: string | null
-          lead_id: string
+          lead_id?: string | null
           status?: string
           temperature?: string | null
           temperature_at?: string | null
@@ -3718,7 +3721,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           last_preview?: string | null
-          lead_id?: string
+          lead_id?: string | null
           status?: string
           temperature?: string | null
           temperature_at?: string | null
@@ -3744,7 +3747,7 @@ export type Database = {
           {
             foreignKeyName: "whatsapp_conversations_lead_id_fkey"
             columns: ["lead_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "leads"
             referencedColumns: ["id"]
           },
@@ -3910,7 +3913,7 @@ export type Database = {
           delivered_at: string | null
           error: string | null
           id: string
-          lead_id: string
+          lead_id: string | null
           media_mime: string | null
           media_url: string | null
           message_type: string
@@ -3929,7 +3932,7 @@ export type Database = {
           delivered_at?: string | null
           error?: string | null
           id?: string
-          lead_id: string
+          lead_id?: string | null
           media_mime?: string | null
           media_url?: string | null
           message_type?: string
@@ -3948,7 +3951,7 @@ export type Database = {
           delivered_at?: string | null
           error?: string | null
           id?: string
-          lead_id?: string
+          lead_id?: string | null
           media_mime?: string | null
           media_url?: string | null
           message_type?: string

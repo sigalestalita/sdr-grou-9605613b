@@ -835,25 +835,29 @@ export const assignConversation = createServerFn({ method: "POST" })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
 
-    const { error: leadError } = await supabase
-      .from("leads")
-      .update({ assigned_to: data.userId, last_action_at: new Date().toISOString() })
-      .eq("id", conversation.lead_id);
-    if (leadError) throw new Error(leadError.message);
+    // Conversa espelhada não tem lead: transfere só o atendimento.
+    if (conversation.lead_id) {
+      const leadId = conversation.lead_id;
+      const { error: leadError } = await supabase
+        .from("leads")
+        .update({ assigned_to: data.userId, last_action_at: new Date().toISOString() })
+        .eq("id", leadId);
+      if (leadError) throw new Error(leadError.message);
 
-    await supabase.from("lead_interactions").insert({
-      lead_id: conversation.lead_id,
-      author_id: userId,
-      type: "routing",
-      content: data.userId
-        ? "Conversa transferida para outra SDR."
-        : "Conversa enviada para fila geral.",
-      metadata: {
-        previous_assignee_user_id: conversation.assigned_user_id,
-        assignee_user_id: data.userId,
-        source: "whatsapp_inbox",
-      },
-    });
+      await supabase.from("lead_interactions").insert({
+        lead_id: leadId,
+        author_id: userId,
+        type: "routing",
+        content: data.userId
+          ? "Conversa transferida para outra SDR."
+          : "Conversa enviada para fila geral.",
+        metadata: {
+          previous_assignee_user_id: conversation.assigned_user_id,
+          assignee_user_id: data.userId,
+          source: "whatsapp_inbox",
+        },
+      });
+    }
 
     return { ok: true };
   });
@@ -891,25 +895,28 @@ export const assumeConversation = createServerFn({ method: "POST" })
       .eq("id", data.conversationId);
     if (error) throw new Error(error.message);
 
-    const { error: leadError } = await supabase
-      .from("leads")
-      .update({ assigned_to: userId, last_action_at: assumedAt })
-      .eq("id", conversation.lead_id);
-    if (leadError) throw new Error(leadError.message);
+    if (conversation.lead_id) {
+      const leadId = conversation.lead_id;
+      const { error: leadError } = await supabase
+        .from("leads")
+        .update({ assigned_to: userId, last_action_at: assumedAt })
+        .eq("id", leadId);
+      if (leadError) throw new Error(leadError.message);
 
-    await supabase.from("lead_interactions").insert({
-      lead_id: conversation.lead_id,
-      author_id: userId,
-      type: "routing",
-      content: "Conversa assumida manualmente por uma SDR.",
-      metadata: {
-        previous_assignee_user_id: conversation.assigned_user_id,
-        assignee_user_id: userId,
-        assumed_by_user_id: userId,
-        assumed_at: assumedAt,
-        source: "whatsapp_manual_assume",
-      },
-    });
+      await supabase.from("lead_interactions").insert({
+        lead_id: leadId,
+        author_id: userId,
+        type: "routing",
+        content: "Conversa assumida manualmente por uma SDR.",
+        metadata: {
+          previous_assignee_user_id: conversation.assigned_user_id,
+          assignee_user_id: userId,
+          assumed_by_user_id: userId,
+          assumed_at: assumedAt,
+          source: "whatsapp_manual_assume",
+        },
+      });
+    }
 
     return { ok: true, assumedAt };
   });
