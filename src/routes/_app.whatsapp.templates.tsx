@@ -102,6 +102,7 @@ function TemplatesPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao criar templates"),
   });
 
+  const [busca, setBusca] = useState("");
   const [editing, setEditing] = useState<TemplateRow | null>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -203,7 +204,23 @@ function TemplatesPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao sincronizar com a Meta"),
   });
 
-  const templates = (data?.templates ?? []) as TemplateRow[];
+  const todos = (data?.templates ?? []) as TemplateRow[];
+
+  /*
+   * Busca por nome, nome do HSM e corpo.
+   *
+   * Com campanha, retomada e disparos antigos na mesma lista, achar um
+   * template virou rolagem. O corpo entra na busca porque às vezes a pessoa
+   * lembra da frase e não do nome que alguém deu ao modelo.
+   */
+  const alvo = busca.trim().toLowerCase();
+  const templates = alvo
+    ? todos.filter((t) =>
+        [t.name, t.provider_template_name, t.body]
+          .filter(Boolean)
+          .some((campo) => String(campo).toLowerCase().includes(alvo)),
+      )
+    : todos;
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -442,10 +459,26 @@ function TemplatesPage() {
         </div>
       </div>
 
+      {todos.length > 3 && (
+        <div className="mb-3 flex items-center gap-2">
+          <Input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            placeholder="Buscar por nome, HSM ou trecho da mensagem…"
+            className="h-8 max-w-md text-xs"
+          />
+          {alvo && (
+            <span className="text-[11px] text-muted-foreground">
+              {templates.length} de {todos.length}
+            </span>
+          )}
+        </div>
+      )}
+
       {isLoading && <p className="text-xs text-muted-foreground">Carregando…</p>}
       {!isLoading && templates.length === 0 && (
-        <p className="text-xs text-muted-foreground border border-dashed border-white/10 rounded-lg p-6 text-center">
-          Nenhum template criado ainda.
+        <p className="rounded-lg border border-dashed border-white/10 p-6 text-center text-xs text-muted-foreground">
+          {alvo ? `Nenhum template com "${busca.trim()}".` : "Nenhum template criado ainda."}
         </p>
       )}
       <div className="grid gap-3">

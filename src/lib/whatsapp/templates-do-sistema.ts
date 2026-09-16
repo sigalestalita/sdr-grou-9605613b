@@ -84,8 +84,8 @@ export const PRIMEIRO_CONTATO_TEMPLATES: TemplateDoSistema[] = [
  */
 export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
   {
-    name: "Primeiro contato — setembro (consultoria)",
-    provider_template_name: "primeiro_contato_setembro_consultoria",
+    name: "OFERTA BLACK — primeiro contato (consultoria)",
+    provider_template_name: "oferta_black_consultoria",
     // Marketing, e não utility: a Meta reclassifica template que cita promoção.
     category: "marketing",
     language: "pt_BR",
@@ -101,8 +101,8 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
     validoAte: "2026-09-30",
   },
   {
-    name: "Primeiro contato — setembro (empresa)",
-    provider_template_name: "primeiro_contato_setembro_empresa",
+    name: "OFERTA BLACK — primeiro contato (empresa)",
+    provider_template_name: "oferta_black_empresa",
     category: "marketing",
     language: "pt_BR",
     body:
