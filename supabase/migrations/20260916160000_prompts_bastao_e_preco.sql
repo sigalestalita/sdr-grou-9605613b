@@ -23,3 +23,22 @@ UPDATE public.app_settings
           ),
        updated_at = now()
  WHERE key = 'whatsapp_ai_agent';
+
+-- Tom: a conversa já começou com o template.
+--
+-- Depois de o lead responder, a IA cumprimentava de novo ("Olá, Ana Paula!"),
+-- agradecia a resposta e explicava o próprio raciocínio antes de perguntar. É
+-- o que mais denuncia robô numa conversa de WhatsApp: parece que ninguém leu o
+-- que veio antes.
+--
+-- O guia de tom fica salvo em app_settings, então o padrão do código não
+-- alcança o que já está lá.
+
+UPDATE public.app_settings
+   SET value = value
+       || jsonb_build_object(
+            'toneGuide',
+            'Tom de SDR sênior: consultivo, humano, seguro, curto e direto no WhatsApp. A conversa já começou com a mensagem de abertura, então não cumprimente de novo nem repita seu nome — vá direto ao ponto. Nada de "que ótimo que você respondeu", "para que eu possa entender melhor" ou "assim consigo direcionar nossa conversa": faça a pergunta. Uma ideia por mensagem, no máximo duas frases curtas.'
+          ),
+       updated_at = now()
+ WHERE key = 'whatsapp_ai_agent';

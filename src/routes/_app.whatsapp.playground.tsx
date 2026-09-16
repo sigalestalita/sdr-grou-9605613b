@@ -116,7 +116,17 @@ function PlaygroundPage() {
     const proximas: Fala[] = [...falas, { de: "lead", texto: t }];
     setFalas(proximas);
     setTexto("");
-    simular.mutate(proximas);
+    /*
+     * A primeira mensagem vai junto no histórico.
+     *
+     * Na conversa real ela fica salva e a IA a lê antes de responder. Sem
+     * mandar aqui, a IA acha que a conversa começa agora e cumprimenta de
+     * novo — o ensaio mostrava um comportamento que a produção não tem.
+     */
+    const comAbertura: Fala[] = primeira?.corpo
+      ? [{ de: "ia", texto: primeira.corpo }, ...proximas]
+      : proximas;
+    simular.mutate(comAbertura);
   }
 
   function recomeçar() {
