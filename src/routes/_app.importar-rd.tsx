@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Upload } from "lucide-react";
 import { lerExportDeMarketing, type LinhaDoExport } from "@/lib/rd/importar-marketing";
+import { criarLeitorCsv, descobrirSeparador } from "@/lib/rd/csv-stream";
 import { importarLoteDeMarketing } from "@/lib/rd-marketing.functions";
 import { Button } from "@/components/ui/button";
 
@@ -14,43 +15,23 @@ export const Route = createFileRoute("/_app/importar-rd")({
 
 const LOTE = 200;
 
-/** CSV do RD: separador variável e campo com aspas por causa da vírgula. */
-function lerCsv(texto: string): LinhaDoExport[] {
-  const linhas: string[][] = [];
-  let campo = "";
-  let linha: string[] = [];
-  let aspas = false;
-  const sep = (texto.split("\n")[0]?.match(/;/g)?.length ?? 0) > 0 ? ";" : ",";
-
-  for (let i = 0; i < texto.length; i++) {
-    const c = texto[i];
-    if (aspas) {
-      if (c === '"' && texto[i + 1] === '"') {
-        campo += '"';
-        i++;
-      } else if (c === '"') aspas = false;
-      else campo += c;
-      continue;
-    }
-    if (c === '"') aspas = true;
-    else if (c === sep) {
-      linha.push(campo);
-      campo = "";
-    } else if (c === "\n") {
-      linha.push(campo.replace(/\r$/, ""));
-      if (linha.some((x) => x.trim() !== "")) linhas.push(linha);
-      linha = [];
-      campo = "";
-    } else campo += c;
-  }
-  linha.push(campo);
-  if (linha.some((x) => x.trim() !== "")) linhas.push(linha);
-
+/*
+ * Só o começo do arquivo, para mostrar o que foi entendido.
+ *
+ * O export voltou com 127 MB. Ler tudo para montar uma prévia seria ler duas
+ * vezes o mesmo arquivo — e a prévia que importa é o mapeamento das colunas,
+ * que o cabeçalho e meia dúzia de linhas já respondem.
+ */
+async function lerAmostra(f: File): Promise<LinhaDoExport[]> {
+  const inicio = await f.slice(0, 256 * 1024).text();
+  const sep = descobrirSeparador(inicio.split("\n")[0] ?? "");
+  const leitor = criarLeitorCsv(sep);
+  const linhas = leitor.alimentar(inicio);
   const [cabecalho, ...resto] = linhas;
   if (!cabecalho) return [];
-  return resto.map((l) =>
-    Object.fromEntries(cabecalho.map((h, i) => [h.trim(), (l[i] ?? "").trim()])),
-  );
+  return resto
+    .slice(0, 20)
+    .map((l) => Object.fromEntries(cabecalho.map((h, i) => [h.trim(), (l[i] ?? "").trim()])));
 }
 
 /*
@@ -65,8 +46,8 @@ function lerCsv(texto: string): LinhaDoExport[] {
  */
 function ImportarRdPage() {
   const importarFn = useServerFn(importarLoteDeMarketing);
-  const [linhas, setLinhas] = useState<LinhaDoExport[] | null>(null);
-  const [arquivo, setArquivo] = useState<string>("");
+  const [amostra, setAmostra] = useState<LinhaDoExport[] | null>(null);
+  const [arquivo, setArquivo] = useState<File | null>(null);
   const [rodando, setRodando] = useState(false);
   const [feitos, setFeitos] = useState(0);
   const [total, setTotal] = useState(0);
@@ -81,13 +62,11 @@ function ImportarRdPage() {
   });
   const parar = useRef(false);
 
-  const prévia = linhas ? lerExportDeMarketing(linhas) : null;
+  const prévia = amostra ? lerExportDeMarketing(amostra) : null;
 
   async function escolher(f: File) {
-    const texto = await f.text();
-    const lidas = lerCsv(texto);
-    setArquivo(f.name);
-    setLinhas(lidas);
+    setArquivo(f);
+    setAmostra(await lerAmostra(f));
     setFeitos(0);
     setTotal(0);
     setResumo({
@@ -101,33 +80,94 @@ function ImportarRdPage() {
     });
   }
 
+  /*
+   * Percorre o arquivo sem carregá-lo.
+   *
+   * O progresso é medido em bytes lidos, não em linhas: com 127 MB não se sabe
+   * quantas linhas existem sem ler o arquivo todo antes, e ler duas vezes para
+   * mostrar uma porcentagem não compensa.
+   */
   async function importar() {
-    if (!prévia) return;
-    const leads = prévia.leads;
+    const f = arquivo;
+    if (!f) return;
     setRodando(true);
     parar.current = false;
-    setTotal(leads.length);
+    setTotal(f.size);
     setFeitos(0);
+    setResumo({
+      criados: 0,
+      completados: 0,
+      intocados: 0,
+      conversoes: 0,
+      porDominio: 0,
+      porNome: 0,
+      semEmpresa: 0,
+    });
+
+    const leitor = f.stream().pipeThrough(new TextDecoderStream()).getReader();
+    let cabecalho: string[] | null = null;
+    let sep: string | null = null;
+    let csv: ReturnType<typeof criarLeitorCsv> | null = null;
+    let acumulado: LinhaDoExport[] = [];
+    let bytes = 0;
+
+    async function despachar() {
+      if (acumulado.length === 0) return;
+      const { leads } = lerExportDeMarketing(acumulado);
+      acumulado = [];
+      if (leads.length === 0) return;
+      const r = await importarFn({ data: { linhas: leads } });
+      setResumo((s) => ({
+        criados: s.criados + r.criados,
+        completados: s.completados + r.completados,
+        intocados: s.intocados + r.intocados,
+        conversoes: s.conversoes + r.conversoes,
+        porDominio: s.porDominio + r.vinculos.porDominio,
+        porNome: s.porNome + r.vinculos.porNome,
+        semEmpresa: s.semEmpresa + r.vinculos.semEmpresa,
+      }));
+    }
+
+    function registrar(linhas: string[][]) {
+      for (const l of linhas) {
+        if (!cabecalho) {
+          cabecalho = l.map((h) => h.trim());
+          continue;
+        }
+        acumulado.push(
+          Object.fromEntries(cabecalho.map((h, i) => [h, (l[i] ?? "").trim()])) as LinhaDoExport,
+        );
+      }
+    }
 
     try {
-      for (let i = 0; i < leads.length; i += LOTE) {
+      for (;;) {
         if (parar.current) break;
-        const r = await importarFn({ data: { linhas: leads.slice(i, i + LOTE) } });
-        setResumo((s) => ({
-          criados: s.criados + r.criados,
-          completados: s.completados + r.completados,
-          intocados: s.intocados + r.intocados,
-          conversoes: s.conversoes + r.conversoes,
-          porDominio: s.porDominio + r.vinculos.porDominio,
-          porNome: s.porNome + r.vinculos.porNome,
-          semEmpresa: s.semEmpresa + r.vinculos.semEmpresa,
-        }));
-        setFeitos(Math.min(i + LOTE, leads.length));
+        const { done, value } = await leitor.read();
+        if (done) break;
+        bytes += new Blob([value]).size;
+        if (!csv) {
+          sep = descobrirSeparador(value.split("\n")[0] ?? "");
+          csv = criarLeitorCsv(sep);
+        }
+        registrar(csv.alimentar(value));
+        while (acumulado.length >= LOTE && !parar.current) {
+          const lote = acumulado.splice(0, LOTE);
+          const guardado = acumulado;
+          acumulado = lote;
+          await despachar();
+          acumulado = guardado;
+        }
+        setFeitos(Math.min(bytes, f.size));
       }
+      if (csv && !parar.current) registrar(csv.finalizar());
+      if (!parar.current) await despachar();
+      setFeitos(f.size);
       toast.success(parar.current ? "Importação interrompida" : "Importação concluída");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Falha na importação");
     } finally {
+      await leitor.cancel().catch(() => null);
       setRodando(false);
     }
   }
@@ -163,33 +203,47 @@ function ImportarRdPage() {
           className="block w-full text-[12px] file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:px-3 file:py-1.5 file:text-[12px]"
         />
 
-        {prévia && (
+        {arquivo && prévia && (
           <div className="rounded-md border border-border p-3 text-[12px]">
-            <p className="font-medium">{arquivo}</p>
-            <p className="mt-1 text-muted-foreground">
-              {linhas?.length ?? 0} linha(s) no arquivo · <strong>{prévia.leads.length}</strong>{" "}
-              para importar
-              {prévia.ignoradas > 0 && (
-                <> · {prévia.ignoradas} sem e-mail e sem telefone, que serão ignoradas</>
-              )}
+            <p className="font-medium">
+              {arquivo.name}{" "}
+              <span className="font-normal text-muted-foreground">
+                ({(arquivo.size / 1024 / 1024).toFixed(1)} MB)
+              </span>
             </p>
-            {prévia.leads[0] && (
-              <p className="mt-1 text-[11px] text-muted-foreground">
-                Primeira linha lida: {prévia.leads[0].nome ?? "sem nome"} ·{" "}
-                {prévia.leads[0].email ?? "sem e-mail"} · {prévia.leads[0].empresa ?? "sem empresa"}
+            {/* A prévia sai das primeiras linhas: com 127 MB, ler o arquivo
+                inteiro só para contar linhas seria lê-lo duas vezes. */}
+            <p className="mt-1 text-muted-foreground">
+              Amostra das primeiras linhas, para conferir se as colunas foram entendidas. A contagem
+              final aparece durante a importação.
+            </p>
+            {prévia.leads[0] ? (
+              <ul className="mt-2 space-y-1">
+                {prévia.leads.slice(0, 3).map((l, i) => (
+                  <li key={i} className="text-[11px] text-muted-foreground">
+                    {l.nome ?? "sem nome"} · {l.email ?? "sem e-mail"} ·{" "}
+                    {l.empresa ?? "sem empresa"} ·{" "}
+                    {l.nomeUltimaConversao ?? "sem conversão registrada"}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-400">
+                Não consegui ler nenhum lead da amostra. Confira se o export tem coluna de e-mail ou
+                telefone.
               </p>
             )}
           </div>
         )}
       </div>
 
-      {prévia && prévia.leads.length > 0 && (
+      {arquivo && prévia && prévia.leads.length > 0 && (
         <div className="surface-panel space-y-3 p-4">
           <p className="section-label">3. Importar</p>
           <div className="flex flex-wrap items-center gap-2">
             <Button onClick={() => void importar()} disabled={rodando}>
               <Upload className="mr-1 h-4 w-4" />
-              {rodando ? `Importando… ${pct}%` : `Importar ${prévia.leads.length} leads`}
+              {rodando ? `Importando… ${pct}%` : "Importar o arquivo inteiro"}
             </Button>
             {rodando && (
               <Button
@@ -209,9 +263,9 @@ function ImportarRdPage() {
                 <div className="h-full bg-primary" style={{ width: `${pct}%` }} />
               </div>
               <p className="text-[12px] text-muted-foreground">
-                {feitos} de {total} · <strong>{resumo.criados}</strong> novos ·{" "}
-                <strong>{resumo.completados}</strong> completados ·{" "}
-                <strong>{resumo.intocados}</strong> já estavam completos ·{" "}
+                {(feitos / 1024 / 1024).toFixed(1)} de {(total / 1024 / 1024).toFixed(1)} MB ·{" "}
+                <strong>{resumo.criados}</strong> novos · <strong>{resumo.completados}</strong>{" "}
+                completados · <strong>{resumo.intocados}</strong> já estavam completos ·{" "}
                 <strong>{resumo.conversoes}</strong> conversões registradas
               </p>
               {/* A qualidade do vínculo é o que decide se a base serve para
