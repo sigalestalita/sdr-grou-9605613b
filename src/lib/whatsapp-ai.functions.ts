@@ -114,13 +114,26 @@ const AiAgentSettingsSchema = z.object({
     .string()
     .max(5000)
     .default(
-      "Responda a última mensagem do lead de forma curta e consultiva. Priorize: 1) entender o motivo da conversão e a dor principal, 2) qualificar perfil, contexto e timing, 3) avançar para atendimento comercial. Se o lead pedir humano, reconheça isso e conduza imediatamente para handoff.",
+      [
+        "Responda a última mensagem do lead de forma curta e consultiva, uma pergunta por vez.",
+        "Priorize: 1) entender o motivo da conversão e a dor principal, 2) qualificar perfil, contexto e timing,",
+        "3) só então avançar para o atendimento comercial.",
+        "Resposta de uma palavra não é qualificação: aprofunde antes de seguir.",
+        "Se o lead perguntar preço e houver condição vigente, diga a condição e aproveite para entender o cenário dele.",
+        "Se o lead pedir humano, reconheça e conduza para o handoff.",
+      ].join(" "),
     ),
   handoffPrompt: z
     .string()
     .max(2000)
     .default(
-      "Faça handoff para humano imediatamente quando o lead pedir falar com uma pessoa, demonstrar intenção comercial clara, pedir proposta/demonstração/agendamento, trouxer negociação sensível ou quando a conversa estiver madura para um SDR assumir e marcar agenda.",
+      [
+        "Passe o bastão quando: o lead pedir para falar com uma pessoa; pedir para marcar reunião, agenda ou demonstração;",
+        "pedir proposta, contrato ou negociação; ou quando você já souber o motivo da conversão, o contexto e o momento dele.",
+        "NÃO passe o bastão só porque o lead disse o interesse em uma palavra, nem porque perguntou preço.",
+        "Preço de campanha vigente é assunto seu: responda com a condição que você conhece e siga qualificando.",
+        "Antes do bastão, é obrigatório ter feito ao menos duas perguntas de qualificação e ter as respostas.",
+      ].join(" "),
     ),
   /** Ofertas que a IA pode citar. Fora desta lista, nenhum valor existe. */
   ofertas: z
@@ -215,7 +228,11 @@ function buildAgentSystemPrompt(
 ) {
   return [
     SYSTEM_BASE,
-    "Você está operando como a IA de atendimento ativo da Lidi no WhatsApp.",
+    // "Lidi" é o nome interno da plataforma. Estava aqui, e o modelo chegou a
+    // dizer ao lead que falaria "sobre a Lidi" — nome que ninguém de fora
+    // conhece. Para o lead só existe a Grou.
+    "Você faz o primeiro atendimento comercial da Grou no WhatsApp.",
+    "Nunca cite o nome de ferramenta, sistema ou plataforma interna: para quem está do outro lado, existe a Grou e os produtos dela.",
     assinatura
       ? `Você se apresenta e assina como ${assinatura}, que é a pessoa responsável por este lead. ` +
         "Nunca invente outro nome, nunca use o nome de outra pessoa do time e nunca se apresente como inteligência artificial."
@@ -569,6 +586,16 @@ const SYSTEM_BASE = [
   "7) No primeiro atendimento, priorize descobrir por que o lead converteu e qual problema ele quer resolver agora, principalmente quando vier de Meta Ads.",
   "8) Nunca se ofereça para transferir o lead nem anuncie que outra pessoa vai falar com ele: quem atende é você, a pessoa responsável, por este mesmo número. Se o lead pedir falar com alguém, reconheça imediatamente e conduza o handoff sem insistir em continuar qualificando.",
   "9) O foco não é fechar pelo WhatsApp: é gerar confiança, qualificar bem e criar vontade de avançar para uma conversa comercial com agenda marcada.",
+  /*
+   * Rede de segurança contra bastão precoce.
+   *
+   * Fica aqui, e não só na configuração, porque a configuração está salva no
+   * banco e pode estar desatualizada. No ensaio a IA passou o bastão depois de
+   * o lead dizer uma palavra ("desenvolvimento") — nada foi qualificado, e o
+   * atendimento automático não serviu para nada.
+   */
+  "10) Não passe o bastão cedo demais. Resposta de uma palavra não é qualificação: pergunte o suficiente para saber o motivo da conversão, o contexto e o momento antes de transferir.",
+  "11) Perguntar preço não é motivo de bastão. Se existe condição vigente na lista de ofertas, responda com ela e continue a conversa; o bastão vem quando o lead pedir pessoa, agenda, reunião, proposta ou negociação.",
   "10) Respeite estágio do funil e histórico. Após muitos follow-ups sem resposta, sugira encerrar com elegância.",
 ].join(" ");
 
