@@ -67,8 +67,12 @@ export const PRIMEIRO_CONTATO_TEMPLATES: TemplateDoSistema[] = [
 /**
  * Primeiro contato com a antecipação da Black September.
  *
- * Cita a condição de leve e já abre a pergunta de qualificação — a promoção
- * serve para acelerar a resposta, não para ser o assunto. As condições de cada
+ * Pergunta primeiro, oferta depois, em uma linha só.
+ *
+ * Primeira mensagem de WhatsApp que chega em bloco, com lista de tópicos e
+ * parágrafo de contexto, é lida como disparo e arquivada. A pergunta é o que
+ * pede resposta; a condição vai no fim, como quem comenta, porque ela serve
+ * para acelerar a resposta e não para ser o assunto. As condições de cada
  * público estão em Inbox → IA, e é de lá que a IA fala de valor; aqui o
  * template só avisa que existe prazo.
  *
@@ -87,15 +91,9 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
     language: "pt_BR",
     body:
       "Oi {{primeiro_nome}}, tudo bem? Aqui é {{sdr}}, da Grou 😊\n\n" +
-      "Vi que você buscou a Grou e queria entender como você trabalha hoje.\n\n" +
-      "Boa parte das consultorias que trabalham com a gente usa o PDA como entrega própria: " +
-      "o diagnóstico comportamental sai no nome delas, sem depender de ferramenta de terceiro " +
-      "e virando receita recorrente na carteira.\n\n" +
-      "Quem quiser começar por aqui, setembro ajuda. Até o dia 30, na abertura de licença PDA:\n" +
-      "• a partir de 250 créditos: 20% OFF\n" +
-      "• até 250 créditos: abre a licença e ganha uma Capacitação Analista PDA ao vivo\n" +
-      "• e 30% OFF em treinamentos, workshops e capacitações\n\n" +
-      "Você atende clientes como consultor ou está buscando para a sua própria empresa?",
+      "Vi que você buscou a gente. Você atende clientes como consultor ou é pra sua própria empresa?\n\n" +
+      "Ah, e até dia 30 a abertura de licença PDA está com 20% off acima de 250 créditos — " +
+      "abaixo disso, a licença vem com uma capacitação Analista PDA ao vivo. Os treinamentos, com 30%.",
     variables: ["primeiro_nome", "sdr"],
     footer_text: null,
     buttons: [],
@@ -109,14 +107,8 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
     language: "pt_BR",
     body:
       "Oi {{primeiro_nome}}, tudo bem? Aqui é {{sdr}}, da Grou 😊\n\n" +
-      "Vi que você buscou nossas soluções de gestão de pessoas.\n\n" +
-      "Quase todo mundo que chega até aqui quer resolver a mesma coisa: contratar e promover " +
-      "com critério, sem depender de achismo e sem descobrir tarde demais que a pessoa não era " +
-      "pra aquela cadeira. É o que o PDA Assessment mostra, antes da decisão.\n\n" +
-      "Quem quiser começar por aqui, setembro ajuda. Até o dia 30:\n" +
-      "• 20% OFF na abertura da sua licença PDA\n" +
-      "• 30% OFF em treinamentos, workshops e capacitações\n\n" +
-      "Qual é hoje o principal desafio de gestão de pessoas na sua empresa?",
+      "Vi que você buscou a gente pra gestão de pessoas. Qual é o maior desafio aí hoje?\n\n" +
+      "Ah, e até dia 30 a abertura de licença PDA está com 20% off, e os treinamentos com 30%.",
     variables: ["primeiro_nome", "sdr"],
     footer_text: null,
     buttons: [],
