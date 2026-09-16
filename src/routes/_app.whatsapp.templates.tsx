@@ -92,10 +92,15 @@ function TemplatesPage() {
   const seed = useMutation({
     mutationFn: () => seedFn(),
     onSuccess: (r) => {
+      const partes = [
+        r.criados > 0 ? `${r.criados} criado(s)` : null,
+        r.atualizados > 0 ? `${r.atualizados} rascunho(s) atualizado(s)` : null,
+        r.intocados > 0 ? `${r.intocados} já aprovado(s), sem mexer` : null,
+      ].filter(Boolean);
       toast.success(
-        r.criados > 0
-          ? `${r.criados} template(s) criado(s) como rascunho. Revise e envie para a Meta.`
-          : "Os templates do sistema já existem.",
+        partes.length > 0
+          ? `Templates do sistema: ${partes.join(" · ")}.`
+          : "Nada a fazer: os templates do sistema já estão em dia.",
       );
       qc.invalidateQueries({ queryKey: ["wa-templates"] });
     },
@@ -234,7 +239,7 @@ function TemplatesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {faltamDoSistema > 0 && (
+          {
             <Button
               size="sm"
               variant="outline"
@@ -243,9 +248,11 @@ function TemplatesPage() {
               title="Cria os modelos que o sistema mantém: primeiro contato no nome do SDR e as retomadas de janela de 24h"
             >
               <Plus className={`h-4 w-4 mr-1 ${seed.isPending ? "animate-spin" : ""}`} />
-              Criar templates do sistema ({faltamDoSistema})
+              {faltamDoSistema > 0
+                ? `Criar templates do sistema (${faltamDoSistema})`
+                : "Atualizar templates do sistema"}
             </Button>
-          )}
+          }
           <Button
             size="sm"
             variant="outline"

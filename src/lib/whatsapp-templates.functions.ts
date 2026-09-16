@@ -372,24 +372,34 @@ export const seedTemplatesDoSistema = createServerFn({ method: "POST" })
     const { validateRetomadaTemplate } = await import("./whatsapp/retomada-templates");
     const { TEMPLATES_DO_SISTEMA } = await import("./whatsapp/templates-do-sistema");
 
-    const nomes = TEMPLATES_DO_SISTEMA.map((t) => t.provider_template_name);
-    const { data: existentes, error: exErr } = await supabase
-      .from("whatsapp_templates")
-      .select("provider_template_name")
-      .in("provider_template_name", nomes);
-    if (exErr) throw new Error(exErr.message);
-    const jaTem = new Set((existentes ?? []).map((t) => t.provider_template_name as string));
-
-    const faltando = TEMPLATES_DO_SISTEMA.filter((t) => !jaTem.has(t.provider_template_name));
-    if (faltando.length === 0) return { ok: true, criados: 0, jaExistiam: jaTem.size };
-
-    for (const t of faltando) {
+    for (const t of TEMPLATES_DO_SISTEMA) {
       const erros = validateRetomadaTemplate(t);
       if (erros.length > 0) throw new Error(`Template "${t.name}": ${erros.join("; ")}`);
     }
 
-    const { error } = await supabase.from("whatsapp_templates").insert(
-      faltando.map((t) => ({
+    // Procura pelo nome atual e pelos que o template já teve, para renomear em
+    // vez de duplicar quando o nome muda em código.
+    const nomes = TEMPLATES_DO_SISTEMA.flatMap((t) => [
+      t.provider_template_name,
+      ...(t.nomesAntigos ?? []),
+    ]);
+    const { data: existentes, error: exErr } = await supabase
+      .from("whatsapp_templates")
+      .select("id, provider_template_name, status")
+      .in("provider_template_name", nomes);
+    if (exErr) throw new Error(exErr.message);
+    const porNome = new Map((existentes ?? []).map((t) => [t.provider_template_name as string, t]));
+
+    let criados = 0;
+    let atualizados = 0;
+    let intocados = 0;
+
+    for (const t of TEMPLATES_DO_SISTEMA) {
+      const atual =
+        porNome.get(t.provider_template_name) ??
+        (t.nomesAntigos ?? []).map((n) => porNome.get(n)).find(Boolean);
+
+      const campos = {
         name: t.name,
         provider_template_name: t.provider_template_name,
         category: t.category,
@@ -400,11 +410,36 @@ export const seedTemplatesDoSistema = createServerFn({ method: "POST" })
         header_text: null,
         header_type: null,
         buttons: t.buttons as never,
-        status: "draft",
-        created_by: userId,
         valido_ate: t.validoAte ?? null,
-      })) as never,
-    );
-    if (error) throw new Error(error.message);
-    return { ok: true, criados: faltando.length, jaExistiam: jaTem.size };
+      };
+
+      if (!atual) {
+        const { error } = await supabase
+          .from("whatsapp_templates")
+          .insert({ ...campos, status: "draft", created_by: userId } as never);
+        if (error) throw new Error(error.message);
+        criados += 1;
+        continue;
+      }
+
+      /*
+       * Só rascunho é atualizado.
+       *
+       * Template aprovado tem o corpo registrado na Meta — mexer aqui faria a
+       * pré-visualização mentir sobre o que a pessoa recebe, e renomear faria o
+       * envio apontar para um template que não existe lá.
+       */
+      if (atual.status !== "draft") {
+        intocados += 1;
+        continue;
+      }
+      const { error } = await supabase
+        .from("whatsapp_templates")
+        .update(campos as never)
+        .eq("id", atual.id);
+      if (error) throw new Error(error.message);
+      atualizados += 1;
+    }
+
+    return { ok: true, criados, atualizados, intocados };
   });

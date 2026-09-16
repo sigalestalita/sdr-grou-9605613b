@@ -10,6 +10,14 @@ import { RETOMADA_TEMPLATES, type RetomadaTemplate } from "./retomada-templates"
 
 export type TemplateDoSistema = RetomadaTemplate & {
   /**
+   * Nomes de HSM que este template já teve.
+   *
+   * Sem isso, renomear um template em código criaria uma segunda cópia: o
+   * botão pula o que já existe pelo nome do HSM, e o nome mudou. Com a lista,
+   * ele reconhece o antigo e renomeia em vez de duplicar.
+   */
+  nomesAntigos?: string[];
+  /**
    * Último dia de disparo, para template de campanha.
    *
    * O corpo aprovado na Meta é fixo: um template que diz "até 30 de setembro"
@@ -86,6 +94,7 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
   {
     name: "OFERTA BLACK — primeiro contato (consultoria)",
     provider_template_name: "oferta_black_consultoria",
+    nomesAntigos: ["primeiro_contato_setembro_consultoria"],
     // Marketing, e não utility: a Meta reclassifica template que cita promoção.
     category: "marketing",
     language: "pt_BR",
@@ -103,6 +112,7 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
   {
     name: "OFERTA BLACK — primeiro contato (empresa)",
     provider_template_name: "oferta_black_empresa",
+    nomesAntigos: ["primeiro_contato_setembro_empresa"],
     category: "marketing",
     language: "pt_BR",
     body:
