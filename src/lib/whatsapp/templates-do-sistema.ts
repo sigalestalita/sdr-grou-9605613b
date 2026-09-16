@@ -71,6 +71,12 @@ export const PRIMEIRO_CONTATO_TEMPLATES: TemplateDoSistema[] = [
  * serve para acelerar a resposta, não para ser o assunto. As condições de cada
  * público estão em Inbox → IA, e é de lá que a IA fala de valor; aqui o
  * template só avisa que existe prazo.
+ *
+ * O texto diz "quem está abrindo licença" de propósito. A campanha tem
+ * condições diferentes para cliente e não cliente, e a IA só conhece as de
+ * quem ainda não é. Prometer "condições especiais" sem escopo faria um cliente
+ * atual responder esperando algo que a IA não pode dar — e, depois de aprovado
+ * na Meta, o texto não muda mais.
  */
 export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
   {
@@ -82,7 +88,7 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
     body:
       "Oi {{primeiro_nome}}, tudo bem? Aqui é {{sdr}}, da Grou 😊\n\n" +
       "Vi que você buscou a Grou e queria entender melhor como você trabalha hoje.\n\n" +
-      "Aproveitando: até 30 de setembro estamos com condições especiais para consultorias que abrem licença PDA, e em todo o portfólio de capacitações.\n\n" +
+      "Aproveitando: até 30 de setembro, quem está abrindo licença PDA com a gente tem condição especial, e são 30% em todo o portfólio de capacitações.\n\n" +
       "Você atende clientes como consultor ou está buscando para a sua própria empresa?",
     variables: ["primeiro_nome", "sdr"],
     footer_text: null,
@@ -98,7 +104,7 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
     body:
       "Oi {{primeiro_nome}}, tudo bem? Aqui é {{sdr}}, da Grou 😊\n\n" +
       "Vi que você buscou nossas soluções de gestão de pessoas e queria entender melhor o seu contexto.\n\n" +
-      "Aproveitando: até 30 de setembro estamos com condições especiais na abertura de licença PDA e em todos os nossos treinamentos.\n\n" +
+      "Aproveitando: até 30 de setembro, quem está abrindo a primeira licença PDA tem condição especial, e são 30% em todos os nossos treinamentos.\n\n" +
       "Qual é hoje o principal desafio de gestão de pessoas na sua empresa?",
     variables: ["primeiro_nome", "sdr"],
     footer_text: null,
