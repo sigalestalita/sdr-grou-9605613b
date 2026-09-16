@@ -3999,6 +3999,7 @@ export type Database = {
           rejection_reason: string | null
           status: string
           updated_at: string
+          valido_ate: string | null
           variables: Json
         }
         Insert: {
@@ -4019,6 +4020,7 @@ export type Database = {
           rejection_reason?: string | null
           status?: string
           updated_at?: string
+          valido_ate?: string | null
           variables?: Json
         }
         Update: {
@@ -4039,6 +4041,7 @@ export type Database = {
           rejection_reason?: string | null
           status?: string
           updated_at?: string
+          valido_ate?: string | null
           variables?: Json
         }
         Relationships: []
