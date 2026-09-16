@@ -32,6 +32,7 @@ import {
   Wand2,
   Menu,
   X,
+  Upload,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -192,6 +193,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/usuarios", label: "Usuários", icon: Users, managerOnly: true },
       { to: "/configuracoes", label: "Configurações", icon: SettingsIcon, managerOnly: true },
+      { to: "/importar-rd", label: "Importar base do RD", icon: Upload, managerOnly: true },
       { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
       { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
       { to: "/novidades", label: "Novidades", icon: Sparkles },

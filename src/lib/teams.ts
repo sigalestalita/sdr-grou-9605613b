@@ -196,6 +196,8 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/leads-analytics", teams: ["comercial"] },
   { prefix: "/analytics-chat", teams: ["comercial"] },
   { prefix: "/playbook", teams: ["comercial"] },
+  // Importação da base do RD: gestão apenas, e o servidor confere de novo.
+  { prefix: "/importar-rd", teams: ["comercial", "cs"] },
 ];
 
 function matchRoute(pathname: string): RouteAccess | null {
