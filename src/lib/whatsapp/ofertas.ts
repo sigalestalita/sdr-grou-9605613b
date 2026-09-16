@@ -80,9 +80,19 @@ export function blocoDeOfertas(
   return [
     "VALORES E CAMPANHAS: só pode citar as ofertas abaixo, exatamente como estão escritas.",
     "Qualquer preço, desconto ou condição que não esteja nesta lista não existe e não pode ser mencionado.",
-    // Oferta marcada para um público é errada para o outro: consultoria compra
-    // por faixa de crédito, empresa não. Citar a errada queima a condição.
-    "Antes de citar uma oferta marcada para um público, confirme que o lead é daquele público.",
+    // A lista já vem filtrada para o público deste lead. Quando o público ainda
+    // não é conhecido, aí sim é preciso confirmar antes de citar: consultoria
+    // compra por faixa de crédito e empresa não, e citar a errada queima a
+    // condição.
+    ...(publico === "todos"
+      ? ["Antes de citar uma oferta marcada para um público, confirme que o lead é daquele público."]
+      : [
+          "Estas ofertas já são as do público deste lead: pode citá-las sem perguntar se ele é empresa ou consultoria.",
+        ]),
+    // Perguntar antes de responder o preço faz o lead repetir a pergunta. A
+    // campanha existe para acelerar a resposta, então a condição vem primeiro e
+    // a pergunta de qualificação vai depois, na mesma mensagem.
+    "Se o lead perguntar preço, desconto, promoção ou campanha, diga as condições vigentes já nesta resposta, e só depois faça a pergunta de qualificação.",
     "",
     lista,
   ].join("\n");
