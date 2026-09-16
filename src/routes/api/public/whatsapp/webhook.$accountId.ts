@@ -507,6 +507,28 @@ async function handleInbound(
      * conversa vai direto para o responsável sem a IA responder.
      */
     const { decidirAtendimento } = await import("@/lib/whatsapp/ai-elegibilidade");
+    /*
+     * Antes de decidir, tenta descobrir o que falta.
+     *
+     * Lead de campanha de WhatsApp chega sem tipo e sem porte — clique no
+     * anúncio, telefone e às vezes um nome. Essas duas informações decidem a
+     * condição que vale para ele e quem assume a conversa depois, e aparecem
+     * na própria conversa. Só preenche o que está vazio: dado de formulário
+     * vale mais do que dedução.
+     */
+    try {
+      const { descobrirPerfilDoLead } = await import("@/lib/whatsapp-ai.functions");
+      const { data: recentes } = await admin
+        .from("whatsapp_messages")
+        .select("sender_type, body")
+        .eq("conversation_id", conv.id)
+        .order("created_at", { ascending: true })
+        .limit(20);
+      await descobrirPerfilDoLead(admin, leadId, recentes ?? []);
+    } catch (e) {
+      console.warn("[wa webhook] falha ao descobrir perfil do lead", e);
+    }
+
     const { data: leadRegra } = await admin
       .from("leads")
       .select("lead_type, company_size, linkedin_company_size, assigned_to, company_id")

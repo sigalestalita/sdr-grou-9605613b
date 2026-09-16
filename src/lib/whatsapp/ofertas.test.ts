@@ -137,3 +137,30 @@ describe("ofertas por público", () => {
     expect(bloco).toContain("não existe nenhuma oferta vigente");
   });
 });
+
+describe("lead sem tipo, típico de campanha de WhatsApp", () => {
+  const black: Oferta[] = [
+    { titulo: "só consultoria", detalhe: "x", validoAte: null, publico: "consultoria" },
+    { titulo: "só empresa", detalhe: "x", validoAte: null, publico: "empresa" },
+    { titulo: "para todos", detalhe: "x", validoAte: null, publico: "todos" },
+  ];
+
+  it("indefinido só enxerga o que vale para todo mundo", () => {
+    const vistas = ofertasDoPublico(black, "indefinido").map((o) => o.titulo);
+    expect(vistas).toEqual(["para todos"]);
+  });
+
+  it("o prompt manda descobrir o tipo antes de citar condição específica", () => {
+    const bloco = blocoDeOfertas(black, new Date(), "indefinido");
+    expect(bloco).toContain("Descubra isso em uma pergunta");
+    expect(bloco).not.toContain("só consultoria");
+    expect(bloco).not.toContain("só empresa");
+  });
+
+  it("oferta sem público marcado não vaza para o indefinido", () => {
+    // Antes da campanha as ofertas não tinham público; elas valiam para todos,
+    // mas aqui o silêncio não pode ser lido como permissão.
+    const antiga: Oferta[] = [{ titulo: "antiga", detalhe: "x", validoAte: null }];
+    expect(ofertasDoPublico(antiga, "indefinido")).toHaveLength(0);
+  });
+});

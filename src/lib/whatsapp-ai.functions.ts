@@ -217,14 +217,22 @@ async function assinaturaDaConversa(
  * lead_type vem do formulário e é o que temos; a IA confirma na conversa antes
  * de citar condição, porque consultoria se cadastrando como empresa é comum.
  */
-function publicoDoLead(lead: Record<string, unknown>): "consultoria" | "empresa" {
-  return (lead?.lead_type as string | null) === "consultoria" ? "consultoria" : "empresa";
+function publicoDoLead(lead: Record<string, unknown>): "consultoria" | "empresa" | "indefinido" {
+  const tipo = (lead?.lead_type as string | null) ?? null;
+  if (tipo === "consultoria") return "consultoria";
+  if (tipo === "empresa" || tipo === "pessoa_fisica") return "empresa";
+  /*
+   * Sem tipo é o caso das campanhas de WhatsApp: o lead chega com telefone e,
+   * com sorte, um nome. Assumir empresa faria a IA oferecer a condição errada
+   * para uma consultoria logo na primeira resposta.
+   */
+  return "indefinido";
 }
 
 function buildAgentSystemPrompt(
   settings: AiAgentSettings,
   assinatura?: string,
-  publico: "consultoria" | "empresa" | "todos" = "todos",
+  publico: "consultoria" | "empresa" | "todos" | "indefinido" = "todos",
 ) {
   return [
     SYSTEM_BASE,
@@ -250,6 +258,12 @@ function buildAgentSystemPrompt(
       ? "Este lead está cadastrado como empresa ou pessoa física, mas isso vem do formulário e pode estar errado. " +
         "Antes de falar de qualquer condição, descubra em uma pergunta se a pessoa busca para a própria empresa " +
         "ou se atende clientes como consultoria — as condições são diferentes, e citar a errada queima a oferta."
+      : "",
+    publico === "indefinido"
+      ? "Deste lead não se sabe o tipo nem o porte: ele veio de um clique em anúncio, sem formulário. " +
+        "Nas primeiras respostas descubra, com naturalidade, se ele atende clientes como consultoria ou busca " +
+        "para a própria empresa, e o tamanho aproximado do time. São essas duas respostas que definem a " +
+        "condição que vale para ele e quem assume a conversa depois."
       : "",
     /*
      * As condições da campanha são só de quem ainda não é cliente. Cliente tem
@@ -1316,7 +1330,7 @@ export const simularAtendimentoIa = createServerFn({ method: "POST" })
     z
       .object({
         perfil: z.object({
-          leadType: z.enum(["consultoria", "empresa", "pessoa_fisica"]),
+          leadType: z.enum(["consultoria", "empresa", "pessoa_fisica", "indefinido"]),
           companySize: z.string().max(60).nullable().default(null),
           jaECliente: z.boolean().default(false),
           sdrUserId: z.string().uuid().nullable().default(null),
@@ -1345,14 +1359,16 @@ export const simularAtendimentoIa = createServerFn({ method: "POST" })
       name: data.perfil.nome,
       company_name: data.perfil.empresa,
       company_size: data.perfil.companySize,
-      lead_type: data.perfil.leadType,
+      // "indefinido" no ensaio é o lead que chega sem tipo, como nas campanhas
+      // de WhatsApp: no banco esse campo estaria vazio.
+      lead_type: data.perfil.leadType === "indefinido" ? null : data.perfil.leadType,
       assigned_to: data.perfil.sdrUserId,
     };
 
     // A mesma regra que o webhook aplica antes de deixar a IA falar.
     const decisao = decidirAtendimento(
       {
-        lead_type: data.perfil.leadType,
+        lead_type: data.perfil.leadType === "indefinido" ? null : data.perfil.leadType,
         company_size: data.perfil.companySize,
         linkedin_company_size: null,
         assigned_to: data.perfil.sdrUserId,
@@ -1525,7 +1541,7 @@ export const previaDaPrimeiraMensagem = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z
       .object({
-        leadType: z.enum(["consultoria", "empresa", "pessoa_fisica"]),
+        leadType: z.enum(["consultoria", "empresa", "pessoa_fisica", "indefinido"]),
         nome: z.string().max(120).default("Lead de teste"),
         empresa: z.string().max(160).nullable().default(null),
         sdrUserId: z.string().uuid().nullable().default(null),
@@ -1537,6 +1553,7 @@ export const previaDaPrimeiraMensagem = createServerFn({ method: "POST" })
     const settings = await readAiAgentSettings(supabase);
     const { renderTemplate } = await import("./whatsapp-templates.functions");
 
+    // Sem tipo, o disparo real cai no template padrão, não no de consultoria.
     const ehConsultoria = data.leadType === "consultoria";
     const templateId =
       (ehConsultoria && settings.consultoriaInitialTemplateId) || settings.initialTemplateId;
@@ -1620,3 +1637,103 @@ export const previaDaPrimeiraMensagem = createServerFn({ method: "POST" })
       corpo,
     };
   });
+
+/**
+ * Descobre tipo e porte do lead a partir da conversa, e grava.
+ *
+ * Lead de campanha de WhatsApp chega sem nada: clique no anúncio, telefone e
+ * às vezes um nome. Sem tipo, a IA não sabe qual condição oferecer; sem porte,
+ * a regra de corte não tem como decidir se o atendimento deveria ser humano
+ * desde o início. As duas informações existem na conversa — o que faltava era
+ * alguém escrevê-las de volta no lead.
+ *
+ * Só preenche o que está vazio. Dado que veio de formulário vale mais do que
+ * dedução de conversa, e sobrescrever apagaria o que o marketing capturou.
+ */
+export async function descobrirPerfilDoLead(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
+  leadId: string,
+  mensagens: Array<{ sender_type: string; body: string | null }>,
+): Promise<{ leadType: string | null; companySize: string | null } | null> {
+  const doLead = mensagens.filter((m) => m.sender_type === "lead" && (m.body?.trim() ?? ""));
+  if (doLead.length === 0) return null;
+
+  const { data: lead } = await admin
+    .from("leads")
+    .select("lead_type, company_size")
+    .eq("id", leadId)
+    .maybeSingle();
+  if (!lead) return null;
+  const faltaTipo = !lead.lead_type;
+  const faltaPorte = !lead.company_size;
+  if (!faltaTipo && !faltaPorte) return null;
+
+  const tool = {
+    type: "function",
+    function: {
+      name: "perfil_do_lead",
+      description:
+        "Extrai tipo e porte do lead a partir da conversa. Só responda o que a conversa disser; não deduza.",
+      parameters: {
+        type: "object",
+        properties: {
+          leadType: {
+            type: "string",
+            enum: ["consultoria", "empresa", "pessoa_fisica", "indefinido"],
+            description:
+              "consultoria quando a pessoa atende clientes; empresa quando busca para a própria organização; pessoa_fisica quando é para ela mesma; indefinido quando a conversa ainda não deixa claro.",
+          },
+          companySize: {
+            type: "string",
+            description:
+              "Faixa de funcionários citada, no formato '11 - 50'. String vazia quando não foi dito.",
+          },
+        },
+        required: ["leadType", "companySize"],
+        additionalProperties: false,
+      },
+    },
+  };
+
+  const transcricao = mensagens
+    .map((m) => `${m.sender_type === "lead" ? "Lead" : "Nós"}: ${m.body ?? ""}`)
+    .join("\n");
+
+  let extraido: { leadType?: string; companySize?: string } = {};
+  try {
+    const r = await callAI(
+      [
+        {
+          role: "system",
+          content:
+            "Você lê conversas de WhatsApp e extrai apenas o que foi dito. Nunca invente nem deduza por probabilidade.",
+        },
+        { role: "user", content: `Conversa:\n${transcricao}` },
+      ],
+      tool,
+    );
+    const bruto = r.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    if (bruto) extraido = JSON.parse(bruto);
+  } catch {
+    return null;
+  }
+
+  const patch: Record<string, unknown> = {};
+  if (faltaTipo && extraido.leadType && extraido.leadType !== "indefinido") {
+    patch.lead_type = extraido.leadType;
+  }
+  if (faltaPorte && extraido.companySize?.trim()) {
+    patch.company_size = extraido.companySize.trim();
+  }
+  if (Object.keys(patch).length === 0) return null;
+
+  await admin
+    .from("leads")
+    .update(patch as never)
+    .eq("id", leadId);
+  return {
+    leadType: (patch.lead_type as string) ?? null,
+    companySize: (patch.company_size as string) ?? null,
+  };
+}

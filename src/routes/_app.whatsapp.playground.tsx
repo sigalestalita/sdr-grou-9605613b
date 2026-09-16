@@ -16,11 +16,17 @@ export const Route = createFileRoute("/_app/whatsapp/playground")({
 });
 
 type Fala = { de: "lead" | "ia"; texto: string };
-type Tipo = "consultoria" | "empresa" | "pessoa_fisica";
+type Tipo = "consultoria" | "empresa" | "pessoa_fisica" | "indefinido";
 
 const PORTES = ["1 - 10", "11 - 50", "51 - 100", "101 - 200", "201 - 500", "501 - 2.000"];
 
 const TIPOS: Array<{ valor: Tipo; rotulo: string; ajuda: string }> = [
+  {
+    valor: "indefinido",
+    rotulo: "Sem informação",
+    ajuda:
+      "Como chega um lead de campanha de WhatsApp: só telefone. A IA descobre tipo e porte na conversa e grava no lead; até lá, só as condições que valem para todos.",
+  },
   {
     valor: "consultoria",
     rotulo: "Consultoria",
@@ -54,7 +60,7 @@ function PlaygroundPage() {
   const previaFn = useServerFn(previaDaPrimeiraMensagem);
   const pessoasFn = useServerFn(getEmbeddedSignupConfig);
 
-  const [tipo, setTipo] = useState<Tipo>("empresa");
+  const [tipo, setTipo] = useState<Tipo>("indefinido");
   const [porte, setPorte] = useState<string>("11 - 50");
   const [jaECliente, setJaECliente] = useState(false);
   const [sdr, setSdr] = useState<string>("");
@@ -95,7 +101,7 @@ function PlaygroundPage() {
         data: {
           perfil: {
             leadType: tipo,
-            companySize: tipo === "consultoria" ? null : porte,
+            companySize: tipo === "consultoria" || tipo === "indefinido" ? null : porte,
             jaECliente,
             sdrUserId: sdr || null,
             nome: nome.trim() || "Lead de teste",
@@ -175,7 +181,7 @@ function PlaygroundPage() {
             </p>
           </div>
 
-          {tipo !== "consultoria" && (
+          {tipo !== "consultoria" && tipo !== "indefinido" && (
             <div>
               <p className="section-label mb-1">Porte</p>
               <select
@@ -241,7 +247,7 @@ function PlaygroundPage() {
               placeholder="Nome do lead"
               className="h-8 text-xs"
             />
-            {tipo !== "pessoa_fisica" && (
+            {tipo !== "pessoa_fisica" && tipo !== "indefinido" && (
               <Input
                 value={empresa}
                 onChange={(e) => setEmpresa(e.target.value)}
