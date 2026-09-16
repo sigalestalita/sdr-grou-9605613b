@@ -368,6 +368,33 @@ export async function evaluateAiHandoffInternal(
   const call = result.choices?.[0]?.message?.tool_calls?.[0];
   if (!call) throw new Error("IA não retornou decisão de handoff");
   const args = JSON.parse(call.function.arguments) as AiHandoffDecision;
+
+  /*
+   * A trava fica aqui, depois do modelo, não antes.
+   *
+   * Pedir no prompt para não transferir cedo não segurou: o modelo passava o
+   * bastão depois de uma palavra do lead e escrevia uma justificativa
+   * convincente para isso. Contar as respostas é determinístico e não depende
+   * de ele concordar.
+   *
+   * Pedido explícito do lead continua passando na hora: ninguém deve ter que
+   * responder a um robô para conseguir falar com gente.
+   */
+  const { podePassarBastao } = await import("./whatsapp/bastao");
+  const avaliacao = podePassarBastao(
+    (messages as Array<{ sender_type: string; body: string | null }>)
+      .filter((m) => m.sender_type === "lead")
+      .map((m) => m.body),
+  );
+  if (args.shouldHandoff === true && !avaliacao.liberado) {
+    return {
+      shouldHandoff: false,
+      reason: avaliacao.motivo,
+      urgency: "baixa",
+      suggestedReply: "",
+    };
+  }
+
   return {
     shouldHandoff: args.shouldHandoff === true,
     reason: args.reason?.trim() || "Conversa madura para SDR assumir.",
@@ -1411,6 +1438,16 @@ export const simularAtendimentoIa = createServerFn({ method: "POST" })
       } catch {
         handoff = null;
       }
+    }
+
+    // A mesma trava do atendimento real, para o ensaio não mentir.
+    const { podePassarBastao } = await import("./whatsapp/bastao");
+    const avaliacao = podePassarBastao(
+      data.mensagens.filter((m) => m.de === "lead").map((m) => m.texto),
+    );
+    if (handoff?.shouldHandoff && !avaliacao.liberado) {
+      handoff = { shouldHandoff: false, reason: avaliacao.motivo, urgency: "baixa" };
+      sugestao = "";
     }
 
     if (handoff?.shouldHandoff) {

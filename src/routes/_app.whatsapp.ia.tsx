@@ -89,6 +89,34 @@ function WhatsAppAiPage() {
 
   const stages = meta?.stages ?? [];
   const templates = (tmpls?.templates ?? []).filter((t) => !!t.provider_template_name);
+
+  /*
+   * O template escolhido pode não conseguir disparar.
+   *
+   * Fora da janela de 24h a Meta só entrega template APROVADO — um rascunho
+   * selecionado aqui faz o primeiro contato falhar em silêncio, e de fora
+   * parece que a automação não rodou. Template de campanha vencido tem o mesmo
+   * efeito, porque o disparo passa a ser recusado por data.
+   */
+  const porId = new Map(templates.map((t) => [t.id as string, t]));
+  function avisoDoTemplate(id: string | null | undefined): string | null {
+    if (!id) return null;
+    const t = porId.get(id) as
+      | { name?: string; status?: string; valido_ate?: string | null }
+      | undefined;
+    if (!t) return "O template escolhido não existe mais.";
+    if (t.status !== "approved") {
+      return `"${t.name}" está como ${t.status ?? "rascunho"} — a Meta só entrega template aprovado, então o primeiro contato não vai sair. Envie para aprovação em Templates.`;
+    }
+    const validade = t.valido_ate ?? null;
+    if (validade) {
+      const fim = new Date(`${validade}T23:59:59`).getTime();
+      if (Number.isFinite(fim) && fim < Date.now()) {
+        return `"${t.name}" é de campanha e venceu em ${validade}. O disparo é recusado; escolha um template sem campanha.`;
+      }
+    }
+    return null;
+  }
   const accounts = (accs?.accounts ?? []) as Array<{
     id: string;
     label: string | null;
@@ -216,13 +244,20 @@ function WhatsAppAiPage() {
                   {templates.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.name}
+                      {t.status === "approved" ? "" : ` · ${t.status ?? "rascunho"}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Use um template aprovado na Meta para iniciar a conversa fora da janela de 24h.
-              </p>
+              {avisoDoTemplate(form.initialTemplateId) ? (
+                <p className="mt-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
+                  {avisoDoTemplate(form.initialTemplateId)}
+                </p>
+              ) : (
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  Use um template aprovado na Meta para iniciar a conversa fora da janela de 24h.
+                </p>
+              )}
               <p className="text-[11px] text-muted-foreground mt-1">
                 Sugestão: o texto do template já pode abrir espaço para o lead pedir atendimento
                 humano desde o início.
@@ -486,13 +521,20 @@ function WhatsAppAiPage() {
                 {templates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.name}
+                    {t.status === "approved" ? "" : ` · ${t.status ?? "rascunho"}`}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-[11px] text-muted-foreground mt-1">
-              Recomendado quando a mensagem inicial de consultoria for diferente da comercial.
-            </p>
+            {avisoDoTemplate(form.consultoriaInitialTemplateId) ? (
+              <p className="mt-1 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
+                {avisoDoTemplate(form.consultoriaInitialTemplateId)}
+              </p>
+            ) : (
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Recomendado quando a mensagem inicial de consultoria for diferente da comercial.
+              </p>
+            )}
           </div>
         </CardContent>
       </Card>
