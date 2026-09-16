@@ -83,6 +83,7 @@ import {
 } from "@dnd-kit/core";
 import { formatDistanceToNow, format, differenceInDays } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { rotuloDaOrigem, VINDO_DO_WHATSAPP } from "@/lib/leads/origem";
 
 export const Route = createFileRoute("/_app/kanban")({
   head: () => ({ meta: [{ title: "Kanban — SDR GROU" }] }),
@@ -433,7 +434,7 @@ function KanbanPage() {
       Prioridade: l.priority ? (PRIORITY_LABEL[l.priority] ?? l.priority) : "",
       Etapa: stageName(l.stage_id),
       Responsavel: ownerName(l.assigned_to),
-      Origem: l.source ?? "",
+      Origem: l.source ? rotuloDaOrigem(l.source) : "",
       Campanha: l.campaign ?? "",
       Anuncio: l.ad_name ?? "",
       "Motivo de descarte": l.lost_reason ?? "",
@@ -745,7 +746,7 @@ function KanbanPage() {
               <option value="all">Origem: todas (melhor → pior)</option>
               <option value="nd">Sem origem</option>
               {sourceOptions.map(([src, count]) => (
-                <option key={src} value={src}>{`${count} • ${src}`}</option>
+                <option key={src} value={src}>{`${count} • ${rotuloDaOrigem(src)}`}</option>
               ))}
             </select>
             <select
@@ -1136,6 +1137,33 @@ function LeadCard({
       {(() => {
         const df = resolveDemoFree(lead);
         const chips: React.ReactNode[] = [];
+        /*
+         * Lead que veio de clique no WhatsApp chega sem empresa, sem cargo e
+         * sem tipo — o card parece vazio, e sem contexto parece lixo. O selo
+         * diz de onde veio e, enquanto o tipo não estiver preenchido, que a IA
+         * ainda está descobrindo. Serve para ninguém descartar cedo demais.
+         */
+        if (VINDO_DO_WHATSAPP.has((lead.source ?? "").trim())) {
+          const qualificando = !lead.lead_type;
+          chips.push(
+            <Badge
+              key="wa"
+              variant="outline"
+              className={`h-[18px] px-1.5 text-[10px] font-medium ${
+                qualificando
+                  ? "border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  : "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              }`}
+              title={
+                qualificando
+                  ? "Entrou direto pelo WhatsApp. A IA está conversando e preenchendo tipo e porte."
+                  : "Entrou direto pelo WhatsApp e já foi qualificado pela IA."
+              }
+            >
+              {qualificando ? "WhatsApp · IA qualificando" : "WhatsApp"}
+            </Badge>,
+          );
+        }
         if (lead.lead_type) {
           chips.push(
             <Badge
