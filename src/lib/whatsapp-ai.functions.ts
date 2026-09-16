@@ -443,7 +443,19 @@ export async function generateAutoReplyInternal(
   ]);
   const reply = result.choices?.[0]?.message?.content?.trim() ?? "";
   if (!reply) throw new Error("IA não retornou resposta");
-  return { reply };
+
+  /*
+   * Corta a saudação repetida.
+   *
+   * A regra está no prompt e o modelo ignora: responde "Olá Ana Paula!
+   * Lisiane aqui da Grou" na conversa em que ele mesmo já se apresentou uma
+   * mensagem antes. Mesmo caminho da trava do bastão — em vez de pedir, corta.
+   */
+  const { removerSaudacaoRepetida } = await import("./whatsapp/saudacao");
+  const jaFalamosAntes = (messages as Array<{ sender_type: string }>).some((m) =>
+    ["bot", "automation", "sdr", "agent", "human"].includes(m.sender_type),
+  );
+  return { reply: removerSaudacaoRepetida(reply, jaFalamosAntes) };
 }
 
 async function callAI(messages: Array<{ role: string; content: string }>, tool?: unknown) {
@@ -1481,13 +1493,18 @@ export const simularAtendimentoIa = createServerFn({ method: "POST" })
       },
     ]);
 
+    // O mesmo corte do atendimento real, senão o ensaio mostra outra coisa.
+    const { removerSaudacaoRepetida } = await import("./whatsapp/saudacao");
+    const bruta = resposta.choices?.[0]?.message?.content?.trim() ?? sugestao;
+    const jaFalamosAntes = data.mensagens.some((m) => m.de === "ia");
+
     return {
       atende: true,
       motivo: decisao.motivo,
       handoffPara: decisao.handoff,
       assinatura,
       ofertas,
-      resposta: resposta.choices?.[0]?.message?.content?.trim() ?? sugestao,
+      resposta: removerSaudacaoRepetida(bruta, jaFalamosAntes),
       handoff,
     };
   });
