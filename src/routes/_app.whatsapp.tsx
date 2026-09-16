@@ -10,6 +10,7 @@ import {
   Repeat,
   Bot,
   Bell,
+  FlaskConical,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/whatsapp")({
@@ -26,6 +27,7 @@ function WhatsappLayout() {
     { to: "/whatsapp/templates", label: "Templates", icon: FileText, exact: false },
     { to: "/whatsapp/campanhas", label: "Campanhas", icon: Megaphone, exact: false },
     { to: "/whatsapp/ia", label: "IA", icon: Bot, exact: false },
+    { to: "/whatsapp/playground", label: "Ensaio da IA", icon: FlaskConical, exact: false },
     { to: "/whatsapp/automacoes", label: "Automações", icon: Zap, exact: false },
     { to: "/whatsapp/fups", label: "FUPs", icon: Repeat, exact: false },
     { to: "/whatsapp/alertas", label: `Alertas ${ownerLabel}`, icon: Bell, exact: false },

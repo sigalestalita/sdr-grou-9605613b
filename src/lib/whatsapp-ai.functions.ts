@@ -1212,3 +1212,210 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
       throw new Error(message);
     }
   });
+
+/*
+ * Playground: conversar com a IA como se fosse um lead, sem tocar em nada.
+ *
+ * O atendimento automático é a parte do sistema que fala com o cliente sem
+ * ninguém olhando. Toda mudança de prompt, de oferta ou de regra de porte muda
+ * o que ela diz — e hoje o único jeito de saber era esperar um lead real
+ * chegar e ler a conversa depois.
+ *
+ * Aqui o lead é inventado e nada é gravado: nem conversa, nem mensagem, nem
+ * lead. O que é real é o resto — o mesmo prompt, as mesmas ofertas com a mesma
+ * validade, a mesma regra de quem a IA atende e a mesma decisão de bastão.
+ */
+
+export type PerfilSimulado = {
+  leadType: "consultoria" | "empresa" | "pessoa_fisica";
+  companySize: string | null;
+  jaECliente: boolean;
+  /** Para a IA assinar com o nome certo, como faria com o lead de verdade. */
+  sdrUserId: string | null;
+  nome: string;
+  empresa: string | null;
+};
+
+export const simularAtendimentoIa = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        perfil: z.object({
+          leadType: z.enum(["consultoria", "empresa", "pessoa_fisica"]),
+          companySize: z.string().max(60).nullable().default(null),
+          jaECliente: z.boolean().default(false),
+          sdrUserId: z.string().uuid().nullable().default(null),
+          nome: z.string().min(1).max(120).default("Lead de teste"),
+          empresa: z.string().max(160).nullable().default(null),
+        }),
+        mensagens: z
+          .array(
+            z.object({
+              de: z.enum(["lead", "ia"]),
+              texto: z.string().min(1).max(4000),
+            }),
+          )
+          .min(1)
+          .max(40),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const settings = await readAiAgentSettings(supabase);
+    const { decidirAtendimento } = await import("./whatsapp/ai-elegibilidade");
+    const { ofertasVigentes, ofertasDoPublico } = await import("./whatsapp/ofertas");
+
+    const lead: Record<string, unknown> = {
+      name: data.perfil.nome,
+      company_name: data.perfil.empresa,
+      company_size: data.perfil.companySize,
+      lead_type: data.perfil.leadType,
+      assigned_to: data.perfil.sdrUserId,
+    };
+
+    // A mesma regra que o webhook aplica antes de deixar a IA falar.
+    const decisao = decidirAtendimento(
+      {
+        lead_type: data.perfil.leadType,
+        company_size: data.perfil.companySize,
+        linkedin_company_size: null,
+        assigned_to: data.perfil.sdrUserId,
+        ja_e_cliente: data.perfil.jaECliente,
+      },
+      {
+        empresaMaxFuncionarios: settings.empresaMaxFuncionarios,
+        consultoriaAtendeTudo: settings.consultoriaAtendeTudo,
+      },
+    );
+
+    const publico = publicoDoLead(lead);
+    const ofertas = ofertasDoPublico(ofertasVigentes(settings.ofertas ?? []), publico).map((o) => ({
+      titulo: o.titulo,
+      detalhe: o.detalhe,
+      validoAte: o.validoAte,
+    }));
+    const assinatura = await assinaturaDaConversa(supabase, lead, settings);
+
+    if (!decisao.atende) {
+      return {
+        atende: false,
+        motivo: decisao.motivo,
+        handoffPara: decisao.handoff,
+        assinatura,
+        ofertas,
+        resposta: null,
+        handoff: null,
+      };
+    }
+
+    const historico = data.mensagens
+      .map((m) => `${m.de === "lead" ? "Lead" : assinatura}: ${m.texto}`)
+      .join("\n");
+    const ultima = [...data.mensagens].reverse().find((m) => m.de === "lead");
+    if (!ultima) throw new Error("A última mensagem precisa ser do lead.");
+
+    const contexto =
+      `Lead: ${JSON.stringify({
+        nome: data.perfil.nome,
+        empresa: data.perfil.empresa,
+        tamanho: data.perfil.companySize,
+        tipo: data.perfil.leadType,
+        ja_e_cliente: data.perfil.jaECliente,
+      })}\n` + "Este é um ensaio interno; responda exatamente como responderia ao lead real.";
+
+    const sistema = buildAgentSystemPrompt(settings, assinatura, publico);
+
+    /*
+     * Duas chamadas, como em produção: primeiro a decisão de bastão, e só
+     * quando ela diz "fica" é que vem a resposta normal. Simular com uma só
+     * esconderia justamente o momento que interessa conferir.
+     */
+    const ferramentaHandoff = {
+      type: "function",
+      function: {
+        name: "decide_handoff",
+        description: "Decide se a conversa deve ser transferida para uma SDR humana agora.",
+        parameters: {
+          type: "object",
+          properties: {
+            shouldHandoff: { type: "boolean" },
+            reason: { type: "string" },
+            urgency: { type: "string", enum: ["alta", "media", "baixa"] },
+            suggestedReply: { type: "string" },
+          },
+          required: ["shouldHandoff", "reason", "urgency", "suggestedReply"],
+          additionalProperties: false,
+        },
+      },
+    };
+
+    const decisaoBastao = await callAI(
+      [
+        { role: "system", content: sistema },
+        {
+          role: "user",
+          content:
+            `${settings.replyPrompt}\n\n` +
+            "Antes de responder, decida se já é hora de transferir para o SDR humano.\n\n" +
+            `${contexto}\n\nConversa:\n${historico}\n\nÚltima mensagem do lead: ${ultima.texto}`,
+        },
+      ],
+      ferramentaHandoff,
+    );
+    const bruto = decisaoBastao.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    let handoff: { shouldHandoff: boolean; reason: string; urgency: string } | null = null;
+    let sugestao = "";
+    if (bruto) {
+      try {
+        const p = JSON.parse(bruto) as {
+          shouldHandoff?: boolean;
+          reason?: string;
+          urgency?: string;
+          suggestedReply?: string;
+        };
+        handoff = {
+          shouldHandoff: p.shouldHandoff === true,
+          reason: p.reason ?? "",
+          urgency: p.urgency ?? "baixa",
+        };
+        sugestao = p.suggestedReply ?? "";
+      } catch {
+        handoff = null;
+      }
+    }
+
+    if (handoff?.shouldHandoff) {
+      return {
+        atende: true,
+        motivo: decisao.motivo,
+        handoffPara: decisao.handoff,
+        assinatura,
+        ofertas,
+        resposta: sugestao,
+        handoff,
+      };
+    }
+
+    const resposta = await callAI([
+      { role: "system", content: sistema },
+      {
+        role: "user",
+        content:
+          `${settings.replyPrompt}\n\n${contexto}\n\nConversa:\n${historico}\n\n` +
+          `Última mensagem do lead: ${ultima.texto}\n\n` +
+          "Responda APENAS com a mensagem de WhatsApp pronta, curta, natural, em português brasileiro, sem aspas.",
+      },
+    ]);
+
+    return {
+      atende: true,
+      motivo: decisao.motivo,
+      handoffPara: decisao.handoff,
+      assinatura,
+      ofertas,
+      resposta: resposta.choices?.[0]?.message?.content?.trim() ?? sugestao,
+      handoff,
+    };
+  });
