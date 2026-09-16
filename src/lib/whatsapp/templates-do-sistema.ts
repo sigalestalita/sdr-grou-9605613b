@@ -87,11 +87,14 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
     language: "pt_BR",
     body:
       "Oi {{primeiro_nome}}, tudo bem? Aqui é {{sdr}}, da Grou 😊\n\n" +
-      "Vi que você buscou a Grou e queria entender melhor como você trabalha hoje.\n\n" +
-      "Até 30 de setembro, na abertura de licença PDA:\n" +
+      "Vi que você buscou a Grou e queria entender como você trabalha hoje.\n\n" +
+      "Boa parte das consultorias que trabalham com a gente usa o PDA como entrega própria: " +
+      "o diagnóstico comportamental sai no nome delas, sem depender de ferramenta de terceiro " +
+      "e virando receita recorrente na carteira.\n\n" +
+      "Quem quiser começar por aqui, setembro ajuda. Até o dia 30, na abertura de licença PDA:\n" +
       "• a partir de 250 créditos: 20% OFF\n" +
-      "• até 250 créditos: abre a licença e ganha uma Capacitação Analista PDA ao vivo\n\n" +
-      "E 30% OFF em treinamentos, workshops e capacitações.\n\n" +
+      "• até 250 créditos: abre a licença e ganha uma Capacitação Analista PDA ao vivo\n" +
+      "• e 30% OFF em treinamentos, workshops e capacitações\n\n" +
       "Você atende clientes como consultor ou está buscando para a sua própria empresa?",
     variables: ["primeiro_nome", "sdr"],
     footer_text: null,
@@ -106,8 +109,11 @@ export const CAMPANHA_TEMPLATES: TemplateDoSistema[] = [
     language: "pt_BR",
     body:
       "Oi {{primeiro_nome}}, tudo bem? Aqui é {{sdr}}, da Grou 😊\n\n" +
-      "Vi que você buscou nossas soluções de gestão de pessoas e queria entender melhor o seu contexto.\n\n" +
-      "Até 30 de setembro:\n" +
+      "Vi que você buscou nossas soluções de gestão de pessoas.\n\n" +
+      "Quase todo mundo que chega até aqui quer resolver a mesma coisa: contratar e promover " +
+      "com critério, sem depender de achismo e sem descobrir tarde demais que a pessoa não era " +
+      "pra aquela cadeira. É o que o PDA Assessment mostra, antes da decisão.\n\n" +
+      "Quem quiser começar por aqui, setembro ajuda. Até o dia 30:\n" +
       "• 20% OFF na abertura da sua licença PDA\n" +
       "• 30% OFF em treinamentos, workshops e capacitações\n\n" +
       "Qual é hoje o principal desafio de gestão de pessoas na sua empresa?",
