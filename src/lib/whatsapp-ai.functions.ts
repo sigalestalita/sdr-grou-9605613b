@@ -1483,3 +1483,115 @@ export const simularAtendimentoIa = createServerFn({ method: "POST" })
       handoff,
     };
   });
+
+/**
+ * A primeira mensagem que sairia para este perfil.
+ *
+ * O ensaio começava na resposta do lead e pulava o template — que é
+ * justamente a mensagem que abre a conversa e carrega a campanha. Sem ver essa
+ * parte, não dá para saber se o template certo seria escolhido, se ele pode
+ * sair e com que texto o lead vai receber.
+ *
+ * Resolve o template pelo mesmo caminho do disparo real: consultoria tem slot
+ * próprio; o resto cai no inicial padrão.
+ */
+export const previaDaPrimeiraMensagem = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        leadType: z.enum(["consultoria", "empresa", "pessoa_fisica"]),
+        nome: z.string().max(120).default("Lead de teste"),
+        empresa: z.string().max(160).nullable().default(null),
+        sdrUserId: z.string().uuid().nullable().default(null),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const settings = await readAiAgentSettings(supabase);
+    const { renderTemplate } = await import("./whatsapp-templates.functions");
+
+    const ehConsultoria = data.leadType === "consultoria";
+    const templateId =
+      (ehConsultoria && settings.consultoriaInitialTemplateId) || settings.initialTemplateId;
+
+    if (!settings.enabled || !settings.initialOutreachEnabled) {
+      return {
+        possivel: false,
+        aviso:
+          "O primeiro contato automático está desligado em WhatsApp → IA. Nenhuma mensagem sairia para este lead.",
+        template: null,
+        corpo: null,
+      };
+    }
+    if (!templateId) {
+      return {
+        possivel: false,
+        aviso: ehConsultoria
+          ? "Nenhum template escolhido para consultoria nem como padrão em WhatsApp → IA."
+          : "Nenhum template inicial escolhido em WhatsApp → IA.",
+        template: null,
+        corpo: null,
+      };
+    }
+
+    const { data: tmpl } = await supabase
+      .from("whatsapp_templates")
+      .select("*")
+      .eq("id", templateId)
+      .maybeSingle();
+    if (!tmpl) {
+      return {
+        possivel: false,
+        aviso: "O template escolhido não existe mais.",
+        template: null,
+        corpo: null,
+      };
+    }
+
+    const t = tmpl as {
+      name: string;
+      provider_template_name: string | null;
+      status: string | null;
+      body: string | null;
+      valido_ate?: string | null;
+    };
+
+    const assinatura = await assinaturaDaConversa(
+      supabase,
+      { assigned_to: data.sdrUserId },
+      settings,
+    );
+    const corpo = renderTemplate(t.body ?? "", {
+      nome: data.nome,
+      primeiro_nome: data.nome.split(/\s+/)[0] ?? data.nome,
+      empresa: data.empresa ?? "",
+      sdr: assinatura,
+      responsavel: assinatura,
+    }).trim();
+
+    // Fora da janela de 24h só sai template aprovado, e campanha vencida é recusada.
+    let aviso: string | null = null;
+    if (t.status !== "approved") {
+      aviso = `"${t.name}" está como ${t.status ?? "rascunho"}. A Meta só entrega template aprovado, então esta mensagem não sairia.`;
+    } else if (t.valido_ate) {
+      const fim = new Date(`${t.valido_ate}T23:59:59`).getTime();
+      if (Number.isFinite(fim) && fim < Date.now()) {
+        aviso = `"${t.name}" é de campanha e venceu em ${t.valido_ate}. O disparo é recusado.`;
+      }
+    }
+
+    return {
+      possivel: !aviso,
+      aviso,
+      template: {
+        nome: t.name,
+        hsm: t.provider_template_name,
+        status: t.status,
+        validoAte: t.valido_ate ?? null,
+        ehDeConsultoria: ehConsultoria && !!settings.consultoriaInitialTemplateId,
+      },
+      corpo,
+    };
+  });

@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Bot, RotateCcw, Send, User } from "lucide-react";
-import { simularAtendimentoIa } from "@/lib/whatsapp-ai.functions";
+import { previaDaPrimeiraMensagem, simularAtendimentoIa } from "@/lib/whatsapp-ai.functions";
 import { getEmbeddedSignupConfig } from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +51,7 @@ const TIPOS: Array<{ valor: Tipo; rotulo: string; ajuda: string }> = [
  */
 function PlaygroundPage() {
   const simularFn = useServerFn(simularAtendimentoIa);
+  const previaFn = useServerFn(previaDaPrimeiraMensagem);
   const pessoasFn = useServerFn(getEmbeddedSignupConfig);
 
   const [tipo, setTipo] = useState<Tipo>("empresa");
@@ -66,6 +67,26 @@ function PlaygroundPage() {
     queryKey: ["wa-embedded-signup-config"],
     queryFn: () => pessoasFn(),
     staleTime: 5 * 60_000,
+  });
+
+  /*
+   * A mensagem que abre a conversa.
+   *
+   * O ensaio começava na resposta do lead e pulava o template — que é
+   * justamente onde a campanha entra. Sem ver essa parte não dá para saber se
+   * o template certo seria escolhido, nem com que texto o lead recebe.
+   */
+  const { data: primeira } = useQuery({
+    queryKey: ["wa-primeira-mensagem", tipo, sdr, nome, empresa],
+    queryFn: () =>
+      previaFn({
+        data: {
+          leadType: tipo,
+          nome: nome.trim() || "Lead de teste",
+          empresa: empresa.trim() || null,
+          sdrUserId: sdr || null,
+        },
+      }),
   });
 
   const simular = useMutation({
@@ -252,6 +273,12 @@ function PlaygroundPage() {
                 <strong>Passou o bastão.</strong> {r.handoff.reason}
               </p>
             )}
+            {primeira?.template && (
+              <p className="text-[11px] text-muted-foreground">
+                Abre com <strong>{primeira.template.nome}</strong>
+                {primeira.template.ehDeConsultoria ? " (slot de consultoria)" : " (slot padrão)"}
+              </p>
+            )}
             <div>
               <p className="section-label mt-2 mb-1">Ofertas no prompt ({r.ofertas.length})</p>
               {r.ofertas.length === 0 ? (
@@ -287,10 +314,35 @@ function PlaygroundPage() {
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+          {primeira && (
+            <div className="space-y-2">
+              <p className="text-center text-[11px] text-muted-foreground">
+                {primeira.template
+                  ? `Primeira mensagem · ${primeira.template.nome}`
+                  : "Primeira mensagem"}
+              </p>
+              {primeira.corpo && (
+                <div className="flex flex-row-reverse gap-2">
+                  <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
+                    <Bot className="h-3.5 w-3.5" />
+                  </span>
+                  <div className="max-w-[75%] whitespace-pre-wrap rounded-2xl bg-primary px-3 py-2 text-[13px] text-primary-foreground">
+                    {primeira.corpo}
+                  </div>
+                </div>
+              )}
+              {primeira.aviso && (
+                <p className="rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
+                  {primeira.aviso}
+                </p>
+              )}
+            </div>
+          )}
+
           {falas.length === 0 && (
-            <p className="mx-auto max-w-sm pt-10 text-center text-[12px] text-muted-foreground">
-              Experimente pedir preço, pedir para falar com alguém ou marcar uma reunião — são os
-              três momentos em que a IA deve passar o bastão.
+            <p className="mx-auto max-w-sm pt-6 text-center text-[12px] text-muted-foreground">
+              Agora responda como o lead responderia. Experimente pedir preço, pedir para falar com
+              alguém ou marcar uma reunião — são os três momentos que mudam o rumo.
             </p>
           )}
           {falas.map((f, i) => (
