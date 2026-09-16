@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { acharColuna, lerExportDeMarketing } from "./importar-marketing";
+import {
+  acharColuna,
+  dominioCorporativo,
+  lerExportDeMarketing,
+  nomeNormalizado,
+} from "./importar-marketing";
 
 describe("acharColuna", () => {
   const cabecalhos = ["Nome", "E-mail", "Telefone celular", "Última conversão", "Empresa"];
@@ -50,5 +55,36 @@ describe("lerExportDeMarketing", () => {
 
   it("não quebra com export vazio", () => {
     expect(lerExportDeMarketing([])).toEqual({ leads: [], ignoradas: 0 });
+  });
+});
+
+describe("dominioCorporativo", () => {
+  it("devolve o domínio de e-mail corporativo", () => {
+    expect(dominioCorporativo("ana@industriaexemplo.com.br")).toBe("industriaexemplo.com.br");
+  });
+
+  it("ignora provedor pessoal", () => {
+    // Ligar por "gmail.com" juntaria milhares de pessoas numa empresa só.
+    for (const e of ["a@gmail.com", "b@hotmail.com", "c@uol.com.br", "d@icloud.com"]) {
+      expect({ [e]: dominioCorporativo(e) }).toEqual({ [e]: null });
+    }
+  });
+
+  it("devolve nulo para lixo", () => {
+    expect(dominioCorporativo("")).toBeNull();
+    expect(dominioCorporativo("sem-arroba")).toBeNull();
+    expect(dominioCorporativo("@semlocal.com")).toBeNull();
+  });
+});
+
+describe("nomeNormalizado", () => {
+  it("bate com a normalização da coluna gerada", () => {
+    expect(nomeNormalizado("Indústria Exemplo S/A")).toBe("ind stria exemplo s a");
+    expect(nomeNormalizado("  ACME  LTDA. ")).toBe("acme ltda");
+  });
+
+  it("descarta nome curto demais, que casaria com qualquer coisa", () => {
+    expect(nomeNormalizado("RH")).toBeNull();
+    expect(nomeNormalizado("-")).toBeNull();
   });
 });

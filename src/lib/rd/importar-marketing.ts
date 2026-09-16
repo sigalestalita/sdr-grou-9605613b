@@ -118,3 +118,55 @@ export function lerExportDeMarketing(linhas: LinhaDoExport[]): {
 
   return { leads, ignoradas };
 }
+
+/*
+ * Ligar o contato à empresa.
+ *
+ * A base de marketing traz só um nome de empresa digitado à mão e um e-mail —
+ * sem CNPJ e sem identificador. As duas chaves que sobram têm confiança bem
+ * diferente, e é por isso que elas são tentadas em ordem.
+ */
+
+const PROVEDORES_PESSOAIS = new Set([
+  "gmail.com",
+  "hotmail.com",
+  "outlook.com",
+  "yahoo.com",
+  "yahoo.com.br",
+  "icloud.com",
+  "bol.com.br",
+  "uol.com.br",
+  "terra.com.br",
+  "live.com",
+  "msn.com",
+  "me.com",
+  "globo.com",
+  "protonmail.com",
+]);
+
+/**
+ * Domínio corporativo do e-mail, ou nulo.
+ *
+ * Provedor pessoal não diz nada sobre a empresa: ligar por "gmail.com"
+ * juntaria milhares de pessoas sem relação nenhuma numa empresa só.
+ */
+export function dominioCorporativo(email: string | null | undefined): string | null {
+  const e = (email ?? "").trim().toLowerCase();
+  const at = e.lastIndexOf("@");
+  if (at < 1) return null;
+  const dom = e.slice(at + 1);
+  if (!dom.includes(".")) return null;
+  return PROVEDORES_PESSOAIS.has(dom) ? null : dom;
+}
+
+/** Mesma normalização da coluna gerada companies.nome_normalizado. */
+export function nomeNormalizado(nome: string | null | undefined): string | null {
+  const n = (nome ?? "").trim();
+  if (!n) return null;
+  const norm = n
+    .toLowerCase()
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim();
+  // Nome curto demais casa com qualquer coisa: "as", "rh", "me".
+  return norm.length >= 3 ? norm : null;
+}

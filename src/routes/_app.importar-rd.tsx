@@ -75,6 +75,9 @@ function ImportarRdPage() {
     completados: 0,
     intocados: 0,
     conversoes: 0,
+    porDominio: 0,
+    porNome: 0,
+    semEmpresa: 0,
   });
   const parar = useRef(false);
 
@@ -87,7 +90,15 @@ function ImportarRdPage() {
     setLinhas(lidas);
     setFeitos(0);
     setTotal(0);
-    setResumo({ criados: 0, completados: 0, intocados: 0, conversoes: 0 });
+    setResumo({
+      criados: 0,
+      completados: 0,
+      intocados: 0,
+      conversoes: 0,
+      porDominio: 0,
+      porNome: 0,
+      semEmpresa: 0,
+    });
   }
 
   async function importar() {
@@ -107,6 +118,9 @@ function ImportarRdPage() {
           completados: s.completados + r.completados,
           intocados: s.intocados + r.intocados,
           conversoes: s.conversoes + r.conversoes,
+          porDominio: s.porDominio + r.vinculos.porDominio,
+          porNome: s.porNome + r.vinculos.porNome,
+          semEmpresa: s.semEmpresa + r.vinculos.semEmpresa,
         }));
         setFeitos(Math.min(i + LOTE, leads.length));
       }
@@ -200,6 +214,13 @@ function ImportarRdPage() {
                 <strong>{resumo.intocados}</strong> já estavam completos ·{" "}
                 <strong>{resumo.conversoes}</strong> conversões registradas
               </p>
+              {/* A qualidade do vínculo é o que decide se a base serve para
+                  segmentar depois, então aparece separada por chave. */}
+              <p className="text-[12px] text-muted-foreground">
+                Empresa vinculada: <strong>{resumo.porDominio}</strong> pelo domínio do e-mail ·{" "}
+                <strong>{resumo.porNome}</strong> pelo nome · <strong>{resumo.semEmpresa}</strong>{" "}
+                sem empresa
+              </p>
             </>
           )}
 
@@ -207,6 +228,12 @@ function ImportarRdPage() {
             Quem já existe na base não é sobrescrito: a importação só preenche campo vazio. Dado que
             veio do CRM ou que a SDR corrigiu à mão vale mais do que planilha de marketing. Pode
             rodar o mesmo arquivo de novo sem duplicar nada.
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            O vínculo com a empresa usa o domínio do e-mail e, na falta dele, o nome. Provedor
+            pessoal (gmail, hotmail) é ignorado de propósito: ligaria milhares de pessoas sem
+            relação numa empresa só. Empresa que ainda não existe não é criada — o nome fica no lead
+            e vira cadastro quando alguém for trabalhar a conta.
           </p>
         </div>
       )}

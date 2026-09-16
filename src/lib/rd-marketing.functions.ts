@@ -53,11 +53,51 @@ export const importarLoteDeMarketing = createServerFn({ method: "POST" })
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { phoneKey } = await import("@/lib/whatsapp/phone");
+    const { dominioCorporativo, nomeNormalizado } = await import("@/lib/rd/importar-marketing");
 
     let criados = 0;
     let completados = 0;
     let intocados = 0;
     let conversoes = 0;
+    const vinculos = { porDominio: 0, porNome: 0, semEmpresa: 0 };
+
+    /*
+     * Achar a empresa do contato.
+     *
+     * A base de marketing não traz CNPJ nem identificador — só um nome digitado
+     * à mão e um e-mail. Sobram duas chaves, e elas não têm a mesma confiança:
+     * domínio corporativo é praticamente certeza, nome é palpite bom.
+     *
+     * Empresa que não existe não é criada. Criar quarenta mil empresas a partir
+     * de nome livre encheria o cadastro de duplicata e erro de digitação — pior
+     * do que deixar o texto no lead e alguém promover quando for trabalhar.
+     */
+    async function acharEmpresa(l: {
+      email: string | null;
+      empresa: string | null;
+    }): Promise<{ id: string; via: "dominio" | "nome" } | null> {
+      const dom = dominioCorporativo(l.email);
+      if (dom) {
+        const { data } = await db
+          .from("companies")
+          .select("id")
+          .ilike("dominio", dom)
+          .limit(1)
+          .maybeSingle();
+        if (data) return { id: (data as { id: string }).id, via: "dominio" };
+      }
+      const nome = nomeNormalizado(l.empresa);
+      if (nome) {
+        const { data } = await db
+          .from("companies")
+          .select("id")
+          .eq("nome_normalizado", nome)
+          .limit(1)
+          .maybeSingle();
+        if (data) return { id: (data as { id: string }).id, via: "nome" };
+      }
+      return null;
+    }
 
     /*
      * Os tipos gerados ainda não conhecem phone_key nem rd_marketing_id: as
@@ -97,6 +137,14 @@ export const importarLoteDeMarketing = createServerFn({ method: "POST" })
 
       let leadId: string | null = existente?.id ?? null;
 
+      const empresa = await acharEmpresa(l);
+      if (empresa) {
+        if (empresa.via === "dominio") vinculos.porDominio += 1;
+        else vinculos.porNome += 1;
+      } else {
+        vinculos.semEmpresa += 1;
+      }
+
       if (!leadId) {
         const { data: novo, error } = await db
           .from("leads")
@@ -107,6 +155,7 @@ export const importarLoteDeMarketing = createServerFn({ method: "POST" })
             company_name: l.empresa,
             position: l.cargo,
             company_website: l.website,
+            company_id: empresa?.id ?? null,
             source: "rd_marketing",
             rd_marketing_id: l.rdMarketingId,
             created_at: dataOuNulo(l.criadoEm) ?? new Date().toISOString(),
@@ -129,7 +178,7 @@ export const importarLoteDeMarketing = createServerFn({ method: "POST" })
         const patch: Record<string, unknown> = { rd_marketing_id: l.rdMarketingId };
         const { data: atual } = await db
           .from("leads")
-          .select("email, phone, company_name, position, company_website")
+          .select("email, phone, company_name, position, company_website, company_id")
           .eq("id", leadId)
           .maybeSingle();
         const a = (atual ?? {}) as Record<string, string | null>;
@@ -138,6 +187,7 @@ export const importarLoteDeMarketing = createServerFn({ method: "POST" })
         if (!a.company_name && l.empresa) patch.company_name = l.empresa;
         if (!a.position && l.cargo) patch.position = l.cargo;
         if (!a.company_website && l.website) patch.company_website = l.website;
+        if (!a.company_id && empresa) patch.company_id = empresa.id;
 
         if (Object.keys(patch).length > 1) completados += 1;
         else intocados += 1;
@@ -160,5 +210,5 @@ export const importarLoteDeMarketing = createServerFn({ method: "POST" })
       }
     }
 
-    return { criados, completados, intocados, conversoes };
+    return { criados, completados, intocados, conversoes, vinculos };
   });
