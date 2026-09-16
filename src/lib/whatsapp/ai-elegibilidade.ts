@@ -19,6 +19,15 @@ export type LeadParaIa = {
   company_size: string | null;
   linkedin_company_size: string | null;
   assigned_to: string | null;
+  /**
+   * Já é cliente Grou.
+   *
+   * As condições da Black September que a IA conhece são só de quem ainda não
+   * é cliente. Cliente tem renovação, recarga e preço por crédito — e quem
+   * cuida disso é o CS e o executivo de carteira. A IA oferecendo renovação
+   * atropelaria esse atendimento e daria desconto que não é dela para dar.
+   */
+  ja_e_cliente?: boolean;
 };
 
 export type RegrasIa = {
@@ -63,6 +72,15 @@ export type DecisaoIa = {
 
 /** A IA deve atender este lead? */
 export function decidirAtendimento(lead: LeadParaIa, regras: RegrasIa = REGRAS_PADRAO): DecisaoIa {
+  if (lead.ja_e_cliente) {
+    return {
+      atende: false,
+      motivo:
+        "Já é cliente Grou: as condições que a IA conhece são de quem ainda não é cliente. Renovação, recarga e preço por crédito são do CS e do executivo de carteira.",
+      handoff: lead.lead_type === "consultoria" ? "consultoria" : "sdr_responsavel",
+    };
+  }
+
   if (lead.lead_type === "consultoria") {
     return regras.consultoriaAtendeTudo
       ? {

@@ -105,3 +105,40 @@ describe("assinaturaDaIa", () => {
     expect(assinaturaDaIa(null, "")).toBe("equipe Grou");
   });
 });
+
+describe("cliente atual não é atendido pela IA", () => {
+  const base = {
+    lead_type: null,
+    company_size: null,
+    linkedin_company_size: null,
+    assigned_to: null,
+  };
+
+  it("empresa cliente vai direto para a SDR responsável", () => {
+    const d = decidirAtendimento({ ...base, lead_type: "empresa", ja_e_cliente: true });
+    expect(d.atende).toBe(false);
+    expect(d.handoff).toBe("sdr_responsavel");
+  });
+
+  it("consultoria cliente vai para quem cuida de consultoria", () => {
+    const d = decidirAtendimento({ ...base, lead_type: "consultoria", ja_e_cliente: true });
+    expect(d.atende).toBe(false);
+    expect(d.handoff).toBe("consultoria");
+  });
+
+  it("ser cliente pesa mais do que a regra de porte", () => {
+    // Empresa pequena seria atendida; cliente, não.
+    const d = decidirAtendimento({
+      ...base,
+      lead_type: "empresa",
+      company_size: "11 - 50",
+      ja_e_cliente: true,
+    });
+    expect(d.atende).toBe(false);
+  });
+
+  it("quem não é cliente segue a regra de sempre", () => {
+    const d = decidirAtendimento({ ...base, lead_type: "consultoria", ja_e_cliente: false });
+    expect(d.atende).toBe(true);
+  });
+});

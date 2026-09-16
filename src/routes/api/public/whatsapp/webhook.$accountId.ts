@@ -509,15 +509,37 @@ async function handleInbound(
     const { decidirAtendimento } = await import("@/lib/whatsapp/ai-elegibilidade");
     const { data: leadRegra } = await admin
       .from("leads")
-      .select("lead_type, company_size, linkedin_company_size, assigned_to")
+      .select("lead_type, company_size, linkedin_company_size, assigned_to, company_id")
       .eq("id", leadId)
       .maybeSingle();
+
+    /*
+     * Já é cliente?
+     *
+     * As condições que a IA conhece são de quem ainda não é cliente. Cliente
+     * tem renovação, recarga e preço por crédito, e quem cuida disso é o CS e
+     * o executivo de carteira — a IA oferecendo renovação atropelaria esse
+     * atendimento e daria desconto que não é dela para dar.
+     */
+    let jaECliente = false;
+    if (leadRegra?.company_id) {
+      const { data: cliente } = await admin
+        .from("cs_clients")
+        .select("client_uid")
+        .eq("company_id", leadRegra.company_id)
+        .eq("ativo", true)
+        .limit(1)
+        .maybeSingle();
+      jaECliente = !!cliente;
+    }
+
     const decisao = decidirAtendimento(
       {
         lead_type: leadRegra?.lead_type ?? null,
         company_size: leadRegra?.company_size ?? null,
         linkedin_company_size: leadRegra?.linkedin_company_size ?? null,
         assigned_to: leadRegra?.assigned_to ?? null,
+        ja_e_cliente: jaECliente,
       },
       {
         empresaMaxFuncionarios:

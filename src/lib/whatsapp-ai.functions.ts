@@ -234,6 +234,14 @@ function buildAgentSystemPrompt(
         "Antes de falar de qualquer condição, descubra em uma pergunta se a pessoa busca para a própria empresa " +
         "ou se atende clientes como consultoria — as condições são diferentes, e citar a errada queima a oferta."
       : "",
+    /*
+     * As condições da campanha são só de quem ainda não é cliente. Cliente tem
+     * renovação, recarga e preço por crédito, que são do CS e do executivo de
+     * carteira. Se a pessoa disser que já é cliente, a IA para de ofertar.
+     */
+    "As condições que você conhece valem para quem AINDA NÃO é cliente Grou. " +
+      "Se o lead disser que já é cliente, não cite nenhuma condição: reconheça, diga que quem cuida de cliente " +
+      "é a pessoa responsável pela conta e faça o handoff imediatamente.",
     `Regras de handoff: ${settings.handoffPrompt}`,
     "Base de conhecimento comercial da operação:",
     GROU_PLAYBOOK,
