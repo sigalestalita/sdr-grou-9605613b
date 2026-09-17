@@ -21,6 +21,7 @@ import {
   saveTeam,
   sendUserPasswordReset,
   setSuperAdmin,
+  setCaixaPrivada,
   setUserAccess,
   setUserPassword,
 } from "@/lib/users.functions";
@@ -75,6 +76,7 @@ type UserRow = {
   isGestao: boolean;
   memberships: Membership[];
   modules: AppTeam[];
+  caixaPrivada: boolean;
 };
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : "Erro");
@@ -131,6 +133,20 @@ function UsersPage() {
     mutationFn: (v: { userId: string; on: boolean }) => superFn({ data: v }),
     onSuccess: (_r, v) => {
       toast.success(v.on ? "Agora é super admin" : "Deixou de ser super admin");
+      invalidate();
+    },
+    onError: (e) => toast.error(errMsg(e)),
+  });
+
+  const caixaFn = useServerFn(setCaixaPrivada);
+  const toggleCaixa = useMutation({
+    mutationFn: (v: { userId: string; privada: boolean }) => caixaFn({ data: v }),
+    onSuccess: (_r, v) => {
+      toast.success(
+        v.privada
+          ? "Caixa privada: as conversas dessa pessoa somem da caixa das outras"
+          : "Caixa compartilhada de novo",
+      );
       invalidate();
     },
     onError: (e) => toast.error(errMsg(e)),
@@ -281,6 +297,12 @@ function UsersPage() {
                     <th className="p-3 text-left">Times e tipos de acesso</th>
                     <th className="p-3 text-left">Enxerga</th>
                     <th className="p-3 text-left">Super admin</th>
+                    <th
+                      className="p-3 text-left"
+                      title="Conversas atribuídas a essa pessoa não aparecem para mais ninguém"
+                    >
+                      Caixa privada
+                    </th>
                     <th className="p-3 text-left">Desde</th>
                     <th className="p-3 text-right">Ações</th>
                   </tr>
@@ -347,6 +369,16 @@ function UsersPage() {
                               <ShieldCheck className="h-3.5 w-3.5 text-primary" strokeWidth={2} />
                             )}
                           </div>
+                        </td>
+                        <td className="p-3">
+                          <Switch
+                            checked={u.caixaPrivada}
+                            disabled={!canEdit || toggleCaixa.isPending}
+                            onCheckedChange={(privada) =>
+                              toggleCaixa.mutate({ userId: u.id, privada })
+                            }
+                            aria-label="Caixa de entrada privada"
+                          />
                         </td>
                         <td className="p-3 text-xs text-muted-foreground">
                           {new Date(u.created_at).toLocaleDateString("pt-BR")}

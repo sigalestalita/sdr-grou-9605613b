@@ -103,6 +103,15 @@ export const listConversations = createServerFn({ method: "GET" })
         );
       });
     }
+    /*
+     * Caixa privada: conversa atribuída a quem tem caixa reservada só aparece
+     * para a própria pessoa. Fica fora da lista antes de qualquer contagem,
+     * senão o número da tela entregaria que existe conversa escondida.
+     */
+    const { lerCaixasPrivadas, filtrarCaixasPrivadas } = await import("./whatsapp/caixa-privada");
+    const privadas = await lerCaixasPrivadas(supabase);
+    result = filtrarCaixasPrivadas(result, privadas, userId);
+
     const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
 
     /*

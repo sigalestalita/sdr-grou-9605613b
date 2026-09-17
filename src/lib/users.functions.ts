@@ -94,6 +94,8 @@ export const listUsers = createServerFn({ method: "GET" })
       supabaseAdmin.from("user_teams").select("user_id, team, access"),
       loadTeams(),
     ]);
+    const { lerCaixasPrivadas } = await import("./whatsapp/caixa-privada");
+    const caixasPrivadas = new Set(await lerCaixasPrivadas(supabaseAdmin));
     if (pErr) throw new Error(pErr.message);
     if (rErr) throw new Error(rErr.message);
     if (tErr) throw new Error(tErr.message);
@@ -128,9 +130,31 @@ export const listUsers = createServerFn({ method: "GET" })
           isGestao: userRoles.includes("gestao"),
           memberships,
           modules: modulesFromMemberships(memberships, teams),
+          /** Conversas dela na caixa de WhatsApp não aparecem para mais ninguém. */
+          caixaPrivada: caixasPrivadas.has(p.id as string),
         };
       }),
     };
+  });
+
+/**
+ * Liga ou desliga a caixa de entrada privada de alguém.
+ *
+ * Com ela ligada, a conversa atribuída a essa pessoa some da caixa de todo
+ * mundo, inclusive da gestão. Conversa sem responsável continua na fila geral.
+ */
+export const setCaixaPrivada = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ userId: z.string().uuid(), privada: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireSuperAdmin(context.userId, "alterar a caixa de entrada");
+    const { lerCaixasPrivadas, salvarCaixasPrivadas } = await import("./whatsapp/caixa-privada");
+    const atuais = await lerCaixasPrivadas(supabaseAdmin);
+    const proximos = data.privada
+      ? [...atuais, data.userId]
+      : atuais.filter((id) => id !== data.userId);
+    await salvarCaixasPrivadas(supabaseAdmin, proximos);
+    return { ok: true, privada: data.privada };
   });
 
 export const listTeams = createServerFn({ method: "GET" })
