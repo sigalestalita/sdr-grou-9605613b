@@ -8,7 +8,11 @@ import { getSettings, updateSetting, updateIcp } from "@/lib/settings.functions"
 import { testRdConnection, getRecentSyncLogs } from "@/lib/rd-station.functions";
 import { getRdAuthUrl, getRdConnectionStatus, disconnectRd } from "@/lib/rd-oauth.functions";
 import { revealServiceRoleKey } from "@/lib/admin-secrets.functions";
-import { syncLeadsFromSheet, getSheetSyncState } from "@/lib/sheets.functions";
+import {
+  syncLeadsFromSheet,
+  getSheetSyncState,
+  conferirPlanilhaNoPipeline,
+} from "@/lib/sheets.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +39,16 @@ function SettingsPage() {
   const revealFn = useServerFn(revealServiceRoleKey);
   const sheetSyncFn = useServerFn(syncLeadsFromSheet);
   const sheetStateFn = useServerFn(getSheetSyncState);
+  /*
+   * A sincronização devolve "inserted" e "skipped", e o skipped junta lead que
+   * já estava lá com lead que falhou ao entrar. A conferência separa os dois, e
+   * ainda mostra quem entrou na base mas não aparece no kanban.
+   */
+  const conferirFn = useServerFn(conferirPlanilhaNoPipeline);
+  const conferencia = useMutation({
+    mutationFn: () => conferirFn(),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao conferir"),
+  });
   const [revealed, setRevealed] = useState<{ url: string; serviceRoleKey: string } | null>(null);
   const reveal = useMutation({
     mutationFn: () => revealFn(),
@@ -43,9 +57,21 @@ function SettingsPage() {
   });
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: ["settings"], queryFn: () => fetchFn() });
-  const { data: logs } = useQuery({ queryKey: ["sync-logs"], queryFn: () => logsFn(), refetchInterval: 30000 });
-  const { data: rdStatus } = useQuery({ queryKey: ["rd-status"], queryFn: () => statusFn(), refetchInterval: 10000 });
-  const { data: sheetState } = useQuery({ queryKey: ["sheet-state"], queryFn: () => sheetStateFn(), refetchInterval: 15000 });
+  const { data: logs } = useQuery({
+    queryKey: ["sync-logs"],
+    queryFn: () => logsFn(),
+    refetchInterval: 30000,
+  });
+  const { data: rdStatus } = useQuery({
+    queryKey: ["rd-status"],
+    queryFn: () => statusFn(),
+    refetchInterval: 10000,
+  });
+  const { data: sheetState } = useQuery({
+    queryKey: ["sheet-state"],
+    queryFn: () => sheetStateFn(),
+    refetchInterval: 15000,
+  });
   const sheetSync = useMutation({
     mutationFn: () => sheetSyncFn({ data: {} }),
     onSuccess: (r) => {
@@ -57,45 +83,83 @@ function SettingsPage() {
 
   const connect = useMutation({
     mutationFn: async () => authUrlFn({ data: { origin: window.location.origin } }),
-    onSuccess: (r) => { window.location.href = r.url; },
+    onSuccess: (r) => {
+      window.location.href = r.url;
+    },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
   const disconnect = useMutation({
     mutationFn: () => disconnectFn(),
-    onSuccess: () => { toast.success("Desconectado"); qc.invalidateQueries({ queryKey: ["rd-status"] }); },
+    onSuccess: () => {
+      toast.success("Desconectado");
+      qc.invalidateQueries({ queryKey: ["rd-status"] });
+    },
   });
 
   const test = useMutation({
     mutationFn: () => testFn(),
-    onSuccess: (r) => r.ok ? toast.success(`OK. Pipelines: ${r.pipelines?.join(", ")}`) : toast.error(r.message),
+    onSuccess: (r) =>
+      r.ok ? toast.success(`OK. Pipelines: ${r.pipelines?.join(", ")}`) : toast.error(r.message),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
   const save = useMutation({
     mutationFn: (v: { key: string; value: unknown }) => updFn({ data: v }),
-    onSuccess: () => { toast.success("Salvo"); qc.invalidateQueries({ queryKey: ["settings"] }); },
+    onSuccess: () => {
+      toast.success("Salvo");
+      qc.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 
   const saveIcp = useMutation({
-    mutationFn: (v: { rules: Record<string, unknown>; thresholds: { high: number; medium: number; low: number } }) => updIcpFn({ data: v }),
-    onSuccess: () => { toast.success("ICP salvo"); qc.invalidateQueries({ queryKey: ["settings"] }); },
+    mutationFn: (v: {
+      rules: Record<string, unknown>;
+      thresholds: { high: number; medium: number; low: number };
+    }) => updIcpFn({ data: v }),
+    onSuccess: () => {
+      toast.success("ICP salvo");
+      qc.invalidateQueries({ queryKey: ["settings"] });
+    },
   });
 
-  if (isLoading || !data) return <div className="p-8 text-sm text-muted-foreground">Carregando…</div>;
+  if (isLoading || !data)
+    return <div className="p-8 text-sm text-muted-foreground">Carregando…</div>;
 
   const pipelineSetting = data.settings.find((s) => s.key === "rd_pipeline");
-  const pipelineName = (pipelineSetting?.value as { name?: string } | null)?.name ?? "Leads - Empresas";
+  const pipelineName =
+    (pipelineSetting?.value as { name?: string } | null)?.name ?? "Leads - Empresas";
   const tplSetting = data.settings.find((s) => s.key === "whatsapp_template");
   const tplText = (tplSetting?.value as { text?: string } | null)?.text ?? "";
   const slaSetting = data.settings.find((s) => s.key === "sla");
-  const sla = (slaSetting?.value as { first_approach_minutes?: number; stalled_days?: number } | null) ?? { first_approach_minutes: 60, stalled_days: 3 };
-  const windowDays = (data.settings.find((s) => s.key === "rd_sync_window_days")?.value as { days?: number } | null)?.days ?? 90;
-  const incMinutes = (data.settings.find((s) => s.key === "rd_sync_incremental_minutes")?.value as { minutes?: number } | null)?.minutes ?? 15;
-  const importAct = (data.settings.find((s) => s.key === "rd_import_activities")?.value as { enabled?: boolean } | null)?.enabled !== false;
-  const lastSync = (data.settings.find((s) => s.key === "rd_last_sync_at")?.value as { value?: string } | null)?.value ?? null;
+  const sla = (slaSetting?.value as {
+    first_approach_minutes?: number;
+    stalled_days?: number;
+  } | null) ?? { first_approach_minutes: 60, stalled_days: 3 };
+  const windowDays =
+    (data.settings.find((s) => s.key === "rd_sync_window_days")?.value as { days?: number } | null)
+      ?.days ?? 90;
+  const incMinutes =
+    (
+      data.settings.find((s) => s.key === "rd_sync_incremental_minutes")?.value as {
+        minutes?: number;
+      } | null
+    )?.minutes ?? 15;
+  const importAct =
+    (
+      data.settings.find((s) => s.key === "rd_import_activities")?.value as {
+        enabled?: boolean;
+      } | null
+    )?.enabled !== false;
+  const lastSync =
+    (data.settings.find((s) => s.key === "rd_last_sync_at")?.value as { value?: string } | null)
+      ?.value ?? null;
 
   const rules = (data.icp?.rules ?? {}) as Record<string, unknown>;
-  const thresholds = (data.icp?.thresholds ?? { high: 70, medium: 40, low: 15 }) as { high: number; medium: number; low: number };
+  const thresholds = (data.icp?.thresholds ?? { high: 70, medium: 40, low: 15 }) as {
+    high: number;
+    medium: number;
+    low: number;
+  };
 
   return (
     <div className="p-6 max-w-4xl space-y-4">
@@ -122,11 +186,17 @@ function SettingsPage() {
         <h2 className="font-semibold">Credenciais para o Claude</h2>
         <p className="text-xs text-muted-foreground">
           Cole os dois valores abaixo na sua conversa com o Claude (junto com o conteúdo de
-          <code className="mx-1">docs/RD_TO_SUPABASE.md</code>) para ele inserir os deals do RD diretamente no banco.
-          A <strong>service_role key</strong> bypassa RLS — trate como senha, não compartilhe em chat público.
+          <code className="mx-1">docs/RD_TO_SUPABASE.md</code>) para ele inserir os deals do RD
+          diretamente no banco. A <strong>service_role key</strong> bypassa RLS — trate como senha,
+          não compartilhe em chat público.
         </p>
         {!revealed ? (
-          <Button variant="destructive" size="sm" onClick={() => reveal.mutate()} disabled={reveal.isPending}>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => reveal.mutate()}
+            disabled={reveal.isPending}
+          >
             {reveal.isPending ? "Carregando…" : "Revelar service_role key"}
           </Button>
         ) : (
@@ -135,7 +205,14 @@ function SettingsPage() {
               <label className="text-xs text-muted-foreground">SUPABASE_URL</label>
               <div className="flex gap-2 mt-1">
                 <Input readOnly value={revealed.url} className="font-mono text-xs" />
-                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(revealed.url); toast.success("URL copiada"); }}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(revealed.url);
+                    toast.success("URL copiada");
+                  }}
+                >
                   Copiar
                 </Button>
               </div>
@@ -143,13 +220,27 @@ function SettingsPage() {
             <div>
               <label className="text-xs text-muted-foreground">SUPABASE_SERVICE_ROLE_KEY</label>
               <div className="flex gap-2 mt-1">
-                <Input readOnly value={revealed.serviceRoleKey} className="font-mono text-xs" type="password" />
-                <Button variant="outline" size="sm" onClick={() => { navigator.clipboard.writeText(revealed.serviceRoleKey); toast.success("Service role copiada"); }}>
+                <Input
+                  readOnly
+                  value={revealed.serviceRoleKey}
+                  className="font-mono text-xs"
+                  type="password"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(revealed.serviceRoleKey);
+                    toast.success("Service role copiada");
+                  }}
+                >
                   Copiar
                 </Button>
               </div>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setRevealed(null)}>Ocultar</Button>
+            <Button variant="ghost" size="sm" onClick={() => setRevealed(null)}>
+              Ocultar
+            </Button>
           </div>
         )}
       </Card>
@@ -164,18 +255,26 @@ function SettingsPage() {
         <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-900 dark:text-amber-200">
           <p className="font-medium mb-1">Sync OAuth experimental</p>
           <p>
-            A sincronização direta via OAuth está instável. O método recomendado hoje é
-            importar os deals usando o Claude (que já tem acesso ao RD CRM) e inserir direto
-            no banco. Veja o passo a passo em <code>docs/RD_TO_SUPABASE.md</code>.
+            A sincronização direta via OAuth está instável. O método recomendado hoje é importar os
+            deals usando o Claude (que já tem acesso ao RD CRM) e inserir direto no banco. Veja o
+            passo a passo em <code>docs/RD_TO_SUPABASE.md</code>.
           </p>
         </div>
         <div className="flex items-center gap-2">
           {rdStatus?.connected ? (
             <>
               <p className="text-xs text-muted-foreground flex-1">
-                Conectado em {rdStatus.connectedAt ? new Date(rdStatus.connectedAt).toLocaleString("pt-BR") : "—"}
+                Conectado em{" "}
+                {rdStatus.connectedAt
+                  ? new Date(rdStatus.connectedAt).toLocaleString("pt-BR")
+                  : "—"}
               </p>
-              <Button variant="outline" size="sm" onClick={() => disconnect.mutate()} disabled={disconnect.isPending}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => disconnect.mutate()}
+                disabled={disconnect.isPending}
+              >
                 Desconectar
               </Button>
             </>
@@ -191,7 +290,8 @@ function SettingsPage() {
             <Input
               defaultValue={pipelineName}
               onBlur={(e) => {
-                if (e.target.value !== pipelineName) save.mutate({ key: "rd_pipeline", value: { name: e.target.value } });
+                if (e.target.value !== pipelineName)
+                  save.mutate({ key: "rd_pipeline", value: { name: e.target.value } });
               }}
             />
             <Button variant="outline" onClick={() => test.mutate()} disabled={test.isPending}>
@@ -201,23 +301,51 @@ function SettingsPage() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs text-muted-foreground">Janela inicial (dias) — sync manual</label>
-            <Input type="number" defaultValue={windowDays} onBlur={(e) => { const v = Number(e.target.value); if (v !== windowDays) save.mutate({ key: "rd_sync_window_days", value: { days: v } }); }} />
+            <label className="text-xs text-muted-foreground">
+              Janela inicial (dias) — sync manual
+            </label>
+            <Input
+              type="number"
+              defaultValue={windowDays}
+              onBlur={(e) => {
+                const v = Number(e.target.value);
+                if (v !== windowDays)
+                  save.mutate({ key: "rd_sync_window_days", value: { days: v } });
+              }}
+            />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Janela incremental (minutos) — cron a cada 15min</label>
-            <Input type="number" defaultValue={incMinutes} onBlur={(e) => { const v = Number(e.target.value); if (v !== incMinutes) save.mutate({ key: "rd_sync_incremental_minutes", value: { minutes: v } }); }} />
+            <label className="text-xs text-muted-foreground">
+              Janela incremental (minutos) — cron a cada 15min
+            </label>
+            <Input
+              type="number"
+              defaultValue={incMinutes}
+              onBlur={(e) => {
+                const v = Number(e.target.value);
+                if (v !== incMinutes)
+                  save.mutate({ key: "rd_sync_incremental_minutes", value: { minutes: v } });
+              }}
+            />
           </div>
         </div>
         <div className="flex items-center justify-between pt-2 border-t">
           <div>
             <p className="text-sm font-medium">Importar atividades e notas do RD</p>
-            <p className="text-xs text-muted-foreground">Traz histórico de interações para a timeline do lead</p>
+            <p className="text-xs text-muted-foreground">
+              Traz histórico de interações para a timeline do lead
+            </p>
           </div>
-          <Switch checked={importAct} onCheckedChange={(v) => save.mutate({ key: "rd_import_activities", value: { enabled: v } })} />
+          <Switch
+            checked={importAct}
+            onCheckedChange={(v) =>
+              save.mutate({ key: "rd_import_activities", value: { enabled: v } })
+            }
+          />
         </div>
         <div className="text-xs text-muted-foreground pt-2 border-t">
-          Última sincronização: {lastSync ? new Date(lastSync).toLocaleString("pt-BR") : "nunca"} · Cron automático rodando a cada 15 min
+          Última sincronização: {lastSync ? new Date(lastSync).toLocaleString("pt-BR") : "nunca"} ·
+          Cron automático rodando a cada 15 min
         </div>
       </Card>
 
@@ -227,54 +355,157 @@ function SettingsPage() {
           <Badge variant="default">Conectado</Badge>
         </div>
         <p className="text-xs text-muted-foreground">
-          Toda nova linha na aba <code>entrada_correta</code> vira um card na coluna "Novos leads" e é
-          enriquecida automaticamente. A sincronização roda a cada 60s enquanto o Kanban está aberto.
+          Toda nova linha na aba <code>entrada_correta</code> vira um card na coluna "Novos leads" e
+          é enriquecida automaticamente. A sincronização roda a cada 60s enquanto o Kanban está
+          aberto.
         </p>
-        <a href={sheetState?.spreadsheet_url ?? "#"} target="_blank" rel="noreferrer" className="text-xs text-primary underline">
+        <a
+          href={sheetState?.spreadsheet_url ?? "#"}
+          target="_blank"
+          rel="noreferrer"
+          className="text-xs text-primary underline"
+        >
           Abrir planilha
         </a>
         <div className="text-xs text-muted-foreground">
-          Última sincronização: {sheetState?.state?.last_sync_at ? new Date(sheetState.state.last_sync_at).toLocaleString("pt-BR") : "nunca"}
+          Última sincronização:{" "}
+          {sheetState?.state?.last_sync_at
+            ? new Date(sheetState.state.last_sync_at).toLocaleString("pt-BR")
+            : "nunca"}
           {sheetState?.state?.total_rows != null && (
-            <> · {sheetState.state.total_rows} linhas na planilha · {sheetState.state.skipped_existing ?? 0} leads já no CRM</>
+            <>
+              {" "}
+              · {sheetState.state.total_rows} linhas na planilha ·{" "}
+              {sheetState.state.skipped_existing ?? 0} leads já no CRM
+            </>
           )}
         </div>
-        <Button size="sm" onClick={() => sheetSync.mutate()} disabled={sheetSync.isPending}>
-          {sheetSync.isPending ? "Sincronizando…" : "Sincronizar agora"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" onClick={() => sheetSync.mutate()} disabled={sheetSync.isPending}>
+            {sheetSync.isPending ? "Sincronizando…" : "Sincronizar agora"}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => conferencia.mutate()}
+            disabled={conferencia.isPending}
+          >
+            {conferencia.isPending ? "Conferindo…" : "Conferir se todos entraram"}
+          </Button>
+        </div>
+
+        {conferencia.data && (
+          <div className="mt-2 space-y-2 rounded-md border border-border p-3">
+            <p className="text-xs text-muted-foreground">
+              {conferencia.data.linhasNaPlanilha} linha(s) na planilha ·{" "}
+              {conferencia.data.conferidas} conferida(s)
+              {conferencia.data.vazias > 0 && <> · {conferencia.data.vazias} em branco</>}
+              {conferencia.data.repetidasNaPlanilha > 0 && (
+                <> · {conferencia.data.repetidasNaPlanilha} repetida(s) na própria planilha</>
+              )}
+            </p>
+            <ul className="space-y-1 text-xs">
+              <li className="text-emerald-600 dark:text-emerald-400">
+                ✓ {conferencia.data.contagem.no_pipeline} no kanban, com responsável
+              </li>
+              {conferencia.data.contagem.sem_responsavel > 0 && (
+                <li className="text-amber-600 dark:text-amber-400">
+                  ! {conferencia.data.contagem.sem_responsavel} no kanban, mas sem responsável —
+                  ninguém tem esse lead na própria fila
+                </li>
+              )}
+              {conferencia.data.contagem.oculto > 0 && (
+                <li className="text-amber-600 dark:text-amber-400">
+                  ! {conferencia.data.contagem.oculto} na base, porém ocultos do SDR
+                </li>
+              )}
+              {conferencia.data.contagem.fora_por_origem > 0 && (
+                <li className="text-amber-600 dark:text-amber-400">
+                  ! {conferencia.data.contagem.fora_por_origem} escondidos pelo filtro de origem do
+                  kanban (campaign_upload)
+                </li>
+              )}
+              {conferencia.data.contagem.ausente > 0 && (
+                <li className="text-destructive">
+                  ✕ {conferencia.data.contagem.ausente} na planilha e fora da base
+                </li>
+              )}
+            </ul>
+
+            {conferencia.data.problemas.length > 0 && (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted-foreground">
+                  ver as {conferencia.data.problemas.length} linha(s) com problema
+                </summary>
+                <ul className="mt-2 max-h-64 space-y-1 overflow-auto">
+                  {conferencia.data.problemas.map((p) => (
+                    <li key={p.leadId} className="border-b border-border/50 pb-1">
+                      <span className="font-medium">{p.nome ?? p.email ?? p.leadId}</span>
+                      {p.empresa ? ` · ${p.empresa}` : ""}
+                      <span className="block text-[11px] text-muted-foreground">{p.detalhe}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </div>
+        )}
       </Card>
 
       <Card className="p-5 space-y-2">
         <h2 className="font-semibold">Logs de sincronização</h2>
         <div className="text-xs space-y-1 max-h-64 overflow-auto">
           {(logs?.logs ?? []).map((l) => {
-            const d = (l.detail ?? {}) as { fetched?: number; created?: number; updated?: number; interactions?: number; error?: string };
+            const d = (l.detail ?? {}) as {
+              fetched?: number;
+              created?: number;
+              updated?: number;
+              interactions?: number;
+              error?: string;
+            };
             return (
               <div key={l.id} className="flex items-center justify-between border-b pb-1">
                 <div className="flex items-center gap-2">
-                  <Badge variant={l.status === "ok" ? "default" : "destructive"} className="text-[10px]">{l.status}</Badge>
+                  <Badge
+                    variant={l.status === "ok" ? "default" : "destructive"}
+                    className="text-[10px]"
+                  >
+                    {l.status}
+                  </Badge>
                   <span className="font-mono text-[11px]">{l.action}</span>
                   {l.status === "ok" ? (
-                    <span className="text-muted-foreground">{d.fetched ?? 0} deals · +{d.created ?? 0} novos · ~{d.updated ?? 0} atualizados · {d.interactions ?? 0} interações</span>
+                    <span className="text-muted-foreground">
+                      {d.fetched ?? 0} deals · +{d.created ?? 0} novos · ~{d.updated ?? 0}{" "}
+                      atualizados · {d.interactions ?? 0} interações
+                    </span>
                   ) : (
                     <span className="text-destructive truncate max-w-md">{d.error}</span>
                   )}
                 </div>
-                <span className="text-muted-foreground">{new Date(l.created_at).toLocaleString("pt-BR")}</span>
+                <span className="text-muted-foreground">
+                  {new Date(l.created_at).toLocaleString("pt-BR")}
+                </span>
               </div>
             );
           })}
-          {(logs?.logs ?? []).length === 0 && <p className="text-muted-foreground">Nenhuma sincronização ainda.</p>}
+          {(logs?.logs ?? []).length === 0 && (
+            <p className="text-muted-foreground">Nenhuma sincronização ainda.</p>
+          )}
         </div>
       </Card>
 
       <Card className="p-5 space-y-3">
         <h2 className="font-semibold">Template de mensagem WhatsApp</h2>
-        <p className="text-xs text-muted-foreground">Use {"{nome} {empresa} {tema} {dor}"} — IA usa como referência de estrutura.</p>
+        <p className="text-xs text-muted-foreground">
+          Use {"{nome} {empresa} {tema} {dor}"} — IA usa como referência de estrutura.
+        </p>
         <Textarea
           defaultValue={tplText}
           rows={4}
-          onBlur={(e) => { if (e.target.value !== tplText) save.mutate({ key: "whatsapp_template", value: { text: e.target.value } }); }}
+          onBlur={(e) => {
+            if (e.target.value !== tplText)
+              save.mutate({ key: "whatsapp_template", value: { text: e.target.value } });
+          }}
         />
       </Card>
 
@@ -286,7 +517,12 @@ function SettingsPage() {
             <Input
               type="number"
               defaultValue={sla.first_approach_minutes}
-              onBlur={(e) => save.mutate({ key: "sla", value: { ...sla, first_approach_minutes: Number(e.target.value) } })}
+              onBlur={(e) =>
+                save.mutate({
+                  key: "sla",
+                  value: { ...sla, first_approach_minutes: Number(e.target.value) },
+                })
+              }
             />
           </div>
           <div>
@@ -294,7 +530,9 @@ function SettingsPage() {
             <Input
               type="number"
               defaultValue={sla.stalled_days}
-              onBlur={(e) => save.mutate({ key: "sla", value: { ...sla, stalled_days: Number(e.target.value) } })}
+              onBlur={(e) =>
+                save.mutate({ key: "sla", value: { ...sla, stalled_days: Number(e.target.value) } })
+              }
             />
           </div>
         </div>
@@ -302,19 +540,29 @@ function SettingsPage() {
 
       <Card className="p-5 space-y-3">
         <h2 className="font-semibold">ICP — Pesos e thresholds</h2>
-        <IcpEditor rules={rules} thresholds={thresholds} onSave={(r, t) => saveIcp.mutate({ rules: r, thresholds: t })} />
+        <IcpEditor
+          rules={rules}
+          thresholds={thresholds}
+          onSave={(r, t) => saveIcp.mutate({ rules: r, thresholds: t })}
+        />
       </Card>
 
       <Card className="p-5 space-y-2">
         <h2 className="font-semibold">Etapas do Kanban</h2>
-        <p className="text-xs text-muted-foreground">{data.stages.length} etapas configuradas (edição completa em breve)</p>
+        <p className="text-xs text-muted-foreground">
+          {data.stages.length} etapas configuradas (edição completa em breve)
+        </p>
         <ul className="text-sm space-y-1">
           {data.stages.map((s) => (
             <li key={s.id} className="flex items-center gap-2">
               <span className="h-2 w-2 rounded-full" style={{ background: s.color }} />
               <span className="font-mono text-xs text-muted-foreground">{s.position}</span>
               <span>{s.name}</span>
-              {s.is_terminal && <Badge variant="outline" className="text-[10px]">terminal</Badge>}
+              {s.is_terminal && (
+                <Badge variant="outline" className="text-[10px]">
+                  terminal
+                </Badge>
+              )}
             </li>
           ))}
         </ul>
@@ -323,18 +571,62 @@ function SettingsPage() {
   );
 }
 
-function IcpEditor({ rules, thresholds, onSave }: { rules: Record<string, unknown>; thresholds: { high: number; medium: number; low: number }; onSave: (r: Record<string, unknown>, t: { high: number; medium: number; low: number }) => void }) {
+function IcpEditor({
+  rules,
+  thresholds,
+  onSave,
+}: {
+  rules: Record<string, unknown>;
+  thresholds: { high: number; medium: number; low: number };
+  onSave: (r: Record<string, unknown>, t: { high: number; medium: number; low: number }) => void;
+}) {
   const [r, setR] = useState(JSON.stringify(rules, null, 2));
   const [t, setT] = useState(thresholds);
   return (
     <div className="space-y-3">
-      <Textarea value={r} onChange={(e) => setR(e.target.value)} rows={10} className="font-mono text-xs" />
+      <Textarea
+        value={r}
+        onChange={(e) => setR(e.target.value)}
+        rows={10}
+        className="font-mono text-xs"
+      />
       <div className="grid grid-cols-3 gap-3">
-        <div><label className="text-xs">Alta ≥</label><Input type="number" value={t.high} onChange={(e) => setT({ ...t, high: Number(e.target.value) })} /></div>
-        <div><label className="text-xs">Média ≥</label><Input type="number" value={t.medium} onChange={(e) => setT({ ...t, medium: Number(e.target.value) })} /></div>
-        <div><label className="text-xs">Baixa ≥</label><Input type="number" value={t.low} onChange={(e) => setT({ ...t, low: Number(e.target.value) })} /></div>
+        <div>
+          <label className="text-xs">Alta ≥</label>
+          <Input
+            type="number"
+            value={t.high}
+            onChange={(e) => setT({ ...t, high: Number(e.target.value) })}
+          />
+        </div>
+        <div>
+          <label className="text-xs">Média ≥</label>
+          <Input
+            type="number"
+            value={t.medium}
+            onChange={(e) => setT({ ...t, medium: Number(e.target.value) })}
+          />
+        </div>
+        <div>
+          <label className="text-xs">Baixa ≥</label>
+          <Input
+            type="number"
+            value={t.low}
+            onChange={(e) => setT({ ...t, low: Number(e.target.value) })}
+          />
+        </div>
       </div>
-      <Button onClick={() => { try { onSave(JSON.parse(r), t); } catch { toast.error("JSON inválido"); } }}>Salvar ICP</Button>
+      <Button
+        onClick={() => {
+          try {
+            onSave(JSON.parse(r), t);
+          } catch {
+            toast.error("JSON inválido");
+          }
+        }}
+      >
+        Salvar ICP
+      </Button>
     </div>
   );
 }

@@ -93,7 +93,8 @@ function normalizePhone(raw: string | undefined | null): string | null {
   if (!raw) return null;
   const digits = String(raw).replace(/\D+/g, "");
   if (!digits) return null;
-  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13)) return `+${digits}`;
+  if (digits.startsWith("55") && (digits.length === 12 || digits.length === 13))
+    return `+${digits}`;
   if (digits.length >= 10 && digits.length <= 11) return `+55${digits}`;
   return `+${digits}`;
 }
@@ -185,14 +186,10 @@ function rowToLead(row: string[], sheetIndex: number, rowIndex: number): LeadRow
   if (!leadId) {
     // Fallback estável para abas sem Lead_ID:
     // usa email/phone se houver, senão hash do conteúdo + posição.
-    const base = email ?? phone ?? hashRow([
-      getRowValue(row, c.data),
-      nome,
-      sobrenome,
-      companyName,
-      position,
-      String(rowIndex),
-    ]);
+    const base =
+      email ??
+      phone ??
+      hashRow([getRowValue(row, c.data), nome, sobrenome, companyName, position, String(rowIndex)]);
     leadId = `${sheet.tab}:${base}`;
   }
   // Se a linha estiver totalmente vazia (sem nome, email, phone, empresa), ignora.
@@ -238,9 +235,15 @@ function rowToLead(row: string[], sheetIndex: number, rowIndex: number): LeadRow
 async function fetchSheetRows(): Promise<SheetFetchResult> {
   const LOVABLE_API_KEY = process.env.LOVABLE_API_KEY;
   const GOOGLE_SHEETS_API_KEY = process.env.GOOGLE_SHEETS_API_KEY;
-  if (!LOVABLE_API_KEY) return { ok: false, status: 500, message: "LOVABLE_API_KEY ausente", rateLimited: false };
+  if (!LOVABLE_API_KEY)
+    return { ok: false, status: 500, message: "LOVABLE_API_KEY ausente", rateLimited: false };
   if (!GOOGLE_SHEETS_API_KEY) {
-    return { ok: false, status: 500, message: "GOOGLE_SHEETS_API_KEY ausente — conecte o Google Sheets em Connectors", rateLimited: false };
+    return {
+      ok: false,
+      status: 500,
+      message: "GOOGLE_SHEETS_API_KEY ausente — conecte o Google Sheets em Connectors",
+      rateLimited: false,
+    };
   }
   const params = SHEET_RANGES.map((r) => `ranges=${encodeURIComponent(r)}`).join("&");
   const url = `${GATEWAY}/spreadsheets/${SPREADSHEET_ID}/values:batchGet?${params}`;
@@ -251,11 +254,17 @@ async function fetchSheetRows(): Promise<SheetFetchResult> {
     },
   }).catch(() => null);
   if (!res) {
-    return { ok: false, status: 503, message: "Falha temporária ao consultar o Google Sheets", rateLimited: false };
+    return {
+      ok: false,
+      status: 503,
+      message: "Falha temporária ao consultar o Google Sheets",
+      rateLimited: false,
+    };
   }
   if (!res.ok) {
     const body = await res.text();
-    const rateLimited = res.status === 429 || body.includes('"code": 429') || body.includes("Quota exceeded");
+    const rateLimited =
+      res.status === 429 || body.includes('"code": 429') || body.includes("Quota exceeded");
     return {
       ok: false,
       status: res.status,
@@ -275,7 +284,9 @@ async function fetchSheetRows(): Promise<SheetFetchResult> {
 
 export const syncLeadsFromSheet = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ limit: z.number().int().min(1).max(5000).optional() }).parse(d ?? {}))
+  .inputValidator((d) =>
+    z.object({ limit: z.number().int().min(1).max(5000).optional() }).parse(d ?? {}),
+  )
   .handler(async ({ data, context }) => {
     const { supabase } = context;
 
@@ -285,18 +296,31 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       .select("value")
       .eq("key", "sheets_sync_state")
       .maybeSingle();
-    const prevState = (prev?.value ?? null) as null | { last_sync_at?: string; last_attempt_at?: string };
+    const prevState = (prev?.value ?? null) as null | {
+      last_sync_at?: string;
+      last_attempt_at?: string;
+    };
     const lastAttempt = prevState?.last_attempt_at ?? prevState?.last_sync_at;
     if (lastAttempt) {
       const ageMs = Date.now() - new Date(lastAttempt).getTime();
       if (ageMs < SYNC_MIN_INTERVAL_MS) {
-        return { total: 0, parsed: 0, inserted: 0, skipped: 0, throttled: true, retry_after_ms: SYNC_MIN_INTERVAL_MS - ageMs };
+        return {
+          total: 0,
+          parsed: 0,
+          inserted: 0,
+          skipped: 0,
+          throttled: true,
+          retry_after_ms: SYNC_MIN_INTERVAL_MS - ageMs,
+        };
       }
     }
 
     const startedAt = new Date().toISOString();
     await supabase.from("app_settings").upsert(
-      { key: "sheets_sync_state", value: { ...(prevState ?? {}), last_attempt_at: startedAt, status: "running" } as never } as never,
+      {
+        key: "sheets_sync_state",
+        value: { ...(prevState ?? {}), last_attempt_at: startedAt, status: "running" } as never,
+      } as never,
       { onConflict: "key" },
     );
 
@@ -309,10 +333,11 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
         last_error: sheetResult.message,
         status: sheetResult.rateLimited ? "rate_limited" : "error",
       };
-      await supabase.from("app_settings").upsert(
-        { key: "sheets_sync_state", value: stateValue as never } as never,
-        { onConflict: "key" },
-      );
+      await supabase
+        .from("app_settings")
+        .upsert({ key: "sheets_sync_state", value: stateValue as never } as never, {
+          onConflict: "key",
+        });
       await supabase.from("integration_logs").insert({
         provider: "google_sheets",
         action: "sync_leads",
@@ -476,15 +501,22 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       skipped_existing: existingIds.size,
       insert_errors: insertErrors,
     };
-    await supabase.from("app_settings").upsert(
-      { key: "sheets_sync_state", value: stateValue as never } as never,
-      { onConflict: "key" },
-    );
+    await supabase
+      .from("app_settings")
+      .upsert({ key: "sheets_sync_state", value: stateValue as never } as never, {
+        onConflict: "key",
+      });
     await supabase.from("integration_logs").insert({
       provider: "google_sheets",
       action: "sync_leads",
       status: insertErrors.length ? "partial" : "ok",
-      detail: { total, parsed: parsed.length, inserted, skipped, insert_errors: insertErrors } as never,
+      detail: {
+        total,
+        parsed: parsed.length,
+        inserted,
+        skipped,
+        insert_errors: insertErrors,
+      } as never,
     });
 
     return { total, parsed: parsed.length, inserted, skipped };
@@ -548,4 +580,157 @@ export const backfillDemoFreeFromSheet = createServerFn({ method: "POST" })
       if (!error && rows && rows.length > 0) updated += rows.length;
     }
     return { ok: true as const, scanned: parsed.length, updated };
+  });
+/*
+ * Conferência: a planilha bate com o pipeline?
+ *
+ * A sincronização devolve "inserted" e "skipped", e o skipped junta duas
+ * coisas muito diferentes: lead que já estava lá (certo) e lead que falhou ao
+ * entrar (errado). Com um número só não dá para saber se alguém ficou de fora.
+ *
+ * E entrar na tabela não é o mesmo que aparecer no kanban. Duas coisas escondem
+ * um lead que existe:
+ *   * oculto_sdr, que a política de RLS usa para tirar da frente o que veio do
+ *     RD e a base de marketing;
+ *   * o filtro do próprio kanban, que exclui source = campaign_upload.
+ *
+ * A conferência olha linha a linha e diz em qual dos casos cada uma está.
+ */
+
+export type LinhaConferida = {
+  leadId: string;
+  nome: string | null;
+  email: string | null;
+  empresa: string | null;
+  situacao: "no_pipeline" | "sem_responsavel" | "oculto" | "fora_por_origem" | "ausente";
+  detalhe: string;
+};
+
+export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
+    if (!isMgr) throw new Error("Apenas gestores conferem a planilha.");
+
+    const planilha = await fetchSheetRows();
+    if (!planilha.ok) throw new Error(planilha.message ?? "Não consegui ler a planilha");
+
+    // As mesmas regras da sincronização, para conferir o que ela conferiria.
+    const linhas: LeadRow[] = [];
+    const vistos = new Set<string>();
+    let vazias = 0;
+    let repetidasNaPlanilha = 0;
+    for (const item of planilha.rows) {
+      const r = rowToLead(item.row, item.sheetIndex, item.rowIndex);
+      if (!r) {
+        vazias += 1;
+        continue;
+      }
+      if (vistos.has(r.meta_lead_id)) {
+        repetidasNaPlanilha += 1;
+        continue;
+      }
+      vistos.add(r.meta_lead_id);
+      linhas.push(r);
+    }
+
+    /*
+     * Lê com o cliente de serviço, e não com o do usuário.
+     *
+     * A política de RLS esconde oculto_sdr, e é justamente esse o caso que a
+     * conferência precisa enxergar: lead que existe mas não aparece. Com o
+     * cliente do usuário, ele apareceria como "ausente" e a conta mentiria.
+     */
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const porLeadId = new Map<
+      string,
+      { oculto: boolean; source: string | null; assigned: string | null }
+    >();
+    const porEmail = new Map<
+      string,
+      { oculto: boolean; source: string | null; assigned: string | null }
+    >();
+
+    const PAGINA = 1000;
+    for (let de = 0; ; de += PAGINA) {
+      const { data, error } = await supabaseAdmin
+        .from("leads")
+        .select("email, form_payload, oculto_sdr, source, assigned_to")
+        .range(de, de + PAGINA - 1);
+      if (error || !data || data.length === 0) break;
+      for (const r of data) {
+        const rr = r as {
+          email: string | null;
+          form_payload: { lead_id?: string } | null;
+          oculto_sdr: boolean | null;
+          source: string | null;
+          assigned_to: string | null;
+        };
+        const info = {
+          oculto: rr.oculto_sdr === true,
+          source: rr.source,
+          assigned: rr.assigned_to,
+        };
+        if (rr.form_payload?.lead_id) porLeadId.set(rr.form_payload.lead_id, info);
+        if (rr.email) porEmail.set(rr.email.toLowerCase(), info);
+      }
+      if (data.length < PAGINA) break;
+    }
+
+    const problemas: LinhaConferida[] = [];
+    const contagem = {
+      no_pipeline: 0,
+      sem_responsavel: 0,
+      oculto: 0,
+      fora_por_origem: 0,
+      ausente: 0,
+    };
+
+    for (const l of linhas) {
+      const email = l.payload.email?.toLowerCase() ?? null;
+      const achado = porLeadId.get(l.meta_lead_id) ?? (email ? porEmail.get(email) : undefined);
+
+      let situacao: LinhaConferida["situacao"];
+      let detalhe: string;
+
+      if (!achado) {
+        situacao = "ausente";
+        detalhe = "Está na planilha e não existe na base. A sincronização não conseguiu inserir.";
+      } else if (achado.oculto) {
+        situacao = "oculto";
+        detalhe = "Existe na base, mas está marcado como oculto do SDR e não aparece no kanban.";
+      } else if ((achado.source ?? "") === "campaign_upload") {
+        situacao = "fora_por_origem";
+        detalhe =
+          'Existe e está visível, mas o kanban esconde quem tem origem "campaign_upload". Troque a origem para ele aparecer.';
+      } else if (!achado.assigned) {
+        situacao = "sem_responsavel";
+        detalhe = "Está no kanban, mas sem responsável — ninguém tem esse lead na própria fila.";
+      } else {
+        situacao = "no_pipeline";
+        detalhe = "No kanban, com responsável.";
+      }
+
+      contagem[situacao] += 1;
+      if (situacao !== "no_pipeline" && problemas.length < 300) {
+        problemas.push({
+          leadId: l.meta_lead_id,
+          nome: l.payload.name ?? null,
+          email: l.payload.email ?? null,
+          empresa: l.payload.company_name ?? null,
+          situacao,
+          detalhe,
+        });
+      }
+    }
+
+    return {
+      linhasNaPlanilha: planilha.rows.length,
+      conferidas: linhas.length,
+      vazias,
+      repetidasNaPlanilha,
+      contagem,
+      problemas,
+    };
   });
