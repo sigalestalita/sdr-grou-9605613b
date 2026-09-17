@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { LostReasonFilter } from "@/components/leads/lost-reason-filter";
+import { MOTIVOS_DE_DESCARTE, agruparMotivos, valorDoMotivo } from "@/lib/leads/motivos-descarte";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import {
   LEAD_TYPE_LABEL,
@@ -372,8 +373,7 @@ function KanbanPage() {
     if (lostReasons.length) {
       const stage = data.stages.find((s) => s.id === l.stage_id) ?? null;
       if (stage?.slug !== "desqualificado") return false;
-      const reason = (l.lost_reason ?? "").trim();
-      if (!lostReasons.includes(reason || "__nd")) return false;
+      if (!lostReasons.includes(valorDoMotivo(l.lost_reason) ?? "__nd")) return false;
     }
     if (leadTypeFilter !== "all") {
       const t = resolveLeadType(l);
@@ -498,7 +498,12 @@ function KanbanPage() {
     (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
   );
   const disqualifiedStageId = data.stages.find((s) => s.slug === "desqualificado")?.id ?? null;
-  const lostReasonCounts = new Map<string, number>();
+  /*
+   * O filtro junta as grafias de um mesmo motivo: "Sem perfil", "sem perfil" e
+   * "SEM PERFIL" viram uma linha só, com a soma. Texto livre continua à vista,
+   * agrupado pela grafia mais usada.
+   */
+  const motivosDosDescartados: string[] = [];
   let lostWithoutReason = 0;
   for (const l of funnelLeads) {
     if (!disqualifiedStageId || l.stage_id !== disqualifiedStageId) continue;
@@ -507,11 +512,9 @@ function KanbanPage() {
       lostWithoutReason += 1;
       continue;
     }
-    lostReasonCounts.set(reason, (lostReasonCounts.get(reason) ?? 0) + 1);
+    motivosDosDescartados.push(reason);
   }
-  const lostReasonOptions = Array.from(lostReasonCounts.entries()).sort(
-    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-  );
+  const lostReasonOptions = agruparMotivos(motivosDosDescartados);
   const assigneeOptions = data.profiles
     .filter((p) => assignedIds.has(p.id))
     .map((p) => ({ id: p.id, label: (p.full_name || p.email || "—").trim() }))
@@ -764,7 +767,11 @@ function KanbanPage() {
             </select>
             {lostReasonOptions.length === 0 && lostWithoutReason === 0 ? null : (
               <LostReasonFilter
-                options={lostReasonOptions.map(([reason, count]) => ({ reason, count }))}
+                options={lostReasonOptions.map((m) => ({
+                  reason: m.valor,
+                  label: m.rotulo,
+                  count: m.total,
+                }))}
                 withoutReasonCount={lostWithoutReason}
                 value={lostReasons}
                 onChange={setLostReasons}
@@ -1795,14 +1802,7 @@ function LostReasonDialog({
   onClose: () => void;
   onPick: (reason: string) => void;
 }) {
-  const reasons = [
-    "Sem perfil",
-    "Sem fit com soluções",
-    "Sem contato",
-    "Sem orçamento",
-    "Timing inadequado",
-    "Concorrência",
-  ];
+  const reasons = MOTIVOS_DE_DESCARTE;
   const [selected, setSelected] = useState<string>(reasons[0]);
   const [custom, setCustom] = useState("");
   const isOther = selected === "__other";

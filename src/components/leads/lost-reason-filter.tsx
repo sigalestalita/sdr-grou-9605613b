@@ -1,9 +1,22 @@
 import { useMemo, useState } from "react";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
-export type LostReasonOption = { reason: string; count: number };
+export type LostReasonOption = {
+  /** O valor usado no filtro. Grafias do mesmo motivo compartilham este valor. */
+  reason: string;
+  /** O que a pessoa lê, quando difere do valor (texto livre, por exemplo). */
+  label?: string;
+  count: number;
+};
 
 type Props = {
   options: LostReasonOption[];
@@ -32,7 +45,7 @@ export function LostReasonFilter({
   const items = useMemo(() => {
     const list: Array<{ key: string; label: string; count: number | null }> = options.map((o) => ({
       key: o.reason,
-      label: o.reason,
+      label: o.label ?? o.reason,
       count: o.count,
     }));
     if (withoutReasonCount > 0 || showWithoutReason) {
@@ -100,7 +113,11 @@ export function LostReasonFilter({
                 {items.map((item) => {
                   const active = value.includes(item.key);
                   return (
-                    <CommandItem key={item.key} value={item.label} onSelect={() => toggle(item.key)}>
+                    <CommandItem
+                      key={item.key}
+                      value={item.label}
+                      onSelect={() => toggle(item.key)}
+                    >
                       <Check className={`mr-2 h-4 w-4 ${active ? "opacity-100" : "opacity-0"}`} />
                       <span className="flex-1 truncate">{item.label}</span>
                       {item.count !== null && (

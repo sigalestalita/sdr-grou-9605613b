@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type";
+import { MOTIVOS_DE_DESCARTE } from "@/lib/leads/motivos-descarte";
 import {
   ArrowLeft,
   MessageSquare,
@@ -451,9 +452,10 @@ function LeadDetailPage() {
                   </Badge>
                 </div>
                 {(() => {
-                  const presets = ["Sem perfil", "Sem fit com soluções", "Sem contato"];
+                  // A mesma lista do diálogo e do filtro do kanban.
+                  const presets = MOTIVOS_DE_DESCARTE;
                   const current = lead.lost_reason ?? "";
-                  const isPreset = presets.includes(current);
+                  const isPreset = (presets as readonly string[]).includes(current);
                   return (
                     <div className="space-y-2">
                       <Select
@@ -871,17 +873,11 @@ function LostReasonDialog({
   onClose: () => void;
   onConfirm: (reason: string) => void;
 }) {
-  const reasons = [
-    "Sem perfil",
-    "Sem fit com soluções",
-    "Sem contato",
-    "Sem orçamento",
-    "Timing inadequado",
-    "Concorrência",
-  ];
-  const initialMatch = reasons.includes(initial) ? initial : initial ? "__other" : reasons[0];
+  const reasons = MOTIVOS_DE_DESCARTE;
+  const jaEhOficial = (reasons as readonly string[]).includes(initial);
+  const initialMatch = jaEhOficial ? initial : initial ? "__other" : reasons[0];
   const [selected, setSelected] = useState<string>(initialMatch);
-  const [custom, setCustom] = useState(reasons.includes(initial) ? "" : initial);
+  const [custom, setCustom] = useState(jaEhOficial ? "" : initial);
   const isOther = selected === "__other";
   const finalReason = isOther ? custom.trim() : selected;
   return (
