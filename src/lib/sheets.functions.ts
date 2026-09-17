@@ -529,20 +529,42 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
     ];
     let reconversoes = 0;
     let desocultados = 0;
+    let completados = 0;
+    let roteados = 0;
+    /*
+     * Só distribui quem converteu há pouco.
+     *
+     * Quem chega pelo RD entra sem tipo de lead, e sem tipo o roteamento não
+     * sabe para qual SDR mandar — por isso tanta gente ficou sem dono. Agora a
+     * planilha preenche o tipo e o lead passa a poder ser distribuído. A
+     * janela existe para não despejar a fila inteira de uma vez na primeira
+     * sincronização depois desta mudança.
+     */
+    const JANELA_DE_ROTEAMENTO_MS = 7 * 24 * 60 * 60 * 1000;
+    const { ensureLeadRouted } = await import("./lead-routing.server");
+
     for (const { leadId, oculto, linha } of paraRegistrar) {
       const quando = linha.payload.submitted_at ?? new Date().toISOString();
       const { data: atual } = await supabaseAdmin
         .from("leads")
-        .select("form_payload")
+        .select(
+          "form_payload, lead_type, company_size, position, company_segment, probable_pain, demo_free, campaign, ad_name, phone, company_name, assigned_to",
+        )
         .eq("id", leadId)
         .maybeSingle();
-      const anterior = ((atual as { form_payload?: Record<string, unknown> } | null)
-        ?.form_payload ?? {}) as Record<string, unknown>;
+      const leadAtual = (atual ?? {}) as Record<string, unknown>;
+      const anterior = ((leadAtual.form_payload ?? {}) as Record<string, unknown>) ?? {};
       const historico = Array.isArray(anterior.reconversoes) ? anterior.reconversoes : [];
       const patch: Record<string, unknown> = {
         last_action_at: quando,
         form_payload: {
           ...anterior,
+          // O tipo de lead do formulário do Meta: é ele que o kanban lê e o
+          // roteamento usa. Quem entrou pelo RD chega sem nada disso.
+          lead_type:
+            anterior.lead_type ??
+            (linha.payload.form_payload as { lead_type?: string } | null)?.lead_type ??
+            null,
           reconversoes: [
             ...historico,
             {
@@ -554,6 +576,34 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
           ],
         },
       };
+
+      /*
+       * A planilha traz o que o RD não tem: tipo de lead, porte, cargo, área e
+       * a dor declarada no formulário. Preenche só o que está vazio — o que já
+       * foi apurado pelo enriquecimento ou pela SDR continua valendo.
+       */
+      const vazio = (v: unknown) => v === null || v === undefined || String(v).trim() === "";
+      const doFormulario: Record<string, unknown> = {
+        lead_type: normalizeLeadType(
+          (linha.payload.form_payload as { lead_type?: string } | null)?.lead_type ?? null,
+        ),
+        company_size: linha.payload.company_size,
+        position: linha.payload.position,
+        company_segment: linha.payload.company_segment,
+        probable_pain: linha.payload.probable_pain,
+        demo_free: linha.payload.demo_free,
+        campaign: linha.payload.campaign,
+        ad_name: linha.payload.ad_name,
+        phone: linha.payload.phone,
+        company_name: linha.payload.company_name,
+      };
+      let preencheu = false;
+      for (const [campo, valor] of Object.entries(doFormulario)) {
+        if (vazio(valor)) continue;
+        if (!vazio(leadAtual[campo])) continue;
+        patch[campo] = valor;
+        preencheu = true;
+      }
       if (oculto) {
         patch.oculto_sdr = false;
         patch.stage_id = novoId;
@@ -565,7 +615,19 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
         .eq("id", leadId);
       if (errRec) continue;
       reconversoes += 1;
+      if (preencheu) completados += 1;
       if (oculto) desocultados += 1;
+
+      // Agora que o lead tem tipo, o roteamento consegue escolher a SDR.
+      const recente = Date.now() - new Date(quando).getTime() <= JANELA_DE_ROTEAMENTO_MS;
+      if (preencheu && recente && vazio(leadAtual.assigned_to)) {
+        try {
+          const dono = await ensureLeadRouted({ supabase: supabaseAdmin, leadId });
+          if (dono) roteados += 1;
+        } catch {
+          /* distribuir é melhor-esforço: não pode derrubar a sincronização */
+        }
+      }
     }
 
     // Disparar notificações por e-mail (não bloqueia o resultado da sync).
@@ -591,6 +653,8 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       parsed: parsed.length,
       inserted_total_run: inserted,
       reconversoes,
+      completados,
+      roteados,
       desocultados,
       skipped_existing: existingIds.size,
       insert_errors: insertErrors,
@@ -609,13 +673,24 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
         parsed: parsed.length,
         inserted,
         reconversoes,
+        completados,
+        roteados,
         desocultados,
         skipped,
         insert_errors: insertErrors,
       } as never,
     });
 
-    return { total, parsed: parsed.length, inserted, reconversoes, desocultados, skipped };
+    return {
+      total,
+      parsed: parsed.length,
+      inserted,
+      reconversoes,
+      completados,
+      roteados,
+      desocultados,
+      skipped,
+    };
   });
 
 export const getSheetSyncState = createServerFn({ method: "GET" })

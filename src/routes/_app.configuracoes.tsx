@@ -85,7 +85,7 @@ function SettingsPage() {
     mutationFn: () => sheetSyncFn({ data: {} }),
     onSuccess: (r) => {
       toast.success(
-        `Sheet: +${r.inserted} novos · ${r.reconversoes} reconversões · ${r.skipped} já existiam · ${r.total} linhas`,
+        `Sheet: +${r.inserted} novos · ${r.reconversoes} reconversões · ${r.completados} completados · ${r.roteados} distribuídos · ${r.total} linhas`,
       );
       qc.invalidateQueries({ queryKey: ["sheet-state"] });
     },
