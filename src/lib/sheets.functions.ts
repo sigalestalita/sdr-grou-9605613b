@@ -366,31 +366,68 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       parsed.push(r);
     }
 
-    // Buscar todos os lead_ids já importados via Meta (paginando para evitar o limite de 1000).
+    // Descobrir o que já existe no banco. Usa o cliente admin porque leads ocultos
+    // (importação RD) não aparecem pela RLS do usuário — sem eles a sync tentava
+    // reinserir e batia no índice único de e-mail. A busca é feita por chaves da
+    // planilha (em lotes) em vez de varrer a tabela toda, que estourava o timeout
+    // e deixava o conjunto de comparação incompleto.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const existingIds = new Set<string>();
     const existingEmails = new Set<string>();
-    const PAGE = 1000;
-    for (let from = 0; ; from += PAGE) {
-      const { data: rows2, error } = await supabase
+    const scanErrors: string[] = [];
+    const inChunks = <T,>(arr: T[], size: number): T[][] => {
+      const out: T[][] = [];
+      for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+      return out;
+    };
+
+    const wantedIds = [...new Set(parsed.map((p) => p.meta_lead_id.trim()).filter(Boolean))];
+    for (const part of inChunks(wantedIds, 200)) {
+      const { data: rows2, error } = await supabaseAdmin
         .from("leads")
-        .select("email, form_payload")
-        .range(from, from + PAGE - 1);
-      if (error || !rows2 || rows2.length === 0) break;
-      for (const r of rows2) {
-        const rr = r as { email: string | null; form_payload: { lead_id?: string } | null };
-        const lid = rr.form_payload?.lead_id;
-        if (lid) existingIds.add(lid);
-        if (rr.email) existingEmails.add(rr.email.toLowerCase());
+        .select("lid:form_payload->>lead_id")
+        .in("form_payload->>lead_id", part);
+      if (error) {
+        if (scanErrors.length < 5) scanErrors.push(`ids: ${error.message}`);
+        continue;
       }
-      if (rows2.length < PAGE) break;
+      for (const r of rows2 ?? []) {
+        const lid = (r as { lid: string | null }).lid;
+        if (lid) existingIds.add(lid.trim());
+      }
     }
+
+    const wantedEmails = [
+      ...new Set(
+        parsed
+          .map((p) => p.payload.email?.trim().toLowerCase() ?? "")
+          .filter((e) => e.includes("@")),
+      ),
+    ];
+    for (const part of inChunks(wantedEmails, 200)) {
+      const { data: rows2, error } = await supabaseAdmin
+        .from("leads")
+        .select("email")
+        .or(part.map((e) => `email.ilike.${e}`).join(","));
+      if (error) {
+        if (scanErrors.length < 5) scanErrors.push(`emails: ${error.message}`);
+        continue;
+      }
+      for (const r of rows2 ?? []) {
+        const em = (r as { email: string | null }).email;
+        if (em) existingEmails.add(em.trim().toLowerCase());
+      }
+    }
+
+    // Dedup também por email (índice único em lower(email)) para evitar
+    // que um único conflito derrube o chunk inteiro.
 
     // Dedup também por email (índice único em lower(email)) para evitar
     // que um único conflito derrube o chunk inteiro.
     const seenEmail = new Set<string>();
     const toInsert = parsed.filter((p) => {
-      if (existingIds.has(p.meta_lead_id)) return false;
-      const em = p.payload.email?.toLowerCase() ?? null;
+      if (existingIds.has(p.meta_lead_id.trim())) return false;
+      const em = p.payload.email?.trim().toLowerCase() || null;
       if (em) {
         if (existingEmails.has(em)) return false;
         if (seenEmail.has(em)) return false;
@@ -472,7 +509,8 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
         if (!rowErr) {
           inserted += 1;
           if (rowData) insertedLeads.push(rowData as never);
-        } else if (insertErrors.length < 10) insertErrors.push(rowErr.message);
+        } else if (insertErrors.length < 10)
+          insertErrors.push(`${row.email ?? row.name}: ${rowErr.message}`);
       }
     }
 
@@ -500,6 +538,7 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       inserted_total_run: inserted,
       skipped_existing: existingIds.size,
       insert_errors: insertErrors,
+      scan_errors: scanErrors,
     };
     await supabase
       .from("app_settings")
