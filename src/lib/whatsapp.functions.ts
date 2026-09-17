@@ -23,6 +23,8 @@ export const listConversations = createServerFn({ method: "GET" })
         search: z.string().optional(),
         /** Número: "todos" ou o id da conta. Vazio = a conta da própria pessoa. */
         accountId: z.string().optional(),
+        /** Caixa: sdr (padrão) ou cs. É o que separa as duas áreas na mesma tabela. */
+        area: z.enum(["sdr", "cs"]).optional(),
       })
       .optional()
       .parse(d ?? {}),
@@ -36,6 +38,13 @@ export const listConversations = createServerFn({ method: "GET" })
       )
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(300);
+    /*
+     * A caixa do SDR não mostra conversa de cliente, e a do CS não mostra lead.
+     * Sem isso a transferência não significaria nada: a conversa mudaria de
+     * dono e continuaria aparecendo nos dois lugares.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    q = (q as any).eq("area", data?.area ?? "sdr");
     if (data?.status && data.status !== "all") q = q.eq("status", data.status);
     if (data?.assigned === "me") q = q.eq("assigned_user_id", userId);
     if (data?.assigned === "unassigned") q = q.is("assigned_user_id", null);

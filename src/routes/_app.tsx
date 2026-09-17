@@ -33,6 +33,8 @@ import {
   Menu,
   X,
   Upload,
+  MessageCircle,
+  Ticket,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -149,6 +151,8 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/cs-kanban", label: "Kanban semanal", icon: KanbanIcon, team: "cs" },
       { to: "/cs-cadencia", label: "Cadência e sinaleira", icon: Activity, team: "cs" },
       { to: "/cs-consultorias", label: "Consultorias", icon: Handshake, team: "cs" },
+      { to: "/cs-whatsapp", label: "WhatsApp CS", icon: MessageCircle, team: "cs" },
+      { to: "/cs-tickets", label: "Tickets", icon: Ticket, team: "cs" },
       {
         to: "/cs-integracoes",
         label: "Integrações",

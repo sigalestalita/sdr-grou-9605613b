@@ -543,16 +543,81 @@ async function handleInbound(
      * o executivo de carteira — a IA oferecendo renovação atropelaria esse
      * atendimento e daria desconto que não é dela para dar.
      */
-    let jaECliente = false;
-    if (leadRegra?.company_id) {
-      const { data: cliente } = await admin
-        .from("cs_clients")
-        .select("client_uid")
-        .eq("company_id", leadRegra.company_id)
-        .eq("ativo", true)
-        .limit(1)
-        .maybeSingle();
-      jaECliente = !!cliente;
+    const { clienteDoTelefone, transferirParaCs } = await import("@/lib/cs/atendimento.server");
+    const cliente = await clienteDoTelefone(admin, phone, leadRegra?.company_id ?? null);
+    const jaECliente = !!cliente;
+
+    /*
+     * Cliente escrevendo não é lead: é atendimento.
+     *
+     * A conversa muda de caixa na hora, para o CS responsável pela conta. Não
+     * há lead para qualificar nem venda para fazer, e deixar isso na fila do
+     * SDR só atrasa quem precisa de resposta. O histórico vai junto — é a
+     * mesma conversa, em outra caixa.
+     */
+    if (cliente) {
+      await transferirParaCs(
+        admin,
+        { id: conv.id, area: (conv as { area?: string | null }).area ?? "sdr" },
+        cliente,
+        `Mensagem recebida de ${cliente.nomeEmpresa}, que já é cliente.`,
+      );
+      /*
+       * Daqui em diante quem responde é a IA do CS, não a do SDR.
+       *
+       * São configurações separadas: a do SDR qualifica e vende, a do CS
+       * resolve e abre ticket. Deixar a do SDR falar com cliente faria ela
+       * oferecer condição comercial para quem já comprou.
+       */
+      try {
+        const { responderComoCs } = await import("@/lib/cs-ai.functions");
+        const r = await responderComoCs(admin, conv.id);
+        if (r?.resposta) {
+          const { getProvider } = await import("@/lib/whatsapp/provider-registry.server");
+          const provider = getProvider(accountConfig.provider);
+          const registro = await admin
+            .from("whatsapp_messages")
+            .insert({
+              conversation_id: conv.id,
+              lead_id: leadId,
+              sender_type: "bot",
+              message_type: "text",
+              body: r.resposta,
+              metadata: { source: "cs_ai", ticket: r.ticket },
+              status: "sending",
+            })
+            .select("id")
+            .single();
+
+          const envio = await provider.sendMessage({
+            account: accountConfig,
+            to: phone,
+            type: "text",
+            body: r.resposta,
+          });
+
+          await admin
+            .from("whatsapp_messages")
+            .update({
+              provider_message_id: envio.providerMessageId || null,
+              status: envio.status === "failed" ? "failed" : "sent",
+              error: envio.error ?? null,
+              sent_at: new Date().toISOString(),
+            })
+            .eq("id", registro.data?.id ?? "00000000-0000-0000-0000-000000000000");
+
+          await admin
+            .from("whatsapp_conversations")
+            .update({
+              last_message_at: new Date().toISOString(),
+              last_preview: r.resposta.slice(0, 200),
+            })
+            .eq("id", conv.id);
+        }
+      } catch (e) {
+        console.error("[wa webhook] IA do CS", e);
+      }
+      return;
     }
 
     const decisao = decidirAtendimento(

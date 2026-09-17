@@ -25,6 +25,8 @@ import { Route as AppInicioRouteImport } from './routes/_app.inicio'
 import { Route as AppImportarRdRouteImport } from './routes/_app.importar-rd'
 import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppCsWhatsappRouteImport } from './routes/_app.cs-whatsapp'
+import { Route as AppCsTicketsRouteImport } from './routes/_app.cs-tickets'
 import { Route as AppCsPlaybookRouteImport } from './routes/_app.cs-playbook'
 import { Route as AppCsKanbanRouteImport } from './routes/_app.cs-kanban'
 import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integracoes'
@@ -153,6 +155,16 @@ const AppDiagnosticoRoute = AppDiagnosticoRouteImport.update({
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsWhatsappRoute = AppCsWhatsappRouteImport.update({
+  id: '/cs-whatsapp',
+  path: '/cs-whatsapp',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsTicketsRoute = AppCsTicketsRouteImport.update({
+  id: '/cs-tickets',
+  path: '/cs-tickets',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCsPlaybookRoute = AppCsPlaybookRouteImport.update({
@@ -441,6 +453,8 @@ export interface FileRoutesByFullPath {
   '/cs-integracoes': typeof AppCsIntegracoesRoute
   '/cs-kanban': typeof AppCsKanbanRoute
   '/cs-playbook': typeof AppCsPlaybookRoute
+  '/cs-tickets': typeof AppCsTicketsRoute
+  '/cs-whatsapp': typeof AppCsWhatsappRoute
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
   '/importar-rd': typeof AppImportarRdRoute
@@ -508,6 +522,8 @@ export interface FileRoutesByTo {
   '/cs-integracoes': typeof AppCsIntegracoesRoute
   '/cs-kanban': typeof AppCsKanbanRoute
   '/cs-playbook': typeof AppCsPlaybookRoute
+  '/cs-tickets': typeof AppCsTicketsRoute
+  '/cs-whatsapp': typeof AppCsWhatsappRoute
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
   '/importar-rd': typeof AppImportarRdRoute
@@ -576,6 +592,8 @@ export interface FileRoutesById {
   '/_app/cs-integracoes': typeof AppCsIntegracoesRoute
   '/_app/cs-kanban': typeof AppCsKanbanRoute
   '/_app/cs-playbook': typeof AppCsPlaybookRoute
+  '/_app/cs-tickets': typeof AppCsTicketsRoute
+  '/_app/cs-whatsapp': typeof AppCsWhatsappRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/diagnostico': typeof AppDiagnosticoRoute
   '/_app/importar-rd': typeof AppImportarRdRoute
@@ -645,6 +663,8 @@ export interface FileRouteTypes {
     | '/cs-integracoes'
     | '/cs-kanban'
     | '/cs-playbook'
+    | '/cs-tickets'
+    | '/cs-whatsapp'
     | '/dashboard'
     | '/diagnostico'
     | '/importar-rd'
@@ -712,6 +732,8 @@ export interface FileRouteTypes {
     | '/cs-integracoes'
     | '/cs-kanban'
     | '/cs-playbook'
+    | '/cs-tickets'
+    | '/cs-whatsapp'
     | '/dashboard'
     | '/diagnostico'
     | '/importar-rd'
@@ -779,6 +801,8 @@ export interface FileRouteTypes {
     | '/_app/cs-integracoes'
     | '/_app/cs-kanban'
     | '/_app/cs-playbook'
+    | '/_app/cs-tickets'
+    | '/_app/cs-whatsapp'
     | '/_app/dashboard'
     | '/_app/diagnostico'
     | '/_app/importar-rd'
@@ -957,6 +981,20 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-whatsapp': {
+      id: '/_app/cs-whatsapp'
+      path: '/cs-whatsapp'
+      fullPath: '/cs-whatsapp'
+      preLoaderRoute: typeof AppCsWhatsappRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-tickets': {
+      id: '/_app/cs-tickets'
+      path: '/cs-tickets'
+      fullPath: '/cs-tickets'
+      preLoaderRoute: typeof AppCsTicketsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cs-playbook': {
@@ -1385,6 +1423,8 @@ interface AppRouteChildren {
   AppCsIntegracoesRoute: typeof AppCsIntegracoesRoute
   AppCsKanbanRoute: typeof AppCsKanbanRoute
   AppCsPlaybookRoute: typeof AppCsPlaybookRoute
+  AppCsTicketsRoute: typeof AppCsTicketsRoute
+  AppCsWhatsappRoute: typeof AppCsWhatsappRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDiagnosticoRoute: typeof AppDiagnosticoRoute
   AppImportarRdRoute: typeof AppImportarRdRoute
@@ -1422,6 +1462,8 @@ const AppRouteChildren: AppRouteChildren = {
   AppCsIntegracoesRoute: AppCsIntegracoesRoute,
   AppCsKanbanRoute: AppCsKanbanRoute,
   AppCsPlaybookRoute: AppCsPlaybookRoute,
+  AppCsTicketsRoute: AppCsTicketsRoute,
+  AppCsWhatsappRoute: AppCsWhatsappRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDiagnosticoRoute: AppDiagnosticoRoute,
   AppImportarRdRoute: AppImportarRdRoute,
