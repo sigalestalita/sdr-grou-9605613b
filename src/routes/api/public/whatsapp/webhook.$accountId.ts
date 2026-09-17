@@ -524,7 +524,19 @@ async function handleInbound(
         .eq("conversation_id", conv.id)
         .order("created_at", { ascending: true })
         .limit(20);
-      await descobrirPerfilDoLead(admin, leadId, recentes ?? []);
+      const perfil = await descobrirPerfilDoLead(admin, leadId, recentes ?? []);
+      /*
+       * Descobrir que é consultoria muda de dona.
+       *
+       * O lead que chega sem tipo cai na roleta entre as SDRs antes de alguém
+       * saber o que ele é. Quando a conversa revela consultoria — ou corrige a
+       * resposta errada do formulário — o lead precisa ir para a dona de
+       * consultoria, mesmo já tendo responsável.
+       */
+      if (perfil?.leadType === "consultoria") {
+        const { reavaliarDonoPorTipo } = await import("@/lib/lead-routing.server");
+        await reavaliarDonoPorTipo({ supabase: admin, leadId });
+      }
     } catch (e) {
       console.warn("[wa webhook] falha ao descobrir perfil do lead", e);
     }

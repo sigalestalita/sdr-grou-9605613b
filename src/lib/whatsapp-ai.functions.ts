@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { blocoDeOfertas } from "./whatsapp/ofertas";
+import { normalizeLeadType } from "./lead-type";
+import { falaDeConsultoria } from "./whatsapp/pista-de-consultoria";
 import { renderTemplate } from "./whatsapp-templates.functions";
 import { GROU_PLAYBOOK } from "./grou-playbook";
 import { resolveTemplateSendParams } from "./whatsapp/template-send.server";
@@ -1667,7 +1669,17 @@ export async function descobrirPerfilDoLead(
   if (!lead) return null;
   const faltaTipo = !lead.lead_type;
   const faltaPorte = !lead.company_size;
-  if (!faltaTipo && !faltaPorte) return null;
+  /*
+   * O tipo já preenchido pode estar errado numa direção só: quem marcou
+   * "empresa" no formulário e depois diz que atende outras empresas. Nesse caso
+   * vale revisar — e o portão barato é a própria conversa citar consultoria,
+   * para não gastar uma chamada de modelo a cada mensagem de todo lead.
+   */
+  const podeCorrigirParaConsultoria =
+    !faltaTipo &&
+    normalizeLeadType(lead.lead_type as string) !== "consultoria" &&
+    falaDeConsultoria(doLead.map((m) => m.body));
+  if (!faltaTipo && !faltaPorte && !podeCorrigirParaConsultoria) return null;
 
   const tool = {
     type: "function",
@@ -1720,8 +1732,13 @@ export async function descobrirPerfilDoLead(
   }
 
   const patch: Record<string, unknown> = {};
-  if (faltaTipo && extraido.leadType && extraido.leadType !== "indefinido") {
-    patch.lead_type = extraido.leadType;
+  if (extraido.leadType && extraido.leadType !== "indefinido") {
+    // Correção só anda para um lado: para consultoria. Sair de consultoria por
+    // dedução de conversa apagaria o que o formulário afirmou.
+    if (faltaTipo) patch.lead_type = extraido.leadType;
+    else if (podeCorrigirParaConsultoria && extraido.leadType === "consultoria") {
+      patch.lead_type = "consultoria";
+    }
   }
   if (faltaPorte && extraido.companySize?.trim()) {
     patch.company_size = extraido.companySize.trim();
@@ -1732,6 +1749,7 @@ export async function descobrirPerfilDoLead(
     .from("leads")
     .update(patch as never)
     .eq("id", leadId);
+
   return {
     leadType: (patch.lead_type as string) ?? null,
     companySize: (patch.company_size as string) ?? null,

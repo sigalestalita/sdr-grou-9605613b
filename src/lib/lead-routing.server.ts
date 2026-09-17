@@ -40,7 +40,11 @@ const DEFAULT_ROTATION_STATE: LeadRoutingRotationState = {
 
 function readRawLeadType(lead: { lead_type?: string | null; form_payload?: unknown }) {
   if (lead.lead_type) return lead.lead_type;
-  if (lead.form_payload && typeof lead.form_payload === "object" && "lead_type" in lead.form_payload) {
+  if (
+    lead.form_payload &&
+    typeof lead.form_payload === "object" &&
+    "lead_type" in lead.form_payload
+  ) {
     const value = (lead.form_payload as { lead_type?: unknown }).lead_type;
     return typeof value === "string" ? value : null;
   }
@@ -58,7 +62,8 @@ function parseSettings(value: unknown): LeadRoutingSettings {
   const rules = Array.isArray(raw.rules)
     ? raw.rules
         .map((rule) => {
-          const leadType = typeof rule?.leadType === "string" ? normalizeLeadType(rule.leadType) : null;
+          const leadType =
+            typeof rule?.leadType === "string" ? normalizeLeadType(rule.leadType) : null;
           const userId = typeof rule?.userId === "string" && rule.userId ? rule.userId : null;
           if (!leadType || !userId) return null;
           return { leadType, userId } as LeadRoutingRule;
@@ -86,9 +91,10 @@ export async function readLeadRoutingSettings(supabase: any) {
 function parseRotationState(value: unknown): LeadRoutingRotationState {
   if (!value || typeof value !== "object") return DEFAULT_ROTATION_STATE;
   const raw = value as { nextRoundRobinIndex?: unknown };
-  const nextRoundRobinIndex = typeof raw.nextRoundRobinIndex === "number" && Number.isFinite(raw.nextRoundRobinIndex)
-    ? Math.max(0, Math.trunc(raw.nextRoundRobinIndex))
-    : 0;
+  const nextRoundRobinIndex =
+    typeof raw.nextRoundRobinIndex === "number" && Number.isFinite(raw.nextRoundRobinIndex)
+      ? Math.max(0, Math.trunc(raw.nextRoundRobinIndex))
+      : 0;
   return { nextRoundRobinIndex };
 }
 
@@ -103,18 +109,19 @@ async function readLeadRoutingRotationState(supabase: any) {
 }
 
 async function writeLeadRoutingRotationState(supabase: any, state: LeadRoutingRotationState) {
-  const { error } = await supabase
-    .from("app_settings")
-    .upsert({
-      key: LEAD_ROUTING_ROTATION_STATE_KEY,
-      value: state,
-      updated_at: new Date().toISOString(),
-    });
+  const { error } = await supabase.from("app_settings").upsert({
+    key: LEAD_ROUTING_ROTATION_STATE_KEY,
+    value: state,
+    updated_at: new Date().toISOString(),
+  });
   if (error) throw new Error(error.message);
 }
 
 async function resolveManagedRoutingUsers(supabase: any) {
-  const targetEmails = [...ROUTING_TARGETS.roundRobin.map((target) => target.email), ROUTING_TARGETS.consultoria.email];
+  const targetEmails = [
+    ...ROUTING_TARGETS.roundRobin.map((target) => target.email),
+    ROUTING_TARGETS.consultoria.email,
+  ];
   const { data, error } = await supabase
     .from("profiles")
     .select("id, full_name, email")
@@ -173,6 +180,75 @@ export function resolveLeadRoutingAssignee(
   return match?.userId ?? null;
 }
 
+/**
+ * Consultoria tem dona: toda consultoria vai para a Mariana.
+ *
+ * ensureLeadRouted desiste quando o lead já tem responsável, e é o caso comum
+ * aqui: o lead entra sem tipo, cai na roleta entre Camila e Lisiane, e só
+ * depois alguém descobre que é consultoria — pelo formulário que chegou atrasado
+ * ou pela própria conversa, quando a pessoa errou a resposta do formulário.
+ *
+ * Esta função corrige a rota nesse momento. Só mexe em consultoria: empresa e
+ * pessoa física continuam na roleta, e trocar o dono delas depois só embaralharia
+ * a fila de quem já estava trabalhando o lead.
+ */
+export async function reavaliarDonoPorTipo({
+  supabase,
+  leadId,
+  actorUserId,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  leadId: string;
+  actorUserId?: string | null;
+}): Promise<string | null> {
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("id, assigned_to, lead_type, form_payload")
+    .eq("id", leadId)
+    .maybeSingle();
+  if (!lead) return null;
+  if (normalizeLeadType(readRawLeadType(lead)) !== "consultoria") return null;
+
+  const { consultoriaUserId } = await resolveManagedRoutingUsers(supabase);
+  if (!consultoriaUserId) return null;
+  if (lead.assigned_to === consultoriaUserId) return consultoriaUserId;
+
+  const agora = new Date().toISOString();
+  await supabase
+    .from("leads")
+    .update({ assigned_to: consultoriaUserId, last_action_at: agora })
+    .eq("id", leadId);
+  await supabase
+    .from("whatsapp_conversations")
+    .update({ assigned_user_id: consultoriaUserId })
+    .eq("lead_id", leadId);
+  await supabase.from("lead_interactions").insert({
+    lead_id: leadId,
+    author_id: actorUserId ?? null,
+    type: "routing",
+    content: lead.assigned_to
+      ? "Lead identificado como consultoria e transferido para Mariana Borges."
+      : "Lead de consultoria roteado automaticamente para Mariana Borges.",
+    metadata: {
+      assignee_user_id: String(consultoriaUserId),
+      previous_assignee_user_id: lead.assigned_to ? String(lead.assigned_to) : null,
+      mode: "fixed",
+      criterion: "lead_type",
+      lead_type: "consultoria",
+    },
+  });
+
+  try {
+    const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
+    await maybeAlertHotLead(leadId);
+  } catch {
+    /* alerta nunca derruba roteamento */
+  }
+
+  return consultoriaUserId;
+}
+
 export async function ensureLeadRouted({
   supabase,
   leadId,
@@ -189,7 +265,14 @@ export async function ensureLeadRouted({
     .maybeSingle();
   if (leadError) throw new Error(leadError.message);
   if (!lead) return null;
-  if (lead.assigned_to) return lead.assigned_to;
+  /*
+   * Ter dono não encerra o assunto quando o lead é consultoria: a roleta pode
+   * tê-lo entregue a outra pessoa antes de o tipo ser conhecido.
+   */
+  if (lead.assigned_to) {
+    const corrigido = await reavaliarDonoPorTipo({ supabase, leadId, actorUserId });
+    return corrigido ?? lead.assigned_to;
+  }
 
   const normalizedLeadType = normalizeLeadType(readRawLeadType(lead));
   if (normalizedLeadType) {
@@ -227,7 +310,9 @@ export async function ensureLeadRouted({
       try {
         const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
         await maybeAlertHotLead(leadId);
-      } catch { /* alerts must never break routing */ }
+      } catch {
+        /* alerts must never break routing */
+      }
 
       return managedAssignee;
     }
@@ -261,7 +346,9 @@ export async function ensureLeadRouted({
   try {
     const { maybeAlertHotLead } = await import("./lead-hot-alert.server");
     await maybeAlertHotLead(leadId);
-  } catch { /* alerts must never break routing */ }
+  } catch {
+    /* alerts must never break routing */
+  }
 
   return assignee;
 }
