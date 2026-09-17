@@ -84,36 +84,6 @@ const SHEETS: SheetConfig[] = [
       fonte: 9,
     },
   },
-  {
-    // Aba antiga de orgânico/outbound (27/05 a 14/07). Ficou de fora do SHEETS
-    // por engano e nenhuma linha dela chegou ao pipeline. A ordem das colunas
-    // é diferente da aba nova: aqui Área vem antes de Porte.
-    tab: "entrada_organico_e_outbound",
-    source: "organico_outbound",
-    channel: "organico_outbound",
-    range: "A2:U",
-    columns: {
-      data: 0,
-      tipo: 1,
-      nome: 2,
-      telefone: 3,
-      email: 4,
-      empresa: 5,
-      area: 6,
-      porte: 7,
-      cargo: 8,
-      fonte: 9,
-      demo_free: 11,
-      campanha: 12,
-      conjunto: 13,
-      ad: 14,
-      campanha_id: 15,
-      adset_id: 16,
-      ad_id: 17,
-      form_id: 18,
-      lead_id: 19,
-    },
-  },
 ];
 const SHEET_RANGES = SHEETS.map((s) => `${s.tab}!${s.range}`);
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
@@ -598,24 +568,9 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       if (oculto) desocultados += 1;
     }
 
-    /*
-     * Notifica só o que converteu nos últimos dias. Sem isso, a primeira sync
-     * de uma aba antiga dispararia dezenas de e-mails sobre leads de meses atrás.
-     */
-    const LIMITE_NOTIFICACAO_MS = 7 * 24 * 60 * 60 * 1000;
-    const convertidoEm = new Map<string, string | null>();
-    for (const p of batch)
-      if (p.payload.email) convertidoEm.set(p.payload.email.toLowerCase(), p.payload.submitted_at);
-    const recemInseridos = insertedLeads.filter((l) => {
-      const quando = l.email ? convertidoEm.get(l.email.toLowerCase()) : null;
-      if (!quando) return true;
-      const t = new Date(quando).getTime();
-      return isNaN(t) || Date.now() - t <= LIMITE_NOTIFICACAO_MS;
-    });
-
     // Disparar notificações por e-mail (não bloqueia o resultado da sync).
     await Promise.allSettled(
-      recemInseridos.map((l) =>
+      insertedLeads.map((l) =>
         notifyNewLead({
           id: l.id,
           name: l.name,
