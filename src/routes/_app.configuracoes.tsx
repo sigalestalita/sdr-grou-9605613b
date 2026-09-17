@@ -455,6 +455,22 @@ function SettingsPage() {
                   ninguém tem esse lead na própria fila
                 </li>
               )}
+              {conferencia.data.semDonoPorOrigem.length > 0 && (
+                <li className="pl-4 text-muted-foreground">
+                  de onde vêm os sem responsável:{" "}
+                  {conferencia.data.semDonoPorOrigem
+                    .map((o) => `${o.origem} ${o.total}`)
+                    .join(" · ")}
+                </li>
+              )}
+              {conferencia.data.semDonoPorCampanha.length > 0 && (
+                <li className="pl-4 text-muted-foreground">
+                  campanhas:{" "}
+                  {conferencia.data.semDonoPorCampanha
+                    .map((c) => `${c.campanha} ${c.total}`)
+                    .join(" · ")}
+                </li>
+              )}
               {conferencia.data.contagem.oculto > 0 && (
                 <li className="text-amber-600 dark:text-amber-400">
                   ! {conferencia.data.contagem.oculto} na base, porém ocultos do SDR

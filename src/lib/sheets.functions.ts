@@ -779,20 +779,20 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
      * cliente do usuário, ele apareceria como "ausente" e a conta mentiria.
      */
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const porLeadId = new Map<
-      string,
-      { oculto: boolean; source: string | null; assigned: string | null }
-    >();
-    const porEmail = new Map<
-      string,
-      { oculto: boolean; source: string | null; assigned: string | null }
-    >();
+    type LeadNaBase = {
+      oculto: boolean;
+      source: string | null;
+      assigned: string | null;
+      campaign: string | null;
+    };
+    const porLeadId = new Map<string, LeadNaBase>();
+    const porEmail = new Map<string, LeadNaBase>();
 
     const PAGINA = 1000;
     for (let pagina = 0; ; pagina += PAGINA) {
       const { data, error } = await supabaseAdmin
         .from("leads")
-        .select("email, form_payload, oculto_sdr, source, assigned_to")
+        .select("email, form_payload, oculto_sdr, source, assigned_to, campaign")
         .order("id", { ascending: true })
         .range(pagina, pagina + PAGINA - 1);
       if (error || !data || data.length === 0) break;
@@ -803,11 +803,13 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
           oculto_sdr: boolean | null;
           source: string | null;
           assigned_to: string | null;
+          campaign: string | null;
         };
-        const info = {
+        const info: LeadNaBase = {
           oculto: rr.oculto_sdr === true,
           source: rr.source,
           assigned: rr.assigned_to,
+          campaign: rr.campaign,
         };
         if (rr.form_payload?.lead_id) porLeadId.set(rr.form_payload.lead_id, info);
         if (rr.email) porEmail.set(rr.email.toLowerCase(), info);
@@ -832,6 +834,13 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
       consultoria: { naPlanilha: 0, noKanban: 0 },
       empresas_e_pf: { naPlanilha: 0, noKanban: 0 },
     };
+    /*
+     * De onde vem quem está no kanban sem dono. Sem essa quebra, o número
+     * sozinho não diz por onde atacar: origem é o campo que separa quem entrou
+     * pela planilha de quem entrou pelo RD ou pelo WhatsApp.
+     */
+    const semDonoPorOrigem = new Map<string, number>();
+    const semDonoPorCampanha = new Map<string, number>();
 
     for (const l of linhas) {
       const email = l.payload.email?.toLowerCase() ?? null;
@@ -859,6 +868,12 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
       }
 
       contagem[situacao] += 1;
+      if (situacao === "sem_responsavel" && achado) {
+        const origem = achado.source?.trim() || "(sem origem)";
+        semDonoPorOrigem.set(origem, (semDonoPorOrigem.get(origem) ?? 0) + 1);
+        const camp = achado.campaign?.trim() || "(sem campanha)";
+        semDonoPorCampanha.set(camp, (semDonoPorCampanha.get(camp) ?? 0) + 1);
+      }
       const tipo = normalizeLeadType(
         (l.payload.form_payload as { lead_type?: string } | null)?.lead_type ?? null,
       );
@@ -889,6 +904,13 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
       periodo: { de: data.de ?? null, ate: data.ate ?? null },
       contagem,
       porFunil,
+      semDonoPorOrigem: [...semDonoPorOrigem.entries()]
+        .map(([origem, total]) => ({ origem, total }))
+        .sort((x, y) => y.total - x.total),
+      semDonoPorCampanha: [...semDonoPorCampanha.entries()]
+        .map(([campanha, total]) => ({ campanha, total }))
+        .sort((x, y) => y.total - x.total)
+        .slice(0, 15),
       problemas,
     };
   });
