@@ -84,6 +84,36 @@ const SHEETS: SheetConfig[] = [
       fonte: 9,
     },
   },
+  {
+    // Aba antiga de orgânico/outbound (27/05 a 14/07). Ficou de fora do SHEETS
+    // por engano e nenhuma linha dela chegou ao pipeline. A ordem das colunas
+    // é diferente da aba nova: aqui Área vem antes de Porte.
+    tab: "entrada_organico_e_outbound",
+    source: "organico_outbound",
+    channel: "organico_outbound",
+    range: "A2:U",
+    columns: {
+      data: 0,
+      tipo: 1,
+      nome: 2,
+      telefone: 3,
+      email: 4,
+      empresa: 5,
+      area: 6,
+      porte: 7,
+      cargo: 8,
+      fonte: 9,
+      demo_free: 11,
+      campanha: 12,
+      conjunto: 13,
+      ad: 14,
+      campanha_id: 15,
+      adset_id: 16,
+      ad_id: 17,
+      form_id: 18,
+      lead_id: 19,
+    },
+  },
 ];
 const SHEET_RANGES = SHEETS.map((s) => `${s.tab}!${s.range}`);
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
@@ -366,34 +396,69 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       parsed.push(r);
     }
 
-    // Buscar todos os lead_ids já importados via Meta (paginando para evitar o limite de 1000).
+    /*
+     * Lê a base com o cliente de serviço, e não com o do usuário: a policy
+     * leads_auth_visiveis esconde quem está com oculto_sdr, e um lead escondido
+     * que a planilha não enxerga vira INSERT duplicado que o índice único de
+     * lower(email) derruba — ou seja, a conversão se perderia em silêncio.
+     * O .order("id") é obrigatório: .range() sem ordem estável repete e pula
+     * linhas entre as páginas.
+     */
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    type LeadJaNaBase = {
+      id: string;
+      oculto_sdr: boolean | null;
+      form_payload: Record<string, unknown> | null;
+    };
     const existingIds = new Set<string>();
-    const existingEmails = new Set<string>();
+    const porEmail = new Map<string, LeadJaNaBase>();
     const PAGE = 1000;
     for (let from = 0; ; from += PAGE) {
-      const { data: rows2, error } = await supabase
+      const { data: rows2, error } = await supabaseAdmin
         .from("leads")
-        .select("email, form_payload")
+        .select("id, email, oculto_sdr, form_payload")
+        .order("id", { ascending: true })
         .range(from, from + PAGE - 1);
       if (error || !rows2 || rows2.length === 0) break;
       for (const r of rows2) {
-        const rr = r as { email: string | null; form_payload: { lead_id?: string } | null };
-        const lid = rr.form_payload?.lead_id;
+        const rr = r as unknown as LeadJaNaBase & { email: string | null };
+        const lid = (rr.form_payload as { lead_id?: string } | null)?.lead_id;
         if (lid) existingIds.add(lid);
-        if (rr.email) existingEmails.add(rr.email.toLowerCase());
+        if (rr.email)
+          porEmail.set(rr.email.toLowerCase(), {
+            id: rr.id,
+            oculto_sdr: rr.oculto_sdr,
+            form_payload: rr.form_payload,
+          });
       }
       if (rows2.length < PAGE) break;
     }
 
-    // Dedup também por email (índice único em lower(email)) para evitar
-    // que um único conflito derrube o chunk inteiro.
+    /*
+     * Uma linha cujo email já está na base não é lixo: é a mesma pessoa
+     * convertendo de novo. Antes ela era descartada e a reconversão não
+     * aparecia em lugar nenhum. Agora vira um registro no lead que já existe.
+     */
+    const reconversoesNaBase: Array<{ leadId: string; oculto: boolean; linha: LeadRow }> = [];
+    const reconversoesNoLote: LeadRow[] = [];
     const seenEmail = new Set<string>();
     const toInsert = parsed.filter((p) => {
       if (existingIds.has(p.meta_lead_id)) return false;
       const em = p.payload.email?.toLowerCase() ?? null;
       if (em) {
-        if (existingEmails.has(em)) return false;
-        if (seenEmail.has(em)) return false;
+        const jaNaBase = porEmail.get(em);
+        if (jaNaBase) {
+          reconversoesNaBase.push({
+            leadId: jaNaBase.id,
+            oculto: jaNaBase.oculto_sdr === true,
+            linha: p,
+          });
+          return false;
+        }
+        if (seenEmail.has(em)) {
+          reconversoesNoLote.push(p);
+          return false;
+        }
         seenEmail.add(em);
       }
       return true;
@@ -414,6 +479,7 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
     const insertedLeads: Array<{
       id: string;
       name: string;
+      email: string | null;
       company_name: string | null;
       lead_type: string | null;
       score: number | null;
@@ -454,7 +520,7 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       const { data: insData, error } = await supabase
         .from("leads")
         .insert(chunk as never)
-        .select("id, name, company_name, lead_type, score, priority");
+        .select("id, name, email, company_name, lead_type, score, priority");
       if (!error) {
         inserted += chunk.length;
         for (const r of insData ?? []) {
@@ -467,7 +533,7 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
         const { data: rowData, error: rowErr } = await supabase
           .from("leads")
           .insert(row as never)
-          .select("id, name, company_name, lead_type, score, priority")
+          .select("id, name, email, company_name, lead_type, score, priority")
           .maybeSingle();
         if (!rowErr) {
           inserted += 1;
@@ -476,9 +542,80 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       }
     }
 
+    /*
+     * Reconversões: a pessoa já estava na base, então nada de lead novo — o
+     * que a planilha traz é um novo contato dela, e isso fica registrado no
+     * lead que existe. Se ele estava escondido do kanban (base de marketing
+     * do RD), a conversão o traz de volta para o funil de SDR.
+     */
+    const porEmailInserido = new Map<string, string>();
+    for (const l of insertedLeads) if (l.email) porEmailInserido.set(l.email.toLowerCase(), l.id);
+    const paraRegistrar = [
+      ...reconversoesNaBase,
+      ...reconversoesNoLote.flatMap((linha) => {
+        const id = porEmailInserido.get(linha.payload.email?.toLowerCase() ?? "");
+        return id ? [{ leadId: id, oculto: false, linha }] : [];
+      }),
+    ];
+    let reconversoes = 0;
+    let desocultados = 0;
+    for (const { leadId, oculto, linha } of paraRegistrar) {
+      const quando = linha.payload.submitted_at ?? new Date().toISOString();
+      const { data: atual } = await supabaseAdmin
+        .from("leads")
+        .select("form_payload")
+        .eq("id", leadId)
+        .maybeSingle();
+      const anterior = ((atual as { form_payload?: Record<string, unknown> } | null)
+        ?.form_payload ?? {}) as Record<string, unknown>;
+      const historico = Array.isArray(anterior.reconversoes) ? anterior.reconversoes : [];
+      const patch: Record<string, unknown> = {
+        last_action_at: quando,
+        form_payload: {
+          ...anterior,
+          reconversoes: [
+            ...historico,
+            {
+              em: quando,
+              lead_id: linha.meta_lead_id,
+              origem: linha.source,
+              campanha: linha.payload.campaign ?? null,
+            },
+          ],
+        },
+      };
+      if (oculto) {
+        patch.oculto_sdr = false;
+        patch.stage_id = novoId;
+        patch.stage_entered_at = quando;
+      }
+      const { error: errRec } = await supabaseAdmin
+        .from("leads")
+        .update(patch as never)
+        .eq("id", leadId);
+      if (errRec) continue;
+      reconversoes += 1;
+      if (oculto) desocultados += 1;
+    }
+
+    /*
+     * Notifica só o que converteu nos últimos dias. Sem isso, a primeira sync
+     * de uma aba antiga dispararia dezenas de e-mails sobre leads de meses atrás.
+     */
+    const LIMITE_NOTIFICACAO_MS = 7 * 24 * 60 * 60 * 1000;
+    const convertidoEm = new Map<string, string | null>();
+    for (const p of batch)
+      if (p.payload.email) convertidoEm.set(p.payload.email.toLowerCase(), p.payload.submitted_at);
+    const recemInseridos = insertedLeads.filter((l) => {
+      const quando = l.email ? convertidoEm.get(l.email.toLowerCase()) : null;
+      if (!quando) return true;
+      const t = new Date(quando).getTime();
+      return isNaN(t) || Date.now() - t <= LIMITE_NOTIFICACAO_MS;
+    });
+
     // Disparar notificações por e-mail (não bloqueia o resultado da sync).
     await Promise.allSettled(
-      insertedLeads.map((l) =>
+      recemInseridos.map((l) =>
         notifyNewLead({
           id: l.id,
           name: l.name,
@@ -490,7 +627,7 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       ),
     );
 
-    const skipped = parsed.length - inserted;
+    const skipped = parsed.length - inserted - reconversoes;
     const stateValue = {
       last_attempt_at: startedAt,
       last_sync_at: new Date().toISOString(),
@@ -498,6 +635,8 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
       total_rows: total,
       parsed: parsed.length,
       inserted_total_run: inserted,
+      reconversoes,
+      desocultados,
       skipped_existing: existingIds.size,
       insert_errors: insertErrors,
     };
@@ -514,12 +653,14 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
         total,
         parsed: parsed.length,
         inserted,
+        reconversoes,
+        desocultados,
         skipped,
         insert_errors: insertErrors,
       } as never,
     });
 
-    return { total, parsed: parsed.length, inserted, skipped };
+    return { total, parsed: parsed.length, inserted, reconversoes, desocultados, skipped };
   });
 
 export const getSheetSyncState = createServerFn({ method: "GET" })

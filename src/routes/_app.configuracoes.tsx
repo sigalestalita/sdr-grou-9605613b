@@ -75,7 +75,9 @@ function SettingsPage() {
   const sheetSync = useMutation({
     mutationFn: () => sheetSyncFn({ data: {} }),
     onSuccess: (r) => {
-      toast.success(`Sheet: +${r.inserted} novos · ${r.skipped} já existiam · ${r.total} linhas`);
+      toast.success(
+        `Sheet: +${r.inserted} novos · ${r.reconversoes} reconversões · ${r.skipped} já existiam · ${r.total} linhas`,
+      );
       qc.invalidateQueries({ queryKey: ["sheet-state"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
