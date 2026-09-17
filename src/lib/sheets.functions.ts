@@ -704,7 +704,16 @@ export type LinhaConferida = {
 
 export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) =>
+    z
+      .object({
+        /** Mesmo recorte do filtro de período do kanban (yyyy-mm-dd). */
+        de: z.string().optional(),
+        ate: z.string().optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
     if (!isMgr) throw new Error("Apenas gestores conferem a planilha.");
@@ -712,22 +721,53 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
     const planilha = await fetchSheetRows();
     if (!planilha.ok) throw new Error(planilha.message ?? "Não consegui ler a planilha");
 
+    /*
+     * O kanban filtra por data de conversão (form_payload.submitted_at), então
+     * a conferência usa o mesmo campo — senão os dois números nunca fecham.
+     */
+    const deTs = data.de ? new Date(data.de + "T00:00:00").getTime() : null;
+    const ateTs = data.ate ? new Date(data.ate + "T23:59:59").getTime() : null;
+    function dentroDoPeriodo(l: LeadRow) {
+      if (deTs === null && ateTs === null) return true;
+      const bruto = l.payload.submitted_at;
+      if (!bruto) return false;
+      const t = new Date(bruto).getTime();
+      if (isNaN(t)) return false;
+      if (deTs !== null && t < deTs) return false;
+      if (ateTs !== null && t > ateTs) return false;
+      return true;
+    }
+
     // As mesmas regras da sincronização, para conferir o que ela conferiria.
     const linhas: LeadRow[] = [];
     const vistos = new Set<string>();
+    const emailsVistos = new Set<string>();
     let vazias = 0;
     let repetidasNaPlanilha = 0;
+    let foraDoPeriodo = 0;
+    let semDataValida = 0;
     for (const item of planilha.rows) {
       const r = rowToLead(item.row, item.sheetIndex, item.rowIndex);
       if (!r) {
         vazias += 1;
         continue;
       }
+      if (!dentroDoPeriodo(r)) {
+        if (!r.payload.submitted_at) semDataValida += 1;
+        else foraDoPeriodo += 1;
+        continue;
+      }
       if (vistos.has(r.meta_lead_id)) {
         repetidasNaPlanilha += 1;
         continue;
       }
+      const email = r.payload.email?.toLowerCase() ?? null;
+      if (email && emailsVistos.has(email)) {
+        repetidasNaPlanilha += 1;
+        continue;
+      }
       vistos.add(r.meta_lead_id);
+      if (email) emailsVistos.add(email);
       linhas.push(r);
     }
 
@@ -749,11 +789,12 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
     >();
 
     const PAGINA = 1000;
-    for (let de = 0; ; de += PAGINA) {
+    for (let pagina = 0; ; pagina += PAGINA) {
       const { data, error } = await supabaseAdmin
         .from("leads")
         .select("email, form_payload, oculto_sdr, source, assigned_to")
-        .range(de, de + PAGINA - 1);
+        .order("id", { ascending: true })
+        .range(pagina, pagina + PAGINA - 1);
       if (error || !data || data.length === 0) break;
       for (const r of data) {
         const rr = r as {
@@ -782,6 +823,15 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
       fora_por_origem: 0,
       ausente: 0,
     };
+    /*
+     * A mesma divisão das abas do kanban: consultoria de um lado, empresa e
+     * pessoa física (e quem ainda não tem tipo) do outro. É assim que dá para
+     * comparar com o "N leads no filtro atual" de cada aba.
+     */
+    const porFunil = {
+      consultoria: { naPlanilha: 0, noKanban: 0 },
+      empresas_e_pf: { naPlanilha: 0, noKanban: 0 },
+    };
 
     for (const l of linhas) {
       const email = l.payload.email?.toLowerCase() ?? null;
@@ -809,6 +859,14 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
       }
 
       contagem[situacao] += 1;
+      const tipo = normalizeLeadType(
+        (l.payload.form_payload as { lead_type?: string } | null)?.lead_type ?? null,
+      );
+      const funil = tipo === "consultoria" ? "consultoria" : "empresas_e_pf";
+      porFunil[funil].naPlanilha += 1;
+      if (situacao === "no_pipeline" || situacao === "sem_responsavel")
+        porFunil[funil].noKanban += 1;
+
       if (situacao !== "no_pipeline" && problemas.length < 300) {
         problemas.push({
           leadId: l.meta_lead_id,
@@ -826,7 +884,11 @@ export const conferirPlanilhaNoPipeline = createServerFn({ method: "GET" })
       conferidas: linhas.length,
       vazias,
       repetidasNaPlanilha,
+      foraDoPeriodo,
+      semDataValida,
+      periodo: { de: data.de ?? null, ate: data.ate ?? null },
       contagem,
+      porFunil,
       problemas,
     };
   });

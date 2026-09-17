@@ -32,7 +32,12 @@ export const listKanbanData = createServerFn({ method: "GET" })
             .from("leads")
             .select(KANBAN_COLUMNS)
             .or(filter)
+            // O desempate por id é obrigatório: created_at repete (a sync da
+            // planilha grava lotes inteiros com o mesmo instante) e, sem uma
+            // chave única na ordenação, as páginas buscadas em paralelo
+            // repetem umas linhas e perdem outras.
             .order("created_at", { ascending: false })
+            .order("id", { ascending: true })
             .range(i * PAGE, i * PAGE + PAGE - 1),
         ),
       );
@@ -431,9 +436,7 @@ export const createManualLead = createServerFn({ method: "POST" })
       .single();
     if (error) {
       if (error.code === "23505" && error.message.includes("leads_email_unique")) {
-        throw new Error(
-          `Já existe um lead cadastrado com o e-mail ${email ?? ""}.`.trim(),
-        );
+        throw new Error(`Já existe um lead cadastrado com o e-mail ${email ?? ""}.`.trim());
       }
       throw new Error(error.message);
     }

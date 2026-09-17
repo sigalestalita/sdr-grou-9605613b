@@ -45,8 +45,17 @@ function SettingsPage() {
    * ainda mostra quem entrou na base mas não aparece no kanban.
    */
   const conferirFn = useServerFn(conferirPlanilhaNoPipeline);
+  // Mesmo recorte que a pessoa usa no filtro de período do kanban, para os
+  // dois números poderem ser comparados.
+  const hoje = new Date();
+  const [confDe, setConfDe] = useState(
+    `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-01`,
+  );
+  const [confAte, setConfAte] = useState(
+    `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`,
+  );
   const conferencia = useMutation({
-    mutationFn: () => conferirFn(),
+    mutationFn: () => conferirFn({ data: { de: confDe || undefined, ate: confAte || undefined } }),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao conferir"),
   });
   const [revealed, setRevealed] = useState<{ url: string; serviceRoleKey: string } | null>(null);
@@ -394,6 +403,24 @@ function SettingsPage() {
           >
             {conferencia.isPending ? "Conferindo…" : "Conferir se todos entraram"}
           </Button>
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+            de
+            <input
+              type="date"
+              value={confDe}
+              onChange={(e) => setConfDe(e.target.value)}
+              className="rounded-md border border-border bg-background px-2 py-1"
+            />
+          </label>
+          <label className="flex items-center gap-1 text-xs text-muted-foreground">
+            até
+            <input
+              type="date"
+              value={confAte}
+              onChange={(e) => setConfAte(e.target.value)}
+              className="rounded-md border border-border bg-background px-2 py-1"
+            />
+          </label>
         </div>
 
         {conferencia.data && (
@@ -405,6 +432,18 @@ function SettingsPage() {
               {conferencia.data.repetidasNaPlanilha > 0 && (
                 <> · {conferencia.data.repetidasNaPlanilha} repetida(s) na própria planilha</>
               )}
+              {conferencia.data.foraDoPeriodo > 0 && (
+                <> · {conferencia.data.foraDoPeriodo} fora do período</>
+              )}
+              {conferencia.data.semDataValida > 0 && (
+                <> · {conferencia.data.semDataValida} sem data de conversão válida</>
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              No período: Empresas &amp; PF {conferencia.data.porFunil.empresas_e_pf.noKanban}/
+              {conferencia.data.porFunil.empresas_e_pf.naPlanilha} · Consultorias{" "}
+              {conferencia.data.porFunil.consultoria.noKanban}/
+              {conferencia.data.porFunil.consultoria.naPlanilha} (no kanban / na planilha)
             </p>
             <ul className="space-y-1 text-xs">
               <li className="text-emerald-600 dark:text-emerald-400">
