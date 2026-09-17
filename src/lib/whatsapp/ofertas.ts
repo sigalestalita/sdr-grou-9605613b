@@ -91,8 +91,21 @@ export function blocoDeOfertas(
   return [
     "VALORES E CAMPANHAS: só pode citar as ofertas abaixo, exatamente como estão escritas.",
     "Qualquer preço, desconto ou condição que não esteja nesta lista não existe e não pode ser mencionado.",
+    /*
+     * A pergunta de qualificação não pode nascer da oferta.
+     *
+     * Com o público indefinido sobram só as ofertas de todo mundo — hoje as de
+     * capacitação e treinamento. O modelo lia aquilo como sendo o assunto e
+     * perguntava "você busca a capacitação para a sua empresa ou para atuar
+     * como consultora?", empurrando um produto que o lead nunca pediu.
+     */
     publico === "indefinido"
-      ? "Ainda não se sabe se este lead é uma empresa ou uma consultoria, e cada um tem condições próprias. Descubra isso em uma pergunta antes de falar de condição específica; por enquanto só as ofertas abaixo existem para ele."
+      ? [
+          "Ainda não se sabe se este lead é uma empresa ou uma consultoria, e cada um tem condições próprias.",
+          "Descubra isso em uma pergunta antes de citar qualquer oferta.",
+          "A pergunta de qualificação não pode mencionar produto, oferta, desconto nem campanha: pergunte apenas se a pessoa quer usar na própria empresa ou atender outras empresas como consultoria.",
+          "As ofertas abaixo só entram na conversa depois dessa resposta.",
+        ].join(" ")
       : "",
     // A lista já vem filtrada para o público deste lead. Quando o público ainda
     // não é conhecido, aí sim é preciso confirmar antes de citar: consultoria
@@ -102,13 +115,17 @@ export function blocoDeOfertas(
       ? [
           "Antes de citar uma oferta marcada para um público, confirme que o lead é daquele público.",
         ]
-      : [
-          "Estas ofertas já são as do público deste lead: pode citá-las sem perguntar se ele é empresa ou consultoria.",
-        ]),
+      : publico === "indefinido"
+        ? []
+        : [
+            "Estas ofertas já são as do público deste lead: pode citá-las sem perguntar se ele é empresa ou consultoria.",
+          ]),
     // Perguntar antes de responder o preço faz o lead repetir a pergunta. A
     // campanha existe para acelerar a resposta, então a condição vem primeiro e
     // a pergunta de qualificação vai depois, na mesma mensagem.
-    "Se o lead perguntar preço, desconto, promoção ou campanha, diga as condições vigentes já nesta resposta, e só depois faça a pergunta de qualificação.",
+    publico === "indefinido"
+      ? "Se o lead perguntar preço, desconto, promoção ou campanha, diga que a condição muda conforme o caso e faça a pergunta de qualificação — sem citar nenhuma oferta ainda."
+      : "Se o lead perguntar preço, desconto, promoção ou campanha, diga as condições vigentes já nesta resposta, e só depois faça a pergunta de qualificação.",
     "",
     lista,
   ]

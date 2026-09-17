@@ -164,3 +164,38 @@ describe("lead sem tipo, típico de campanha de WhatsApp", () => {
     expect(ofertasDoPublico(antiga, "indefinido")).toHaveLength(0);
   });
 });
+
+describe("bloco de ofertas com público indefinido", () => {
+  const ofertas: Oferta[] = [
+    {
+      titulo: "30% OFF em treinamentos e capacitações",
+      detalhe: "vale para o catálogo inteiro",
+      validoAte: "2026-09-30",
+      publico: "todos",
+    },
+    {
+      titulo: "20% OFF na primeira licença PDA",
+      detalhe: "para empresas",
+      validoAte: "2026-09-30",
+      publico: "empresa",
+    },
+  ];
+  const hoje = new Date("2026-09-17T12:00:00Z");
+
+  it("manda qualificar antes de citar qualquer oferta", () => {
+    const bloco = blocoDeOfertas(ofertas, hoje, "indefinido");
+    expect(bloco).toContain("antes de citar qualquer oferta");
+    expect(bloco).toContain("não pode mencionar produto");
+  });
+
+  it("não autoriza citar as ofertas sem perguntar", () => {
+    const bloco = blocoDeOfertas(ofertas, hoje, "indefinido");
+    expect(bloco).not.toContain("pode citá-las sem perguntar");
+  });
+
+  it("segue autorizando quem já tem público definido", () => {
+    const bloco = blocoDeOfertas(ofertas, hoje, "empresa");
+    expect(bloco).toContain("pode citá-las sem perguntar");
+    expect(bloco).not.toContain("antes de citar qualquer oferta");
+  });
+});
