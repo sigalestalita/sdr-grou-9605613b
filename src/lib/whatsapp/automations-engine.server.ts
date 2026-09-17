@@ -577,10 +577,58 @@ async function evalNewLead(rule: RuleRow): Promise<LeadLite[]> {
     .limit(500);
   const delay = rule.delay_minutes ?? 0;
   const cutoff = Date.now() - delay * 60_000;
-  return (data ?? []).filter(
+  const candidatos = (data ?? []).filter(
     (l) =>
       passesCommonFilters(l, rule.trigger_config) && new Date(l.created_at).getTime() <= cutoff,
   );
+
+  /*
+   * Quem já escreveu não recebe abertura.
+   *
+   * O lead que vem do clique no anúncio do WhatsApp chega com a conversa já
+   * começada, e a IA costuma responder antes desta automação rodar. Mandar o
+   * template de primeiro contato em cima disso faz a Grou se apresentar duas
+   * vezes, e ainda por cima depois de já ter conversado.
+   */
+  const jaEscreveram = await leadsComMensagemDoLead(candidatos.map((l) => l.id));
+  return candidatos.filter((l) => !jaEscreveram.has(l.id));
+}
+
+/** Os leads da lista cuja conversa já tem mensagem escrita pela própria pessoa. */
+async function leadsComMensagemDoLead(leadIds: string[]): Promise<Set<string>> {
+  const comMensagem = new Set<string>();
+  if (leadIds.length === 0) return comMensagem;
+  const { data: convs } = await supabaseAdmin
+    .from("whatsapp_conversations")
+    .select("id, lead_id")
+    .in("lead_id", leadIds);
+  const donoDaConversa = new Map<string, string>();
+  for (const c of (convs ?? []) as Array<{ id: string; lead_id: string | null }>) {
+    if (c.lead_id) donoDaConversa.set(c.id, c.lead_id);
+  }
+  if (donoDaConversa.size === 0) return comMensagem;
+  const { data: msgs } = await supabaseAdmin
+    .from("whatsapp_messages")
+    .select("conversation_id, sender_type")
+    .in("conversation_id", [...donoDaConversa.keys()])
+    .eq("sender_type", "lead");
+  return cruzarMensagensComLeads(donoDaConversa, (msgs ?? []) as MensagemLite[]);
+}
+
+export type MensagemLite = { conversation_id: string; sender_type?: string | null };
+
+/** A parte testável: de quem são as mensagens escritas pelo próprio lead. */
+export function cruzarMensagensComLeads(
+  donoDaConversa: Map<string, string>,
+  mensagens: MensagemLite[],
+): Set<string> {
+  const comMensagem = new Set<string>();
+  for (const m of mensagens) {
+    if (m.sender_type && m.sender_type !== "lead") continue;
+    const leadId = donoDaConversa.get(m.conversation_id);
+    if (leadId) comMensagem.add(leadId);
+  }
+  return comMensagem;
 }
 
 async function evalStageChange(rule: RuleRow): Promise<LeadLite[]> {
