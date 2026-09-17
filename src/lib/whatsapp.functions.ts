@@ -43,8 +43,24 @@ export const listConversations = createServerFn({ method: "GET" })
      * Sem isso a transferência não significaria nada: a conversa mudaria de
      * dono e continuaria aparecendo nos dois lugares.
      */
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    q = (q as any).eq("area", data?.area ?? "sdr");
+    const { temColunaArea } = await import("./whatsapp/area-da-conversa");
+    const separaAreas = await temColunaArea(supabase);
+    if (separaAreas) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      q = (q as any).eq("area", data?.area ?? "sdr");
+    } else if ((data?.area ?? "sdr") === "cs") {
+      /*
+       * Sem a coluna não existe caixa do CS. Devolver tudo aqui mostraria as
+       * conversas de lead dentro do CS, que é pior do que mostrar nada.
+       */
+      return {
+        conversations: [],
+        profiles: [],
+        windows: {},
+        contas: [],
+        padraoTodos: false,
+      };
+    }
     if (data?.status && data.status !== "all") q = q.eq("status", data.status);
     if (data?.assigned === "me") q = q.eq("assigned_user_id", userId);
     if (data?.assigned === "unassigned") q = q.is("assigned_user_id", null);

@@ -96,6 +96,14 @@ export async function transferirParaCs(
 ): Promise<boolean> {
   if ((conversa.area ?? "sdr") === "cs") return false;
 
+  /*
+   * Sem a coluna "area" no banco não existe caixa do CS para transferir, e
+   * insistir derruba o webhook — que atende mensagem de lead também. Fica
+   * como estava até a migration ser aplicada.
+   */
+  const { temColunaArea } = await import("../whatsapp/area-da-conversa");
+  if (!(await temColunaArea(admin))) return false;
+
   const agora = new Date().toISOString();
   await admin
     .from("whatsapp_conversations")
