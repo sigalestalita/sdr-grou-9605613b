@@ -542,9 +542,18 @@ async function handleInbound(
        * resposta errada do formulário — o lead precisa ir para a dona de
        * consultoria, mesmo já tendo responsável.
        */
-      if (perfil?.leadType === "consultoria") {
-        const { reavaliarDonoPorTipo } = await import("@/lib/lead-routing.server");
-        await reavaliarDonoPorTipo({ supabase: admin, leadId });
+      if (perfil?.leadType) {
+        const { ensureLeadRouted, reavaliarDonoPorTipo } =
+          await import("@/lib/lead-routing.server");
+        if (perfil.leadType === "consultoria") {
+          // Consultoria tem dona: corrige a rota mesmo se a roleta já entregou
+          // o lead a outra pessoa antes de o tipo ser conhecido.
+          await reavaliarDonoPorTipo({ supabase: admin, leadId });
+        } else {
+          // Empresa e pessoa física entram na roleta entre as SDRs. Sem isso o
+          // lead do WhatsApp ficava na fila geral até alguém pegar na mão.
+          await ensureLeadRouted({ supabase: admin, leadId });
+        }
       }
     } catch (e) {
       console.warn("[wa webhook] falha ao descobrir perfil do lead", e);

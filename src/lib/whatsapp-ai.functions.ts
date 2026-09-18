@@ -474,12 +474,23 @@ export async function generateAutoReplyInternal(
   const lastLead = lastInboundLeadMessage(messages);
   if (!lastLead) throw new Error("Nenhuma mensagem recente do lead para responder");
   const assinatura = await assinaturaDaConversa(supabase, lead, settings);
+  const { instrucaoDeCadastro } = await import("./whatsapp/cadastro-do-lead");
+  const cadastroPendente = instrucaoDeCadastro(lead as Record<string, string | null>);
   const result = await callAI([
     { role: "system", content: buildAgentSystemPrompt(settings, assinatura, publicoDoLead(lead)) },
     {
       role: "user",
       content:
         `${settings.replyPrompt}\n\n` +
+        /*
+         * O cadastro vem antes do diagnóstico.
+         *
+         * A IA descobria o tipo e já emendava em "qual o principal resultado
+         * que sua empresa busca?", e o card ficava sem empresa, sem cargo, sem
+         * porte e sem e-mail. Pedir o roteiro no prompt fixo não segurou nas
+         * outras vezes; dizer qual é a próxima pergunta, uma por vez, segura.
+         */
+        (cadastroPendente ? `${cadastroPendente}\n\n` : "") +
         (instruction ? `Instrução complementar: ${instruction}\n\n` : "") +
         `${leadBrief(lead, stage, notes, icp)}\n\n` +
         `Conversa:\n${transcript(messages)}\n\n` +
@@ -1697,16 +1708,24 @@ export async function descobrirPerfilDoLead(
   admin: any,
   leadId: string,
   mensagens: Array<{ sender_type: string; body: string | null }>,
-): Promise<{ leadType: string | null; companySize: string | null } | null> {
+): Promise<{
+  leadType: string | null;
+  companySize: string | null;
+  companyName: string | null;
+  position: string | null;
+  email: string | null;
+} | null> {
   const doLead = mensagens.filter((m) => m.sender_type === "lead" && (m.body?.trim() ?? ""));
   if (doLead.length === 0) return null;
 
   const { data: lead } = await admin
     .from("leads")
-    .select("lead_type, company_size")
+    .select("lead_type, company_size, company_name, position, email, company_segment")
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) return null;
+  const { camposQueFaltam } = await import("./whatsapp/cadastro-do-lead");
+  const faltaCadastro = camposQueFaltam(lead as Record<string, string | null>).length > 0;
   const faltaTipo = !lead.lead_type;
   const faltaPorte = !lead.company_size;
   /*
@@ -1719,7 +1738,7 @@ export async function descobrirPerfilDoLead(
     !faltaTipo &&
     normalizeLeadType(lead.lead_type as string) !== "consultoria" &&
     falaDeConsultoria(doLead.map((m) => m.body));
-  if (!faltaTipo && !faltaPorte && !podeCorrigirParaConsultoria) return null;
+  if (!faltaTipo && !faltaPorte && !faltaCadastro && !podeCorrigirParaConsultoria) return null;
 
   const tool = {
     type: "function",
@@ -1741,8 +1760,23 @@ export async function descobrirPerfilDoLead(
             description:
               "Faixa de funcionários citada, no formato '11 - 50'. String vazia quando não foi dito.",
           },
+          companyName: {
+            type: "string",
+            description:
+              "Nome da empresa ou consultoria, como a pessoa escreveu. Vazio se não disse.",
+          },
+          position: { type: "string", description: "Cargo da pessoa. Vazio se não disse." },
+          email: {
+            type: "string",
+            description: "E-mail que a pessoa informou na conversa. Vazio se não informou.",
+          },
+          area: {
+            type: "string",
+            description:
+              "Área em que a pessoa atua (RH, Comercial, Operações...). Vazio se não disse.",
+          },
         },
-        required: ["leadType", "companySize"],
+        required: ["leadType", "companySize", "companyName", "position", "email", "area"],
         additionalProperties: false,
       },
     },
@@ -1752,7 +1786,14 @@ export async function descobrirPerfilDoLead(
     .map((m) => `${m.sender_type === "lead" ? "Lead" : "Nós"}: ${m.body ?? ""}`)
     .join("\n");
 
-  let extraido: { leadType?: string; companySize?: string } = {};
+  let extraido: {
+    leadType?: string;
+    companySize?: string;
+    companyName?: string;
+    position?: string;
+    email?: string;
+    area?: string;
+  } = {};
   try {
     const r = await callAI(
       [
@@ -1783,6 +1824,24 @@ export async function descobrirPerfilDoLead(
   if (faltaPorte && extraido.companySize?.trim()) {
     patch.company_size = extraido.companySize.trim();
   }
+  /*
+   * Só preenche o que está vazio: dado de formulário vale mais do que dedução
+   * de conversa, e sobrescrever apagaria o que o marketing capturou.
+   */
+  const preencherSeVazio = (campo: string, valor: string | undefined) => {
+    const atual = (lead as Record<string, unknown>)[campo];
+    const limpo = (valor ?? "").trim();
+    if (!limpo) return;
+    if (atual !== null && atual !== undefined && String(atual).trim() !== "") return;
+    patch[campo] = limpo;
+  };
+  preencherSeVazio("company_name", extraido.companyName);
+  preencherSeVazio("position", extraido.position);
+  preencherSeVazio("company_segment", extraido.area);
+  // E-mail tem índice único: um valor malformado derruba o update inteiro.
+  if (extraido.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(extraido.email.trim())) {
+    preencherSeVazio("email", extraido.email);
+  }
   if (Object.keys(patch).length === 0) return null;
 
   await admin
@@ -1793,5 +1852,8 @@ export async function descobrirPerfilDoLead(
   return {
     leadType: (patch.lead_type as string) ?? null,
     companySize: (patch.company_size as string) ?? null,
+    companyName: (patch.company_name as string) ?? null,
+    position: (patch.position as string) ?? null,
+    email: (patch.email as string) ?? null,
   };
 }
