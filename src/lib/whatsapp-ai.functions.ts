@@ -1763,7 +1763,7 @@ export async function descobrirPerfilDoLead(
           companyName: {
             type: "string",
             description:
-              "Nome da empresa ou consultoria, como a pessoa escreveu. Vazio se não disse.",
+              "Nome da empresa ou consultoria ONDE A PESSOA TRABALHA, dito por ela. Nunca o nome do produto, da campanha ou da empresa que está vendendo (Grou, PDA, PDA Assessment, Black September): o que ela menciona por interesse não é onde ela trabalha. Vazio se ela ainda não disse onde trabalha.",
           },
           position: { type: "string", description: "Cargo da pessoa. Vazio se não disse." },
           email: {
@@ -1835,7 +1835,15 @@ export async function descobrirPerfilDoLead(
     if (atual !== null && atual !== undefined && String(atual).trim() !== "") return;
     patch[campo] = limpo;
   };
-  preencherSeVazio("company_name", extraido.companyName);
+  /*
+   * A pessoa chegou pelo anúncio dizendo "quero informações sobre licença PDA
+   * da Black September" e o extrator gravou Black September como a empresa
+   * dela. O que é nosso nunca vira empresa do lead.
+   */
+  const { ehNomeDaCasa } = await import("./whatsapp/nomes-da-casa");
+  if (!ehNomeDaCasa(extraido.companyName)) {
+    preencherSeVazio("company_name", extraido.companyName);
+  }
   preencherSeVazio("position", extraido.position);
   preencherSeVazio("company_segment", extraido.area);
   // E-mail tem índice único: um valor malformado derruba o update inteiro.
