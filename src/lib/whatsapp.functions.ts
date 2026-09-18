@@ -112,6 +112,14 @@ export const listConversations = createServerFn({ method: "GET" })
     const privadas = await lerCaixasPrivadas(supabase);
     result = filtrarCaixasPrivadas(result, privadas, userId);
 
+    /*
+     * Conversa antiga tem mensagem de SDR e assumed_at vazio, porque marcar
+     * quem envia é recente. Sem isso o selo diria "IA atendendo" numa conversa
+     * que a pessoa já está tocando.
+     */
+    const { conversasComHumano } = await import("./whatsapp/conversas-com-humano.server");
+    const comHumano = await conversasComHumano(supabase);
+
     const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
 
     /*
@@ -153,7 +161,10 @@ export const listConversations = createServerFn({ method: "GET" })
     }
 
     return {
-      conversations: result,
+      conversations: result.map((c) => ({
+        ...c,
+        tem_mensagem_humana: comHumano.has(c.id as string),
+      })),
       profiles: profiles ?? [],
       windows,
       contas: contas.map((c) => ({

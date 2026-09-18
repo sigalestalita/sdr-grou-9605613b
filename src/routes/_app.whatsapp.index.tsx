@@ -291,6 +291,8 @@ function WhatsappInbox() {
                     const estado = quemAtende({
                       status: c.status,
                       assumedAt: (c as { assumed_at?: string | null }).assumed_at,
+                      temMensagemHumana: (c as { tem_mensagem_humana?: boolean })
+                        .tem_mensagem_humana,
                     });
                     if (estado === "encerrada") return null;
                     return (
@@ -373,6 +375,8 @@ function WhatsappInbox() {
                       const estado = quemAtende({
                         status: selectedConv.status,
                         assumedAt: (selectedConv as { assumed_at?: string | null }).assumed_at,
+                        temMensagemHumana: (selectedConv as { tem_mensagem_humana?: boolean })
+                          .tem_mensagem_humana,
                       });
                       return (
                         <Badge

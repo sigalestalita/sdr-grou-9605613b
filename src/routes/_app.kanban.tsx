@@ -1010,7 +1010,11 @@ function LeadCard({
   overlay,
 }: {
   lead: import("@/lib/lead-types").Lead;
-  conversa: { status: string | null; assumed_at: string | null } | null;
+  conversa: {
+    status: string | null;
+    assumed_at: string | null;
+    tem_mensagem_humana?: boolean;
+  } | null;
   stageSlug: string;
   stages: { id: string; slug: string; name: string; position: number }[];
   profiles: { id: string; full_name: string | null; email: string | null }[];
@@ -1169,6 +1173,7 @@ function LeadCard({
           const estado = quemAtende({
             status: conversa.status,
             assumedAt: conversa.assumed_at,
+            temMensagemHumana: conversa.tem_mensagem_humana,
           });
           if (estado !== "encerrada") {
             chips.push(
