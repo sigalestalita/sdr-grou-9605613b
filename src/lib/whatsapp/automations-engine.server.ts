@@ -406,12 +406,31 @@ async function executeAiInitialOutreachForLead(
    * de um segundo contato que nunca vem só atrapalha a conversa.
    */
   const { assinaturaDaIa } = await import("./ai-elegibilidade");
+
+  /*
+   * Sem dono não dá para assinar.
+   *
+   * A mensagem diz "aqui é Fulana, da Grou" e promete que essa pessoa segue o
+   * atendimento. Saindo como "Equipe", a promessa fica vaga e quem responder
+   * cai na fila geral. Distribuir antes de escrever resolve as duas coisas —
+   * e para consultoria já existe dona definida.
+   */
+  let responsavelId = lead.assigned_to;
+  if (!responsavelId) {
+    try {
+      const { ensureLeadRouted } = await import("../lead-routing.server");
+      responsavelId = await ensureLeadRouted({ supabase: supabaseAdmin, leadId: lead.id });
+    } catch {
+      /* distribuir é melhor-esforço: sem dono, a assinatura cai no genérico */
+    }
+  }
+
   let nomeDoSdr: string | null = null;
-  if (lead.assigned_to) {
+  if (responsavelId) {
     const { data: perfil } = await supabaseAdmin
       .from("profiles")
       .select("full_name, email")
-      .eq("id", lead.assigned_to)
+      .eq("id", responsavelId)
       .maybeSingle();
     nomeDoSdr = perfil?.full_name || perfil?.email || null;
   }
@@ -457,7 +476,8 @@ async function executeAiInitialOutreachForLead(
         lead_id: lead.id,
         contact_id: contactId,
         account_id: account.id,
-        assigned_user_id: lead.assigned_to,
+        // O mesmo dono que assinou a mensagem: quem responder cai na fila dela.
+        assigned_user_id: responsavelId,
         status: "open",
       })
       .select("id")
