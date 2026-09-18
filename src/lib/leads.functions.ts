@@ -48,17 +48,42 @@ export const listKanbanData = createServerFn({ method: "GET" })
       }
       return all;
     }
-    const [stagesRes, leads, profilesRes, rolesRes] = await Promise.all([
+    const [stagesRes, leads, profilesRes, rolesRes, conversasRes] = await Promise.all([
       supabase.from("stages").select("*").order("position"),
       fetchAllLeads(),
       supabase.from("profiles").select("id, full_name, email"),
       supabase.from("user_roles").select("user_id").eq("role", "executivo"),
+      /*
+       * Só o estado da conversa, para o card dizer de quem é a bola: com a IA
+       * ou com uma pessoa. Nada de mensagem aqui — o kanban carrega milhares de
+       * leads e não pode pagar por isso.
+       */
+      supabase
+        .from("whatsapp_conversations")
+        .select("lead_id, status, assumed_at")
+        .not("lead_id", "is", null)
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(5000),
     ]);
     if (stagesRes.error) throw new Error(stagesRes.error.message);
     if (profilesRes.error) throw new Error(profilesRes.error.message);
+    const conversaPorLead = new Map<string, { status: string | null; assumed_at: string | null }>();
+    for (const c of (conversasRes.data ?? []) as Array<{
+      lead_id: string | null;
+      status: string | null;
+      assumed_at: string | null;
+    }>) {
+      // A consulta vem da mais recente para a mais antiga: a primeira de cada
+      // lead é a que vale.
+      if (c.lead_id && !conversaPorLead.has(c.lead_id)) {
+        conversaPorLead.set(c.lead_id, { status: c.status, assumed_at: c.assumed_at });
+      }
+    }
+
     return {
       stages: stagesRes.data ?? [],
       leads,
+      conversas: Object.fromEntries(conversaPorLead),
       profiles: profilesRes.data ?? [],
       /** Quem pode ser o executivo da agenda (papel executivo). */
       executivoIds: (rolesRes.data ?? []).map((r) => r.user_id as string),

@@ -306,10 +306,6 @@ function lastInboundLeadMessage(messages: Array<{ sender_type: string; body: str
   return [...messages].reverse().find((m) => m.sender_type === "lead" && (m.body?.trim() ?? ""));
 }
 
-function hasHumanTakeover(messages: Array<{ sender_type: string }>) {
-  return messages.some((m) => ["sdr", "agent", "human"].includes(m.sender_type));
-}
-
 export async function evaluateAiHandoffInternal(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
@@ -456,8 +452,21 @@ export async function generateAutoReplyInternal(
   if (currentStageId && settings.handoffStageIds.includes(currentStageId)) {
     throw new Error("Conversa já está em etapa de handoff humano");
   }
-  if (hasHumanTakeover(messages)) {
-    throw new Error("IA desativada nesta conversa após resposta humana");
+  /*
+   * A trava que faltava.
+   *
+   * Passar o bastão mudava status e responsável, mas nada impedia a próxima
+   * mensagem do lead de acordar a IA de novo — ela seguia respondendo por cima
+   * da SDR que já tinha assumido.
+   */
+  const { iaPodeResponder, temMensagemDeHumano } = await import("./whatsapp/quem-atende");
+  const estadoDaConversa = {
+    status: (conv as { status?: string | null }).status,
+    assumedAt: (conv as { assumed_at?: string | null }).assumed_at,
+    temMensagemHumana: temMensagemDeHumano(messages as Array<{ sender_type: string }>),
+  };
+  if (!iaPodeResponder(estadoDaConversa)) {
+    throw new Error("A conversa já está com uma pessoa: a IA não responde mais aqui");
   }
   if (countAgentReplies(messages) >= settings.responseMaxPerConversation) {
     throw new Error("Limite de respostas automáticas atingido nesta conversa");

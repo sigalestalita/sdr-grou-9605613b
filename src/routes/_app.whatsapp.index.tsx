@@ -29,6 +29,12 @@ import { BellRing, ExternalLink } from "lucide-react";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type";
 import { toast } from "sonner";
 import { useOwnerLabel } from "@/lib/use-owner-label";
+import {
+  COR_DE_QUEM_ATENDE,
+  EXPLICACAO_DE_QUEM_ATENDE,
+  ROTULO_DE_QUEM_ATENDE,
+  quemAtende,
+} from "@/lib/whatsapp/quem-atende";
 
 const LISIANE_USER_ID = "96c713e5-af8f-48fd-b536-59c2e1879f73";
 
@@ -281,6 +287,22 @@ function WhatsappInbox() {
                   <p className="text-xs text-muted-foreground truncate">{lead.company_name}</p>
                 )}
                 <div className="flex flex-wrap gap-1 mt-1.5">
+                  {(() => {
+                    const estado = quemAtende({
+                      status: c.status,
+                      assumedAt: (c as { assumed_at?: string | null }).assumed_at,
+                    });
+                    if (estado === "encerrada") return null;
+                    return (
+                      <Badge
+                        variant="outline"
+                        className={`h-4 px-1.5 text-[10px] ${COR_DE_QUEM_ATENDE[estado]}`}
+                        title={EXPLICACAO_DE_QUEM_ATENDE[estado]}
+                      >
+                        {ROTULO_DE_QUEM_ATENDE[estado]}
+                      </Badge>
+                    );
+                  })()}
                   {lead?.lead_type && (
                     <Badge
                       variant="outline"
@@ -342,11 +364,28 @@ function WhatsappInbox() {
           <>
             <div className="flex-1 min-w-0 flex flex-col">
               <div className="px-4 py-3 border-b border-white/5 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">
-                    {(selectedConv.leads as { name?: string | null } | null)?.name ?? "Sem nome"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium truncate">
+                      {(selectedConv.leads as { name?: string | null } | null)?.name ?? "Sem nome"}
+                    </p>
+                    {(() => {
+                      const estado = quemAtende({
+                        status: selectedConv.status,
+                        assumedAt: (selectedConv as { assumed_at?: string | null }).assumed_at,
+                      });
+                      return (
+                        <Badge
+                          variant="outline"
+                          className={`h-5 shrink-0 px-1.5 text-[10px] ${COR_DE_QUEM_ATENDE[estado]}`}
+                          title={EXPLICACAO_DE_QUEM_ATENDE[estado]}
+                        >
+                          {ROTULO_DE_QUEM_ATENDE[estado]}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">
                     {(selectedConv.leads as { company_name?: string | null } | null)
                       ?.company_name ?? ""}
                   </p>

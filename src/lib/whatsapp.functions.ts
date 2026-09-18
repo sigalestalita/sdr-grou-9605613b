@@ -554,6 +554,7 @@ export const sendMessage = createServerFn({ method: "POST" })
           unread_count: 0,
         })
         .eq("id", data.conversationId);
+      await marcarComoAssumida(supabaseAdmin, data.conversationId, userId);
 
       return { ok: true, messageId: msg.id, providerMessageId: result.providerMessageId };
     } catch (e) {
@@ -702,6 +703,7 @@ export const sendTemplateToConversation = createServerFn({ method: "POST" })
           unread_count: 0,
         })
         .eq("id", data.conversationId);
+      await marcarComoAssumida(supabaseAdmin, data.conversationId, userId);
 
       return { ok: true, messageId: msg.id };
     } catch (e) {
@@ -830,6 +832,7 @@ export const sendMediaFromStorage = createServerFn({ method: "POST" })
           unread_count: 0,
         })
         .eq("id", data.conversationId);
+      await marcarComoAssumida(supabaseAdmin, data.conversationId, userId);
 
       return { ok: true, messageId: msg.id };
     } catch (e) {
@@ -954,6 +957,23 @@ export const assumeConversation = createServerFn({ method: "POST" })
 
     return { ok: true, assumedAt };
   });
+
+/*
+ * Escrever é assumir.
+ *
+ * A conversa podia ficar com assumed_at vazio enquanto a SDR já respondia, e
+ * aí nada distinguia "a IA está atendendo" de "a pessoa está atendendo" — nem
+ * na tela, nem na trava que cala a IA. Quem escreve primeiro fica com ela; as
+ * mensagens seguintes não trocam o dono.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function marcarComoAssumida(db: any, conversationId: string, userId: string) {
+  await db
+    .from("whatsapp_conversations")
+    .update({ assumed_by_user_id: userId, assumed_at: new Date().toISOString() })
+    .eq("id", conversationId)
+    .is("assumed_at", null);
+}
 
 /** Muda status (open/pending/closed). */
 export const setConversationStatus = createServerFn({ method: "POST" })

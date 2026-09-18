@@ -399,7 +399,16 @@ async function handleInbound(
     throw new Error(erroInsercao.message);
   }
 
-  let conversationStatus: "open" | "pending" = "open";
+  /*
+   * Mensagem nova do lead não desfaz o bastão.
+   *
+   * Isto aqui abria "open" sempre, então bastava o lead responder para a
+   * conversa que estava esperando uma pessoa voltar ao estado em que a IA
+   * atende — e ela respondia por cima da SDR. Quem estava pendente continua
+   * pendente; só conversa encerrada reabre.
+   */
+  let conversationStatus: "open" | "pending" =
+    (conv as { status?: string | null }).status === "pending" ? "pending" : "open";
   let conversationAssignee = conv.assigned_user_id ?? null;
 
   // 4a) resposta a uma campanha de WhatsApp → avisa a SDR responsável e tira a IA da conversa

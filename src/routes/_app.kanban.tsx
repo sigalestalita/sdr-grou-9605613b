@@ -23,6 +23,12 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { LostReasonFilter } from "@/components/leads/lost-reason-filter";
+import {
+  COR_DE_QUEM_ATENDE,
+  EXPLICACAO_DE_QUEM_ATENDE,
+  ROTULO_DE_QUEM_ATENDE,
+  quemAtende,
+} from "@/lib/whatsapp/quem-atende";
 import { MOTIVOS_DE_DESCARTE, agruparMotivos, valorDoMotivo } from "@/lib/leads/motivos-descarte";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import {
@@ -890,6 +896,7 @@ function KanbanPage() {
                   <LeadCard
                     key={l.id}
                     lead={l}
+                    conversa={data.conversas?.[l.id] ?? null}
                     stageSlug={s.slug}
                     stages={data.stages}
                     profiles={data.profiles}
@@ -906,6 +913,7 @@ function KanbanPage() {
           {activeLead ? (
             <LeadCard
               lead={activeLead}
+              conversa={data.conversas?.[activeLead.id] ?? null}
               stageSlug={stageById.get(activeLead.stage_id ?? "")?.slug ?? ""}
               stages={data.stages}
               profiles={data.profiles}
@@ -992,6 +1000,7 @@ function Column({
 
 function LeadCard({
   lead,
+  conversa,
   stageSlug,
   stages,
   profiles,
@@ -1001,6 +1010,7 @@ function LeadCard({
   overlay,
 }: {
   lead: import("@/lib/lead-types").Lead;
+  conversa: { status: string | null; assumed_at: string | null } | null;
   stageSlug: string;
   stages: { id: string; slug: string; name: string; position: number }[];
   profiles: { id: string; full_name: string | null; email: string | null }[];
@@ -1150,6 +1160,29 @@ function LeadCard({
          * diz de onde veio e, enquanto o tipo não estiver preenchido, que a IA
          * ainda está descobrindo. Serve para ninguém descartar cedo demais.
          */
+        /*
+         * De quem é a bola. É a pergunta que a SDR faz olhando o card: a IA
+         * ainda está conversando, ou já é comigo? Sem isso, o único jeito de
+         * saber era abrir a conversa.
+         */
+        if (conversa) {
+          const estado = quemAtende({
+            status: conversa.status,
+            assumedAt: conversa.assumed_at,
+          });
+          if (estado !== "encerrada") {
+            chips.push(
+              <Badge
+                key="quem-atende"
+                variant="outline"
+                className={`h-[18px] px-1.5 text-[10px] font-medium ${COR_DE_QUEM_ATENDE[estado]}`}
+                title={EXPLICACAO_DE_QUEM_ATENDE[estado]}
+              >
+                {ROTULO_DE_QUEM_ATENDE[estado]}
+              </Badge>,
+            );
+          }
+        }
         if (VINDO_DO_WHATSAPP.has((lead.source ?? "").trim())) {
           const qualificando = !lead.lead_type;
           chips.push(
