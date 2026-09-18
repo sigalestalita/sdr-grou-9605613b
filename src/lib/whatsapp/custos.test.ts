@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  ISENTAS_NA_JANELA,
+  emReais,
   type ModeloDeCobranca,
   type VolumeDoMes,
   compararModelos,
@@ -11,6 +13,7 @@ import {
 const volume: VolumeDoMes = {
   mes: "2026-09",
   enviadosPorCategoria: { ...zeradoPorCategoria(), marketing: 1000, utility: 200 },
+  gratuitosNaJanela: { ...zeradoPorCategoria(), utility: 340 },
   conversasPorCategoria: { ...zeradoPorCategoria(), marketing: 400, utility: 150 },
   respostasLivres: 900,
   recebidas: 1200,
@@ -74,6 +77,7 @@ describe("compararModelos", () => {
     const vazio: VolumeDoMes = {
       mes: "2026-08",
       enviadosPorCategoria: zeradoPorCategoria(),
+      gratuitosNaJanela: zeradoPorCategoria(),
       conversasPorCategoria: zeradoPorCategoria(),
       respostasLivres: 0,
       recebidas: 0,
@@ -87,5 +91,25 @@ describe("semPrecoConfigurado", () => {
   it("reconhece tabela ainda em branco", () => {
     expect(semPrecoConfigurado({ ...porMensagem, precos: zeradoPorCategoria() })).toBe(true);
     expect(semPrecoConfigurado(porMensagem)).toBe(false);
+  });
+});
+
+describe("emReais", () => {
+  it("converte o preço em dólar pela cotação", () => {
+    expect(emReais(0.0625, 5.14)).toBeCloseTo(0.3213, 4);
+  });
+
+  it("câmbio inválido não vira número estranho", () => {
+    expect(emReais(0.0625, 0)).toBe(0);
+    expect(emReais(0.0625, -1)).toBe(0);
+  });
+});
+
+describe("ISENTAS_NA_JANELA", () => {
+  it("isenta utilidade e atendimento, cobra marketing", () => {
+    expect(ISENTAS_NA_JANELA.has("utility")).toBe(true);
+    expect(ISENTAS_NA_JANELA.has("service")).toBe(true);
+    expect(ISENTAS_NA_JANELA.has("marketing")).toBe(false);
+    expect(ISENTAS_NA_JANELA.has("authentication")).toBe(false);
   });
 });

@@ -42,8 +42,16 @@ export type ModeloDeCobranca = {
 export type VolumeDoMes = {
   /** "2026-09" */
   mes: string;
-  /** Templates enviados no mês, por categoria. */
+  /** Templates cobráveis enviados no mês, por categoria. */
   enviadosPorCategoria: Record<Categoria, number>;
+  /**
+   * Templates que saíram de graça por estarem dentro da janela de 24h.
+   *
+   * A Meta não cobra utilidade enviada enquanto a janela aberta pelo cliente
+   * está valendo. Contar esses junto inflaria a conta; contar em separado
+   * mostra quanto a janela está economizando.
+   */
+  gratuitosNaJanela: Record<Categoria, number>;
   /** Conversas que tiveram ao menos um template daquela categoria no mês. */
   conversasPorCategoria: Record<Categoria, number>;
   /** Mensagens livres enviadas dentro da janela aberta (não são template). */
@@ -125,3 +133,19 @@ export function semPrecoConfigurado(modelo: ModeloDeCobranca): boolean {
 export function formatarReais(valor: number): string {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
+
+export function formatarDolar(valor: number): string {
+  return valor.toLocaleString("pt-BR", { style: "currency", currency: "USD" });
+}
+
+/**
+ * A Meta publica o preço em dólar e converte na cotação do dia. Guardar o
+ * dólar e o câmbio separados mantém a tabela válida quando a moeda mexe — e
+ * deixa claro que o valor em real é estimativa, não fatura.
+ */
+export function emReais(valorEmDolar: number, cambio: number): number {
+  return valorEmDolar * (cambio > 0 ? cambio : 0);
+}
+
+/** Categorias que a janela de 24h isenta. Marketing paga sempre. */
+export const ISENTAS_NA_JANELA: ReadonlySet<Categoria> = new Set<Categoria>(["utility", "service"]);

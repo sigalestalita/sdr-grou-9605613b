@@ -13,6 +13,8 @@ import {
   type ModeloDeCobranca,
   compararModelos,
   custoDoMes,
+  emReais,
+  formatarDolar,
   formatarReais,
   semPrecoConfigurado,
 } from "@/lib/whatsapp/custos";
@@ -38,12 +40,16 @@ function CustosPage() {
   });
 
   const [modelos, setModelos] = useState<ModeloDeCobranca[]>([]);
+  const [cambio, setCambio] = useState(5.14);
   useEffect(() => {
     if (data?.modelos) setModelos(data.modelos);
-  }, [data?.modelos]);
+    if (data?.cambio) setCambio(data.cambio);
+  }, [data?.modelos, data?.cambio]);
+
+  const reais = (dolares: number) => formatarReais(emReais(dolares, cambio));
 
   const salvar = useMutation({
-    mutationFn: () => salvarFn({ data: { modelos } }),
+    mutationFn: () => salvarFn({ data: { modelos, cambio } }),
     onSuccess: () => {
       toast.success("Tabela de preços salva");
       qc.invalidateQueries({ queryKey: ["wa-custos"] });
@@ -105,8 +111,8 @@ function CustosPage() {
             <p className="font-medium">A tabela de preços ainda está em branco</p>
             <p className="text-muted-foreground">
               O volume abaixo é real, mas o custo só aparece depois que você preencher os valores.
-              Eles variam por país e por acordo comercial, então não dá para deixar um número
-              chutado aqui. Copie do WhatsApp Manager, em Insights → Cobrança.
+              Eles variam por país e por acordo comercial. Copie do WhatsApp Manager, em Insights →
+              Cobrança.
             </p>
           </div>
         </Card>
@@ -140,6 +146,12 @@ function CustosPage() {
                   {ROTULO_DA_CATEGORIA[c]}
                 </th>
               ))}
+              <th
+                className="p-2 text-right"
+                title="Utilidade enviada com a janela de 24h aberta: a Meta não cobra"
+              >
+                Grátis na janela
+              </th>
               <th className="p-2 text-right">Livres</th>
               <th className="p-2 text-right">Recebidas</th>
               <th className="p-2 text-right">Custo hoje</th>
@@ -158,6 +170,11 @@ function CustosPage() {
                       {v.enviadosPorCategoria[c].toLocaleString("pt-BR")}
                     </td>
                   ))}
+                  <td className="p-2 text-right text-emerald-600 dark:text-emerald-400">
+                    {Object.values(v.gratuitosNaJanela)
+                      .reduce((a, b) => a + b, 0)
+                      .toLocaleString("pt-BR")}
+                  </td>
                   <td className="p-2 text-right text-muted-foreground">
                     {v.respostasLivres.toLocaleString("pt-BR")}
                   </td>
@@ -165,10 +182,10 @@ function CustosPage() {
                     {v.recebidas.toLocaleString("pt-BR")}
                   </td>
                   <td className="p-2 text-right">
-                    {atual ? formatarReais(custoDoMes(v, atual).total) : "—"}
+                    {atual ? reais(custoDoMes(v, atual).total) : "—"}
                   </td>
                   <td className="p-2 text-right">
-                    {futuro ? formatarReais(custoDoMes(v, futuro).total) : "—"}
+                    {futuro ? reais(custoDoMes(v, futuro).total) : "—"}
                   </td>
                   <td
                     className={`p-2 text-right ${
@@ -180,7 +197,7 @@ function CustosPage() {
                     }`}
                   >
                     {comp
-                      ? `${comp.diferenca > 0 ? "+" : ""}${formatarReais(comp.diferenca)}${
+                      ? `${comp.diferenca > 0 ? "+" : ""}${reais(comp.diferenca)}${
                           comp.variacao === null
                             ? ""
                             : ` (${comp.variacao > 0 ? "+" : ""}${Math.round(comp.variacao * 100)}%)`
@@ -192,7 +209,7 @@ function CustosPage() {
             })}
             {volumes.length === 0 && (
               <tr>
-                <td colSpan={9} className="p-4 text-center text-muted-foreground">
+                <td colSpan={10} className="p-4 text-center text-muted-foreground">
                   Nenhuma mensagem no período.
                 </td>
               </tr>
@@ -206,14 +223,27 @@ function CustosPage() {
           <div>
             <h3 className="font-semibold">Tabela de preços</h3>
             <p className="text-xs text-muted-foreground">
-              Valor unitário em reais. A conta usa esta tabela — nada de preço embutido no sistema,
-              porque a Meta muda os valores e eles variam por país.
+              Valor unitário <strong>em dólar por mensagem</strong>, que é como a Meta publica. O
+              real ao lado é estimativa pela cotação abaixo, não fatura.
             </p>
           </div>
-          <Button size="sm" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
-            <Save className="mr-1 h-3.5 w-3.5" />
-            {salvar.isPending ? "Salvando…" : "Salvar"}
-          </Button>
+          <div className="flex items-end gap-2">
+            <label className="text-xs">
+              <span className="text-muted-foreground">Cotação US$ → R$</span>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={cambio}
+                onChange={(e) => setCambio(Number(e.target.value) || 0)}
+                className="mt-0.5 h-9 w-28 rounded-md border border-border bg-background px-2 tabular-nums"
+              />
+            </label>
+            <Button size="sm" onClick={() => salvar.mutate()} disabled={salvar.isPending}>
+              <Save className="mr-1 h-3.5 w-3.5" />
+              {salvar.isPending ? "Salvando…" : "Salvar"}
+            </Button>
+          </div>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
           {modelos.map((m, i) => (
@@ -229,13 +259,17 @@ function CustosPage() {
               <div className="grid grid-cols-2 gap-2">
                 {CATEGORIAS.map((c) => (
                   <label key={c} className="text-xs">
-                    <span className="text-muted-foreground">{ROTULO_DA_CATEGORIA[c]}</span>
+                    <span className="text-muted-foreground">
+                      {ROTULO_DA_CATEGORIA[c]}{" "}
+                      <span className="tabular-nums">{reais(m.precos[c] ?? 0)}</span>
+                    </span>
                     <input
                       type="number"
-                      step="0.001"
+                      step="0.0001"
                       min="0"
                       value={m.precos[c]}
                       onChange={(e) => mudarPreco(i, c, e.target.value)}
+                      title={`${formatarDolar(m.precos[c] ?? 0)} por mensagem`}
                       className="mt-0.5 h-9 w-full rounded-md border border-border bg-background px-2 tabular-nums"
                     />
                   </label>
@@ -285,10 +319,10 @@ function CustosPage() {
                   </td>
                   <td className="p-2 text-right">{t.enviados.toLocaleString("pt-BR")}</td>
                   <td className="p-2 text-right">
-                    {atual ? formatarReais(t.enviados * (atual.precos[t.categoria] ?? 0)) : "—"}
+                    {atual ? reais(t.enviados * (atual.precos[t.categoria] ?? 0)) : "—"}
                   </td>
                   <td className="p-2 text-right">
-                    {futuro ? formatarReais(t.enviados * (futuro.precos[t.categoria] ?? 0)) : "—"}
+                    {futuro ? reais(t.enviados * (futuro.precos[t.categoria] ?? 0)) : "—"}
                   </td>
                 </tr>
               ))}
