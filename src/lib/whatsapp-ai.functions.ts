@@ -328,6 +328,24 @@ export async function evaluateAiHandoffInternal(
     };
   }
 
+  /*
+   * Já avisamos que alguém assume e o lead topou: transfere calado.
+   *
+   * "Combinado" não é resposta com conteúdo, então a trava do bastão segurava a
+   * transferência e a IA respondia avisando de novo. Concordar com um aviso já
+   * dado vale como pedido de pessoa.
+   */
+  const { jaAnunciouBastao, topouOBastao } = await import("./whatsapp/anuncio-de-bastao");
+  const conversa = messages as Array<{ sender_type: string; body: string | null }>;
+  if (topouOBastao(conversa)) {
+    return {
+      shouldHandoff: true,
+      reason: "O lead concordou com o aviso de que uma pessoa assumiria a conversa.",
+      urgency: "media",
+      suggestedReply: "",
+    };
+  }
+
   const tool = {
     type: "function",
     function: {
@@ -411,11 +429,14 @@ export async function evaluateAiHandoffInternal(
     };
   }
 
+  const vaiTransferir = args.shouldHandoff === true;
   return {
-    shouldHandoff: args.shouldHandoff === true,
+    shouldHandoff: vaiTransferir,
     reason: args.reason?.trim() || "Conversa madura para SDR assumir.",
     urgency: args.urgency || "media",
-    suggestedReply: args.suggestedReply?.trim() || "",
+    // Aviso é coisa de uma vez só: se já demos, transfere sem repetir.
+    suggestedReply:
+      vaiTransferir && jaAnunciouBastao(conversa) ? "" : args.suggestedReply?.trim() || "",
   };
 }
 
@@ -471,7 +492,17 @@ export async function generateAutoReplyInternal(
   const jaFalamosAntes = (messages as Array<{ sender_type: string }>).some((m) =>
     ["bot", "automation", "sdr", "agent", "human"].includes(m.sender_type),
   );
-  return { reply: removerSaudacaoRepetida(reply, jaFalamosAntes) };
+
+  /*
+   * Quando a resposta promete que alguém vai assumir, quem chama precisa
+   * cumprir. Era essa promessa sem transferência que fazia a IA avisar duas
+   * vezes: a trava segurava o bastão, mas a mensagem já tinha sido enviada.
+   */
+  const { anunciaBastao } = await import("./whatsapp/anuncio-de-bastao");
+  return {
+    reply: removerSaudacaoRepetida(reply, jaFalamosAntes),
+    prometeuBastao: anunciaBastao(reply),
+  };
 }
 
 async function callAI(messages: Array<{ role: string; content: string }>, tool?: unknown) {

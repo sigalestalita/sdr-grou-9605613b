@@ -676,39 +676,16 @@ async function handleInbound(
       conversationStatus = "pending";
       conversationAssignee = donoDoBastao;
 
-      await admin
-        .from("whatsapp_conversations")
-        .update({
-          assigned_user_id: donoDoBastao,
-          status: "pending",
-          unread_count: (conv.unread_count ?? 0) + 1,
-          last_message_at: ts,
-          last_preview: msg.body?.slice(0, 200) ?? `[${msg.type}]`,
-        })
-        .eq("id", conv.id);
-
-      await admin
-        .from("leads")
-        .update({ assigned_to: donoDoBastao, last_action_at: new Date().toISOString() })
-        .eq("id", leadId);
-
-      // Bastão passado: o card sai de "Em qualificação" e vai para "Em contato",
-      // que é o marco de primeira abordagem humana no kanban.
-      const { moverEtapaDoLead } = await import("@/lib/whatsapp/automations-engine.server");
-      await moverEtapaDoLead(leadId, "em_contato");
-
-      await admin.from("lead_interactions").insert({
-        lead_id: leadId,
-        author_id: null,
-        type: "routing",
-        content:
-          "Lead transferido automaticamente da IA para a Lisiane por intenção comercial/agendamento.",
-        metadata: {
-          assignee_user_id: donoDoBastao,
-          source: "ai_handoff",
-          reason: handoff.reason,
-          urgency: handoff.urgency,
-        },
+      const { passarBastaoParaHumano } = await import("@/lib/whatsapp/passar-bastao.server");
+      await passarBastaoParaHumano({
+        admin,
+        conversaId: conv.id,
+        leadId,
+        donoDoBastao,
+        motivo: handoff.reason,
+        preview: msg.body ?? `[${msg.type}]`,
+        unreadCount: (conv.unread_count ?? 0) + 1,
+        origem: "ai_handoff",
       });
 
       if (handoff.suggestedReply) {
@@ -762,6 +739,7 @@ async function handleInbound(
     const aiResult = await generateAutoReplyInternal(admin, conv.id);
     const reply = aiResult?.reply?.trim();
     if (!reply) return;
+    const prometeuBastao = aiResult?.prometeuBastao === true;
 
     const { getProvider } = await import("@/lib/whatsapp/provider-registry.server");
     const provider = getProvider(accountConfig.provider);
@@ -801,9 +779,28 @@ async function handleInbound(
       .update({
         last_message_at: new Date().toISOString(),
         last_preview: reply.slice(0, 200),
-        status: "open",
+        status: prometeuBastao ? "pending" : "open",
       })
       .eq("id", conv.id);
+
+    /*
+     * A IA acabou de dizer que alguém vai assumir. Promessa feita, promessa
+     * cumprida: transfere agora, em vez de esperar a próxima mensagem e avisar
+     * de novo — que era exatamente o loop de combinar o mesmo combinado.
+     */
+    if (prometeuBastao) {
+      const { passarBastaoParaHumano } = await import("@/lib/whatsapp/passar-bastao.server");
+      await passarBastaoParaHumano({
+        admin,
+        conversaId: conv.id,
+        leadId,
+        donoDoBastao,
+        motivo: "A IA avisou o lead de que uma pessoa assumiria a conversa.",
+        preview: reply,
+        unreadCount: conv.unread_count ?? 0,
+        origem: "ai_promise",
+      });
+    }
   } catch (e) {
     console.error("[wa webhook] ai auto-reply error", e);
   }
