@@ -1,36 +1,39 @@
 /*
  * Quais conversas já tiveram gente escrevendo.
  *
- * Agora quem envia pelo inbox fica marcado como dono da conversa, mas isso só
- * vale daqui para frente: conversa antiga tem mensagem de SDR e assumed_at
- * vazio, e o selo dizia "IA atendendo" numa conversa que a pessoa já estava
- * tocando.
+ * A primeira versão disto varria a tabela de mensagens inteira, em páginas de
+ * mil, para montar o selo "Com a SDR". A caixa de entrada recarrega a cada 15
+ * segundos e o kanban carrega milhares de leads: numa instância pequena isso
+ * vira carga constante em cima do banco, e foi o que ajudou a derrubar o
+ * projeto.
  *
- * Em vez de depender do backfill, a lista pergunta direto pelas mensagens. É
- * uma consulta de uma coluna só, filtrada por quem escreveu, e o resultado
- * cabe num Set.
+ * Agora a pergunta é feita só sobre as conversas que estão na tela, que são no
+ * máximo trezentas, usando o índice de conversation_id. E o caso histórico —
+ * conversa antiga com mensagem de SDR e assumed_at vazio — é resolvido de uma
+ * vez pela migration 20260921120000_assumed_at_retroativo, não a cada leitura.
  */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Cliente = { from: (tabela: string) => any };
 
 const REMETENTES_HUMANOS = ["sdr", "agent", "human"];
+const LOTE = 150;
 
-export async function conversasComHumano(db: Cliente, limite = 20_000): Promise<Set<string>> {
-  const ids = new Set<string>();
-  const PAGINA = 1000;
-  for (let de = 0; de < limite; de += PAGINA) {
+export async function conversasComHumano(db: Cliente, conversaIds: string[]): Promise<Set<string>> {
+  const comHumano = new Set<string>();
+  const alvos = [...new Set(conversaIds.filter(Boolean))];
+  for (let i = 0; i < alvos.length; i += LOTE) {
+    const fatia = alvos.slice(i, i + LOTE);
     const { data, error } = await db
       .from("whatsapp_messages")
       .select("conversation_id")
+      .in("conversation_id", fatia)
       .in("sender_type", REMETENTES_HUMANOS)
-      .order("conversation_id", { ascending: true })
-      .range(de, de + PAGINA - 1);
-    if (error || !data || data.length === 0) break;
-    for (const r of data as Array<{ conversation_id: string | null }>) {
-      if (r.conversation_id) ids.add(r.conversation_id);
+      .limit(2000);
+    if (error) break;
+    for (const r of (data ?? []) as Array<{ conversation_id: string | null }>) {
+      if (r.conversation_id) comHumano.add(r.conversation_id);
     }
-    if (data.length < PAGINA) break;
   }
-  return ids;
+  return comHumano;
 }

@@ -118,7 +118,10 @@ export const listConversations = createServerFn({ method: "GET" })
      * que a pessoa já está tocando.
      */
     const { conversasComHumano } = await import("./whatsapp/conversas-com-humano.server");
-    const comHumano = await conversasComHumano(supabase);
+    const comHumano = await conversasComHumano(
+      supabase,
+      result.map((c) => c.id as string),
+    );
 
     const { data: profiles } = await supabase.from("profiles").select("id, full_name, email");
 

@@ -67,8 +67,12 @@ export const listKanbanData = createServerFn({ method: "GET" })
     ]);
     if (stagesRes.error) throw new Error(stagesRes.error.message);
     if (profilesRes.error) throw new Error(profilesRes.error.message);
-    const { conversasComHumano } = await import("./whatsapp/conversas-com-humano.server");
-    const comHumano = await conversasComHumano(supabase);
+    /*
+     * O kanban carrega milhares de leads, então aqui não se pergunta pelas
+     * mensagens: o selo sai de status e assumed_at, que já vêm na consulta das
+     * conversas. Quem envia pelo inbox passa a ser dono da conversa, e o
+     * histórico foi preenchido pela migration do assumed_at retroativo.
+     */
     const conversaPorLead = new Map<
       string,
       { status: string | null; assumed_at: string | null; tem_mensagem_humana: boolean }
@@ -85,7 +89,7 @@ export const listKanbanData = createServerFn({ method: "GET" })
         conversaPorLead.set(c.lead_id, {
           status: c.status,
           assumed_at: c.assumed_at,
-          tem_mensagem_humana: comHumano.has(c.id),
+          tem_mensagem_humana: false,
         });
       }
     }
