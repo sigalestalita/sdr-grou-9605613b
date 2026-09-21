@@ -687,6 +687,20 @@ async function handleInbound(
       return;
     }
 
+    /*
+     * Uma resposta por vez.
+     *
+     * Quem escreve no WhatsApp escreve em pedaços: "Olá, quero informações" e,
+     * um minuto depois, "Oie". Cada pedaço acorda o webhook, e antes disso os
+     * dois acordavam a IA — saíam duas respostas quase idênticas.
+     */
+    const { podeResponderAgora } = await import("@/lib/whatsapp/resposta-unica.server");
+    const antesDeGerar = await podeResponderAgora(admin, conv.id, msg.providerMessageId);
+    if (!antesDeGerar.responder) {
+      console.info("[wa webhook] IA não respondeu:", antesDeGerar.motivo);
+      return;
+    }
+
     const { evaluateAiHandoffInternal, generateAutoReplyInternal } =
       await import("@/lib/whatsapp-ai.functions");
     const handoff = await evaluateAiHandoffInternal(admin, conv.id);
@@ -757,6 +771,17 @@ async function handleInbound(
     const aiResult = await generateAutoReplyInternal(admin, conv.id);
     const reply = aiResult?.reply?.trim();
     if (!reply) return;
+
+    /*
+     * Gerar a resposta leva alguns segundos, e é justamente nesses segundos
+     * que a segunda mensagem do lead costuma chegar. Conferir de novo aqui é o
+     * que evita a resposta duplicada de verdade.
+     */
+    const antesDeEnviar = await podeResponderAgora(admin, conv.id, msg.providerMessageId);
+    if (!antesDeEnviar.responder) {
+      console.info("[wa webhook] resposta descartada antes do envio:", antesDeEnviar.motivo);
+      return;
+    }
     const prometeuBastao = aiResult?.prometeuBastao === true;
 
     const { getProvider } = await import("@/lib/whatsapp/provider-registry.server");
