@@ -773,6 +773,28 @@ async function handleInbound(
     if (!reply) return;
 
     /*
+     * Espera antes de responder.
+     *
+     * Resposta que chega em dois segundos entrega que é robô. A conta é do
+     * começo ao fim: gerar já consumiu alguns segundos e a espera só completa
+     * o que falta para o tempo configurado. Nada é gravado antes — se a
+     * execução morrer aqui, não sobra mensagem pela metade.
+     *
+     * A espera também aperta o cerco à resposta duplicada: mensagem que o lead
+     * mandar enquanto esperamos derruba esta execução na conferência abaixo, e
+     * quem responde é a mais nova.
+     */
+    const { readAiAgentSettings } = await import("@/lib/whatsapp-ai.functions");
+    const cfgResposta = await readAiAgentSettings(admin);
+    const alvoMs = (cfgResposta.respostaDelaySegundos ?? 0) * 1000;
+    if (alvoMs > 0) {
+      const desdeAMensagem = Date.now() - new Date(ts).getTime();
+      const TETO_DE_ESPERA_MS = 20_000;
+      const esperar = Math.min(Math.max(alvoMs - desdeAMensagem, 0), TETO_DE_ESPERA_MS);
+      if (esperar > 0) await new Promise((r) => setTimeout(r, esperar));
+    }
+
+    /*
      * Gerar a resposta leva alguns segundos, e é justamente nesses segundos
      * que a segunda mensagem do lead costuma chegar. Conferir de novo aqui é o
      * que evita a resposta duplicada de verdade.

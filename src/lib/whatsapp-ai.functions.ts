@@ -34,6 +34,8 @@ type AiAgentSettings = {
     publico?: "consultoria" | "empresa" | "todos";
   }>;
   assinaturaFallback: string;
+  /** Segundos entre a mensagem do lead e a resposta da IA. Zero desliga. */
+  respostaDelaySegundos: number;
   empresaMaxFuncionarios: number;
   consultoriaAtendeTudo: boolean;
   consultoriaHandoffUserId: string | null;
@@ -155,6 +157,14 @@ const AiAgentSettingsSchema = z.object({
     .default([]),
   /** Nome usado quando o lead não tem SDR responsável. */
   assinaturaFallback: z.string().max(120).default("Equipe Grou"),
+  /*
+   * Segundos entre a mensagem do lead e a resposta da IA.
+   *
+   * Responder em dois segundos entrega que é robô. A conta é do começo ao fim:
+   * gerar a resposta já leva alguns segundos, e a espera só completa o que
+   * falta para chegar neste tempo. Zero desliga.
+   */
+  respostaDelaySegundos: z.number().int().min(0).max(120).default(30),
   /** Acima disso, lead empresa não é atendido pela IA. */
   empresaMaxFuncionarios: z.number().int().min(0).max(100000).default(100),
   /** Consultoria é atendida integralmente, sem corte de porte. */
@@ -168,7 +178,7 @@ const AiAgentSettingsSchema = z.object({
 
 const UpdateAiAgentSettingsSchema = AiAgentSettingsSchema.partial();
 
-async function readAiAgentSettings(
+export async function readAiAgentSettings(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   supabase: any,
 ): Promise<AiAgentSettings> {

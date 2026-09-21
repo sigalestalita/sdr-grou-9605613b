@@ -6,6 +6,7 @@ import {
   sendMessage,
   sendMediaFromStorage,
   sendTemplateToConversation,
+  ocultarMensagemNoCrm,
 } from "@/lib/whatsapp.functions";
 import { listTemplates } from "@/lib/whatsapp-templates.functions";
 import { explainWhatsappError } from "@/lib/whatsapp/send-error";
@@ -35,6 +36,7 @@ import {
   Loader2,
   Paperclip,
   Target,
+  EyeOff,
 } from "lucide-react";
 
 type Msg = {
@@ -68,6 +70,20 @@ export function ConversationView({ conversationId }: { conversationId: string })
   const aiClassify = useServerFn(classifyTemperature);
   const aiPlan = useServerFn(suggestApproachPlan);
   const qc = useQueryClient();
+  const ocultarFn = useServerFn(ocultarMensagemNoCrm);
+  /*
+   * Esconder é da vista daqui, não do WhatsApp: a API da Meta não apaga
+   * mensagem entregue. Some do histórico para a conversa não confundir quem
+   * for atender, e o registro continua no banco.
+   */
+  const ocultar = useMutation({
+    mutationFn: (messageId: string) => ocultarFn({ data: { messageId, oculta: true } }),
+    onSuccess: () => {
+      toast.success("Mensagem escondida do histórico. Ela continua no celular do lead.");
+      qc.invalidateQueries({ queryKey: ["wa-messages", conversationId] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Não deu para esconder"),
+  });
   const [text, setText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -227,7 +243,11 @@ export function ConversationView({ conversationId }: { conversationId: string })
               {(!prev || !sameDay(prev.created_at, msg.created_at)) && (
                 <DaySeparator iso={msg.created_at} />
               )}
-              <MessageBubble m={msg} leadName={data.lead?.name ?? null} />
+              <MessageBubble
+                m={msg}
+                leadName={data.lead?.name ?? null}
+                onOcultar={() => ocultar.mutate(msg.id)}
+              />
             </Fragment>
           );
         })}
@@ -458,7 +478,15 @@ function DaySeparator({ iso }: { iso: string }) {
   );
 }
 
-function MessageBubble({ m, leadName }: { m: Msg; leadName?: string | null }) {
+function MessageBubble({
+  m,
+  leadName,
+  onOcultar,
+}: {
+  m: Msg;
+  leadName?: string | null;
+  onOcultar?: () => void;
+}) {
   const mine =
     m.sender_type === "sdr" ||
     m.sender_type === "bot" ||
@@ -480,8 +508,27 @@ function MessageBubble({ m, leadName }: { m: Msg; leadName?: string | null }) {
         : m.sender_type === "sdr" || m.sender_type === "agent"
           ? "Time"
           : leadName?.trim() || "Lead";
+  // Só o que saiu daqui pode ser escondido: a fala do lead é o contexto.
+  const podeEsconder = !!onOcultar && m.sender_type !== "lead";
   return (
-    <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+    <div className={`group flex items-center gap-1 ${mine ? "justify-end" : "justify-start"}`}>
+      {podeEsconder && mine && (
+        <button
+          type="button"
+          onClick={() => {
+            if (
+              confirm(
+                "Esconder esta mensagem do histórico do CRM?\n\nEla continua no celular do lead — o WhatsApp não permite apagar mensagem já entregue.",
+              )
+            )
+              onOcultar?.();
+          }}
+          title="Esconder do histórico do CRM"
+          className="opacity-0 transition-opacity group-hover:opacity-100 text-muted-foreground hover:text-foreground"
+        >
+          <EyeOff className="h-3.5 w-3.5" />
+        </button>
+      )}
       <div
         className={`max-w-[78%] rounded-2xl px-3 py-2 text-sm shadow-sm ${
           mine

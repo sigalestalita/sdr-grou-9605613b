@@ -350,7 +350,17 @@ export const listMessages = createServerFn({ method: "GET" })
       .limit(500);
     if (error) throw new Error(error.message);
 
-    const messageRows = rows ?? [];
+    /*
+     * Mensagem escondida sai do histórico.
+     *
+     * Quando a IA manda algo que não deveria, a SDR tira da vista para a
+     * conversa não confundir quem for atender. A mensagem continua no banco —
+     * ela foi entregue no celular do lead e apagar o registro seria perder o
+     * que a pessoa de fato leu.
+     */
+    const messageRows = (rows ?? []).filter(
+      (row) => ((row.metadata ?? {}) as { oculta_no_crm?: boolean }).oculta_no_crm !== true,
+    );
     const templateRows = messageRows.filter((row) => {
       const metadata = (row.metadata ?? {}) as { template_id?: string | null };
       return row.message_type === "template" && !row.body && metadata.template_id;
@@ -988,6 +998,46 @@ async function marcarComoAssumida(db: any, conversationId: string, userId: strin
     .eq("id", conversationId)
     .is("assumed_at", null);
 }
+
+/**
+ * Tira uma mensagem do histórico do CRM, ou traz de volta.
+ *
+ * Não apaga do WhatsApp: a API da Meta não tem exclusão, e a mensagem já está
+ * no celular de quem recebeu. Aqui é só a vista da SDR que fica limpa, e o
+ * registro segue no banco para quem precisar auditar.
+ */
+export const ocultarMensagemNoCrm = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ messageId: z.string().uuid(), oculta: z.boolean() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: atual, error: erroLeitura } = await supabase
+      .from("whatsapp_messages")
+      .select("id, metadata, sender_type")
+      .eq("id", data.messageId)
+      .maybeSingle();
+    if (erroLeitura) throw new Error(erroLeitura.message);
+    if (!atual) throw new Error("Mensagem não encontrada");
+    // Mensagem do lead nunca some: é o que ele disse, e some contexto sem isso.
+    if (atual.sender_type === "lead") {
+      throw new Error("Mensagem do lead não pode ser escondida.");
+    }
+
+    const anterior = (atual.metadata ?? {}) as Record<string, unknown>;
+    const { error } = await supabase
+      .from("whatsapp_messages")
+      .update({
+        metadata: {
+          ...anterior,
+          oculta_no_crm: data.oculta,
+          oculta_por: data.oculta ? userId : null,
+          oculta_em: data.oculta ? new Date().toISOString() : null,
+        } as never,
+      })
+      .eq("id", data.messageId);
+    if (error) throw new Error(error.message);
+    return { ok: true, oculta: data.oculta };
+  });
 
 /** Muda status (open/pending/closed). */
 export const setConversationStatus = createServerFn({ method: "POST" })

@@ -37,7 +37,9 @@ describe("CS — rota carrega", () => {
     expect(typeof opts.component).toBe("function");
     const meta = opts.head?.().meta ?? [];
     expect(meta.some((m) => m.title?.includes("Customer Success"))).toBe(true);
-  });
+    // O import arrasta o grafo inteiro da rota; com a máquina ocupada, cinco
+    // segundos não davam e o teste falhava sem nada estar quebrado.
+  }, 30_000);
 });
 
 describe("CS — importação CSV da carteira", () => {

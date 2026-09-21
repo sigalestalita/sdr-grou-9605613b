@@ -397,6 +397,23 @@ function WhatsAppAiPage() {
             </div>
             <div>
               <label className="text-xs text-muted-foreground">
+                Esperar antes de responder (segundos)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                max={120}
+                value={form.respostaDelaySegundos ?? 30}
+                onChange={(e) => patch({ respostaDelaySegundos: Number(e.target.value) || 0 })}
+                placeholder="30"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Contado desde a mensagem do lead. Gerar a resposta já leva alguns segundos e a
+                espera só completa o que falta. Zero responde na hora.
+              </p>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground">
                 A IA atende empresa com menos de
               </label>
               <Input
