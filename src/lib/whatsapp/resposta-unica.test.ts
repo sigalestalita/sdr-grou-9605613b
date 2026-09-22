@@ -36,32 +36,16 @@ describe("decidirResposta", () => {
     expect(d.motivo).toContain("já foi respondida");
   });
 
-  it("segura duas respostas coladas mesmo com mensagem nova do lead", () => {
-    const quase = new Date(agora - 5_000).toISOString();
+  it("responde o lead que voltou logo depois da nossa mensagem", () => {
+    // Responder rápido é o normal de quem está interessado, e chegou a doer:
+    // um descanso entre respostas descartava essa mensagem para sempre.
     const d = decidirResposta(
       [
-        { sender_type: "bot", created_at: quase },
+        { sender_type: "bot", created_at: new Date(agora - 20_000).toISOString() },
         {
           sender_type: "lead",
           provider_message_id: "wamid.C",
-          created_at: new Date(agora - 1_000).toISOString(),
-        },
-      ],
-      "wamid.C",
-      agora,
-    );
-    expect(d.responder).toBe(false);
-    expect(d.motivo).toContain("acabou de responder");
-  });
-
-  it("volta a responder depois do descanso", () => {
-    const d = decidirResposta(
-      [
-        { sender_type: "bot", created_at: new Date(agora - 120_000).toISOString() },
-        {
-          sender_type: "lead",
-          provider_message_id: "wamid.C",
-          created_at: new Date(agora - 60_000).toISOString(),
+          created_at: new Date(agora - 5_000).toISOString(),
         },
       ],
       "wamid.C",

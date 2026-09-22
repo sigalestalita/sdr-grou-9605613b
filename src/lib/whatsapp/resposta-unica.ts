@@ -23,16 +23,23 @@ export type MensagemDaConversa = {
 export type Decisao = { responder: boolean; motivo: string };
 
 const NOSSAS = new Set(["bot", "automation", "ai", "agent", "sdr", "human"]);
-const DA_IA = new Set(["bot", "automation", "ai"]);
 
-/** Quanto tempo esperar entre duas respostas automáticas na mesma conversa. */
-export const DESCANSO_MS = 45_000;
-
+/*
+ * Aqui existia um descanso de 45 segundos entre duas respostas automáticas.
+ *
+ * Ele derrubava resposta legítima: o lead que responde rápido — e responder
+ * rápido é o normal de quem está interessado — mandava a mensagem dentro da
+ * janela e a IA simplesmente não respondia. Não adiava: descartava, e a
+ * mensagem ficava sem resposta para sempre.
+ *
+ * As outras duas regras já dão conta do que o descanso tentava evitar: quem
+ * foi acordado por uma mensagem que não é mais a última se cala, e mensagem já
+ * respondida não é respondida de novo.
+ */
 export function decidirResposta(
   mensagens: MensagemDaConversa[],
   providerMessageIdQueAcordou: string | null | undefined,
   agora: number = Date.now(),
-  descansoMs: number = DESCANSO_MS,
 ): Decisao {
   const emOrdem = [...mensagens].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
@@ -63,9 +70,6 @@ export function decidirResposta(
     const tNossa = new Date(ultimaNossa.created_at).getTime();
     if (tNossa >= new Date(ultimaDoLead.created_at).getTime()) {
       return { responder: false, motivo: "A última mensagem do lead já foi respondida." };
-    }
-    if (DA_IA.has(ultimaNossa.sender_type) && agora - tNossa < descansoMs) {
-      return { responder: false, motivo: "A IA acabou de responder nesta conversa." };
     }
   }
 
