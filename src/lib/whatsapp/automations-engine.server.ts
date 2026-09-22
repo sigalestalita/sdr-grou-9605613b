@@ -629,10 +629,23 @@ async function leadsComMensagemDoLead(leadIds: string[]): Promise<Set<string>> {
   if (donoDaConversa.size === 0) return comMensagem;
   const { data: msgs } = await supabaseAdmin
     .from("whatsapp_messages")
-    .select("conversation_id, sender_type")
+    .select("conversation_id, sender_type, body")
     .in("conversation_id", [...donoDaConversa.keys()])
     .eq("sender_type", "lead");
-  return cruzarMensagensComLeads(donoDaConversa, (msgs ?? []) as MensagemLite[]);
+  /*
+   * O texto pronto da conversão não conta como conversa começada.
+   *
+   * Quem converte por formulário ou por clique no anúncio chega com uma
+   * mensagem que o WhatsApp manda por ele — "Olá! Preenchi seu formulário..."
+   * seguido dos campos. Tratar aquilo como conversa fazia o lead perder a
+   * primeira mensagem, que é a que se apresenta, assina com o nome da SDR e
+   * leva a condição da campanha.
+   */
+  const { ehMensagemDeConversao } = await import("./mensagem-de-conversao");
+  const digitadas = ((msgs ?? []) as Array<MensagemLite & { body?: string | null }>).filter(
+    (m) => !ehMensagemDeConversao(m.body),
+  );
+  return cruzarMensagensComLeads(donoDaConversa, digitadas as MensagemLite[]);
 }
 
 export type MensagemLite = { conversation_id: string; sender_type?: string | null };
