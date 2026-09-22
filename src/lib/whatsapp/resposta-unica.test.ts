@@ -72,4 +72,34 @@ describe("decidirResposta", () => {
       decidirResposta([{ sender_type: "bot", created_at: t(40) }], "wamid.A", agora).responder,
     ).toBe(false);
   });
+
+  it("a abertura automática não conta como resposta", () => {
+    // O template de primeiro contato roda a cada dois minutos e pode cair
+    // depois de o lead escrever. Contado como resposta, engolia a pergunta.
+    const d = decidirResposta(
+      [
+        { sender_type: "lead", provider_message_id: "wamid.A", created_at: t(12) },
+        {
+          sender_type: "automation",
+          created_at: t(13),
+          metadata: { source: "ai_initial_outreach" },
+        },
+      ],
+      "wamid.A",
+      agora,
+    );
+    expect(d.responder).toBe(true);
+  });
+
+  it("resposta normal da IA continua contando", () => {
+    const d = decidirResposta(
+      [
+        { sender_type: "lead", provider_message_id: "wamid.A", created_at: t(12) },
+        { sender_type: "bot", created_at: t(13), metadata: { source: "ai_auto_reply" } },
+      ],
+      "wamid.A",
+      agora,
+    );
+    expect(d.responder).toBe(false);
+  });
 });

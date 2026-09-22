@@ -18,7 +18,20 @@ export type MensagemDaConversa = {
   sender_type: string;
   provider_message_id?: string | null;
   created_at: string;
+  metadata?: { source?: string | null } | null;
 };
+
+/*
+ * A abertura não é resposta.
+ *
+ * O template de primeiro contato é disparado pela automação e pode cair depois
+ * de o lead já ter escrito — ele roda a cada dois minutos, não na hora. Contado
+ * como resposta, ele fazia a pergunta do lead ficar sem retorno: a regra via
+ * mensagem nossa mais nova que a dele e concluía que já estava respondido.
+ */
+function ehAbertura(m: MensagemDaConversa): boolean {
+  return m.metadata?.source === "ai_initial_outreach";
+}
 
 export type Decisao = { responder: boolean; motivo: string };
 
@@ -65,7 +78,7 @@ export function decidirResposta(
     };
   }
 
-  const ultimaNossa = emOrdem.filter((m) => NOSSAS.has(m.sender_type)).pop();
+  const ultimaNossa = emOrdem.filter((m) => NOSSAS.has(m.sender_type) && !ehAbertura(m)).pop();
   if (ultimaNossa) {
     const tNossa = new Date(ultimaNossa.created_at).getTime();
     if (tNossa >= new Date(ultimaDoLead.created_at).getTime()) {

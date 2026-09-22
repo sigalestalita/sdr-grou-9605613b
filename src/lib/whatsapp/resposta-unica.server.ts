@@ -16,7 +16,7 @@ export async function podeResponderAgora(
 ): Promise<Decisao> {
   const { data, error } = await db
     .from("whatsapp_messages")
-    .select("sender_type, provider_message_id, created_at")
+    .select("sender_type, provider_message_id, created_at, metadata")
     .eq("conversation_id", conversaId)
     .order("created_at", { ascending: false })
     .limit(10);

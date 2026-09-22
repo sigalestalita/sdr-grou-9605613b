@@ -323,7 +323,10 @@ async function garantirContato(lead: LeadLite): Promise<string | null> {
  * Só avança: se o lead já passou de "Em qualificação", receber a mensagem
  * automática não pode puxá-lo de volta.
  */
-export async function moverEtapaDoLead(leadId: string, slug: "qualificacao" | "em_contato") {
+export async function moverEtapaDoLead(
+  leadId: string,
+  slug: "qualificacao" | "em_contato" | "desqualificado",
+) {
   const { data: stages } = await supabaseAdmin.from("stages").select("id, slug, position");
   const destino = (stages ?? []).find((s) => s.slug === slug);
   if (!destino) return;
@@ -337,7 +340,17 @@ export async function moverEtapaDoLead(leadId: string, slug: "qualificacao" | "e
   if (lead.stage_id === destino.id) return;
 
   const atual = (stages ?? []).find((s) => s.id === lead.stage_id);
-  if (atual && Number(atual.position ?? 0) > Number(destino.position ?? 0)) return;
+  /*
+   * Etapa só anda para frente — menos desqualificado, que é saída e pode vir
+   * de qualquer ponto do funil.
+   */
+  if (
+    slug !== "desqualificado" &&
+    atual &&
+    Number(atual.position ?? 0) > Number(destino.position ?? 0)
+  ) {
+    return;
+  }
 
   const patch: Record<string, unknown> = {
     stage_id: destino.id,
@@ -419,7 +432,13 @@ async function executeAiInitialOutreachForLead(
   if (!responsavelId) {
     try {
       const { ensureLeadRouted } = await import("../lead-routing.server");
-      responsavelId = await ensureLeadRouted({ supabase: supabaseAdmin, leadId: lead.id });
+      responsavelId = await ensureLeadRouted({
+        supabase: supabaseAdmin,
+        leadId: lead.id,
+        // Sem dono a mensagem sai assinada como "Equipe", que não diz nada a
+        // quem recebe. Consultoria é corrigida assim que a conversa revelar.
+        mesmoSemTipo: true,
+      });
     } catch {
       /* distribuir é melhor-esforço: sem dono, a assinatura cai no genérico */
     }

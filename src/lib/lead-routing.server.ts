@@ -253,10 +253,20 @@ export async function ensureLeadRouted({
   supabase,
   leadId,
   actorUserId,
+  mesmoSemTipo = false,
 }: {
   supabase: any;
   leadId: string;
   actorUserId?: string | null;
+  /*
+   * Distribui na roleta mesmo sem saber o tipo do lead.
+   *
+   * Quem chega por clique no anúncio não tem tipo até a IA perguntar, e o lead
+   * sem dono faz a primeira mensagem sair assinada como "Equipe", que não diz
+   * nada para quem recebe. Com dono, ela sai no nome de uma pessoa — e se a
+   * conversa revelar consultoria, reavaliarDonoPorTipo corrige a rota.
+   */
+  mesmoSemTipo?: boolean;
 }) {
   const { data: lead, error: leadError } = await supabase
     .from("leads")
@@ -275,8 +285,10 @@ export async function ensureLeadRouted({
   }
 
   const normalizedLeadType = normalizeLeadType(readRawLeadType(lead));
-  if (normalizedLeadType) {
-    const managedAssignee = await resolveManagedRoutingAssignee(supabase, normalizedLeadType);
+  // Sem tipo, entra na roleta das SDRs; consultoria é corrigida depois.
+  const tipoParaRotear = normalizedLeadType ?? (mesmoSemTipo ? "empresa" : null);
+  if (tipoParaRotear) {
+    const managedAssignee = await resolveManagedRoutingAssignee(supabase, tipoParaRotear);
     if (managedAssignee) {
       const now = new Date().toISOString();
       const { error: updateLeadError } = await supabase
@@ -296,13 +308,15 @@ export async function ensureLeadRouted({
         author_id: actorUserId ?? null,
         type: "routing",
         content:
-          normalizedLeadType === "consultoria"
+          tipoParaRotear === "consultoria"
             ? "Lead de consultoria roteado automaticamente para Mariana Borges."
-            : "Lead roteado automaticamente na roleta entre Camila Mattie e Lisiane Baudini.",
+            : normalizedLeadType
+              ? "Lead roteado automaticamente na roleta entre Camila Mattie e Lisiane Baudini."
+              : "Lead ainda sem tipo roteado na roleta para a primeira mensagem sair assinada.",
         metadata: {
           assignee_user_id: String(managedAssignee),
-          mode: normalizedLeadType === "consultoria" ? "fixed" : "round_robin",
-          criterion: "lead_type",
+          mode: tipoParaRotear === "consultoria" ? "fixed" : "round_robin",
+          criterion: normalizedLeadType ? "lead_type" : "sem_tipo",
           lead_type: normalizedLeadType,
         },
       });

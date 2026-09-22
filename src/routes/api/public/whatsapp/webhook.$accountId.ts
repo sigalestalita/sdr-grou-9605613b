@@ -561,7 +561,7 @@ async function handleInbound(
 
     const { data: leadRegra } = await admin
       .from("leads")
-      .select("lead_type, company_size, linkedin_company_size, assigned_to, company_id")
+      .select("name, lead_type, company_size, linkedin_company_size, assigned_to, company_id")
       .eq("id", leadId)
       .maybeSingle();
 
@@ -694,6 +694,27 @@ async function handleInbound(
      * um minuto depois, "Oie". Cada pedaço acorda o webhook, e antes disso os
      * dois acordavam a IA — saíam duas respostas quase idênticas.
      */
+    /*
+     * Quem escreve procurando vaga não é lead.
+     *
+     * Chega pelo mesmo anúncio e pelo mesmo número. Responder com educação,
+     * dizer para onde mandar o currículo e desqualificar na hora poupa o tempo
+     * da SDR e o da pessoa, que só quer saber o endereço do RH.
+     */
+    const { procuraEmprego } = await import("@/lib/whatsapp/busca-emprego");
+    if (procuraEmprego(msg.body)) {
+      const { encerrarComoCandidato } = await import("@/lib/whatsapp/candidato.server");
+      await encerrarComoCandidato({
+        admin,
+        accountConfig,
+        conversaId: conv.id,
+        leadId,
+        telefone: phone,
+        nomeDoLead: leadRegra?.name ?? null,
+      });
+      return;
+    }
+
     const { podeResponderAgora } = await import("@/lib/whatsapp/resposta-unica.server");
     const antesDeGerar = await podeResponderAgora(admin, conv.id, msg.providerMessageId);
     if (!antesDeGerar.responder) {
