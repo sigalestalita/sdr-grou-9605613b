@@ -9,88 +9,79 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppRouteImport } from './routes/_app'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
-import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
-import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
-import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
-import { Route as AppComercialRouteImport } from './routes/_app.comercial'
-import { Route as AppComercialAgendaRouteImport } from './routes/_app.comercial-agenda'
-import { Route as AppComercialAnaliseRouteImport } from './routes/_app.comercial-analise'
-import { Route as AppComercialMetasRouteImport } from './routes/_app.comercial-metas'
-import { Route as AppComercialPipelineRouteImport } from './routes/_app.comercial-pipeline'
-import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
-import { Route as AppCsRouteImport } from './routes/_app.cs'
-import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
-import { Route as AppCsCadenciaRouteImport } from './routes/_app.cs-cadencia'
-import { Route as AppCsConfiguracoesRouteImport } from './routes/_app.cs-configuracoes'
-import { Route as AppCsConsultoriasRouteImport } from './routes/_app.cs-consultorias'
-import { Route as AppCsDashboardRouteImport } from './routes/_app.cs-dashboard'
-import { Route as AppCsEmailsRouteImport } from './routes/_app.cs-emails'
-import { Route as AppCsFollowUpsRouteImport } from './routes/_app.cs-follow-ups'
-import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integracoes'
-import { Route as AppCsKanbanRouteImport } from './routes/_app.cs-kanban'
-import { Route as AppCsPlaybookRouteImport } from './routes/_app.cs-playbook'
-import { Route as AppCsTicketsRouteImport } from './routes/_app.cs-tickets'
-import { Route as AppCsWhatsappRouteImport } from './routes/_app.cs-whatsapp'
-import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
-import { Route as AppImportarRdRouteImport } from './routes/_app.importar-rd'
-import { Route as AppInicioRouteImport } from './routes/_app.inicio'
-import { Route as AppJornadaRouteImport } from './routes/_app.jornada'
-import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
-import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
-import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
-import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
-import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
-import { Route as AppAnalyticsChatThreadIdRouteImport } from './routes/_app.analytics-chat.$threadId'
-import { Route as AppEmpresasUidRouteImport } from './routes/_app.empresas.$uid'
-import { Route as AppLeadIdRouteImport } from './routes/_app.lead.$id'
-import { Route as AppNegocioIdRouteImport } from './routes/_app.negocio.$id'
+import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
+import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
+import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
+import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
+import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
+import { Route as AppJornadaRouteImport } from './routes/_app.jornada'
+import { Route as AppInicioRouteImport } from './routes/_app.inicio'
+import { Route as AppImportarRdRouteImport } from './routes/_app.importar-rd'
+import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppCsWhatsappRouteImport } from './routes/_app.cs-whatsapp'
+import { Route as AppCsTicketsRouteImport } from './routes/_app.cs-tickets'
+import { Route as AppCsPlaybookRouteImport } from './routes/_app.cs-playbook'
+import { Route as AppCsKanbanRouteImport } from './routes/_app.cs-kanban'
+import { Route as AppCsIntegracoesRouteImport } from './routes/_app.cs-integracoes'
+import { Route as AppCsFollowUpsRouteImport } from './routes/_app.cs-follow-ups'
+import { Route as AppCsEmailsRouteImport } from './routes/_app.cs-emails'
+import { Route as AppCsDashboardRouteImport } from './routes/_app.cs-dashboard'
+import { Route as AppCsConsultoriasRouteImport } from './routes/_app.cs-consultorias'
+import { Route as AppCsConfiguracoesRouteImport } from './routes/_app.cs-configuracoes'
+import { Route as AppCsCadenciaRouteImport } from './routes/_app.cs-cadencia'
+import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
+import { Route as AppCsRouteImport } from './routes/_app.cs'
+import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
+import { Route as AppComercialPipelineRouteImport } from './routes/_app.comercial-pipeline'
+import { Route as AppComercialMetasRouteImport } from './routes/_app.comercial-metas'
+import { Route as AppComercialAnaliseRouteImport } from './routes/_app.comercial-analise'
+import { Route as AppComercialAgendaRouteImport } from './routes/_app.comercial-agenda'
+import { Route as AppComercialRouteImport } from './routes/_app.comercial'
+import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
+import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
+import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
 import { Route as AppWhatsappIndexRouteImport } from './routes/_app.whatsapp.index'
-import { Route as AppWhatsappAlertasRouteImport } from './routes/_app.whatsapp.alertas'
-import { Route as AppWhatsappAutomacoesRouteImport } from './routes/_app.whatsapp.automacoes'
-import { Route as AppWhatsappCampanhasRouteImport } from './routes/_app.whatsapp.campanhas'
-import { Route as AppWhatsappContasRouteImport } from './routes/_app.whatsapp.contas'
-import { Route as AppWhatsappCustosRouteImport } from './routes/_app.whatsapp.custos'
-import { Route as AppWhatsappFupsRouteImport } from './routes/_app.whatsapp.fups'
-import { Route as AppWhatsappIaRouteImport } from './routes/_app.whatsapp.ia'
-import { Route as AppWhatsappMetricasRouteImport } from './routes/_app.whatsapp.metricas'
-import { Route as AppWhatsappPlaygroundRouteImport } from './routes/_app.whatsapp.playground'
 import { Route as AppWhatsappTemplatesRouteImport } from './routes/_app.whatsapp.templates'
-import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
-import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
-import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
-import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
-import { Route as ApiPublicHooksNotifyRedListRouteImport } from './routes/api/public/hooks/notify-red-list'
-import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
-import { Route as ApiPublicHooksSendJourneyEmailsRouteImport } from './routes/api/public/hooks/send-journey-emails'
-import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
-import { Route as ApiPublicHooksSyncAgendaRouteImport } from './routes/api/public/hooks/sync-agenda'
-import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
-import { Route as ApiPublicHooksSyncRdAllRouteImport } from './routes/api/public/hooks/sync-rd-all'
-import { Route as ApiPublicHooksSyncRdCsClientsRouteImport } from './routes/api/public/hooks/sync-rd-cs-clients'
-import { Route as ApiPublicHooksTransformRdRouteImport } from './routes/api/public/hooks/transform-rd'
+import { Route as AppWhatsappPlaygroundRouteImport } from './routes/_app.whatsapp.playground'
+import { Route as AppWhatsappMetricasRouteImport } from './routes/_app.whatsapp.metricas'
+import { Route as AppWhatsappIaRouteImport } from './routes/_app.whatsapp.ia'
+import { Route as AppWhatsappFupsRouteImport } from './routes/_app.whatsapp.fups'
+import { Route as AppWhatsappCustosRouteImport } from './routes/_app.whatsapp.custos'
+import { Route as AppWhatsappContasRouteImport } from './routes/_app.whatsapp.contas'
+import { Route as AppWhatsappCampanhasRouteImport } from './routes/_app.whatsapp.campanhas'
+import { Route as AppWhatsappAutomacoesRouteImport } from './routes/_app.whatsapp.automacoes'
+import { Route as AppWhatsappAlertasRouteImport } from './routes/_app.whatsapp.alertas'
+import { Route as AppNegocioIdRouteImport } from './routes/_app.negocio.$id'
+import { Route as AppLeadIdRouteImport } from './routes/_app.lead.$id'
+import { Route as AppEmpresasUidRouteImport } from './routes/_app.empresas.$uid'
+import { Route as AppAnalyticsChatThreadIdRouteImport } from './routes/_app.analytics-chat.$threadId'
 import { Route as ApiPublicRdCallbackRouteImport } from './routes/api/public/rd/callback'
-import { Route as ApiPublicWhatsappAutomationsTickRouteImport } from './routes/api/public/whatsapp/automations.tick'
+import { Route as ApiPublicHooksTransformRdRouteImport } from './routes/api/public/hooks/transform-rd'
+import { Route as ApiPublicHooksSyncRdCsClientsRouteImport } from './routes/api/public/hooks/sync-rd-cs-clients'
+import { Route as ApiPublicHooksSyncRdAllRouteImport } from './routes/api/public/hooks/sync-rd-all'
+import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
+import { Route as ApiPublicHooksSyncAgendaRouteImport } from './routes/api/public/hooks/sync-agenda'
+import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
+import { Route as ApiPublicHooksSendJourneyEmailsRouteImport } from './routes/api/public/hooks/send-journey-emails'
+import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
+import { Route as ApiPublicHooksNotifyRedListRouteImport } from './routes/api/public/hooks/notify-red-list'
+import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
+import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
+import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
+import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
 import { Route as ApiPublicWhatsappWebhookAccountIdRouteImport } from './routes/api/public/whatsapp/webhook.$accountId'
+import { Route as ApiPublicWhatsappAutomationsTickRouteImport } from './routes/api/public/whatsapp/automations.tick'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
@@ -98,164 +89,23 @@ const PrivacidadeRoute = PrivacidadeRouteImport.update({
   path: '/privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ResetPasswordRoute = ResetPasswordRouteImport.update({
-  id: '/reset-password',
-  path: '/reset-password',
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppAgendaRoute = AppAgendaRouteImport.update({
-  id: '/agenda',
-  path: '/agenda',
-  getParentRoute: () => AppRoute,
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppAnalyticsChatRoute = AppAnalyticsChatRouteImport.update({
-  id: '/analytics-chat',
-  path: '/analytics-chat',
-  getParentRoute: () => AppRoute,
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppCadenciaRoute = AppCadenciaRouteImport.update({
-  id: '/cadencia',
-  path: '/cadencia',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppComercialRoute = AppComercialRouteImport.update({
-  id: '/comercial',
-  path: '/comercial',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppComercialAgendaRoute = AppComercialAgendaRouteImport.update({
-  id: '/comercial-agenda',
-  path: '/comercial-agenda',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppComercialAnaliseRoute = AppComercialAnaliseRouteImport.update({
-  id: '/comercial-analise',
-  path: '/comercial-analise',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppComercialMetasRoute = AppComercialMetasRouteImport.update({
-  id: '/comercial-metas',
-  path: '/comercial-metas',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppComercialPipelineRoute = AppComercialPipelineRouteImport.update({
-  id: '/comercial-pipeline',
-  path: '/comercial-pipeline',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
-  id: '/configuracoes',
-  path: '/configuracoes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsRoute = AppCsRouteImport.update({
-  id: '/cs',
-  path: '/cs',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsAgendaRoute = AppCsAgendaRouteImport.update({
-  id: '/cs-agenda',
-  path: '/cs-agenda',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsCadenciaRoute = AppCsCadenciaRouteImport.update({
-  id: '/cs-cadencia',
-  path: '/cs-cadencia',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsConfiguracoesRoute = AppCsConfiguracoesRouteImport.update({
-  id: '/cs-configuracoes',
-  path: '/cs-configuracoes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsConsultoriasRoute = AppCsConsultoriasRouteImport.update({
-  id: '/cs-consultorias',
-  path: '/cs-consultorias',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsDashboardRoute = AppCsDashboardRouteImport.update({
-  id: '/cs-dashboard',
-  path: '/cs-dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsEmailsRoute = AppCsEmailsRouteImport.update({
-  id: '/cs-emails',
-  path: '/cs-emails',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsFollowUpsRoute = AppCsFollowUpsRouteImport.update({
-  id: '/cs-follow-ups',
-  path: '/cs-follow-ups',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsIntegracoesRoute = AppCsIntegracoesRouteImport.update({
-  id: '/cs-integracoes',
-  path: '/cs-integracoes',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsKanbanRoute = AppCsKanbanRouteImport.update({
-  id: '/cs-kanban',
-  path: '/cs-kanban',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsPlaybookRoute = AppCsPlaybookRouteImport.update({
-  id: '/cs-playbook',
-  path: '/cs-playbook',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsTicketsRoute = AppCsTicketsRouteImport.update({
-  id: '/cs-tickets',
-  path: '/cs-tickets',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCsWhatsappRoute = AppCsWhatsappRouteImport.update({
-  id: '/cs-whatsapp',
-  path: '/cs-whatsapp',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDiagnosticoRoute = AppDiagnosticoRouteImport.update({
-  id: '/diagnostico',
-  path: '/diagnostico',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppImportarRdRoute = AppImportarRdRouteImport.update({
-  id: '/importar-rd',
-  path: '/importar-rd',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppInicioRoute = AppInicioRouteImport.update({
-  id: '/inicio',
-  path: '/inicio',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppJornadaRoute = AppJornadaRouteImport.update({
-  id: '/jornada',
-  path: '/jornada',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppKanbanRoute = AppKanbanRouteImport.update({
-  id: '/kanban',
-  path: '/kanban',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLeadsAnalyticsRoute = AppLeadsAnalyticsRouteImport.update({
-  id: '/leads-analytics',
-  path: '/leads-analytics',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNovidadesRoute = AppNovidadesRouteImport.update({
-  id: '/novidades',
-  path: '/novidades',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPlaybookRoute = AppPlaybookRouteImport.update({
-  id: '/playbook',
-  path: '/playbook',
+const AppWhatsappRoute = AppWhatsappRouteImport.update({
+  id: '/whatsapp',
+  path: '/whatsapp',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUsuariosRoute = AppUsuariosRouteImport.update({
@@ -263,9 +113,229 @@ const AppUsuariosRoute = AppUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AppRoute,
 } as any)
-const AppWhatsappRoute = AppWhatsappRouteImport.update({
-  id: '/whatsapp',
-  path: '/whatsapp',
+const AppPlaybookRoute = AppPlaybookRouteImport.update({
+  id: '/playbook',
+  path: '/playbook',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNovidadesRoute = AppNovidadesRouteImport.update({
+  id: '/novidades',
+  path: '/novidades',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLeadsAnalyticsRoute = AppLeadsAnalyticsRouteImport.update({
+  id: '/leads-analytics',
+  path: '/leads-analytics',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppKanbanRoute = AppKanbanRouteImport.update({
+  id: '/kanban',
+  path: '/kanban',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppJornadaRoute = AppJornadaRouteImport.update({
+  id: '/jornada',
+  path: '/jornada',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppInicioRoute = AppInicioRouteImport.update({
+  id: '/inicio',
+  path: '/inicio',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppImportarRdRoute = AppImportarRdRouteImport.update({
+  id: '/importar-rd',
+  path: '/importar-rd',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDiagnosticoRoute = AppDiagnosticoRouteImport.update({
+  id: '/diagnostico',
+  path: '/diagnostico',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsWhatsappRoute = AppCsWhatsappRouteImport.update({
+  id: '/cs-whatsapp',
+  path: '/cs-whatsapp',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsTicketsRoute = AppCsTicketsRouteImport.update({
+  id: '/cs-tickets',
+  path: '/cs-tickets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsPlaybookRoute = AppCsPlaybookRouteImport.update({
+  id: '/cs-playbook',
+  path: '/cs-playbook',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsKanbanRoute = AppCsKanbanRouteImport.update({
+  id: '/cs-kanban',
+  path: '/cs-kanban',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsIntegracoesRoute = AppCsIntegracoesRouteImport.update({
+  id: '/cs-integracoes',
+  path: '/cs-integracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsFollowUpsRoute = AppCsFollowUpsRouteImport.update({
+  id: '/cs-follow-ups',
+  path: '/cs-follow-ups',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsEmailsRoute = AppCsEmailsRouteImport.update({
+  id: '/cs-emails',
+  path: '/cs-emails',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsDashboardRoute = AppCsDashboardRouteImport.update({
+  id: '/cs-dashboard',
+  path: '/cs-dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsConsultoriasRoute = AppCsConsultoriasRouteImport.update({
+  id: '/cs-consultorias',
+  path: '/cs-consultorias',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsConfiguracoesRoute = AppCsConfiguracoesRouteImport.update({
+  id: '/cs-configuracoes',
+  path: '/cs-configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsCadenciaRoute = AppCsCadenciaRouteImport.update({
+  id: '/cs-cadencia',
+  path: '/cs-cadencia',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsAgendaRoute = AppCsAgendaRouteImport.update({
+  id: '/cs-agenda',
+  path: '/cs-agenda',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCsRoute = AppCsRouteImport.update({
+  id: '/cs',
+  path: '/cs',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialPipelineRoute = AppComercialPipelineRouteImport.update({
+  id: '/comercial-pipeline',
+  path: '/comercial-pipeline',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialMetasRoute = AppComercialMetasRouteImport.update({
+  id: '/comercial-metas',
+  path: '/comercial-metas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialAnaliseRoute = AppComercialAnaliseRouteImport.update({
+  id: '/comercial-analise',
+  path: '/comercial-analise',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialAgendaRoute = AppComercialAgendaRouteImport.update({
+  id: '/comercial-agenda',
+  path: '/comercial-agenda',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppComercialRoute = AppComercialRouteImport.update({
+  id: '/comercial',
+  path: '/comercial',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCadenciaRoute = AppCadenciaRouteImport.update({
+  id: '/cadencia',
+  path: '/cadencia',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAnalyticsChatRoute = AppAnalyticsChatRouteImport.update({
+  id: '/analytics-chat',
+  path: '/analytics-chat',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAgendaRoute = AppAgendaRouteImport.update({
+  id: '/agenda',
+  path: '/agenda',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppWhatsappIndexRoute = AppWhatsappIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappTemplatesRoute = AppWhatsappTemplatesRouteImport.update({
+  id: '/templates',
+  path: '/templates',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappPlaygroundRoute = AppWhatsappPlaygroundRouteImport.update({
+  id: '/playground',
+  path: '/playground',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappMetricasRoute = AppWhatsappMetricasRouteImport.update({
+  id: '/metricas',
+  path: '/metricas',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappIaRoute = AppWhatsappIaRouteImport.update({
+  id: '/ia',
+  path: '/ia',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappFupsRoute = AppWhatsappFupsRouteImport.update({
+  id: '/fups',
+  path: '/fups',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappCustosRoute = AppWhatsappCustosRouteImport.update({
+  id: '/custos',
+  path: '/custos',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappContasRoute = AppWhatsappContasRouteImport.update({
+  id: '/contas',
+  path: '/contas',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappCampanhasRoute = AppWhatsappCampanhasRouteImport.update({
+  id: '/campanhas',
+  path: '/campanhas',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappAutomacoesRoute = AppWhatsappAutomacoesRouteImport.update({
+  id: '/automacoes',
+  path: '/automacoes',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppWhatsappAlertasRoute = AppWhatsappAlertasRouteImport.update({
+  id: '/alertas',
+  path: '/alertas',
+  getParentRoute: () => AppWhatsappRoute,
+} as any)
+const AppNegocioIdRoute = AppNegocioIdRouteImport.update({
+  id: '/negocio/$id',
+  path: '/negocio/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLeadIdRoute = AppLeadIdRouteImport.update({
+  id: '/lead/$id',
+  path: '/lead/$id',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEmpresasUidRoute = AppEmpresasUidRouteImport.update({
+  id: '/empresas/$uid',
+  path: '/empresas/$uid',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAnalyticsChatThreadIdRoute =
@@ -274,112 +344,37 @@ const AppAnalyticsChatThreadIdRoute =
     path: '/$threadId',
     getParentRoute: () => AppAnalyticsChatRoute,
   } as any)
-const AppEmpresasUidRoute = AppEmpresasUidRouteImport.update({
-  id: '/empresas/$uid',
-  path: '/empresas/$uid',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppLeadIdRoute = AppLeadIdRouteImport.update({
-  id: '/lead/$id',
-  path: '/lead/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppNegocioIdRoute = AppNegocioIdRouteImport.update({
-  id: '/negocio/$id',
-  path: '/negocio/$id',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppWhatsappIndexRoute = AppWhatsappIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappAlertasRoute = AppWhatsappAlertasRouteImport.update({
-  id: '/alertas',
-  path: '/alertas',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappAutomacoesRoute = AppWhatsappAutomacoesRouteImport.update({
-  id: '/automacoes',
-  path: '/automacoes',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappCampanhasRoute = AppWhatsappCampanhasRouteImport.update({
-  id: '/campanhas',
-  path: '/campanhas',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappContasRoute = AppWhatsappContasRouteImport.update({
-  id: '/contas',
-  path: '/contas',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappCustosRoute = AppWhatsappCustosRouteImport.update({
-  id: '/custos',
-  path: '/custos',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappFupsRoute = AppWhatsappFupsRouteImport.update({
-  id: '/fups',
-  path: '/fups',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappIaRoute = AppWhatsappIaRouteImport.update({
-  id: '/ia',
-  path: '/ia',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappMetricasRoute = AppWhatsappMetricasRouteImport.update({
-  id: '/metricas',
-  path: '/metricas',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappPlaygroundRoute = AppWhatsappPlaygroundRouteImport.update({
-  id: '/playground',
-  path: '/playground',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappTemplatesRoute = AppWhatsappTemplatesRouteImport.update({
-  id: '/templates',
-  path: '/templates',
-  getParentRoute: () => AppWhatsappRoute,
-} as any)
-const AppWhatsappCampanhasIdRoute = AppWhatsappCampanhasIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AppWhatsappCampanhasRoute,
-} as any)
-const ApiPublicCsEmailInboundRoute = ApiPublicCsEmailInboundRouteImport.update({
-  id: '/api/public/cs/email-inbound',
-  path: '/api/public/cs/email-inbound',
+const ApiPublicRdCallbackRoute = ApiPublicRdCallbackRouteImport.update({
+  id: '/api/public/rd/callback',
+  path: '/api/public/rd/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicHooksMirrorRdRoute = ApiPublicHooksMirrorRdRouteImport.update({
-  id: '/api/public/hooks/mirror-rd',
-  path: '/api/public/hooks/mirror-rd',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicHooksNotifyEscalationsRoute =
-  ApiPublicHooksNotifyEscalationsRouteImport.update({
-    id: '/api/public/hooks/notify-escalations',
-    path: '/api/public/hooks/notify-escalations',
+const ApiPublicHooksTransformRdRoute =
+  ApiPublicHooksTransformRdRouteImport.update({
+    id: '/api/public/hooks/transform-rd',
+    path: '/api/public/hooks/transform-rd',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksNotifyRedListRoute =
-  ApiPublicHooksNotifyRedListRouteImport.update({
-    id: '/api/public/hooks/notify-red-list',
-    path: '/api/public/hooks/notify-red-list',
+const ApiPublicHooksSyncRdCsClientsRoute =
+  ApiPublicHooksSyncRdCsClientsRouteImport.update({
+    id: '/api/public/hooks/sync-rd-cs-clients',
+    path: '/api/public/hooks/sync-rd-cs-clients',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
-  id: '/api/public/hooks/run-fups',
-  path: '/api/public/hooks/run-fups',
+const ApiPublicHooksSyncRdAllRoute = ApiPublicHooksSyncRdAllRouteImport.update({
+  id: '/api/public/hooks/sync-rd-all',
+  path: '/api/public/hooks/sync-rd-all',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicHooksSendJourneyEmailsRoute =
-  ApiPublicHooksSendJourneyEmailsRouteImport.update({
-    id: '/api/public/hooks/send-journey-emails',
-    path: '/api/public/hooks/send-journey-emails',
+const ApiPublicHooksSyncRdRoute = ApiPublicHooksSyncRdRouteImport.update({
+  id: '/api/public/hooks/sync-rd',
+  path: '/api/public/hooks/sync-rd',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicHooksSyncAgendaRoute =
+  ApiPublicHooksSyncAgendaRouteImport.update({
+    id: '/api/public/hooks/sync-agenda',
+    path: '/api/public/hooks/sync-agenda',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksSendWeeklyDigestRoute =
@@ -388,49 +383,54 @@ const ApiPublicHooksSendWeeklyDigestRoute =
     path: '/api/public/hooks/send-weekly-digest',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksSyncAgendaRoute =
-  ApiPublicHooksSyncAgendaRouteImport.update({
-    id: '/api/public/hooks/sync-agenda',
-    path: '/api/public/hooks/sync-agenda',
+const ApiPublicHooksSendJourneyEmailsRoute =
+  ApiPublicHooksSendJourneyEmailsRouteImport.update({
+    id: '/api/public/hooks/send-journey-emails',
+    path: '/api/public/hooks/send-journey-emails',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksSyncRdRoute = ApiPublicHooksSyncRdRouteImport.update({
-  id: '/api/public/hooks/sync-rd',
-  path: '/api/public/hooks/sync-rd',
+const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
+  id: '/api/public/hooks/run-fups',
+  path: '/api/public/hooks/run-fups',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicHooksSyncRdAllRoute = ApiPublicHooksSyncRdAllRouteImport.update({
-  id: '/api/public/hooks/sync-rd-all',
-  path: '/api/public/hooks/sync-rd-all',
+const ApiPublicHooksNotifyRedListRoute =
+  ApiPublicHooksNotifyRedListRouteImport.update({
+    id: '/api/public/hooks/notify-red-list',
+    path: '/api/public/hooks/notify-red-list',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksNotifyEscalationsRoute =
+  ApiPublicHooksNotifyEscalationsRouteImport.update({
+    id: '/api/public/hooks/notify-escalations',
+    path: '/api/public/hooks/notify-escalations',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksMirrorRdRoute = ApiPublicHooksMirrorRdRouteImport.update({
+  id: '/api/public/hooks/mirror-rd',
+  path: '/api/public/hooks/mirror-rd',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicHooksSyncRdCsClientsRoute =
-  ApiPublicHooksSyncRdCsClientsRouteImport.update({
-    id: '/api/public/hooks/sync-rd-cs-clients',
-    path: '/api/public/hooks/sync-rd-cs-clients',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicHooksTransformRdRoute =
-  ApiPublicHooksTransformRdRouteImport.update({
-    id: '/api/public/hooks/transform-rd',
-    path: '/api/public/hooks/transform-rd',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ApiPublicRdCallbackRoute = ApiPublicRdCallbackRouteImport.update({
-  id: '/api/public/rd/callback',
-  path: '/api/public/rd/callback',
+const ApiPublicCsEmailInboundRoute = ApiPublicCsEmailInboundRouteImport.update({
+  id: '/api/public/cs/email-inbound',
+  path: '/api/public/cs/email-inbound',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicWhatsappAutomationsTickRoute =
-  ApiPublicWhatsappAutomationsTickRouteImport.update({
-    id: '/api/public/whatsapp/automations/tick',
-    path: '/api/public/whatsapp/automations/tick',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const AppWhatsappCampanhasIdRoute = AppWhatsappCampanhasIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppWhatsappCampanhasRoute,
+} as any)
 const ApiPublicWhatsappWebhookAccountIdRoute =
   ApiPublicWhatsappWebhookAccountIdRouteImport.update({
     id: '/api/public/whatsapp/webhook/$accountId',
     path: '/api/public/whatsapp/webhook/$accountId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWhatsappAutomationsTickRoute =
+  ApiPublicWhatsappAutomationsTickRouteImport.update({
+    id: '/api/public/whatsapp/automations/tick',
+    path: '/api/public/whatsapp/automations/tick',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -883,25 +883,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacidade': {
@@ -911,228 +897,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/reset-password': {
-      id: '/reset-password'
-      path: '/reset-password'
-      fullPath: '/reset-password'
-      preLoaderRoute: typeof ResetPasswordRouteImport
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_app/agenda': {
-      id: '/_app/agenda'
-      path: '/agenda'
-      fullPath: '/agenda'
-      preLoaderRoute: typeof AppAgendaRouteImport
-      parentRoute: typeof AppRoute
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/analytics-chat': {
-      id: '/_app/analytics-chat'
-      path: '/analytics-chat'
-      fullPath: '/analytics-chat'
-      preLoaderRoute: typeof AppAnalyticsChatRouteImport
-      parentRoute: typeof AppRoute
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/_app/cadencia': {
-      id: '/_app/cadencia'
-      path: '/cadencia'
-      fullPath: '/cadencia'
-      preLoaderRoute: typeof AppCadenciaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/comercial': {
-      id: '/_app/comercial'
-      path: '/comercial'
-      fullPath: '/comercial'
-      preLoaderRoute: typeof AppComercialRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/comercial-agenda': {
-      id: '/_app/comercial-agenda'
-      path: '/comercial-agenda'
-      fullPath: '/comercial-agenda'
-      preLoaderRoute: typeof AppComercialAgendaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/comercial-analise': {
-      id: '/_app/comercial-analise'
-      path: '/comercial-analise'
-      fullPath: '/comercial-analise'
-      preLoaderRoute: typeof AppComercialAnaliseRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/comercial-metas': {
-      id: '/_app/comercial-metas'
-      path: '/comercial-metas'
-      fullPath: '/comercial-metas'
-      preLoaderRoute: typeof AppComercialMetasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/comercial-pipeline': {
-      id: '/_app/comercial-pipeline'
-      path: '/comercial-pipeline'
-      fullPath: '/comercial-pipeline'
-      preLoaderRoute: typeof AppComercialPipelineRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/configuracoes': {
-      id: '/_app/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/configuracoes'
-      preLoaderRoute: typeof AppConfiguracoesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs': {
-      id: '/_app/cs'
-      path: '/cs'
-      fullPath: '/cs'
-      preLoaderRoute: typeof AppCsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-agenda': {
-      id: '/_app/cs-agenda'
-      path: '/cs-agenda'
-      fullPath: '/cs-agenda'
-      preLoaderRoute: typeof AppCsAgendaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-cadencia': {
-      id: '/_app/cs-cadencia'
-      path: '/cs-cadencia'
-      fullPath: '/cs-cadencia'
-      preLoaderRoute: typeof AppCsCadenciaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-configuracoes': {
-      id: '/_app/cs-configuracoes'
-      path: '/cs-configuracoes'
-      fullPath: '/cs-configuracoes'
-      preLoaderRoute: typeof AppCsConfiguracoesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-consultorias': {
-      id: '/_app/cs-consultorias'
-      path: '/cs-consultorias'
-      fullPath: '/cs-consultorias'
-      preLoaderRoute: typeof AppCsConsultoriasRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-dashboard': {
-      id: '/_app/cs-dashboard'
-      path: '/cs-dashboard'
-      fullPath: '/cs-dashboard'
-      preLoaderRoute: typeof AppCsDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-emails': {
-      id: '/_app/cs-emails'
-      path: '/cs-emails'
-      fullPath: '/cs-emails'
-      preLoaderRoute: typeof AppCsEmailsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-follow-ups': {
-      id: '/_app/cs-follow-ups'
-      path: '/cs-follow-ups'
-      fullPath: '/cs-follow-ups'
-      preLoaderRoute: typeof AppCsFollowUpsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-integracoes': {
-      id: '/_app/cs-integracoes'
-      path: '/cs-integracoes'
-      fullPath: '/cs-integracoes'
-      preLoaderRoute: typeof AppCsIntegracoesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-kanban': {
-      id: '/_app/cs-kanban'
-      path: '/cs-kanban'
-      fullPath: '/cs-kanban'
-      preLoaderRoute: typeof AppCsKanbanRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-playbook': {
-      id: '/_app/cs-playbook'
-      path: '/cs-playbook'
-      fullPath: '/cs-playbook'
-      preLoaderRoute: typeof AppCsPlaybookRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-tickets': {
-      id: '/_app/cs-tickets'
-      path: '/cs-tickets'
-      fullPath: '/cs-tickets'
-      preLoaderRoute: typeof AppCsTicketsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/cs-whatsapp': {
-      id: '/_app/cs-whatsapp'
-      path: '/cs-whatsapp'
-      fullPath: '/cs-whatsapp'
-      preLoaderRoute: typeof AppCsWhatsappRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/diagnostico': {
-      id: '/_app/diagnostico'
-      path: '/diagnostico'
-      fullPath: '/diagnostico'
-      preLoaderRoute: typeof AppDiagnosticoRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/importar-rd': {
-      id: '/_app/importar-rd'
-      path: '/importar-rd'
-      fullPath: '/importar-rd'
-      preLoaderRoute: typeof AppImportarRdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/inicio': {
-      id: '/_app/inicio'
-      path: '/inicio'
-      fullPath: '/inicio'
-      preLoaderRoute: typeof AppInicioRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/jornada': {
-      id: '/_app/jornada'
-      path: '/jornada'
-      fullPath: '/jornada'
-      preLoaderRoute: typeof AppJornadaRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/kanban': {
-      id: '/_app/kanban'
-      path: '/kanban'
-      fullPath: '/kanban'
-      preLoaderRoute: typeof AppKanbanRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/leads-analytics': {
-      id: '/_app/leads-analytics'
-      path: '/leads-analytics'
-      fullPath: '/leads-analytics'
-      preLoaderRoute: typeof AppLeadsAnalyticsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/novidades': {
-      id: '/_app/novidades'
-      path: '/novidades'
-      fullPath: '/novidades'
-      preLoaderRoute: typeof AppNovidadesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/playbook': {
-      id: '/_app/playbook'
-      path: '/playbook'
-      fullPath: '/playbook'
-      preLoaderRoute: typeof AppPlaybookRouteImport
+    '/_app/whatsapp': {
+      id: '/_app/whatsapp'
+      path: '/whatsapp'
+      fullPath: '/whatsapp'
+      preLoaderRoute: typeof AppWhatsappRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/usuarios': {
@@ -1142,39 +932,221 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppUsuariosRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/whatsapp': {
-      id: '/_app/whatsapp'
-      path: '/whatsapp'
-      fullPath: '/whatsapp'
-      preLoaderRoute: typeof AppWhatsappRouteImport
+    '/_app/playbook': {
+      id: '/_app/playbook'
+      path: '/playbook'
+      fullPath: '/playbook'
+      preLoaderRoute: typeof AppPlaybookRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/analytics-chat/$threadId': {
-      id: '/_app/analytics-chat/$threadId'
-      path: '/$threadId'
-      fullPath: '/analytics-chat/$threadId'
-      preLoaderRoute: typeof AppAnalyticsChatThreadIdRouteImport
-      parentRoute: typeof AppAnalyticsChatRoute
-    }
-    '/_app/empresas/$uid': {
-      id: '/_app/empresas/$uid'
-      path: '/empresas/$uid'
-      fullPath: '/empresas/$uid'
-      preLoaderRoute: typeof AppEmpresasUidRouteImport
+    '/_app/novidades': {
+      id: '/_app/novidades'
+      path: '/novidades'
+      fullPath: '/novidades'
+      preLoaderRoute: typeof AppNovidadesRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/lead/$id': {
-      id: '/_app/lead/$id'
-      path: '/lead/$id'
-      fullPath: '/lead/$id'
-      preLoaderRoute: typeof AppLeadIdRouteImport
+    '/_app/leads-analytics': {
+      id: '/_app/leads-analytics'
+      path: '/leads-analytics'
+      fullPath: '/leads-analytics'
+      preLoaderRoute: typeof AppLeadsAnalyticsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/negocio/$id': {
-      id: '/_app/negocio/$id'
-      path: '/negocio/$id'
-      fullPath: '/negocio/$id'
-      preLoaderRoute: typeof AppNegocioIdRouteImport
+    '/_app/kanban': {
+      id: '/_app/kanban'
+      path: '/kanban'
+      fullPath: '/kanban'
+      preLoaderRoute: typeof AppKanbanRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/jornada': {
+      id: '/_app/jornada'
+      path: '/jornada'
+      fullPath: '/jornada'
+      preLoaderRoute: typeof AppJornadaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/inicio': {
+      id: '/_app/inicio'
+      path: '/inicio'
+      fullPath: '/inicio'
+      preLoaderRoute: typeof AppInicioRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/importar-rd': {
+      id: '/_app/importar-rd'
+      path: '/importar-rd'
+      fullPath: '/importar-rd'
+      preLoaderRoute: typeof AppImportarRdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/diagnostico': {
+      id: '/_app/diagnostico'
+      path: '/diagnostico'
+      fullPath: '/diagnostico'
+      preLoaderRoute: typeof AppDiagnosticoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-whatsapp': {
+      id: '/_app/cs-whatsapp'
+      path: '/cs-whatsapp'
+      fullPath: '/cs-whatsapp'
+      preLoaderRoute: typeof AppCsWhatsappRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-tickets': {
+      id: '/_app/cs-tickets'
+      path: '/cs-tickets'
+      fullPath: '/cs-tickets'
+      preLoaderRoute: typeof AppCsTicketsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-playbook': {
+      id: '/_app/cs-playbook'
+      path: '/cs-playbook'
+      fullPath: '/cs-playbook'
+      preLoaderRoute: typeof AppCsPlaybookRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-kanban': {
+      id: '/_app/cs-kanban'
+      path: '/cs-kanban'
+      fullPath: '/cs-kanban'
+      preLoaderRoute: typeof AppCsKanbanRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-integracoes': {
+      id: '/_app/cs-integracoes'
+      path: '/cs-integracoes'
+      fullPath: '/cs-integracoes'
+      preLoaderRoute: typeof AppCsIntegracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-follow-ups': {
+      id: '/_app/cs-follow-ups'
+      path: '/cs-follow-ups'
+      fullPath: '/cs-follow-ups'
+      preLoaderRoute: typeof AppCsFollowUpsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-emails': {
+      id: '/_app/cs-emails'
+      path: '/cs-emails'
+      fullPath: '/cs-emails'
+      preLoaderRoute: typeof AppCsEmailsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-dashboard': {
+      id: '/_app/cs-dashboard'
+      path: '/cs-dashboard'
+      fullPath: '/cs-dashboard'
+      preLoaderRoute: typeof AppCsDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-consultorias': {
+      id: '/_app/cs-consultorias'
+      path: '/cs-consultorias'
+      fullPath: '/cs-consultorias'
+      preLoaderRoute: typeof AppCsConsultoriasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-configuracoes': {
+      id: '/_app/cs-configuracoes'
+      path: '/cs-configuracoes'
+      fullPath: '/cs-configuracoes'
+      preLoaderRoute: typeof AppCsConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-cadencia': {
+      id: '/_app/cs-cadencia'
+      path: '/cs-cadencia'
+      fullPath: '/cs-cadencia'
+      preLoaderRoute: typeof AppCsCadenciaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs-agenda': {
+      id: '/_app/cs-agenda'
+      path: '/cs-agenda'
+      fullPath: '/cs-agenda'
+      preLoaderRoute: typeof AppCsAgendaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cs': {
+      id: '/_app/cs'
+      path: '/cs'
+      fullPath: '/cs'
+      preLoaderRoute: typeof AppCsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/configuracoes': {
+      id: '/_app/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/configuracoes'
+      preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial-pipeline': {
+      id: '/_app/comercial-pipeline'
+      path: '/comercial-pipeline'
+      fullPath: '/comercial-pipeline'
+      preLoaderRoute: typeof AppComercialPipelineRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial-metas': {
+      id: '/_app/comercial-metas'
+      path: '/comercial-metas'
+      fullPath: '/comercial-metas'
+      preLoaderRoute: typeof AppComercialMetasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial-analise': {
+      id: '/_app/comercial-analise'
+      path: '/comercial-analise'
+      fullPath: '/comercial-analise'
+      preLoaderRoute: typeof AppComercialAnaliseRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial-agenda': {
+      id: '/_app/comercial-agenda'
+      path: '/comercial-agenda'
+      fullPath: '/comercial-agenda'
+      preLoaderRoute: typeof AppComercialAgendaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/comercial': {
+      id: '/_app/comercial'
+      path: '/comercial'
+      fullPath: '/comercial'
+      preLoaderRoute: typeof AppComercialRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/cadencia': {
+      id: '/_app/cadencia'
+      path: '/cadencia'
+      fullPath: '/cadencia'
+      preLoaderRoute: typeof AppCadenciaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/analytics-chat': {
+      id: '/_app/analytics-chat'
+      path: '/analytics-chat'
+      fullPath: '/analytics-chat'
+      preLoaderRoute: typeof AppAnalyticsChatRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/agenda': {
+      id: '/_app/agenda'
+      path: '/agenda'
+      fullPath: '/agenda'
+      preLoaderRoute: typeof AppAgendaRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/whatsapp/': {
@@ -1184,60 +1156,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWhatsappIndexRouteImport
       parentRoute: typeof AppWhatsappRoute
     }
-    '/_app/whatsapp/alertas': {
-      id: '/_app/whatsapp/alertas'
-      path: '/alertas'
-      fullPath: '/whatsapp/alertas'
-      preLoaderRoute: typeof AppWhatsappAlertasRouteImport
-      parentRoute: typeof AppWhatsappRoute
-    }
-    '/_app/whatsapp/automacoes': {
-      id: '/_app/whatsapp/automacoes'
-      path: '/automacoes'
-      fullPath: '/whatsapp/automacoes'
-      preLoaderRoute: typeof AppWhatsappAutomacoesRouteImport
-      parentRoute: typeof AppWhatsappRoute
-    }
-    '/_app/whatsapp/campanhas': {
-      id: '/_app/whatsapp/campanhas'
-      path: '/campanhas'
-      fullPath: '/whatsapp/campanhas'
-      preLoaderRoute: typeof AppWhatsappCampanhasRouteImport
-      parentRoute: typeof AppWhatsappRoute
-    }
-    '/_app/whatsapp/contas': {
-      id: '/_app/whatsapp/contas'
-      path: '/contas'
-      fullPath: '/whatsapp/contas'
-      preLoaderRoute: typeof AppWhatsappContasRouteImport
-      parentRoute: typeof AppWhatsappRoute
-    }
-    '/_app/whatsapp/custos': {
-      id: '/_app/whatsapp/custos'
-      path: '/custos'
-      fullPath: '/whatsapp/custos'
-      preLoaderRoute: typeof AppWhatsappCustosRouteImport
-      parentRoute: typeof AppWhatsappRoute
-    }
-    '/_app/whatsapp/fups': {
-      id: '/_app/whatsapp/fups'
-      path: '/fups'
-      fullPath: '/whatsapp/fups'
-      preLoaderRoute: typeof AppWhatsappFupsRouteImport
-      parentRoute: typeof AppWhatsappRoute
-    }
-    '/_app/whatsapp/ia': {
-      id: '/_app/whatsapp/ia'
-      path: '/ia'
-      fullPath: '/whatsapp/ia'
-      preLoaderRoute: typeof AppWhatsappIaRouteImport
-      parentRoute: typeof AppWhatsappRoute
-    }
-    '/_app/whatsapp/metricas': {
-      id: '/_app/whatsapp/metricas'
-      path: '/metricas'
-      fullPath: '/whatsapp/metricas'
-      preLoaderRoute: typeof AppWhatsappMetricasRouteImport
+    '/_app/whatsapp/templates': {
+      id: '/_app/whatsapp/templates'
+      path: '/templates'
+      fullPath: '/whatsapp/templates'
+      preLoaderRoute: typeof AppWhatsappTemplatesRouteImport
       parentRoute: typeof AppWhatsappRoute
     }
     '/_app/whatsapp/playground': {
@@ -1247,95 +1170,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWhatsappPlaygroundRouteImport
       parentRoute: typeof AppWhatsappRoute
     }
-    '/_app/whatsapp/templates': {
-      id: '/_app/whatsapp/templates'
-      path: '/templates'
-      fullPath: '/whatsapp/templates'
-      preLoaderRoute: typeof AppWhatsappTemplatesRouteImport
+    '/_app/whatsapp/metricas': {
+      id: '/_app/whatsapp/metricas'
+      path: '/metricas'
+      fullPath: '/whatsapp/metricas'
+      preLoaderRoute: typeof AppWhatsappMetricasRouteImport
       parentRoute: typeof AppWhatsappRoute
     }
-    '/_app/whatsapp/campanhas/$id': {
-      id: '/_app/whatsapp/campanhas/$id'
-      path: '/$id'
-      fullPath: '/whatsapp/campanhas/$id'
-      preLoaderRoute: typeof AppWhatsappCampanhasIdRouteImport
-      parentRoute: typeof AppWhatsappCampanhasRoute
+    '/_app/whatsapp/ia': {
+      id: '/_app/whatsapp/ia'
+      path: '/ia'
+      fullPath: '/whatsapp/ia'
+      preLoaderRoute: typeof AppWhatsappIaRouteImport
+      parentRoute: typeof AppWhatsappRoute
     }
-    '/api/public/cs/email-inbound': {
-      id: '/api/public/cs/email-inbound'
-      path: '/api/public/cs/email-inbound'
-      fullPath: '/api/public/cs/email-inbound'
-      preLoaderRoute: typeof ApiPublicCsEmailInboundRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/whatsapp/fups': {
+      id: '/_app/whatsapp/fups'
+      path: '/fups'
+      fullPath: '/whatsapp/fups'
+      preLoaderRoute: typeof AppWhatsappFupsRouteImport
+      parentRoute: typeof AppWhatsappRoute
     }
-    '/api/public/hooks/mirror-rd': {
-      id: '/api/public/hooks/mirror-rd'
-      path: '/api/public/hooks/mirror-rd'
-      fullPath: '/api/public/hooks/mirror-rd'
-      preLoaderRoute: typeof ApiPublicHooksMirrorRdRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/whatsapp/custos': {
+      id: '/_app/whatsapp/custos'
+      path: '/custos'
+      fullPath: '/whatsapp/custos'
+      preLoaderRoute: typeof AppWhatsappCustosRouteImport
+      parentRoute: typeof AppWhatsappRoute
     }
-    '/api/public/hooks/notify-escalations': {
-      id: '/api/public/hooks/notify-escalations'
-      path: '/api/public/hooks/notify-escalations'
-      fullPath: '/api/public/hooks/notify-escalations'
-      preLoaderRoute: typeof ApiPublicHooksNotifyEscalationsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/whatsapp/contas': {
+      id: '/_app/whatsapp/contas'
+      path: '/contas'
+      fullPath: '/whatsapp/contas'
+      preLoaderRoute: typeof AppWhatsappContasRouteImport
+      parentRoute: typeof AppWhatsappRoute
     }
-    '/api/public/hooks/notify-red-list': {
-      id: '/api/public/hooks/notify-red-list'
-      path: '/api/public/hooks/notify-red-list'
-      fullPath: '/api/public/hooks/notify-red-list'
-      preLoaderRoute: typeof ApiPublicHooksNotifyRedListRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/whatsapp/campanhas': {
+      id: '/_app/whatsapp/campanhas'
+      path: '/campanhas'
+      fullPath: '/whatsapp/campanhas'
+      preLoaderRoute: typeof AppWhatsappCampanhasRouteImport
+      parentRoute: typeof AppWhatsappRoute
     }
-    '/api/public/hooks/run-fups': {
-      id: '/api/public/hooks/run-fups'
-      path: '/api/public/hooks/run-fups'
-      fullPath: '/api/public/hooks/run-fups'
-      preLoaderRoute: typeof ApiPublicHooksRunFupsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/whatsapp/automacoes': {
+      id: '/_app/whatsapp/automacoes'
+      path: '/automacoes'
+      fullPath: '/whatsapp/automacoes'
+      preLoaderRoute: typeof AppWhatsappAutomacoesRouteImport
+      parentRoute: typeof AppWhatsappRoute
     }
-    '/api/public/hooks/send-journey-emails': {
-      id: '/api/public/hooks/send-journey-emails'
-      path: '/api/public/hooks/send-journey-emails'
-      fullPath: '/api/public/hooks/send-journey-emails'
-      preLoaderRoute: typeof ApiPublicHooksSendJourneyEmailsRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/whatsapp/alertas': {
+      id: '/_app/whatsapp/alertas'
+      path: '/alertas'
+      fullPath: '/whatsapp/alertas'
+      preLoaderRoute: typeof AppWhatsappAlertasRouteImport
+      parentRoute: typeof AppWhatsappRoute
     }
-    '/api/public/hooks/send-weekly-digest': {
-      id: '/api/public/hooks/send-weekly-digest'
-      path: '/api/public/hooks/send-weekly-digest'
-      fullPath: '/api/public/hooks/send-weekly-digest'
-      preLoaderRoute: typeof ApiPublicHooksSendWeeklyDigestRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/negocio/$id': {
+      id: '/_app/negocio/$id'
+      path: '/negocio/$id'
+      fullPath: '/negocio/$id'
+      preLoaderRoute: typeof AppNegocioIdRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/api/public/hooks/sync-agenda': {
-      id: '/api/public/hooks/sync-agenda'
-      path: '/api/public/hooks/sync-agenda'
-      fullPath: '/api/public/hooks/sync-agenda'
-      preLoaderRoute: typeof ApiPublicHooksSyncAgendaRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/lead/$id': {
+      id: '/_app/lead/$id'
+      path: '/lead/$id'
+      fullPath: '/lead/$id'
+      preLoaderRoute: typeof AppLeadIdRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/api/public/hooks/sync-rd': {
-      id: '/api/public/hooks/sync-rd'
-      path: '/api/public/hooks/sync-rd'
-      fullPath: '/api/public/hooks/sync-rd'
-      preLoaderRoute: typeof ApiPublicHooksSyncRdRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/empresas/$uid': {
+      id: '/_app/empresas/$uid'
+      path: '/empresas/$uid'
+      fullPath: '/empresas/$uid'
+      preLoaderRoute: typeof AppEmpresasUidRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/api/public/hooks/sync-rd-all': {
-      id: '/api/public/hooks/sync-rd-all'
-      path: '/api/public/hooks/sync-rd-all'
-      fullPath: '/api/public/hooks/sync-rd-all'
-      preLoaderRoute: typeof ApiPublicHooksSyncRdAllRouteImport
-      parentRoute: typeof rootRouteImport
+    '/_app/analytics-chat/$threadId': {
+      id: '/_app/analytics-chat/$threadId'
+      path: '/$threadId'
+      fullPath: '/analytics-chat/$threadId'
+      preLoaderRoute: typeof AppAnalyticsChatThreadIdRouteImport
+      parentRoute: typeof AppAnalyticsChatRoute
     }
-    '/api/public/hooks/sync-rd-cs-clients': {
-      id: '/api/public/hooks/sync-rd-cs-clients'
-      path: '/api/public/hooks/sync-rd-cs-clients'
-      fullPath: '/api/public/hooks/sync-rd-cs-clients'
-      preLoaderRoute: typeof ApiPublicHooksSyncRdCsClientsRouteImport
+    '/api/public/rd/callback': {
+      id: '/api/public/rd/callback'
+      path: '/api/public/rd/callback'
+      fullPath: '/api/public/rd/callback'
+      preLoaderRoute: typeof ApiPublicRdCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/transform-rd': {
@@ -1345,11 +1268,95 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksTransformRdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/rd/callback': {
-      id: '/api/public/rd/callback'
-      path: '/api/public/rd/callback'
-      fullPath: '/api/public/rd/callback'
-      preLoaderRoute: typeof ApiPublicRdCallbackRouteImport
+    '/api/public/hooks/sync-rd-cs-clients': {
+      id: '/api/public/hooks/sync-rd-cs-clients'
+      path: '/api/public/hooks/sync-rd-cs-clients'
+      fullPath: '/api/public/hooks/sync-rd-cs-clients'
+      preLoaderRoute: typeof ApiPublicHooksSyncRdCsClientsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/sync-rd-all': {
+      id: '/api/public/hooks/sync-rd-all'
+      path: '/api/public/hooks/sync-rd-all'
+      fullPath: '/api/public/hooks/sync-rd-all'
+      preLoaderRoute: typeof ApiPublicHooksSyncRdAllRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/sync-rd': {
+      id: '/api/public/hooks/sync-rd'
+      path: '/api/public/hooks/sync-rd'
+      fullPath: '/api/public/hooks/sync-rd'
+      preLoaderRoute: typeof ApiPublicHooksSyncRdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/sync-agenda': {
+      id: '/api/public/hooks/sync-agenda'
+      path: '/api/public/hooks/sync-agenda'
+      fullPath: '/api/public/hooks/sync-agenda'
+      preLoaderRoute: typeof ApiPublicHooksSyncAgendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/send-weekly-digest': {
+      id: '/api/public/hooks/send-weekly-digest'
+      path: '/api/public/hooks/send-weekly-digest'
+      fullPath: '/api/public/hooks/send-weekly-digest'
+      preLoaderRoute: typeof ApiPublicHooksSendWeeklyDigestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/send-journey-emails': {
+      id: '/api/public/hooks/send-journey-emails'
+      path: '/api/public/hooks/send-journey-emails'
+      fullPath: '/api/public/hooks/send-journey-emails'
+      preLoaderRoute: typeof ApiPublicHooksSendJourneyEmailsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/run-fups': {
+      id: '/api/public/hooks/run-fups'
+      path: '/api/public/hooks/run-fups'
+      fullPath: '/api/public/hooks/run-fups'
+      preLoaderRoute: typeof ApiPublicHooksRunFupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/notify-red-list': {
+      id: '/api/public/hooks/notify-red-list'
+      path: '/api/public/hooks/notify-red-list'
+      fullPath: '/api/public/hooks/notify-red-list'
+      preLoaderRoute: typeof ApiPublicHooksNotifyRedListRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/notify-escalations': {
+      id: '/api/public/hooks/notify-escalations'
+      path: '/api/public/hooks/notify-escalations'
+      fullPath: '/api/public/hooks/notify-escalations'
+      preLoaderRoute: typeof ApiPublicHooksNotifyEscalationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/mirror-rd': {
+      id: '/api/public/hooks/mirror-rd'
+      path: '/api/public/hooks/mirror-rd'
+      fullPath: '/api/public/hooks/mirror-rd'
+      preLoaderRoute: typeof ApiPublicHooksMirrorRdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/cs/email-inbound': {
+      id: '/api/public/cs/email-inbound'
+      path: '/api/public/cs/email-inbound'
+      fullPath: '/api/public/cs/email-inbound'
+      preLoaderRoute: typeof ApiPublicCsEmailInboundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/whatsapp/campanhas/$id': {
+      id: '/_app/whatsapp/campanhas/$id'
+      path: '/$id'
+      fullPath: '/whatsapp/campanhas/$id'
+      preLoaderRoute: typeof AppWhatsappCampanhasIdRouteImport
+      parentRoute: typeof AppWhatsappCampanhasRoute
+    }
+    '/api/public/whatsapp/webhook/$accountId': {
+      id: '/api/public/whatsapp/webhook/$accountId'
+      path: '/api/public/whatsapp/webhook/$accountId'
+      fullPath: '/api/public/whatsapp/webhook/$accountId'
+      preLoaderRoute: typeof ApiPublicWhatsappWebhookAccountIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/whatsapp/automations/tick': {
@@ -1357,13 +1364,6 @@ declare module '@tanstack/react-router' {
       path: '/api/public/whatsapp/automations/tick'
       fullPath: '/api/public/whatsapp/automations/tick'
       preLoaderRoute: typeof ApiPublicWhatsappAutomationsTickRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/whatsapp/webhook/$accountId': {
-      id: '/api/public/whatsapp/webhook/$accountId'
-      path: '/api/public/whatsapp/webhook/$accountId'
-      fullPath: '/api/public/whatsapp/webhook/$accountId'
-      preLoaderRoute: typeof ApiPublicWhatsappWebhookAccountIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
