@@ -553,7 +553,7 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
         .eq("id", leadId)
         .maybeSingle();
       const leadAtual = (atual ?? {}) as Record<string, unknown>;
-      const anterior = ((leadAtual.form_payload ?? {}) as Record<string, unknown>) ?? {};
+      const anterior = (leadAtual.form_payload ?? {}) as Record<string, unknown>;
       const historico = Array.isArray(anterior.reconversoes) ? anterior.reconversoes : [];
       const patch: Record<string, unknown> = {
         last_action_at: quando,

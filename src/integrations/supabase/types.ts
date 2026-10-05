@@ -3988,6 +3988,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           footer_text: string | null
+          header_media_url: string | null
           header_text: string | null
           header_type: string | null
           id: string
@@ -4009,6 +4010,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           footer_text?: string | null
+          header_media_url?: string | null
           header_text?: string | null
           header_type?: string | null
           id?: string
@@ -4030,6 +4032,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           footer_text?: string | null
+          header_media_url?: string | null
           header_text?: string | null
           header_type?: string | null
           id?: string
