@@ -48,6 +48,7 @@ type TemplateRow = {
   status: string | null;
   provider_template_name: string | null;
   header_text: string | null;
+  header_media_url?: string | null;
   footer_text: string | null;
   buttons: unknown;
   rejection_reason: string | null;
@@ -116,6 +117,7 @@ function TemplatesPage() {
   const [body, setBody] = useState("");
   const [providerTemplateName, setProviderTemplateName] = useState("");
   const [headerText, setHeaderText] = useState("");
+  const [headerMediaUrl, setHeaderMediaUrl] = useState("");
   const [footerText, setFooterText] = useState("");
   const [buttons, setButtons] = useState<Btn[]>([]);
 
@@ -127,6 +129,7 @@ function TemplatesPage() {
     setBody("");
     setProviderTemplateName("");
     setHeaderText("");
+    setHeaderMediaUrl("");
     setFooterText("");
     setButtons([]);
     setOpen(true);
@@ -140,6 +143,7 @@ function TemplatesPage() {
     setBody(t.body);
     setProviderTemplateName(t.provider_template_name ?? "");
     setHeaderText(t.header_text ?? "");
+    setHeaderMediaUrl(t.header_media_url ?? "");
     setFooterText(t.footer_text ?? "");
     setButtons(Array.isArray(t.buttons) ? (t.buttons as Btn[]) : []);
     setOpen(true);
@@ -161,6 +165,7 @@ function TemplatesPage() {
             variables,
             provider_template_name: ptn,
             header_text: headerText.trim() || null,
+            header_media_url: headerMediaUrl.trim() || null,
             footer_text: footerText.trim() || null,
             buttons: cleanButtons,
           },
@@ -175,6 +180,7 @@ function TemplatesPage() {
           variables,
           provider_template_name: ptn ?? undefined,
           header_text: headerText.trim() || null,
+          header_media_url: headerMediaUrl.trim() || null,
           footer_text: footerText.trim() || null,
           buttons: cleanButtons,
         },
@@ -331,6 +337,18 @@ function TemplatesPage() {
                       onChange={(e) => setHeaderText(e.target.value)}
                       placeholder="ex: Novidade Grou"
                     />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground">URL da imagem do header</label>
+                    <Input
+                      value={headerMediaUrl}
+                      onChange={(e) => setHeaderMediaUrl(e.target.value)}
+                      placeholder="https://… (só se o template tem imagem no topo)"
+                    />
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Template criado na Meta com imagem no topo precisa da arte em cada envio. Cole
+                      aqui o link público dela, senão o WhatsApp recusa com o erro #132012.
+                    </p>
                   </div>
                   <div>
                     <label className="text-xs text-muted-foreground">Footer (opcional)</label>

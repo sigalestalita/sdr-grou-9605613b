@@ -505,19 +505,27 @@ async function executeAiInitialOutreachForLead(
   }
   if (!convId) return { ok: false, error: "Falha criando conversa" };
 
-  const { headerParams, bodyParams } = await resolveTemplateSendParams({
+  const {
+    headerParams,
+    bodyParams,
+    headerMedia,
+    erro: erroDeMidia,
+  } = await resolveTemplateSendParams({
     account: {
       access_token: account.access_token ?? "",
       provider_base_url: account.provider_base_url,
     },
     metaTemplateId: tmpl.meta_template_id,
     storedVariables: tmpl.variables,
+    headerMediaUrl: (tmpl as { header_media_url?: string | null }).header_media_url ?? null,
     lead: {
       name: lead.name,
       company_name: lead.company_name,
     },
     responsavel: assinatura,
   });
+  // Avisa antes de a Meta recusar: o erro dela (#132012) não diz o que fazer.
+  if (erroDeMidia) return { ok: false, error: erroDeMidia };
 
   const { data: msg } = await supabaseAdmin
     .from("whatsapp_messages")
@@ -556,6 +564,7 @@ async function executeAiInitialOutreachForLead(
       templateName: tmpl.provider_template_name,
       templateLanguage: tmpl.language ?? "pt_BR",
       templateHeaderParams: headerParams,
+      templateHeaderMedia: headerMedia,
       templateParams: bodyParams,
     });
 

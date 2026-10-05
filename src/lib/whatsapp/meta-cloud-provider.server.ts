@@ -55,7 +55,21 @@ function buildPayload(input: WaSendInput): Record<string, unknown> {
           : Object.keys(input.templateVariables ?? {})
               .sort()
               .map((k) => String((input.templateVariables ?? {})[k] ?? ""));
-      if (header.length > 0) {
+      /*
+       * Cabeçalho de mídia vem antes do de texto: um template tem um cabeçalho
+       * só, e se ele é imagem, a Meta espera o parâmetro de imagem. Mandar
+       * texto ali, ou não mandar nada, dá #132012.
+       */
+      const midia = input.templateHeaderMedia;
+      if (midia && (midia.link || midia.id)) {
+        const chave = midia.format.toLowerCase() as "image" | "video" | "document";
+        const valor: Record<string, unknown> = midia.id ? { id: midia.id } : { link: midia.link };
+        if (chave === "document" && midia.filename) valor.filename = midia.filename;
+        components.push({
+          type: "header",
+          parameters: [{ type: chave, [chave]: valor }],
+        });
+      } else if (header.length > 0) {
         components.push({
           type: "header",
           parameters: header.map((text) => ({ type: "text", text: text || " " })),

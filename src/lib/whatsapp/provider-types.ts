@@ -25,6 +25,22 @@ export interface WaSendInput {
   templateLanguage?: string;
   /** Parâmetros posicionais do cabeçalho do template HSM (HEADER {{1}}, {{2}}, …). */
   templateHeaderParams?: string[];
+  /*
+   * Cabeçalho de mídia do template (imagem, vídeo ou documento).
+   *
+   * Template criado na Meta com imagem no topo não tem variável de texto no
+   * cabeçalho: ele exige a mídia em cada envio. Sem isso a Meta recusa com
+   * #132012 — "parameter format does not match format in the created
+   * template" —, que é o erro de quem mandou texto onde ela esperava mídia,
+   * ou não mandou cabeçalho nenhum.
+   */
+  templateHeaderMedia?: {
+    format: "IMAGE" | "VIDEO" | "DOCUMENT";
+    /** URL pública da mídia, ou o id de uma mídia já enviada à conta. */
+    link?: string | null;
+    id?: string | null;
+    filename?: string | null;
+  } | null;
   /** Parâmetros posicionais do corpo do template HSM ({{1}}, {{2}}, …). */
   templateParams?: string[];
   /** Compat: chave→valor; convertido em posicional ordenando as chaves. */

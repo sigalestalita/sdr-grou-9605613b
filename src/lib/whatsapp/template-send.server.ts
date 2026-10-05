@@ -14,6 +14,8 @@ type ResolveTemplateParamsInput = {
   account: AccountForTemplateLookup;
   metaTemplateId?: string | null;
   storedVariables?: unknown;
+  /** URL pública da mídia do cabeçalho, guardada no template do sistema. */
+  headerMediaUrl?: string | null;
   lead?: LeadForTemplateParams | null;
   /**
    * Quem assina a mensagem. A primeira mensagem sai no nome do SDR
@@ -23,9 +25,26 @@ type ResolveTemplateParamsInput = {
   responsavel?: string | null;
 };
 
+export type HeaderMedia = {
+  format: "IMAGE" | "VIDEO" | "DOCUMENT";
+  link?: string | null;
+  id?: string | null;
+  filename?: string | null;
+};
+
 type ResolvedTemplateParams = {
   headerParams: string[];
   bodyParams: string[];
+  /*
+   * Preenchido quando o template tem imagem, vídeo ou documento no topo.
+   *
+   * Cabeçalho de mídia não é um texto com variável: a Meta exige a mídia em
+   * cada envio, mesmo quando a arte é sempre a mesma. Sem ela o envio volta
+   * com #132012.
+   */
+  headerMedia: HeaderMedia | null;
+  /** Mensagem pronta quando falta a mídia, para avisar antes de a Meta recusar. */
+  erro: string | null;
 };
 
 function extractPlaceholderCount(text?: string | null) {
@@ -87,13 +106,31 @@ export async function resolveTemplateSendParams(
 
   let headerCount = 0;
   let bodyCount = storedVariables.length;
+  let headerMedia: HeaderMedia | null = null;
+  let erro: string | null = null;
 
   if (input.metaTemplateId) {
     const details = await fetchMetaTemplateDetails(input.account, input.metaTemplateId);
     for (const component of details.components ?? []) {
       const type = String(component.type ?? "").toUpperCase();
-      if (type === "HEADER" && String(component.format ?? "").toUpperCase() === "TEXT") {
-        headerCount = extractPlaceholderCount(component.text);
+      if (type === "HEADER") {
+        const formato = String(component.format ?? "").toUpperCase();
+        if (formato === "TEXT") {
+          headerCount = extractPlaceholderCount(component.text);
+        } else if (formato === "IMAGE" || formato === "VIDEO" || formato === "DOCUMENT") {
+          /*
+           * O template foi criado na Meta com mídia no topo. A arte não vem
+           * junto do template: ela é parâmetro de cada envio.
+           */
+          const link = (input.headerMediaUrl ?? "").trim();
+          if (link) {
+            headerMedia = { format: formato, link };
+          } else {
+            erro =
+              "Este template tem imagem no topo e ainda não tem a URL da arte cadastrada. " +
+              "Abra WhatsApp → Templates, edite este template e cole o link público da imagem.";
+          }
+        }
       }
       if (type === "BODY") {
         bodyCount = extractPlaceholderCount(component.text);
@@ -101,8 +138,10 @@ export async function resolveTemplateSendParams(
     }
   }
 
-  const headerParams = normalizeParamValues(genericFallbacks, headerCount, genericFallbacks);
+  const headerParams = headerMedia
+    ? []
+    : normalizeParamValues(genericFallbacks, headerCount, genericFallbacks);
   const bodyParams = normalizeParamValues(orderedStoredValues, bodyCount, genericFallbacks);
 
-  return { headerParams, bodyParams };
+  return { headerParams, bodyParams, headerMedia, erro };
 }

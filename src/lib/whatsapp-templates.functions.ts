@@ -27,6 +27,8 @@ export const createTemplate = createServerFn({ method: "POST" })
         variables: z.array(z.string()).default([]),
         provider_template_name: z.string().optional(),
         header_text: z.string().max(60).nullable().optional(),
+        /** URL da arte quando o cabeçalho na Meta é de mídia. */
+        header_media_url: z.string().url().max(2000).nullable().optional(),
         footer_text: z.string().max(60).nullable().optional(),
         buttons: z
           .array(
@@ -62,11 +64,14 @@ export const createTemplate = createServerFn({ method: "POST" })
         provider_template_name: data.provider_template_name ?? null,
         header_text: data.header_text ?? null,
         header_type: data.header_text ? "TEXT" : null,
+        header_media_url: data.header_media_url ?? null,
         footer_text: data.footer_text ?? null,
         buttons: data.buttons,
         status: "draft",
         created_by: userId,
-      })
+        // as never: header_media_url entra na migration 20261005120000; os
+        // tipos gerados só conhecem a coluna depois que ela roda.
+      } as never)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
@@ -90,18 +95,21 @@ export const updateTemplate = createServerFn({ method: "POST" })
           .optional(),
         provider_template_name: z.string().nullable().optional(),
         header_text: z.string().max(60).nullable().optional(),
+        /** URL da arte quando o cabeçalho na Meta é de mídia. */
+        header_media_url: z.string().url().max(2000).nullable().optional(),
         footer_text: z.string().max(60).nullable().optional(),
         buttons: z.array(z.any()).optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const { id, header_text, ...rest } = data;
+    const { id, header_text, header_media_url, ...rest } = data;
     const headerPatch =
       header_text !== undefined ? { header_text, header_type: header_text ? "TEXT" : null } : {};
+    const patchMidia = header_media_url !== undefined ? { header_media_url } : {};
     const { error } = await context.supabase
       .from("whatsapp_templates")
-      .update({ ...rest, ...headerPatch })
+      .update({ ...rest, ...headerPatch, ...patchMidia } as never)
       .eq("id", id);
     if (error) throw new Error(error.message);
     return { ok: true };

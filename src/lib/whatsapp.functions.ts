@@ -644,15 +644,23 @@ export const sendTemplateToConversation = createServerFn({ method: "POST" })
     const { data: account } = await accountQuery;
     if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
 
-    const { headerParams, bodyParams } = await resolveTemplateSendParams({
+    const {
+      headerParams,
+      bodyParams,
+      headerMedia,
+      erro: erroDeMidia,
+    } = await resolveTemplateSendParams({
       account: {
         access_token: account.access_token ?? "",
         provider_base_url: account.provider_base_url,
       },
       metaTemplateId: tmpl.meta_template_id,
       storedVariables: tmpl.variables,
+      headerMediaUrl: (tmpl as { header_media_url?: string | null }).header_media_url ?? null,
       lead: { name: lead.name, company_name: lead.company_name },
     });
+    // Avisa antes de a Meta recusar: o erro dela (#132012) não diz o que fazer.
+    if (erroDeMidia) throw new Error(erroDeMidia);
 
     const renderedBody = tmpl.body
       ? renderTemplate(tmpl.body, {
@@ -701,6 +709,7 @@ export const sendTemplateToConversation = createServerFn({ method: "POST" })
         templateName: providerName,
         templateLanguage: tmpl.language ?? "pt_BR",
         templateHeaderParams: headerParams,
+        templateHeaderMedia: headerMedia,
         templateParams: bodyParams,
       });
 
