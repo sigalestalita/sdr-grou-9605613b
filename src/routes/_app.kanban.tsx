@@ -100,22 +100,17 @@ export const Route = createFileRoute("/_app/kanban")({
 type KanbanLead = import("@/lib/lead-types").Lead;
 
 function isCertificationLead(lead: KanbanLead) {
-  const formPayload = lead.form_payload;
-  const values = [
-    lead.campaign,
-    lead.source,
-    lead.ad_name,
-    lead.company_segment,
-    ...(formPayload && typeof formPayload === "object"
-      ? Object.values(formPayload).filter((value): value is string => typeof value === "string")
-      : []),
-  ].filter((value): value is string => typeof value === "string");
+  // A varredura do formulário acontece no servidor: aqui chega só o sim ou não.
+  if ((lead as { form_certificacao?: boolean }).form_certificacao) return true;
+  const values = [lead.campaign, lead.source, lead.ad_name, lead.company_segment].filter(
+    (value): value is string => typeof value === "string",
+  );
 
   return values.some((value) => /certifica/i.test(value));
 }
 
 function resolveLeadType(lead: KanbanLead): LeadType | null {
-  const raw = (lead.form_payload as { lead_type?: string } | null)?.lead_type ?? null;
+  const raw = (lead as { form_lead_type?: string | null }).form_lead_type ?? null;
   return (lead.lead_type as LeadType | null) ?? normalizeLeadType(raw);
 }
 
@@ -415,7 +410,7 @@ function KanbanPage() {
         return false;
       }
     }
-    const submittedRaw = (l.form_payload as { submitted_at?: string } | null)?.submitted_at ?? null;
+    const submittedRaw = (l as { form_submitted_at?: string | null }).form_submitted_at ?? null;
     const convTs = submittedRaw
       ? new Date(submittedRaw).getTime()
       : l.converted_at
@@ -477,7 +472,7 @@ function KanbanPage() {
         : "",
       "Data de conversao": (() => {
         const raw =
-          (l.form_payload as { submitted_at?: string } | null)?.submitted_at ??
+          (l as { form_submitted_at?: string | null }).form_submitted_at ??
           l.converted_at ??
           l.created_at;
         return raw ? format(new Date(raw), "dd/MM/yyyy HH:mm") : "";
@@ -909,8 +904,8 @@ function KanbanPage() {
                 const fa = evaluateIcpFit(a).score;
                 const fb = evaluateIcpFit(b).score;
                 if (fb !== fa) return fb - fa;
-                const ra = (a.form_payload as { submitted_at?: string } | null)?.submitted_at;
-                const rb = (b.form_payload as { submitted_at?: string } | null)?.submitted_at;
+                const ra = (a as { form_submitted_at?: string | null }).form_submitted_at;
+                const rb = (b as { form_submitted_at?: string | null }).form_submitted_at;
                 const ta = ra ? new Date(ra).getTime() : new Date(a.created_at).getTime();
                 const tb = rb ? new Date(rb).getTime() : new Date(b.created_at).getTime();
                 return tb - ta;
@@ -1082,8 +1077,7 @@ function LeadCard({
   const convertedAt = lead.converted_at ? new Date(lead.converted_at) : null;
   const stageEnteredAt = lead.stage_entered_at ? new Date(lead.stage_entered_at) : null;
   const meetingAt = lead.meeting_at ? new Date(lead.meeting_at) : null;
-  const submittedRaw =
-    (lead.form_payload as { submitted_at?: string } | null)?.submitted_at ?? null;
+  const submittedRaw = (lead as { form_submitted_at?: string | null }).form_submitted_at ?? null;
   const submittedAt = submittedRaw ? new Date(submittedRaw) : new Date(lead.created_at);
 
   const sinceConversion =
@@ -1094,13 +1088,8 @@ function LeadCard({
     ? Math.max(0, differenceInDays(new Date(), stageEnteredAt))
     : null;
 
-  const formPayload = (lead.form_payload ?? null) as Record<string, unknown> | null;
-  const formEntries =
-    formPayload && typeof formPayload === "object"
-      ? Object.entries(formPayload)
-          .filter(([, v]) => v != null && v !== "" && typeof v !== "object")
-          .slice(0, 6)
-      : [];
+  // Já vem pronto do servidor, cortado no tamanho: o formulário inteiro não cabe.
+  const formEntries = (lead as { form_resumo?: Array<[string, string]> }).form_resumo ?? [];
 
   const icpFit = evaluateIcpFit(lead);
   const isHotIcp = stageSlug === "novo" && icpFit.score >= 2;

@@ -47,7 +47,7 @@ export const listKanbanData = createServerFn({ method: "GET" })
      * peso da tela pare de crescer junto com a base. A contagem de cada coluna
      * continua sendo a real, vinda do banco, não o tamanho do que coube.
      */
-    const TETO_POR_COLUNA = 400;
+    const TETO_POR_COLUNA = 250;
     const SIMULTANEAS = 3;
 
     const stagesRes = await supabase.from("stages").select("*").order("position");
@@ -65,6 +65,40 @@ export const listKanbanData = createServerFn({ method: "GET" })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     type Recorte = (q: any) => any;
+
+    /*
+     * O form_payload fica no servidor.
+     *
+     * Ele é o campo mais gordo do lead — o formulário inteiro do Meta, os ids
+     * da campanha e o histórico de reconversões — e multiplicado por milhares
+     * de cards estourou o limite de serialização da função de servidor: a tela
+     * voltava com "exceeded its pending output limit". Buscar do banco é
+     * barato; mandar ao navegador é que não é. Então o que o quadro usa sai
+     * calculado daqui, em quatro campos pequenos, e o blob fica para trás.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function enxugarLead(lead: any) {
+      const { form_payload, ...resto } = lead;
+      const payload = (form_payload ?? null) as Record<string, unknown> | null;
+      const textos = payload
+        ? Object.values(payload).filter((v): v is string => typeof v === "string")
+        : [];
+      return {
+        ...resto,
+        form_lead_type: (payload?.lead_type as string | null) ?? null,
+        form_submitted_at: (payload?.submitted_at as string | null) ?? null,
+        // O card marca lead de certificação varrendo o formulário inteiro;
+        // a varredura passa a acontecer aqui, e só o sim ou não viaja.
+        form_certificacao: textos.some((v) => /certifica/i.test(v)),
+        // Os poucos campos que o card expandido mostra, cortados no tamanho.
+        form_resumo: payload
+          ? Object.entries(payload)
+              .filter(([, v]) => v != null && v !== "" && typeof v !== "object")
+              .slice(0, 6)
+              .map(([k, v]) => [k, String(v).slice(0, 80)] as [string, string])
+          : [],
+      };
+    }
 
     async function colunaDeLeads(chave: string, recorte: Recorte) {
       const [contagem, pagina] = await Promise.all([
@@ -87,7 +121,7 @@ export const listKanbanData = createServerFn({ method: "GET" })
       ]);
       if (pagina.error) throw new Error(pagina.error.message);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const linhas = (pagina.data ?? []) as any[];
+      const linhas = ((pagina.data ?? []) as any[]).map(enxugarLead);
       return { chave, linhas, total: contagem.count ?? linhas.length };
     }
 
