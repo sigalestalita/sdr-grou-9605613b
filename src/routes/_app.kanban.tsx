@@ -170,12 +170,22 @@ function KanbanPage() {
     (lostReasons.length ? 1 : 0);
   const touchRulesFn = useServerFn(getTouchRules);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["kanban"],
     queryFn: () => fetchData(),
     // Volta ao Pipeline sem tela em branco: mostra o que já tinha e atualiza atrás.
     staleTime: 30_000,
     placeholderData: (prev) => prev,
+    /*
+     * Falha rápido e à vista.
+     *
+     * Com a repetição automática, uma consulta que erra fica tentando de novo
+     * para sempre e a tela mostra "Carregando…" — exatamente igual a uma
+     * consulta lenta. Foi assim que um erro de banco passou dias parecendo
+     * lentidão. Uma tentativa a mais basta para um soluço de rede; depois
+     * disso, melhor dizer o que aconteceu.
+     */
+    retry: 1,
   });
 
   const { data: touchRulesData } = useQuery({
@@ -321,6 +331,22 @@ function KanbanPage() {
     return () => window.removeEventListener("keydown", onKey);
   }, [data?.stages]);
 
+  if (error) {
+    const mensagem = error instanceof Error ? error.message : String(error);
+    return (
+      <div className="m-6 max-w-2xl space-y-3 rounded-md border border-rose-500/40 bg-rose-500/5 p-5">
+        <p className="font-medium">O pipeline não carregou</p>
+        <p className="text-sm text-muted-foreground">
+          O erro abaixo vem do servidor. Mande ele junto quando pedir ajuda — é o que diz onde está
+          o problema.
+        </p>
+        <pre className="overflow-x-auto rounded bg-background/60 p-3 text-xs">{mensagem}</pre>
+        <Button size="sm" variant="outline" onClick={() => refetch()}>
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
   if (isLoading) return <div className="p-8 text-sm text-muted-foreground">Carregando…</div>;
   if (!data) return null;
 
