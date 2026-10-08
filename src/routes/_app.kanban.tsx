@@ -584,13 +584,12 @@ function KanbanPage() {
           </div>
           <span className="text-[11px] text-muted-foreground">
             {filtered.length} leads no filtro atual
-            {(data.historicoOmitido ?? 0) > 0 && (
+            {(data.cardsOmitidos ?? 0) > 0 && (
               <span
                 className="ml-2 text-muted-foreground"
-                title="Etapas de saída (desqualificado, ganho, perdido) entram no quadro com teto, para o carregamento não travar. As etapas abertas vêm inteiras."
+                title="Cada coluna carrega os 400 cards mais recentes, para o quadro não travar conforme a base cresce. A contagem no topo de cada coluna continua sendo a real."
               >
-                · {data.historicoOmitido.toLocaleString("pt-BR")} cards antigos de etapa fechada
-                fora do quadro
+                · {data.cardsOmitidos.toLocaleString("pt-BR")} cards mais antigos fora do quadro
               </span>
             )}
           </span>
@@ -897,7 +896,8 @@ function KanbanPage() {
                 stageId={s.id}
                 name={s.slug === "novo" ? "Novo lead · Priorização" : s.name}
                 color={s.color}
-                count={stageLeads.length}
+                // A contagem real da etapa, não o que coube no teto da coluna.
+                count={data.totalPorEtapa?.[s.id] ?? stageLeads.length}
                 index={idx}
                 focused={idx === focusedCol}
               >

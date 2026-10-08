@@ -32,14 +32,27 @@ export const listKanbanData = createServerFn({ method: "GET" })
      * onde o volume se acumula. Etapa aberta continua vindo inteira, porque é
      * o funil em que a SDR trabalha e dali não pode faltar ninguém.
      */
-    const TETO_DE_TERMINAIS = 1500;
+    /*
+     * O kanban parou de carregar quando a base cresceu, e a culpa era daqui.
+     *
+     * A versão anterior contava os leads, dividia por mil e disparava TODAS as
+     * páginas de uma vez — até cinquenta requisições simultâneas de mil linhas
+     * com quarenta colunas cada. Numa instância pequena isso não volta: o banco
+     * engasga, o React tenta de novo, e a tela fica em "Carregando…" para
+     * sempre.
+     *
+     * O quadro agora carrega por coluna, com teto. Uma coluna de kanban com
+     * mais de algumas centenas de cards já não é rolável por ninguém, então o
+     * teto não tira nada que alguém fosse ler — e o que ele garante é que o
+     * peso da tela pare de crescer junto com a base. A contagem de cada coluna
+     * continua sendo a real, vinda do banco, não o tamanho do que coube.
+     */
+    const TETO_POR_COLUNA = 400;
     const SIMULTANEAS = 3;
 
     const stagesRes = await supabase.from("stages").select("*").order("position");
     if (stagesRes.error) throw new Error(stagesRes.error.message);
-    const stages = (stagesRes.data ?? []) as Array<{ id: string; is_terminal: boolean }>;
-    const idsTerminais = stages.filter((e) => e.is_terminal).map((e) => e.id);
-    const idsAbertas = stages.filter((e) => !e.is_terminal).map((e) => e.id);
+    const stages = (stagesRes.data ?? []) as Array<{ id: string; position: number }>;
 
     async function emLotes<T>(tarefas: Array<() => Promise<T>>): Promise<T[]> {
       const saida: T[] = [];
@@ -51,55 +64,46 @@ export const listKanbanData = createServerFn({ method: "GET" })
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    type Consulta = (q: any) => any;
+    type Recorte = (q: any) => any;
 
-    async function buscarLeads(recorte: Consulta, teto: number | null) {
-      const { count, error: countErr } = await recorte(
-        supabase.from("leads").select("id", { count: "exact", head: true }).or(filter),
-      );
-      if (countErr) throw new Error(countErr.message);
-      const total = count ?? 0;
-      const aBuscar = teto === null ? total : Math.min(total, teto);
-      const paginas = Math.ceil(aBuscar / PAGE);
-      const partes = await emLotes(
-        Array.from({ length: paginas }, (_, i) => async () => {
-          const { data, error } = await recorte(
-            supabase
-              .from("leads")
-              .select(KANBAN_COLUMNS)
-              .or(filter)
-              /*
-               * O desempate por id é obrigatório: created_at repete (a sync da
-               * planilha grava lotes inteiros com o mesmo instante) e, sem uma
-               * chave única na ordenação, as páginas repetem umas linhas e
-               * perdem outras.
-               */
-              .order("created_at", { ascending: false })
-              .order("id", { ascending: true })
-              .range(i * PAGE, Math.min((i + 1) * PAGE, aBuscar) - 1),
-          );
-          if (error) throw new Error(error.message);
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          return (data ?? []) as any[];
-        }),
-      );
-      return { linhas: partes.flat(), total };
+    async function colunaDeLeads(chave: string, recorte: Recorte) {
+      const [contagem, pagina] = await Promise.all([
+        recorte(supabase.from("leads").select("id", { count: "exact", head: true }).or(filter)),
+        recorte(
+          supabase
+            .from("leads")
+            .select(KANBAN_COLUMNS)
+            .or(filter)
+            /*
+             * O desempate por id é obrigatório: created_at repete (a sync da
+             * planilha grava lotes inteiros com o mesmo instante) e, sem uma
+             * chave única na ordenação, duas leituras devolvem conjuntos
+             * diferentes.
+             */
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: true })
+            .limit(TETO_POR_COLUNA),
+        ),
+      ]);
+      if (pagina.error) throw new Error(pagina.error.message);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const linhas = (pagina.data ?? []) as any[];
+      return { chave, linhas, total: contagem.count ?? linhas.length };
     }
 
-    // Lead sem etapa entra junto com as abertas: fora dos dois recortes, ele
-    // simplesmente desapareceria do quadro.
-    const recorteAbertas: Consulta = (q) =>
-      idsAbertas.length > 0
-        ? q.or(`stage_id.is.null,stage_id.in.(${idsAbertas.join(",")})`)
-        : q.is("stage_id", null);
-    const recorteTerminais: Consulta = (q) => q.in("stage_id", idsTerminais);
+    const colunas = await emLotes([
+      // Lead sem etapa entra junto: fora dos recortes ele sumiria do quadro.
+      () => colunaDeLeads("__sem_etapa", (q) => q.is("stage_id", null)),
+      ...stages.map((e) => () => colunaDeLeads(e.id, (q) => q.eq("stage_id", e.id))),
+    ]);
 
-    const abertas = await buscarLeads(recorteAbertas, null);
-    const terminais =
-      idsTerminais.length > 0
-        ? await buscarLeads(recorteTerminais, TETO_DE_TERMINAIS)
-        : { linhas: [], total: 0 };
-    const leads = [...abertas.linhas, ...terminais.linhas];
+    const leads = colunas.flatMap((c) => c.linhas);
+    const totalPorEtapa: Record<string, number> = {};
+    let cardsOmitidos = 0;
+    for (const c of colunas) {
+      totalPorEtapa[c.chave] = c.total;
+      cardsOmitidos += Math.max(c.total - c.linhas.length, 0);
+    }
 
     const [profilesRes, rolesRes, conversasRes] = await Promise.all([
       supabase.from("profiles").select("id, full_name, email"),
@@ -151,7 +155,12 @@ export const listKanbanData = createServerFn({ method: "GET" })
        * O que ficou de fora, para a tela poder dizer. Esconder em silêncio é o
        * que já custou caro aqui antes.
        */
-      historicoOmitido: Math.max(terminais.total - terminais.linhas.length, 0),
+      /*
+       * A contagem real de cada coluna e quantos cards ficaram fora do teto.
+       * Esconder em silêncio é o que já custou caro aqui antes.
+       */
+      totalPorEtapa,
+      cardsOmitidos,
       conversas: Object.fromEntries(conversaPorLead),
       profiles: profilesRes.data ?? [],
       /** Quem pode ser o executivo da agenda (papel executivo). */
