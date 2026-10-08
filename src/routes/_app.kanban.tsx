@@ -165,9 +165,14 @@ function KanbanPage() {
     (lostReasons.length ? 1 : 0);
   const touchRulesFn = useServerFn(getTouchRules);
 
+  /*
+   * O período faz parte da chave: ele é resolvido no banco, não aqui, então
+   * mudar a data é uma consulta nova. O placeholderData abaixo segura o quadro
+   * anterior na tela enquanto a nova volta, para não piscar em branco.
+   */
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["kanban"],
-    queryFn: () => fetchData(),
+    queryKey: ["kanban", dateFrom, dateTo],
+    queryFn: () => fetchData({ data: { de: dateFrom || undefined, ate: dateTo || undefined } }),
     // Volta ao Pipeline sem tela em branco: mostra o que já tinha e atualiza atrás.
     staleTime: 30_000,
     placeholderData: (prev) => prev,
@@ -608,7 +613,7 @@ function KanbanPage() {
             {(data.cardsOmitidos ?? 0) > 0 && (
               <span
                 className="ml-2 text-muted-foreground"
-                title="Cada coluna carrega os 400 cards mais recentes, para o quadro não travar conforme a base cresce. A contagem no topo de cada coluna continua sendo a real."
+                title="Cada coluna carrega os 250 cards mais recentes do período selecionado, para o quadro não travar conforme a base cresce. Eles continuam no banco — aparecem na busca do topo e na ficha do lead. Para alcançá-los no quadro, estreite o período."
               >
                 · {data.cardsOmitidos.toLocaleString("pt-BR")} cards mais antigos fora do quadro
               </span>
@@ -898,6 +903,9 @@ function KanbanPage() {
       >
         <div ref={scrollerRef} className="flex gap-2.5 overflow-x-auto px-4 pb-4">
           {data.stages.map((s, idx) => {
+            // Quantos cards o servidor chegou a mandar desta etapa — comparado
+            // com o total do banco, é o que diz se o teto cortou alguém.
+            const carregados = data.leads.filter((l) => l.stage_id === s.id).length;
             let stageLeads = filtered.filter((l) => l.stage_id === s.id);
             if (s.slug === "novo") {
               stageLeads = [...stageLeads].sort((a, b) => {
@@ -917,8 +925,16 @@ function KanbanPage() {
                 stageId={s.id}
                 name={s.slug === "novo" ? "Novo lead · Priorização" : s.name}
                 color={s.color}
-                // A contagem real da etapa, não o que coube no teto da coluna.
-                count={data.totalPorEtapa?.[s.id] ?? stageLeads.length}
+                /*
+                 * A contagem é a dos cards que estão na tela — era o total do
+                 * banco, e com qualquer filtro ligado ela mentia: filtrar um
+                 * dia e continuar lendo "1.162" na coluna. O total do banco
+                 * agora só aparece ao lado, e só quando o teto da coluna de
+                 * fato cortou alguém.
+                 */
+                count={stageLeads.length}
+                total={carregados}
+                totalNoBanco={data.totalPorEtapa?.[s.id] ?? 0}
                 index={idx}
                 focused={idx === focusedCol}
               >
@@ -995,6 +1011,8 @@ function Column({
   name,
   color,
   count,
+  total,
+  totalNoBanco,
   index,
   focused,
   children,
@@ -1002,7 +1020,12 @@ function Column({
   stageId: string;
   name: string;
   color: string;
+  /** Cards desenhados nesta coluna agora, já com os filtros aplicados. */
   count: number;
+  /** Cards que o servidor mandou desta etapa, antes dos filtros da tela. */
+  total: number;
+  /** Quantos a etapa tem no banco. Maior que `total` = o teto cortou. */
+  totalNoBanco: number;
   index: number;
   focused: boolean;
   children: React.ReactNode;
@@ -1021,7 +1044,17 @@ function Column({
             {name}
           </span>
         </div>
-        <span className="metric-value text-[11px] text-muted-foreground">{count}</span>
+        <span className="metric-value shrink-0 text-[11px] text-muted-foreground">
+          {count}
+          {totalNoBanco > total && (
+            <span
+              className="ml-1 font-normal opacity-60"
+              title={`Esta etapa tem ${totalNoBanco.toLocaleString("pt-BR")} leads no banco. O quadro carrega no máximo 250 por coluna, então ${(totalNoBanco - total).toLocaleString("pt-BR")} dos mais antigos ficaram de fora — estreite o período para alcançá-los.`}
+            >
+              de {totalNoBanco.toLocaleString("pt-BR")}
+            </span>
+          )}
+        </span>
       </div>
       <div className="min-h-[100px] space-y-1.5 p-1.5">{children}</div>
     </div>

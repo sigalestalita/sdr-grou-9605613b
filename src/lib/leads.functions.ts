@@ -8,8 +8,12 @@ import { normalizeLeadType } from "./lead-type";
 /** Lista leads + stages + perfis (para o Kanban). */
 export const listKanbanData = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d) =>
+    z.object({ de: z.string().optional(), ate: z.string().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ context, data }) => {
     const { supabase } = context;
+    const { de, ate } = data ?? {};
     const PAGE = 1000;
     // Só as colunas que o Kanban usa: os campos longos (BANT, resumo da
     // empresa, sinais de ICP, dor provável) ficam para a página do lead.
@@ -67,6 +71,34 @@ export const listKanbanData = createServerFn({ method: "GET" })
     type Recorte = (q: any) => any;
 
     /*
+     * O filtro de período vai para o banco, não para o navegador.
+     *
+     * Enquanto ele era aplicado no cliente, só peneirava os cards que tinham
+     * cabido no teto da coluna — ou seja, filtrar setembro numa coluna de mil
+     * leads devolvia o nada, porque os mil mais recentes já eram de outubro.
+     * O número no topo da coluna também não mudava, que foi como o problema
+     * apareceu.
+     *
+     * Aqui a faixa é deliberadamente mais larga do que a da tela: pega o lead
+     * se QUALQUER uma das três datas cair no período (criação, conversão, ou o
+     * submitted_at do formulário, que é o que muda numa reconversão), e sobra
+     * um dia de cada lado porque a tela raciocina em horário de Brasília e o
+     * banco em UTC. O corte exato continua sendo feito no cliente, sobre esse
+     * conjunto maior — superconjunto no servidor, precisão na tela.
+     */
+    function diaEmIso(dia: string, deslocamento: number) {
+      const t = new Date(`${dia}T00:00:00Z`).getTime() + deslocamento * 86_400_000;
+      return new Date(t).toISOString();
+    }
+    const inicio = de ? diaEmIso(de, -1) : "1970-01-01T00:00:00.000Z";
+    const fim = ate ? diaEmIso(ate, 2) : "2999-12-31T00:00:00.000Z";
+    const CAMPOS_DE_DATA = ["created_at", "converted_at", "form_payload->>submitted_at"];
+    const recorteDeData: Recorte = (q) =>
+      !de && !ate
+        ? q
+        : q.or(CAMPOS_DE_DATA.map((c) => `and(${c}.gte.${inicio},${c}.lte.${fim})`).join(","));
+
+    /*
      * O form_payload fica no servidor.
      *
      * Ele é o campo mais gordo do lead — o formulário inteiro do Meta, os ids
@@ -102,22 +134,21 @@ export const listKanbanData = createServerFn({ method: "GET" })
 
     async function colunaDeLeads(chave: string, recorte: Recorte) {
       const [contagem, pagina] = await Promise.all([
-        recorte(supabase.from("leads").select("id", { count: "exact", head: true }).or(filter)),
         recorte(
-          supabase
-            .from("leads")
-            .select(KANBAN_COLUMNS)
-            .or(filter)
-            /*
-             * O desempate por id é obrigatório: created_at repete (a sync da
-             * planilha grava lotes inteiros com o mesmo instante) e, sem uma
-             * chave única na ordenação, duas leituras devolvem conjuntos
-             * diferentes.
-             */
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: true })
-            .limit(TETO_POR_COLUNA),
+          recorteDeData(
+            supabase.from("leads").select("id", { count: "exact", head: true }).or(filter),
+          ),
         ),
+        recorte(recorteDeData(supabase.from("leads").select(KANBAN_COLUMNS).or(filter)))
+          /*
+           * O desempate por id é obrigatório: created_at repete (a sync da
+           * planilha grava lotes inteiros com o mesmo instante) e, sem uma
+           * chave única na ordenação, duas leituras devolvem conjuntos
+           * diferentes.
+           */
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: true })
+          .limit(TETO_POR_COLUNA),
       ]);
       if (pagina.error) throw new Error(pagina.error.message);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
