@@ -16,41 +16,92 @@ export const listKanbanData = createServerFn({ method: "GET" })
     const KANBAN_COLUMNS =
       "id, name, email, phone, company_name, company_segment, company_size, company_website, linkedin_url, position, stage_id, stage_entered_at, priority, score, source, campaign, ad_name, lead_type, assigned_to, enrichment_status, converted_at, created_at, meeting_at, next_follow_up_at, last_touch_at, last_touch_channel, last_touch_outcome, touch_count, lost_reason, demo_free, cadence_track, cadence_status, cadence_started_at, first_approach_at, linkedin_company_size, meeting_booked_at, executivo_id, form_payload, meeting_invite_sent_at, meeting_duration_min";
     const filter = "source.is.null,source.neq.campaign_upload";
-    async function fetchAllLeads() {
-      // Conta primeiro e busca as páginas em paralelo (o PostgREST devolve no
-      // máximo 1000 por requisição) — em vez de uma página por vez.
-      const { count, error: countErr } = await supabase
-        .from("leads")
-        .select("id", { count: "exact", head: true })
-        .or(filter);
-      if (countErr) throw new Error(countErr.message);
-      const total = Math.min(count ?? 0, 50000);
-      const pages = Math.max(1, Math.ceil(total / PAGE));
-      const results = await Promise.all(
-        Array.from({ length: pages }, (_, i) =>
-          supabase
-            .from("leads")
-            .select(KANBAN_COLUMNS)
-            .or(filter)
-            // O desempate por id é obrigatório: created_at repete (a sync da
-            // planilha grava lotes inteiros com o mesmo instante) e, sem uma
-            // chave única na ordenação, as páginas buscadas em paralelo
-            // repetem umas linhas e perdem outras.
-            .order("created_at", { ascending: false })
-            .order("id", { ascending: true })
-            .range(i * PAGE, i * PAGE + PAGE - 1),
-        ),
-      );
-      const all: any[] = [];
-      for (const r of results) {
-        if (r.error) throw new Error(r.error.message);
-        all.push(...(r.data ?? []));
+
+    /*
+     * O kanban parou de carregar quando a base cresceu, e a culpa era daqui.
+     *
+     * A versão anterior contava os leads, dividia por mil e disparava TODAS as
+     * páginas de uma vez — até cinquenta requisições simultâneas de mil linhas
+     * com quarenta colunas cada. Numa instância pequena isso não volta: o banco
+     * engasga, o React tenta de novo, e a tela fica em "Carregando…" para
+     * sempre.
+     *
+     * Agora são duas mudanças. As páginas vão de três em três, então o banco
+     * nunca recebe a enxurrada. E etapa terminal — desqualificado, ganho,
+     * perdido — entra com teto: é histórico que ninguém rola no quadro, e é
+     * onde o volume se acumula. Etapa aberta continua vindo inteira, porque é
+     * o funil em que a SDR trabalha e dali não pode faltar ninguém.
+     */
+    const TETO_DE_TERMINAIS = 1500;
+    const SIMULTANEAS = 3;
+
+    const stagesRes = await supabase.from("stages").select("*").order("position");
+    if (stagesRes.error) throw new Error(stagesRes.error.message);
+    const stages = (stagesRes.data ?? []) as Array<{ id: string; is_terminal: boolean }>;
+    const idsTerminais = stages.filter((e) => e.is_terminal).map((e) => e.id);
+    const idsAbertas = stages.filter((e) => !e.is_terminal).map((e) => e.id);
+
+    async function emLotes<T>(tarefas: Array<() => Promise<T>>): Promise<T[]> {
+      const saida: T[] = [];
+      for (let i = 0; i < tarefas.length; i += SIMULTANEAS) {
+        const lote = tarefas.slice(i, i + SIMULTANEAS).map((t) => t());
+        saida.push(...(await Promise.all(lote)));
       }
-      return all;
+      return saida;
     }
-    const [stagesRes, leads, profilesRes, rolesRes, conversasRes] = await Promise.all([
-      supabase.from("stages").select("*").order("position"),
-      fetchAllLeads(),
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    type Consulta = (q: any) => any;
+
+    async function buscarLeads(recorte: Consulta, teto: number | null) {
+      const { count, error: countErr } = await recorte(
+        supabase.from("leads").select("id", { count: "exact", head: true }).or(filter),
+      );
+      if (countErr) throw new Error(countErr.message);
+      const total = count ?? 0;
+      const aBuscar = teto === null ? total : Math.min(total, teto);
+      const paginas = Math.ceil(aBuscar / PAGE);
+      const partes = await emLotes(
+        Array.from({ length: paginas }, (_, i) => async () => {
+          const { data, error } = await recorte(
+            supabase
+              .from("leads")
+              .select(KANBAN_COLUMNS)
+              .or(filter)
+              /*
+               * O desempate por id é obrigatório: created_at repete (a sync da
+               * planilha grava lotes inteiros com o mesmo instante) e, sem uma
+               * chave única na ordenação, as páginas repetem umas linhas e
+               * perdem outras.
+               */
+              .order("created_at", { ascending: false })
+              .order("id", { ascending: true })
+              .range(i * PAGE, Math.min((i + 1) * PAGE, aBuscar) - 1),
+          );
+          if (error) throw new Error(error.message);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          return (data ?? []) as any[];
+        }),
+      );
+      return { linhas: partes.flat(), total };
+    }
+
+    // Lead sem etapa entra junto com as abertas: fora dos dois recortes, ele
+    // simplesmente desapareceria do quadro.
+    const recorteAbertas: Consulta = (q) =>
+      idsAbertas.length > 0
+        ? q.or(`stage_id.is.null,stage_id.in.(${idsAbertas.join(",")})`)
+        : q.is("stage_id", null);
+    const recorteTerminais: Consulta = (q) => q.in("stage_id", idsTerminais);
+
+    const abertas = await buscarLeads(recorteAbertas, null);
+    const terminais =
+      idsTerminais.length > 0
+        ? await buscarLeads(recorteTerminais, TETO_DE_TERMINAIS)
+        : { linhas: [], total: 0 };
+    const leads = [...abertas.linhas, ...terminais.linhas];
+
+    const [profilesRes, rolesRes, conversasRes] = await Promise.all([
       supabase.from("profiles").select("id, full_name, email"),
       supabase.from("user_roles").select("user_id").eq("role", "executivo"),
       /*
@@ -63,9 +114,8 @@ export const listKanbanData = createServerFn({ method: "GET" })
         .select("id, lead_id, status, assumed_at")
         .not("lead_id", "is", null)
         .order("last_message_at", { ascending: false, nullsFirst: false })
-        .limit(5000),
+        .limit(3000),
     ]);
-    if (stagesRes.error) throw new Error(stagesRes.error.message);
     if (profilesRes.error) throw new Error(profilesRes.error.message);
     /*
      * O kanban carrega milhares de leads, então aqui não se pergunta pelas
@@ -97,6 +147,11 @@ export const listKanbanData = createServerFn({ method: "GET" })
     return {
       stages: stagesRes.data ?? [],
       leads,
+      /*
+       * O que ficou de fora, para a tela poder dizer. Esconder em silêncio é o
+       * que já custou caro aqui antes.
+       */
+      historicoOmitido: Math.max(terminais.total - terminais.linhas.length, 0),
       conversas: Object.fromEntries(conversaPorLead),
       profiles: profilesRes.data ?? [],
       /** Quem pode ser o executivo da agenda (papel executivo). */

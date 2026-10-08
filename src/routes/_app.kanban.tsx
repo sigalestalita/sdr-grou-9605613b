@@ -584,6 +584,15 @@ function KanbanPage() {
           </div>
           <span className="text-[11px] text-muted-foreground">
             {filtered.length} leads no filtro atual
+            {(data.historicoOmitido ?? 0) > 0 && (
+              <span
+                className="ml-2 text-muted-foreground"
+                title="Etapas de saída (desqualificado, ganho, perdido) entram no quadro com teto, para o carregamento não travar. As etapas abertas vêm inteiras."
+              >
+                · {data.historicoOmitido.toLocaleString("pt-BR")} cards antigos de etapa fechada
+                fora do quadro
+              </span>
+            )}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
