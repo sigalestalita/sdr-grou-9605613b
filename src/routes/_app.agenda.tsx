@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { completeCadenceStep } from "@/lib/sdr-cadence.functions";
 import { channelLabel } from "@/lib/touch-types";
 import {
   CalendarDays,
+  EyeOff,
   ChevronLeft,
   ChevronRight,
   AlertTriangle,
@@ -71,6 +72,31 @@ function AgendaPage() {
   const qc = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [owner, setOwner] = useState<string>("me");
+  /*
+   * Com a trilha do playbook dentro da agenda, o bloco de atrasados deixou de
+   * ser um aviso de dois ou três itens e virou o passivo inteiro da SDR. Para
+   * quem está em dia é informação; para quem herdou uma carteira parada, é uma
+   * parede que esconde a semana. Daí a escolha ficar com ela — e ser lembrada,
+   * porque ninguém quer reconfigurar a tela toda manhã.
+   */
+  const [exibir, setExibir] = useState<"tudo" | "semana" | "atrasados">("tudo");
+  const [limiteAtrasados, setLimiteAtrasados] = useState(24);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("agenda-exibir");
+      if (v === "semana" || v === "atrasados") setExibir(v);
+    } catch {
+      // janela anônima ou storage bloqueado: fica no padrão
+    }
+  }, []);
+  const escolherExibicao = (v: "tudo" | "semana" | "atrasados") => {
+    setExibir(v);
+    try {
+      localStorage.setItem("agenda-exibir", v);
+    } catch {
+      // idem
+    }
+  };
 
   const from = weekStart.toISOString();
   const to = addDays(weekStart, 7).toISOString();
@@ -154,6 +180,16 @@ function AgendaPage() {
               </option>
             ))}
           </select>
+          <select
+            value={exibir}
+            onChange={(e) => escolherExibicao(e.target.value as typeof exibir)}
+            className="h-9 rounded-md border bg-background px-2 text-sm"
+            title="O que aparece na tela. A contagem dos cartões acima não muda — ela sempre mostra o total."
+          >
+            <option value="tudo">Atrasados + semana</option>
+            <option value="semana">Só a semana</option>
+            <option value="atrasados">Só os atrasados</option>
+          </select>
           <Button variant="outline" size="sm" onClick={() => setWeekStart((w) => addDays(w, -7))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -186,13 +222,34 @@ function AgendaPage() {
             />
           </div>
 
-          {overdue.length > 0 && (
+          {exibir === "semana" && overdue.length > 0 && (
+            <button
+              type="button"
+              onClick={() => escolherExibicao("tudo")}
+              className="flex w-full items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
+            >
+              <EyeOff className="h-4 w-4 shrink-0" />
+              {overdue.length} {overdue.length === 1 ? "atrasado está" : "atrasados estão"} ocultos
+              — clique para ver
+            </button>
+          )}
+
+          {exibir !== "semana" && overdue.length > 0 && (
             <Card className="p-4 border-destructive/40">
-              <h2 className="text-sm font-semibold flex items-center gap-2 mb-3 text-destructive">
-                <AlertTriangle className="h-4 w-4" /> Atrasados ({overdue.length})
-              </h2>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <AlertTriangle className="h-4 w-4" /> Atrasados ({overdue.length})
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => escolherExibicao("semana")}
+                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                >
+                  <EyeOff className="h-3 w-3" /> Ocultar
+                </button>
+              </div>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {overdue.slice(0, 60).map((it) => (
+                {overdue.slice(0, limiteAtrasados).map((it) => (
                   <AgendaItem
                     key={it.key}
                     item={it}
@@ -202,10 +259,24 @@ function AgendaPage() {
                   />
                 ))}
               </div>
+              {/* O corte era fixo em 60 e silencioso: o resto simplesmente não
+                  existia na tela. Agora ele se anuncia e abre. */}
+              {overdue.length > limiteAtrasados && (
+                <button
+                  type="button"
+                  onClick={() => setLimiteAtrasados((n) => n + 24)}
+                  className="mt-3 w-full rounded-md border border-border py-1.5 text-[12px] text-muted-foreground hover:bg-muted"
+                >
+                  Mostrar mais {Math.min(24, overdue.length - limiteAtrasados)} — faltam{" "}
+                  {overdue.length - limiteAtrasados}
+                </button>
+              )}
             </Card>
           )}
 
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+          <div
+            className={`grid gap-3 md:grid-cols-2 xl:grid-cols-7 ${exibir === "atrasados" ? "hidden" : ""}`}
+          >
             {days.map((d) => {
               const k = dayKey(d);
               const list = byDay.get(k) ?? [];
