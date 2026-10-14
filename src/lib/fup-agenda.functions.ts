@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { buildCadencePlan, resolveTrack, stepIdFromTouchMetadata } from "./sdr-cadence";
+
+/** Mesma janela do quadro de Cadência: trilha mais longa termina bem antes disso. */
+const JANELA_CADENCIA_DIAS = 75;
+
+const CAMPOS_CADENCIA =
+  "id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel, created_at, converted_at, company_size, linkedin_company_size, cadence_track, cadence_started_at, cadence_status";
 
 /** Agenda/cronograma de follow-ups: manuais (touches) + automáticos (sequências de FUP). */
 export const getFupAgenda = createServerFn({ method: "GET" })
@@ -19,44 +26,66 @@ export const getFupAgenda = createServerFn({ method: "GET" })
     const from = new Date(data.from).toISOString();
     const to = new Date(data.to).toISOString();
 
-    const [profilesRes, stagesRes, leadsRes, enrollRes, touchesRes] = await Promise.all([
-      supabase.from("profiles").select("id, full_name, email"),
-      supabase.from("stages").select("id, name, slug, color, is_terminal"),
-      supabase
-        .from("leads")
-        .select(
-          "id, name, company_name, phone, email, lead_type, priority, stage_id, assigned_to, touch_count, last_touch_at, last_touch_channel, last_touch_outcome, next_follow_up_at",
-        )
-        .not("next_follow_up_at", "is", null)
-        .lte("next_follow_up_at", to)
-        .limit(5000),
-      supabase
-        .from("whatsapp_fup_enrollments")
-        .select(
-          "id, sequence_id, lead_id, status, current_step, next_run_at, whatsapp_fup_sequences:sequence_id(name), leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
-        )
-        .eq("status", "active")
-        .not("next_run_at", "is", null)
-        .lte("next_run_at", to)
-        .limit(5000),
-      // Touches registrados como "Follow-up" com data/hora, mas sem próximo agendamento:
-      // eles também são compromissos da agenda até serem marcados como feitos.
-      supabase
-        .from("lead_touches")
-        .select(
-          "id, lead_id, channel, outcome, occurred_at, touch_number, author_id, next_follow_up_at, follow_up_done_at, follow_up_done_by, leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
-        )
-        .or("action_type.eq.follow_up,follow_up_done_at.not.is.null")
+    const [profilesRes, stagesRes, leadsRes, enrollRes, touchesRes, cadenciaRes] =
+      await Promise.all([
+        supabase.from("profiles").select("id, full_name, email"),
+        supabase.from("stages").select("id, name, slug, color, is_terminal"),
+        supabase
+          .from("leads")
+          .select(
+            "id, name, company_name, phone, email, lead_type, priority, stage_id, assigned_to, touch_count, last_touch_at, last_touch_channel, last_touch_outcome, next_follow_up_at",
+          )
+          .not("next_follow_up_at", "is", null)
+          .lte("next_follow_up_at", to)
+          .limit(5000),
+        supabase
+          .from("whatsapp_fup_enrollments")
+          .select(
+            "id, sequence_id, lead_id, status, current_step, next_run_at, whatsapp_fup_sequences:sequence_id(name), leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
+          )
+          .eq("status", "active")
+          .not("next_run_at", "is", null)
+          .lte("next_run_at", to)
+          .limit(5000),
+        // Touches registrados como "Follow-up" com data/hora, mas sem próximo agendamento:
+        // eles também são compromissos da agenda até serem marcados como feitos.
+        supabase
+          .from("lead_touches")
+          .select(
+            "id, lead_id, channel, outcome, occurred_at, touch_number, author_id, next_follow_up_at, follow_up_done_at, follow_up_done_by, leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
+          )
+          .or("action_type.eq.follow_up,follow_up_done_at.not.is.null")
+          /*
+           * Teto sem ordenação devolve 5000 linhas quaisquer — e quais ficam
+           * muda a cada leitura. Ordenado, o corte passa a ser sempre o mesmo
+           * e sempre pelo mais antigo, que é o que menos importa aqui. O
+           * desempate por id é obrigatório: occurred_at repete.
+           */
+          .order("occurred_at", { ascending: false })
+          .order("id", { ascending: true })
+          .limit(5000),
         /*
-         * Teto sem ordenação devolve 5000 linhas quaisquer — e quais ficam
-         * muda a cada leitura. Ordenado, o corte passa a ser sempre o mesmo
-         * e sempre pelo mais antigo, que é o que menos importa aqui. O
-         * desempate por id é obrigatório: occurred_at repete.
+         * Os passos da trilha do playbook.
+         *
+         * A agenda nascia sem eles: mostrava só o que alguém tinha agendado à
+         * mão e as sequências de WhatsApp. Só que o card do lead monta a trilha
+         * sozinho, do startAt, e mostra D1, D3, D5 — então a SDR via uma lista
+         * cheia no card e quatro itens na agenda, e concluía (com razão) que a
+         * agenda estava quebrada. Agora as duas leem a mesma coisa.
+         *
+         * Os filtros são os mesmos do quadro de Cadência, inclusive o
+         * `cadence_status.is.null`, que ali já custou caro: `neq` sozinho
+         * derruba quem tem o campo nulo, que é todo lead cuja cadência nunca
+         * foi iniciada no botão.
          */
-        .order("occurred_at", { ascending: false })
-        .order("id", { ascending: true })
-        .limit(5000),
-    ]);
+        supabase
+          .from("leads")
+          .select(CAMPOS_CADENCIA)
+          .or("cadence_status.is.null,cadence_status.neq.encerrada")
+          .gte("created_at", new Date(Date.now() - JANELA_CADENCIA_DIAS * 86400000).toISOString())
+          .or("source.is.null,source.neq.campaign_upload")
+          .limit(4000),
+      ]);
     if (leadsRes.error) throw new Error(leadsRes.error.message);
 
     const stages = stagesRes.data ?? [];
@@ -66,8 +95,10 @@ export const getFupAgenda = createServerFn({ method: "GET" })
 
     type Item = {
       key: string;
-      kind: "manual" | "auto" | "touch";
+      kind: "manual" | "auto" | "touch" | "cadencia";
       touchId?: string;
+      /** Só em `cadencia`: o passo do playbook, para marcar como feito. */
+      stepId?: string;
       done: boolean;
       doneAt?: string | null;
       doneByName?: string | null;
@@ -205,6 +236,75 @@ export const getFupAgenda = createServerFn({ method: "GET" })
         title: `Touch ${t.touch_number ?? "?"} — follow-up (${t.channel})`,
         subtitle: t.outcome ? `Resultado: ${t.outcome}` : null,
       });
+    }
+
+    /*
+     * Monta a trilha de cada lead e joga na agenda o que é acionável.
+     *
+     * Acionável, aqui, não é "todo passo pendente": um lead largado há duas
+     * semanas tem cinco ou seis passos vencidos, e despejar todos encheria a
+     * tela de ruído — a SDR não vai fazer os cinco, vai fazer o próximo. Então
+     * de atrasado entra só o primeiro passo vencido de cada lead, que é o
+     * ponto onde ela precisa retomar, e de agendado entram os passos que caem
+     * dentro da semana visível.
+     */
+    const leadsCadencia = (cadenciaRes.data ?? []).filter((l) => {
+      const stage = l.stage_id ? stageById.get(l.stage_id) : null;
+      return !stage?.is_terminal && l.cadence_status !== "pausada";
+    });
+
+    const passosFeitos = new Map<string, Record<string, string>>();
+    const ids = leadsCadencia.map((l) => l.id);
+    for (let i = 0; i < ids.length; i += 500) {
+      const res = await supabase
+        .from("lead_touches")
+        .select("lead_id, occurred_at, metadata")
+        .in("lead_id", ids.slice(i, i + 500))
+        .order("occurred_at", { ascending: true })
+        .limit(20000);
+      for (const t of res.data ?? []) {
+        const stepId = stepIdFromTouchMetadata(t.metadata);
+        if (!stepId) continue;
+        const mapa = passosFeitos.get(t.lead_id) ?? {};
+        if (!mapa[stepId]) mapa[stepId] = t.occurred_at;
+        passosFeitos.set(t.lead_id, mapa);
+      }
+    }
+
+    for (const l of leadsCadencia) {
+      const startAt = l.cadence_started_at ?? l.converted_at ?? l.created_at;
+      if (!startAt) continue;
+      const plan = buildCadencePlan({
+        track: resolveTrack(l),
+        startAt,
+        doneMap: passosFeitos.get(l.id) ?? {},
+      });
+      const stage = l.stage_id ? stageById.get(l.stage_id) : null;
+      const naSemana = plan.steps.filter((p) => !p.done && p.dueAt >= from && p.dueAt <= to);
+      const aFazer = plan.firstLateStep ? [plan.firstLateStep, ...naSemana] : naSemana;
+      for (const passo of aFazer) {
+        items.push({
+          key: `cadencia:${l.id}:${passo.id}`,
+          kind: "cadencia",
+          stepId: passo.id,
+          done: false,
+          dueAt: passo.dueAt,
+          leadId: l.id,
+          leadName: l.name,
+          company: l.company_name,
+          phone: l.phone,
+          priority: l.priority,
+          leadType: l.lead_type,
+          stageName: stage?.name ?? null,
+          assignedTo: l.assigned_to,
+          assignedName: l.assigned_to ? (nameById.get(l.assigned_to) ?? "—") : "Fila geral",
+          touchCount: l.touch_count ?? 0,
+          lastTouchAt: l.last_touch_at,
+          lastTouchChannel: l.last_touch_channel,
+          title: `Dia ${passo.day} — ${passo.title}`,
+          subtitle: passo.channelTag ?? passo.channel,
+        });
+      }
     }
 
     const filtered = data.assignedTo

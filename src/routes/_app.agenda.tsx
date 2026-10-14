@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { completeAutoFup, getFupAgenda } from "@/lib/fup-agenda.functions";
 import { setFollowUpDone } from "@/lib/touches.functions";
+import { completeCadenceStep } from "@/lib/sdr-cadence.functions";
 import { channelLabel } from "@/lib/touch-types";
 import {
   CalendarDays,
@@ -16,6 +17,7 @@ import {
   AlertTriangle,
   Bot,
   User,
+  Route as RouteIcon,
   MessageCircle,
   Check,
 } from "lucide-react";
@@ -27,10 +29,14 @@ export const Route = createFileRoute("/_app/agenda")({
       { title: "Agenda de FUPs | Grou Compass" },
       {
         name: "description",
-        content: "Cronograma semanal de follow-ups: o que cada SDR precisa fazer em cada touchpoint do atendimento.",
+        content:
+          "Cronograma semanal de follow-ups: o que cada SDR precisa fazer em cada touchpoint do atendimento.",
       },
       { property: "og:title", content: "Agenda de FUPs | Grou Compass" },
-      { property: "og:description", content: "Calendário de follow-ups manuais e automáticos por SDR." },
+      {
+        property: "og:description",
+        content: "Calendário de follow-ups manuais e automáticos por SDR.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -61,6 +67,7 @@ function AgendaPage() {
   const agendaFn = useServerFn(getFupAgenda);
   const doneFn = useServerFn(setFollowUpDone);
   const autoDoneFn = useServerFn(completeAutoFup);
+  const cadenceDoneFn = useServerFn(completeCadenceStep);
   const qc = useQueryClient();
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const [owner, setOwner] = useState<string>("me");
@@ -77,6 +84,10 @@ function AgendaPage() {
     mutationFn: async (item: Item) => {
       if (item.kind === "auto") {
         await autoDoneFn({ data: { enrollmentId: item.key.replace("auto:", "") } });
+      } else if (item.kind === "cadencia") {
+        // Registra o touch do passo do playbook — é o mesmo caminho do quadro
+        // de Cadência, então marcar aqui ou lá dá no mesmo.
+        await cadenceDoneFn({ data: { leadId: item.leadId, stepId: item.stepId! } });
       } else if (item.kind === "touch") {
         await doneFn({ data: { leadId: item.leadId, touchId: item.touchId!, done: !item.done } });
       } else {
@@ -92,7 +103,8 @@ function AgendaPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
-  const assignedTo = owner === "all" ? null : owner === "me" ? (data?.currentUserId ?? null) : owner;
+  const assignedTo =
+    owner === "all" ? null : owner === "me" ? (data?.currentUserId ?? null) : owner;
 
   const filter = <T extends { assignedTo: string | null }>(rows: T[]) =>
     assignedTo ? rows.filter((r) => r.assignedTo === assignedTo) : rows;
@@ -100,7 +112,10 @@ function AgendaPage() {
   const overdue = filter(data?.overdue ?? []);
   const scheduled = filter(data?.scheduled ?? []);
 
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const days = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart],
+  );
   const byDay = useMemo(() => {
     const map = new Map<string, typeof scheduled>();
     for (const it of scheduled) {
@@ -157,9 +172,18 @@ function AgendaPage() {
         <>
           <div className="grid gap-3 sm:grid-cols-4">
             <Kpi label="Atrasados" value={String(overdue.length)} tone="danger" />
-            <Kpi label="Hoje" value={String((byDay.get(todayKey) ?? []).filter((i) => !i.done).length)} />
-            <Kpi label="Pendentes na semana" value={String(scheduled.filter((i) => !i.done).length)} />
-            <Kpi label="Realizados na semana" value={String(scheduled.filter((i) => i.done).length)} />
+            <Kpi
+              label="Hoje"
+              value={String((byDay.get(todayKey) ?? []).filter((i) => !i.done).length)}
+            />
+            <Kpi
+              label="Pendentes na semana"
+              value={String(scheduled.filter((i) => !i.done).length)}
+            />
+            <Kpi
+              label="Realizados na semana"
+              value={String(scheduled.filter((i) => i.done).length)}
+            />
           </div>
 
           {overdue.length > 0 && (
@@ -169,7 +193,13 @@ function AgendaPage() {
               </h2>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {overdue.slice(0, 60).map((it) => (
-                  <AgendaItem key={it.key} item={it} late onDone={() => complete.mutate(it)} doing={complete.isPending} />
+                  <AgendaItem
+                    key={it.key}
+                    item={it}
+                    late
+                    onDone={() => complete.mutate(it)}
+                    doing={complete.isPending}
+                  />
                 ))}
               </div>
             </Card>
@@ -186,7 +216,9 @@ function AgendaPage() {
                   className={`p-3 min-h-[180px] space-y-2 ${isToday ? "border-primary/50 bg-primary/5" : ""}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-semibold ${isToday ? "text-primary" : "text-muted-foreground"}`}>
+                    <span
+                      className={`text-xs font-semibold ${isToday ? "text-primary" : "text-muted-foreground"}`}
+                    >
                       {DAY_LABELS[d.getDay()]} {d.getDate()}/{d.getMonth() + 1}
                     </span>
                     {list.length > 0 && (
@@ -247,13 +279,22 @@ function AgendaItem({
         <span className="text-[11px] font-medium text-muted-foreground">{hhmm(item.dueAt)}</span>
         <div className="flex items-center gap-1">
           {item.done && (
-            <Badge className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-600 border-emerald-500/40" variant="outline">
+            <Badge
+              className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-600 border-emerald-500/40"
+              variant="outline"
+            >
               <Check className="h-3 w-3" /> Feito
             </Badge>
           )}
           <Badge variant="outline" className="text-[10px] gap-1">
-            {item.kind === "auto" ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
-            {item.kind === "auto" ? "IA" : "Manual"}
+            {item.kind === "auto" ? (
+              <Bot className="h-3 w-3" />
+            ) : item.kind === "cadencia" ? (
+              <RouteIcon className="h-3 w-3" />
+            ) : (
+              <User className="h-3 w-3" />
+            )}
+            {item.kind === "auto" ? "IA" : item.kind === "cadencia" ? "Cadência" : "Manual"}
           </Badge>
         </div>
       </div>
@@ -266,7 +307,9 @@ function AgendaItem({
       </Link>
       {item.company && <p className="text-[11px] text-muted-foreground truncate">{item.company}</p>}
       <p className="text-[11px] text-muted-foreground truncate">{item.title}</p>
-      {item.subtitle && <p className="text-[11px] text-muted-foreground truncate">{item.subtitle}</p>}
+      {item.subtitle && (
+        <p className="text-[11px] text-muted-foreground truncate">{item.subtitle}</p>
+      )}
       {!compact && (
         <p className="text-[11px] text-muted-foreground truncate">
           {item.assignedName}
