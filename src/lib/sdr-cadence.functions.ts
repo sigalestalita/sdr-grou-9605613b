@@ -1,12 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  ALL_STEPS_BY_ID,
-  BANT_STATUS,
-  type LeadBant,
-  type SdrTrack,
-} from "./sdr-playbook";
+import { ALL_STEPS_BY_ID, BANT_STATUS, type LeadBant, type SdrTrack } from "./sdr-playbook";
 import { TOUCH_OUTCOMES } from "./touch-types";
 import {
   buildCadencePlan,
@@ -94,7 +89,10 @@ export const setLeadCadence = createServerFn({ method: "POST" })
     if (data.status) patch["cadence_status"] = data.status;
     if (data.restart) patch["cadence_started_at"] = new Date().toISOString();
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabase.from("leads").update(patch as never).eq("id", data.leadId);
+    const { error } = await supabase
+      .from("leads")
+      .update(patch as never)
+      .eq("id", data.leadId);
     if (error) throw new Error(error.message);
     await supabase.from("lead_interactions").insert({
       lead_id: data.leadId,
@@ -172,7 +170,10 @@ export const completeCadenceStep = createServerFn({ method: "POST" })
     }
     if (!lead.first_approach_at) patch["first_approach_at"] = nowISO;
     if (step.breakup) patch["cadence_status"] = "encerrada";
-    await supabase.from("leads").update(patch as never).eq("id", data.leadId);
+    await supabase
+      .from("leads")
+      .update(patch as never)
+      .eq("id", data.leadId);
 
     return { touchId: inserted.id as string, breakup: !!step.breakup };
   });
@@ -254,7 +255,15 @@ export const getSdrCadenceBoard = createServerFn({ method: "GET" })
       supabase
         .from("leads")
         .select(LEAD_FIELDS)
-        .neq("cadence_status", "encerrada")
+        /*
+         * `neq` sozinho derruba quem tem cadence_status NULL: em SQL,
+         * NULL <> 'encerrada' é NULL, não verdadeiro, e a linha sai do
+         * resultado. Lead que nunca teve cadência iniciada explicitamente
+         * tem o campo nulo — e some do quadro, embora o card no kanban
+         * mostre a trilha dele normalmente. Era a diferença entre uma SDR
+         * ver a agenda cheia e outra ver vazia.
+         */
+        .or("cadence_status.is.null,cadence_status.neq.encerrada")
         .gte("created_at", new Date(Date.now() - 75 * 86400000).toISOString())
         .or("source.is.null,source.neq.campaign_upload")
         .limit(4000),
@@ -266,9 +275,7 @@ export const getSdrCadenceBoard = createServerFn({ method: "GET" })
     const nameById = new Map(
       (profilesRes.data ?? []).map((p) => [p.id, p.full_name || p.email || p.id] as const),
     );
-    const leads = (leadsRes.data ?? []).filter(
-      (l) => !l.stage_id || !terminal.has(l.stage_id),
-    );
+    const leads = (leadsRes.data ?? []).filter((l) => !l.stage_id || !terminal.has(l.stage_id));
     const leadIds = leads.map((l) => l.id);
 
     const touches: { lead_id: string; occurred_at: string; metadata: unknown }[] = [];
@@ -324,7 +331,9 @@ export const getSdrCadenceBoard = createServerFn({ method: "GET" })
         leadName: lead.name,
         company: lead.company_name,
         assignedTo: lead.assigned_to,
-        assignedName: lead.assigned_to ? (nameById.get(lead.assigned_to) ?? "—") : "Sem responsável",
+        assignedName: lead.assigned_to
+          ? (nameById.get(lead.assigned_to) ?? "—")
+          : "Sem responsável",
         track,
         touchCount: lead.touch_count ?? 0,
       };

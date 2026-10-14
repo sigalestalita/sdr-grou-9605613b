@@ -7,7 +7,11 @@ export const getFupAgenda = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z
-      .object({ from: z.string(), to: z.string(), assignedTo: z.string().uuid().nullable().optional() })
+      .object({
+        from: z.string(),
+        to: z.string(),
+        assignedTo: z.string().uuid().nullable().optional(),
+      })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
@@ -43,6 +47,14 @@ export const getFupAgenda = createServerFn({ method: "GET" })
           "id, lead_id, channel, outcome, occurred_at, touch_number, author_id, next_follow_up_at, follow_up_done_at, follow_up_done_by, leads:lead_id(id, name, company_name, phone, assigned_to, stage_id, priority, lead_type, touch_count, last_touch_at, last_touch_channel)",
         )
         .or("action_type.eq.follow_up,follow_up_done_at.not.is.null")
+        /*
+         * Teto sem ordenação devolve 5000 linhas quaisquer — e quais ficam
+         * muda a cada leitura. Ordenado, o corte passa a ser sempre o mesmo
+         * e sempre pelo mais antigo, que é o que menos importa aqui. O
+         * desempate por id é obrigatório: occurred_at repete.
+         */
+        .order("occurred_at", { ascending: false })
+        .order("id", { ascending: true })
         .limit(5000),
     ]);
     if (leadsRes.error) throw new Error(leadsRes.error.message);
@@ -195,7 +207,9 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       });
     }
 
-    const filtered = data.assignedTo ? items.filter((i) => i.assignedTo === data.assignedTo) : items;
+    const filtered = data.assignedTo
+      ? items.filter((i) => i.assignedTo === data.assignedTo)
+      : items;
     const overdue = filtered
       .filter((i) => !i.done && i.dueAt < from)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
