@@ -1,27 +1,18 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { completeAutoFup, getFupAgenda } from "@/lib/fup-agenda.functions";
 import { setFollowUpDone } from "@/lib/touches.functions";
-import { completeCadenceStep } from "@/lib/sdr-cadence.functions";
-import { channelLabel } from "@/lib/touch-types";
-import {
-  CalendarDays,
-  EyeOff,
-  ChevronLeft,
-  ChevronRight,
-  AlertTriangle,
-  Bot,
-  User,
-  Route as RouteIcon,
-  MessageCircle,
-  Check,
-} from "lucide-react";
+import { completeCadenceStep, retomarCadencia, setLeadCadence } from "@/lib/sdr-cadence.functions";
+import { chaveDoDia, ordenarFilaDeHoje, situacaoDoLead } from "@/lib/fup-agenda";
+import { FilaDeHoje } from "@/components/agenda/fila-hoje";
+import { MatrizDaSemana } from "@/components/agenda/matriz-semana";
+import { ListaDeAtrasados } from "@/components/agenda/lista-atrasados";
+import type { Compromisso } from "@/components/agenda/tipos";
 
 export const Route = createFileRoute("/_app/agenda")({
   component: AgendaPage,
@@ -31,12 +22,12 @@ export const Route = createFileRoute("/_app/agenda")({
       {
         name: "description",
         content:
-          "Cronograma semanal de follow-ups: o que cada SDR precisa fazer em cada touchpoint do atendimento.",
+          "O dia da SDR em uma fila: os toques de hoje por lead, a semana em uma linha por lead e o que ficou para trás.",
       },
       { property: "og:title", content: "Agenda de FUPs | Grou Compass" },
       {
         property: "og:description",
-        content: "Calendário de follow-ups manuais e automáticos por SDR.",
+        content: "Fila de toques do dia, planejamento da semana e cadências paradas, por SDR.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -44,7 +35,9 @@ export const Route = createFileRoute("/_app/agenda")({
   }),
 });
 
-const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+type Aba = "hoje" | "semana" | "atrasados";
+const ABAS: Aba[] = ["hoje", "semana", "atrasados"];
+const CHAVE_ABA = "agenda-aba";
 
 function startOfWeek(d: Date) {
   const x = new Date(d);
@@ -57,63 +50,62 @@ function addDays(d: Date, n: number) {
   x.setDate(x.getDate() + n);
   return x;
 }
-const dayKey = (iso: string | Date) => {
-  const d = typeof iso === "string" ? new Date(iso) : iso;
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-const hhmm = (iso: string) =>
-  new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 function AgendaPage() {
   const agendaFn = useServerFn(getFupAgenda);
   const doneFn = useServerFn(setFollowUpDone);
   const autoDoneFn = useServerFn(completeAutoFup);
-  const cadenceDoneFn = useServerFn(completeCadenceStep);
+  const passoFn = useServerFn(completeCadenceStep);
+  const retomarFn = useServerFn(retomarCadencia);
+  const cadenciaFn = useServerFn(setLeadCadence);
   const qc = useQueryClient();
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+
   const [owner, setOwner] = useState<string>("me");
-  /*
-   * Com a trilha do playbook dentro da agenda, o bloco de atrasados deixou de
-   * ser um aviso de dois ou três itens e virou o passivo inteiro da SDR. Para
-   * quem está em dia é informação; para quem herdou uma carteira parada, é uma
-   * parede que esconde a semana. Daí a escolha ficar com ela — e ser lembrada,
-   * porque ninguém quer reconfigurar a tela toda manhã.
-   */
-  const [exibir, setExibir] = useState<"tudo" | "semana" | "atrasados">("tudo");
-  const [limiteAtrasados, setLimiteAtrasados] = useState(24);
+  const [aba, setAba] = useState<Aba>("hoje");
+  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+
+  // A aba fica lembrada: quem planeja a semana toda segunda não quer cair na
+  // fila de hoje a cada recarregamento, e vice-versa.
   useEffect(() => {
     try {
-      const v = localStorage.getItem("agenda-exibir");
-      if (v === "semana" || v === "atrasados") setExibir(v);
+      const v = localStorage.getItem(CHAVE_ABA);
+      if (v && (ABAS as string[]).includes(v)) setAba(v as Aba);
     } catch {
-      // janela anônima ou storage bloqueado: fica no padrão
+      // janela anônima ou storage bloqueado: fica em "hoje"
     }
   }, []);
-  const escolherExibicao = (v: "tudo" | "semana" | "atrasados") => {
-    setExibir(v);
+  const escolherAba = (v: Aba) => {
+    setAba(v);
     try {
-      localStorage.setItem("agenda-exibir", v);
+      localStorage.setItem(CHAVE_ABA, v);
     } catch {
       // idem
     }
   };
 
-  const from = weekStart.toISOString();
-  const to = addDays(weekStart, 7).toISOString();
+  // Hoje e Atrasados são sempre sobre agora; só a Semana navega no calendário.
+  const semanaDaConsulta = aba === "semana" ? weekStart : startOfWeek(new Date());
+  const from = semanaDaConsulta.toISOString();
+  const to = addDays(semanaDaConsulta, 7).toISOString();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["fup-agenda", from],
     queryFn: () => agendaFn({ data: { from, to } }),
+    placeholderData: (prev) => prev,
+    retry: 1,
   });
 
-  const complete = useMutation({
-    mutationFn: async (item: Item) => {
+  const invalidar = () => {
+    qc.invalidateQueries({ queryKey: ["fup-agenda"] });
+    qc.invalidateQueries({ queryKey: ["lead-touches"] });
+    qc.invalidateQueries({ queryKey: ["kanban"] });
+  };
+  const falhou = (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro");
+
+  const concluirCompromisso = useMutation({
+    mutationFn: async (item: Compromisso) => {
       if (item.kind === "auto") {
         await autoDoneFn({ data: { enrollmentId: item.key.replace("auto:", "") } });
-      } else if (item.kind === "cadencia") {
-        // Registra o touch do passo do playbook — é o mesmo caminho do quadro
-        // de Cadência, então marcar aqui ou lá dá no mesmo.
-        await cadenceDoneFn({ data: { leadId: item.leadId, stepId: item.stepId! } });
       } else if (item.kind === "touch") {
         await doneFn({ data: { leadId: item.leadId, touchId: item.touchId!, done: !item.done } });
       } else {
@@ -122,321 +114,335 @@ function AgendaPage() {
     },
     onSuccess: () => {
       toast.success("Follow-up atualizado");
-      qc.invalidateQueries({ queryKey: ["fup-agenda"] });
-      qc.invalidateQueries({ queryKey: ["lead-touches"] });
-      qc.invalidateQueries({ queryKey: ["kanban"] });
+      invalidar();
     },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+    onError: falhou,
+  });
+
+  const concluirPasso = useMutation({
+    mutationFn: (v: { leadId: string; stepId: string }) => passoFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Toque registrado");
+      invalidar();
+    },
+    onError: falhou,
+  });
+
+  const retomar = useMutation({
+    mutationFn: (leadId: string) => retomarFn({ data: { leadId } }),
+    onSuccess: (r) => {
+      toast.success(`Cadência retomada — o Dia ${r.dia} entra na fila de hoje`);
+      invalidar();
+    },
+    onError: falhou,
+  });
+
+  const encerrar = useMutation({
+    mutationFn: (leadId: string) => cadenciaFn({ data: { leadId, status: "encerrada" } }),
+    onSuccess: () => {
+      toast.success("Cadência encerrada");
+      invalidar();
+    },
+    onError: falhou,
   });
 
   const assignedTo =
     owner === "all" ? null : owner === "me" ? (data?.currentUserId ?? null) : owner;
+  const nomeDaSdr = useMemo(() => {
+    const id = assignedTo ?? data?.currentUserId;
+    const p = data?.profiles.find((x) => x.id === id);
+    return p?.full_name ?? null;
+  }, [assignedTo, data]);
 
-  const filter = <T extends { assignedTo: string | null }>(rows: T[]) =>
-    assignedTo ? rows.filter((r) => r.assignedTo === assignedTo) : rows;
+  const visao = useMemo(() => {
+    const agora = new Date();
+    const hoje = chaveDoDia(agora);
+    const inicioHoje = new Date(agora);
+    inicioHoje.setHours(0, 0, 0, 0);
+    const doDono = <T extends { assignedTo: string | null }>(rows: T[]) =>
+      assignedTo ? rows.filter((r) => r.assignedTo === assignedTo) : rows;
 
-  const overdue = filter(data?.overdue ?? []);
-  const scheduled = filter(data?.scheduled ?? []);
+    const compromissos = doDono([...(data?.overdue ?? []), ...(data?.scheduled ?? [])]);
+    const linhas = doDono(data?.cadencia ?? []).map((lead) => ({
+      lead,
+      situacao: situacaoDoLead(lead, agora),
+    }));
 
-  const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
-    [weekStart],
+    const compromissosDeHoje = compromissos
+      .filter((c) => chaveDoDia(c.dueAt) === hoje)
+      .sort((a, b) => Number(a.done) - Number(b.done) || a.dueAt.localeCompare(b.dueAt));
+    const compromissosAtrasados = compromissos
+      .filter((c) => !c.done && new Date(c.dueAt) < inicioHoje)
+      .sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+    const filaDeHoje = ordenarFilaDeHoje(linhas.filter((l) => l.situacao.hoje.length > 0));
+    const parados = linhas.filter((l) => l.situacao.vencidos.length > 0);
+
+    const naSemana = (iso: string) => iso >= from && iso < to;
+    const toquesPendentesHoje =
+      filaDeHoje.reduce((n, l) => n + l.situacao.hoje.filter((p) => !p.doneAt).length, 0) +
+      compromissosDeHoje.filter((c) => !c.done).length;
+    const pendentesNaSemana =
+      linhas.reduce(
+        (n, l) => n + l.lead.passos.filter((p) => !p.doneAt && naSemana(p.dueAt)).length,
+        0,
+      ) + compromissos.filter((c) => !c.done && naSemana(c.dueAt)).length;
+    const realizadosNaSemana =
+      linhas.reduce(
+        (n, l) => n + l.lead.passos.filter((p) => p.doneAt && naSemana(p.doneAt)).length,
+        0,
+      ) + compromissos.filter((c) => c.done && naSemana(c.doneAt ?? c.dueAt)).length;
+
+    return {
+      agora,
+      linhas,
+      compromissos,
+      compromissosDeHoje,
+      compromissosAtrasados,
+      filaDeHoje,
+      parados,
+      kpi: {
+        hoje: toquesPendentesHoje,
+        leadsHoje: filaDeHoje.filter((l) => l.situacao.hoje.some((p) => !p.doneAt)).length,
+        atrasados: parados.length + compromissosAtrasados.length,
+        pendentesNaSemana,
+        realizadosNaSemana,
+      },
+    };
+  }, [data, assignedTo, from, to]);
+
+  const dias = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(semanaDaConsulta, i)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [from],
   );
-  const byDay = useMemo(() => {
-    const map = new Map<string, typeof scheduled>();
-    for (const it of scheduled) {
-      const k = dayKey(it.dueAt);
-      const arr = map.get(k) ?? [];
-      arr.push(it);
-      map.set(k, arr);
-    }
-    return map;
-  }, [scheduled]);
+  const mostrarDono = owner === "all";
 
-  const todayKey = dayKey(new Date());
+  const passoEmAndamento = concluirPasso.isPending
+    ? `${concluirPasso.variables?.leadId}:${concluirPasso.variables?.stepId}`
+    : null;
+  const leadEmAndamento = retomar.isPending
+    ? (retomar.variables ?? null)
+    : encerrar.isPending
+      ? (encerrar.variables ?? null)
+      : null;
+  const compromissoEmAndamento = concluirCompromisso.isPending
+    ? (concluirCompromisso.variables?.key ?? null)
+    : null;
+
+  const rotuloSemana = `${dias[0].getDate()}/${dias[0].getMonth() + 1} – ${dias[6].getDate()}/${dias[6].getMonth() + 1}`;
 
   return (
-    <div className="p-6 space-y-5">
-      <header className="flex items-start justify-between gap-3 flex-wrap">
+    <div className="space-y-5 p-4 sm:p-6">
+      <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="flex items-center gap-2 text-2xl font-bold">
             <CalendarDays className="h-5 w-5" /> Agenda de FUPs
           </h1>
           <p className="text-sm text-muted-foreground">
-            Cronograma dos próximos touchpoints — follow-ups manuais e sequências automáticas.
+            Os toques de hoje em ordem de urgência, a semana em uma linha por lead e o que ficou
+            para trás.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <select
-            value={owner}
-            onChange={(e) => setOwner(e.target.value)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-          >
-            <option value="me">Minha agenda</option>
-            <option value="all">Todos os SDRs</option>
-            {(data?.profiles ?? []).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.full_name || p.email}
-              </option>
-            ))}
-          </select>
-          <select
-            value={exibir}
-            onChange={(e) => escolherExibicao(e.target.value as typeof exibir)}
-            className="h-9 rounded-md border bg-background px-2 text-sm"
-            title="O que aparece na tela. A contagem dos cartões acima não muda — ela sempre mostra o total."
-          >
-            <option value="tudo">Atrasados + semana</option>
-            <option value="semana">Só a semana</option>
-            <option value="atrasados">Só os atrasados</option>
-          </select>
-          <Button variant="outline" size="sm" onClick={() => setWeekStart((w) => addDays(w, -7))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setWeekStart(startOfWeek(new Date()))}>
-            Hoje
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setWeekStart((w) => addDays(w, 7))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <select
+          id="agenda-dono"
+          value={owner}
+          onChange={(e) => setOwner(e.target.value)}
+          className="h-9 rounded-md border bg-background px-2 text-sm"
+          aria-label="De quem é a agenda"
+        >
+          <option value="me">Minha agenda</option>
+          <option value="all">Todos os SDRs</option>
+          {(data?.profiles ?? []).map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.full_name || p.email}
+            </option>
+          ))}
+        </select>
       </header>
 
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground">Carregando agenda…</p>
-      ) : (
-        <>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Kpi label="Atrasados" value={String(overdue.length)} tone="danger" />
-            <Kpi
-              label="Hoje"
-              value={String((byDay.get(todayKey) ?? []).filter((i) => !i.done).length)}
-            />
-            <Kpi
-              label="Pendentes na semana"
-              value={String(scheduled.filter((i) => !i.done).length)}
-            />
-            <Kpi
-              label="Realizados na semana"
-              value={String(scheduled.filter((i) => i.done).length)}
-            />
-          </div>
-
-          {exibir === "semana" && overdue.length > 0 && (
-            <button
-              type="button"
-              onClick={() => escolherExibicao("tudo")}
-              className="flex w-full items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-left text-sm text-destructive hover:bg-destructive/10"
-            >
-              <EyeOff className="h-4 w-4 shrink-0" />
-              {overdue.length} {overdue.length === 1 ? "atrasado está" : "atrasados estão"} ocultos
-              — clique para ver
-            </button>
-          )}
-
-          {exibir !== "semana" && overdue.length > 0 && (
-            <Card className="p-4 border-destructive/40">
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                  <AlertTriangle className="h-4 w-4" /> Atrasados ({overdue.length})
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => escolherExibicao("semana")}
-                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-                >
-                  <EyeOff className="h-3 w-3" /> Ocultar
-                </button>
-              </div>
-              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                {overdue.slice(0, limiteAtrasados).map((it) => (
-                  <AgendaItem
-                    key={it.key}
-                    item={it}
-                    late
-                    onDone={() => complete.mutate(it)}
-                    doing={complete.isPending}
-                  />
-                ))}
-              </div>
-              {/* O corte era fixo em 60 e silencioso: o resto simplesmente não
-                  existia na tela. Agora ele se anuncia e abre. */}
-              {overdue.length > limiteAtrasados && (
-                <button
-                  type="button"
-                  onClick={() => setLimiteAtrasados((n) => n + 24)}
-                  className="mt-3 w-full rounded-md border border-border py-1.5 text-[12px] text-muted-foreground hover:bg-muted"
-                >
-                  Mostrar mais {Math.min(24, overdue.length - limiteAtrasados)} — faltam{" "}
-                  {overdue.length - limiteAtrasados}
-                </button>
-              )}
-            </Card>
-          )}
-
-          <div
-            className={`grid gap-3 md:grid-cols-2 xl:grid-cols-7 ${exibir === "atrasados" ? "hidden" : ""}`}
-          >
-            {days.map((d) => {
-              const k = dayKey(d);
-              const list = byDay.get(k) ?? [];
-              const isToday = k === todayKey;
-              return (
-                <Card
-                  key={k}
-                  className={`p-3 min-h-[180px] space-y-2 ${isToday ? "border-primary/50 bg-primary/5" : ""}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`text-xs font-semibold ${isToday ? "text-primary" : "text-muted-foreground"}`}
-                    >
-                      {DAY_LABELS[d.getDay()]} {d.getDate()}/{d.getMonth() + 1}
-                    </span>
-                    {list.length > 0 && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        {list.length}
-                      </Badge>
-                    )}
-                  </div>
-                  {list.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground">Sem follow-ups</p>
-                  ) : (
-                    list.map((it) => (
-                      <AgendaItem
-                        key={it.key}
-                        item={it}
-                        compact
-                        onDone={() => complete.mutate(it)}
-                        doing={complete.isPending}
-                      />
-                    ))
-                  )}
-                </Card>
-              );
-            })}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-type Item = NonNullable<Awaited<ReturnType<typeof getFupAgenda>>>["scheduled"][number];
-
-function AgendaItem({
-  item,
-  compact,
-  late,
-  onDone,
-  doing,
-}: {
-  item: Item;
-  compact?: boolean;
-  late?: boolean;
-  onDone?: () => void;
-  doing?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-lg border p-2 space-y-1 ${
-        item.done
-          ? "border-emerald-500/40 bg-emerald-500/5 opacity-80"
-          : late
-            ? "border-destructive/40 bg-destructive/5"
-            : "border-white/10 bg-white/[0.03]"
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-[11px] font-medium text-muted-foreground">{hhmm(item.dueAt)}</span>
-        <div className="flex items-center gap-1">
-          {item.done && (
-            <Badge
-              className="text-[10px] gap-1 bg-emerald-500/15 text-emerald-600 border-emerald-500/40"
-              variant="outline"
-            >
-              <Check className="h-3 w-3" /> Feito
-            </Badge>
-          )}
-          <Badge variant="outline" className="text-[10px] gap-1">
-            {item.kind === "auto" ? (
-              <Bot className="h-3 w-3" />
-            ) : item.kind === "cadencia" ? (
-              <RouteIcon className="h-3 w-3" />
-            ) : (
-              <User className="h-3 w-3" />
-            )}
-            {item.kind === "auto" ? "IA" : item.kind === "cadencia" ? "Cadência" : "Manual"}
-          </Badge>
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Indicador
+          rotulo="Para hoje"
+          valor={visao.kpi.hoje}
+          detalhe={`${visao.kpi.leadsHoje} ${visao.kpi.leadsHoje === 1 ? "lead" : "leads"}`}
+          ativo={aba === "hoje"}
+          onClick={() => escolherAba("hoje")}
+        />
+        <Indicador
+          rotulo="Atrasados"
+          valor={visao.kpi.atrasados}
+          detalhe="leads e horários"
+          tom="perigo"
+          ativo={aba === "atrasados"}
+          onClick={() => escolherAba("atrasados")}
+        />
+        <Indicador
+          rotulo="Pendentes na semana"
+          valor={visao.kpi.pendentesNaSemana}
+          detalhe="toques"
+          ativo={aba === "semana"}
+          onClick={() => escolherAba("semana")}
+        />
+        <Indicador
+          rotulo="Feitos na semana"
+          valor={visao.kpi.realizadosNaSemana}
+          detalhe="toques"
+        />
       </div>
-      <Link
-        to="/lead/$id"
-        params={{ id: item.leadId }}
-        className={`block text-sm font-medium hover:underline truncate ${item.done ? "line-through text-muted-foreground" : ""}`}
-      >
-        {item.leadName}
-      </Link>
-      {item.company && <p className="text-[11px] text-muted-foreground truncate">{item.company}</p>}
-      <p className="text-[11px] text-muted-foreground truncate">{item.title}</p>
-      {item.subtitle && (
-        <p className="text-[11px] text-muted-foreground truncate">{item.subtitle}</p>
-      )}
-      {!compact && (
-        <p className="text-[11px] text-muted-foreground truncate">
-          {item.assignedName}
-          {item.stageName ? ` • ${item.stageName}` : ""}
-          {item.lastTouchChannel ? ` • ${channelLabel(item.lastTouchChannel)}` : ""}
-        </p>
-      )}
-      {item.done && item.doneAt && (
-        <p className="text-[11px] text-emerald-600 truncate">
-          Concluído {hhmm(item.doneAt)}
-          {item.doneByName ? ` • ${item.doneByName}` : ""}
-        </p>
-      )}
-      <div className="flex items-center gap-2 pt-1">
-        <Badge variant="secondary" className="text-[10px]">
-          {item.touchCount} touches
-        </Badge>
-        {/* Um card por lead por dia: quando a trilha pede mais de um toque no
-            mesmo dia, o card mostra o primeiro e avisa quantos vêm atrás. */}
-        {(item.passosNoDia ?? 1) > 1 && (
-          <Badge variant="outline" className="text-[10px]" title={item.subtitle ?? undefined}>
-            +{(item.passosNoDia ?? 1) - 1} nesse dia
-          </Badge>
-        )}
-        <Link
-          to="/lead/$id"
-          params={{ id: item.leadId }}
-          className="text-[11px] text-primary hover:underline inline-flex items-center gap-1"
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          role="tablist"
+          aria-label="Visão da agenda"
+          className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5"
         >
-          <MessageCircle className="h-3 w-3" /> Atender
-        </Link>
-        {onDone && (
-          <button
-            type="button"
-            disabled={doing}
-            onClick={onDone}
-            title={item.done ? "Desmarcar follow-up" : "Marcar follow-up como feito"}
-            className={`ml-auto inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] disabled:opacity-50 ${
-              item.done
-                ? "border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08]"
-                : "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20"
-            }`}
-          >
-            <Check className="h-3 w-3" /> {item.done ? "Desfazer" : "Feito"}
-          </button>
+          {(
+            [
+              ["hoje", "Hoje", visao.kpi.hoje],
+              ["semana", "Semana", null],
+              ["atrasados", "Atrasados", visao.kpi.atrasados],
+            ] as const
+          ).map(([valor, rotulo, contagem]) => (
+            <button
+              key={valor}
+              type="button"
+              role="tab"
+              aria-selected={aba === valor}
+              onClick={() => escolherAba(valor)}
+              className={`rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                aba === valor
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {rotulo}
+              {contagem != null && contagem > 0 && (
+                <span
+                  className={`ml-1.5 tabular-nums ${valor === "atrasados" ? "text-destructive" : "text-muted-foreground"}`}
+                >
+                  {contagem}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {aba === "semana" && (
+          <div className="flex items-center gap-2">
+            <span className="text-[13px] tabular-nums text-muted-foreground">{rotuloSemana}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Semana anterior"
+              onClick={() => setWeekStart((w) => addDays(w, -7))}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setWeekStart(startOfWeek(new Date()))}
+            >
+              Esta semana
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              aria-label="Próxima semana"
+              onClick={() => setWeekStart((w) => addDays(w, 7))}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         )}
       </div>
+
+      {error ? (
+        <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 p-4">
+          <p className="text-sm font-medium">A agenda não carregou</p>
+          <pre className="overflow-x-auto text-xs text-muted-foreground">
+            {error instanceof Error ? error.message : String(error)}
+          </pre>
+          <Button size="sm" variant="outline" onClick={() => refetch()}>
+            Tentar de novo
+          </Button>
+        </div>
+      ) : isLoading && !data ? (
+        <p className="text-sm text-muted-foreground">Carregando agenda…</p>
+      ) : aba === "hoje" ? (
+        <FilaDeHoje
+          linhas={visao.filaDeHoje}
+          compromissos={visao.compromissosDeHoje}
+          mostrarDono={mostrarDono}
+          nomeDaSdr={nomeDaSdr}
+          atrasados={visao.kpi.atrasados}
+          passoEmAndamento={passoEmAndamento}
+          compromissoEmAndamento={compromissoEmAndamento}
+          onConcluirPasso={(leadId, stepId) => concluirPasso.mutate({ leadId, stepId })}
+          onConcluirCompromisso={(item) => concluirCompromisso.mutate(item)}
+          onVerAtrasados={() => escolherAba("atrasados")}
+        />
+      ) : aba === "semana" ? (
+        <MatrizDaSemana
+          dias={dias}
+          linhas={visao.linhas}
+          compromissos={visao.compromissos}
+          mostrarDono={mostrarDono}
+          agora={visao.agora}
+        />
+      ) : (
+        <ListaDeAtrasados
+          linhas={visao.parados}
+          compromissos={visao.compromissosAtrasados}
+          mostrarDono={mostrarDono}
+          emAndamento={leadEmAndamento}
+          compromissoEmAndamento={compromissoEmAndamento}
+          onRetomar={(leadId) => retomar.mutate(leadId)}
+          onEncerrar={(leadId) => encerrar.mutate(leadId)}
+          onConcluirCompromisso={(item) => concluirCompromisso.mutate(item)}
+        />
+      )}
     </div>
   );
 }
 
-function Kpi({ label, value, tone }: { label: string; value: string; tone?: "danger" }) {
+/** Número do topo. Os três primeiros levam à aba que explicam. */
+function Indicador({
+  rotulo,
+  valor,
+  detalhe,
+  tom,
+  ativo,
+  onClick,
+}: {
+  rotulo: string;
+  valor: number;
+  detalhe: string;
+  tom?: "perigo";
+  ativo?: boolean;
+  onClick?: () => void;
+}) {
+  const conteudo = (
+    <>
+      <p className="text-xs text-muted-foreground">{rotulo}</p>
+      <p
+        className={`text-2xl font-bold tabular-nums ${tom === "perigo" && valor > 0 ? "text-destructive" : ""}`}
+      >
+        {valor}
+      </p>
+      <p className="text-[11px] text-muted-foreground">{detalhe}</p>
+    </>
+  );
+  const base = "rounded-xl border bg-card p-4 text-left";
+  if (!onClick) return <div className={`${base} border-border`}>{conteudo}</div>;
   return (
-    <Card className="p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={`text-2xl font-bold ${tone === "danger" ? "text-destructive" : ""}`}>{value}</p>
-    </Card>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={ativo}
+      className={`${base} transition-colors hover:border-primary/40 ${ativo ? "border-primary/60 ring-1 ring-primary/30" : "border-border"}`}
+    >
+      {conteudo}
+    </button>
   );
 }

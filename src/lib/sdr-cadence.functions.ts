@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { ALL_STEPS_BY_ID, BANT_STATUS, type LeadBant, type SdrTrack } from "./sdr-playbook";
 import { TOUCH_OUTCOMES } from "./touch-types";
+import { inicioParaRetomar } from "./fup-agenda";
 import {
   buildCadencePlan,
   evaluateSla,
@@ -99,8 +100,10 @@ export const setLeadCadence = createServerFn({ method: "POST" })
       author_id: userId,
       type: "cadence",
       content:
+        // O break-up encerra a trilha por outro caminho (completeCadenceStep);
+        // aqui só chega quem encerrou na mão.
         data.status === "encerrada"
-          ? "Cadência encerrada (break-up)"
+          ? "Cadência encerrada manualmente"
           : data.status === "pausada"
             ? "Cadência pausada"
             : data.restart
@@ -109,6 +112,72 @@ export const setLeadCadence = createServerFn({ method: "POST" })
       metadata: patch as never,
     });
     return { ok: true };
+  });
+
+/**
+ * Retoma a trilha do ponto onde o lead parou, com o próximo passo caindo hoje.
+ *
+ * Existe porque "Feito" era a única ação sobre um passo atrasado, e a SDR não
+ * fez — então o atraso só acumulava. Reiniciar (setLeadCadence com restart)
+ * também não serve: ancora o Dia 1 em hoje, e um lead parado no Dia 4 ficaria
+ * três dias sem toque. Aqui o início é recalculado para o passo pendente cair
+ * hoje e o resto da trilha seguir o espaçamento original.
+ *
+ * O plano é montado no servidor, com os touches do banco, e não confiado à
+ * tela: quem decide qual é o próximo passo é o histórico real.
+ */
+export const retomarCadencia = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ leadId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const [leadRes, touchesRes] = await Promise.all([
+      supabase.from("leads").select(LEAD_FIELDS).eq("id", data.leadId).maybeSingle(),
+      supabase
+        .from("lead_touches")
+        .select("occurred_at, metadata")
+        .eq("lead_id", data.leadId)
+        .order("occurred_at", { ascending: true }),
+    ]);
+    if (leadRes.error) throw new Error(leadRes.error.message);
+    if (!leadRes.data) throw new Error("Lead não encontrado");
+    const lead = leadRes.data;
+
+    const inicioAnterior = lead.cadence_started_at ?? lead.converted_at ?? lead.created_at;
+    const plan = buildCadencePlan({
+      track: resolveTrack(lead),
+      startAt: inicioAnterior,
+      doneMap: doneMapFromTouches(touchesRes.data ?? []),
+    });
+    const proximo = plan.nextStep;
+    if (!proximo) throw new Error("A trilha deste lead já terminou — não há passo para retomar.");
+
+    const agora = new Date();
+    const novoInicio = inicioParaRetomar(proximo.day, agora);
+    const diasParado = Math.max(
+      0,
+      Math.round((agora.getTime() - new Date(proximo.dueAt).getTime()) / 86_400_000),
+    );
+
+    const { error } = await supabase
+      .from("leads")
+      .update({ cadence_started_at: novoInicio, cadence_status: "ativa" } as never)
+      .eq("id", data.leadId);
+    if (error) throw new Error(error.message);
+
+    await supabase.from("lead_interactions").insert({
+      lead_id: data.leadId,
+      author_id: userId,
+      type: "cadence",
+      content: `Cadência retomada a partir de hoje no Dia ${proximo.day} — ${proximo.title} (estava ${diasParado} ${diasParado === 1 ? "dia" : "dias"} atrasada)`,
+      metadata: {
+        cadence_started_at_anterior: inicioAnterior,
+        cadence_started_at: novoInicio,
+        cadence_step: proximo.id,
+      } as never,
+    });
+
+    return { dia: proximo.day, titulo: proximo.title };
   });
 
 /** Marca um passo do playbook como executado, criando o touch correspondente. */

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildCadencePlan, resolveTrack, stepIdFromTouchMetadata } from "./sdr-cadence";
-import { agruparPorDia, passosDaAgenda } from "./fup-agenda";
+import type { LeadNaCadencia } from "./fup-agenda";
 
 /** Mesma janela do quadro de Cadência: trilha mais longa termina bem antes disso. */
 const JANELA_CADENCIA_DIAS = 75;
@@ -96,12 +96,8 @@ export const getFupAgenda = createServerFn({ method: "GET" })
 
     type Item = {
       key: string;
-      kind: "manual" | "auto" | "touch" | "cadencia";
+      kind: "manual" | "auto" | "touch";
       touchId?: string;
-      /** Só em `cadencia`: o passo do playbook, para marcar como feito. */
-      stepId?: string;
-      /** Só em `cadencia`: quantos toques da trilha caem nesse dia para esse lead. */
-      passosNoDia?: number;
       done: boolean;
       doneAt?: string | null;
       doneByName?: string | null;
@@ -274,6 +270,20 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       }
     }
 
+    /*
+     * Um objeto por lead, com a trilha inteira dele — nunca um item por toque.
+     *
+     * A agenda desenhava cada toque como um card na coluna do dia, e o mesmo
+     * lead aparecia quatro vezes numa quarta e de novo na quinta e na sexta. A
+     * tela agora decide como mostrar (fila de hoje, matriz da semana, lista de
+     * atrasados) a partir do lead inteiro. Título, canal e roteiro de cada
+     * passo não viajam: a tela tira do playbook pelo id, e a resposta fica
+     * pequena mesmo com a carteira de todas as SDRs.
+     *
+     * Entra quem tem algo a fazer até o fim da semana visível, ou fez algo
+     * dentro dela. Lead cuja trilha só começa depois não tem o que mostrar.
+     */
+    const cadencia: LeadNaCadencia[] = [];
     for (const l of leadsCadencia) {
       const startAt = l.cadence_started_at ?? l.converted_at ?? l.created_at;
       if (!startAt) continue;
@@ -282,33 +292,24 @@ export const getFupAgenda = createServerFn({ method: "GET" })
         startAt,
         doneMap: passosFeitos.get(l.id) ?? {},
       });
+      const relevante = plan.steps.some((p) =>
+        p.doneAt ? p.doneAt >= from && p.doneAt <= to : p.dueAt <= to,
+      );
+      if (!relevante) continue;
       const stage = l.stage_id ? stageById.get(l.stage_id) : null;
-      for (const passosDoDia of agruparPorDia(passosDaAgenda(plan, from, to))) {
-        const passo = passosDoDia[0];
-        items.push({
-          // A chave é o dia, não o passo: um card por lead por dia.
-          key: `cadencia:${l.id}:${passo.dueAt.slice(0, 10)}`,
-          kind: "cadencia",
-          stepId: passo.id,
-          passosNoDia: passosDoDia.length,
-          done: false,
-          dueAt: passo.dueAt,
-          leadId: l.id,
-          leadName: l.name,
-          company: l.company_name,
-          phone: l.phone,
-          priority: l.priority,
-          leadType: l.lead_type,
-          stageName: stage?.name ?? null,
-          assignedTo: l.assigned_to,
-          assignedName: l.assigned_to ? (nameById.get(l.assigned_to) ?? "—") : "Fila geral",
-          touchCount: l.touch_count ?? 0,
-          lastTouchAt: l.last_touch_at,
-          lastTouchChannel: l.last_touch_channel,
-          title: `Dia ${passo.day} — ${passo.title}`,
-          subtitle: passosDoDia.map((x) => x.channelTag ?? x.channel).join(" · "),
-        });
-      }
+      cadencia.push({
+        leadId: l.id,
+        leadName: l.name,
+        company: l.company_name,
+        phone: l.phone,
+        priority: l.priority,
+        stageName: stage?.name ?? null,
+        assignedTo: l.assigned_to,
+        assignedName: l.assigned_to ? (nameById.get(l.assigned_to) ?? "—") : "Fila geral",
+        touchCount: l.touch_count ?? 0,
+        track: plan.track,
+        passos: plan.steps.map((p) => ({ id: p.id, dueAt: p.dueAt, doneAt: p.doneAt })),
+      });
     }
 
     const filtered = data.assignedTo
@@ -327,6 +328,9 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       profiles,
       overdue,
       scheduled,
+      cadencia: data.assignedTo
+        ? cadencia.filter((c) => c.assignedTo === data.assignedTo)
+        : cadencia,
     };
   });
 

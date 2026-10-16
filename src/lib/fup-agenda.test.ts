@@ -1,93 +1,155 @@
 import { describe, expect, it } from "vitest";
-import { agruparPorDia, passosDaAgenda } from "./fup-agenda";
-import type { CadenceStepState } from "./sdr-cadence";
+import {
+  inicioParaRetomar,
+  preencherRoteiro,
+  ordenarFilaDeHoje,
+  situacaoDoLead,
+  type LeadNaCadencia,
+  type PassoResumo,
+} from "./fup-agenda";
+import { buildCadencePlan } from "./sdr-cadence";
+import { TRACK_STEPS } from "./sdr-playbook";
 
-const SEMANA = { from: "2026-10-11T00:00:00.000Z", to: "2026-10-18T00:00:00.000Z" };
+/*
+ * As datas usam meio-dia e 18h UTC — os horários da trilha. Nessas horas o
+ * dia do calendário é o mesmo em qualquer fuso entre UTC-11 e UTC+5, então os
+ * testes não dependem do fuso da máquina que roda.
+ */
+const QUARTA_MEIO_DIA = new Date("2026-10-14T15:00:00.000Z");
+const PME = TRACK_STEPS.pme;
 
-function passo(id: string, dueAt: string, extras: Partial<CadenceStepState> = {}) {
+function lead(passos: PassoResumo[], extras: Partial<LeadNaCadencia> = {}): LeadNaCadencia {
   return {
-    id,
-    dueAt,
-    done: false,
-    doneAt: null,
-    status: "futuro",
-    day: 1,
-    period: "manha",
-    title: id,
-    channel: "whatsapp",
-    channelTag: "WHATS",
-    actionType: "follow_up",
-    script: "",
+    leadId: "lead-1",
+    leadName: "Ricardo",
+    company: "Crgy",
+    phone: null,
+    priority: "media",
+    stageName: "Em qualificação",
+    assignedTo: "sdr-1",
+    assignedName: "Lisiane",
+    touchCount: 0,
+    track: "pme",
+    passos,
     ...extras,
-  } as unknown as CadenceStepState;
+  };
 }
 
-describe("passosDaAgenda", () => {
-  it("não repete o passo vencido que já cai dentro da semana", () => {
-    // O card repetido em produção: terça é passado (vencido) e também está
-    // dentro da semana visível, que começa no domingo.
-    const terca = passo("d1-mapeamento", "2026-10-13T12:00:00.000Z", { status: "atrasado" });
-    const sexta = passo("d5-ligacao", "2026-10-16T12:00:00.000Z");
-    const saida = passosDaAgenda(
-      { steps: [terca, sexta], firstLateStep: terca },
-      SEMANA.from,
-      SEMANA.to,
+const pendente = (id: string, dueAt: string): PassoResumo => ({ id, dueAt, doneAt: null });
+const feito = (id: string, dueAt: string): PassoResumo => ({ id, dueAt, doneAt: dueAt });
+
+describe("situacaoDoLead", () => {
+  it("separa o que é de hoje, o que venceu e o que vem depois", () => {
+    const s = situacaoDoLead(
+      lead([
+        feito(PME[0].id, "2026-10-12T12:00:00.000Z"),
+        pendente(PME[1].id, "2026-10-13T12:00:00.000Z"),
+        pendente(PME[2].id, "2026-10-14T12:00:00.000Z"),
+        pendente(PME[3].id, "2026-10-14T18:00:00.000Z"),
+        pendente(PME[4].id, "2026-10-16T12:00:00.000Z"),
+      ]),
+      QUARTA_MEIO_DIA,
     );
-    expect(saida).toHaveLength(2);
-    expect(saida.filter((p) => p.id === "d1-mapeamento")).toHaveLength(1);
+    expect(s.hoje.map((p) => p.id)).toEqual([PME[2].id, PME[3].id]);
+    expect(s.vencidos.map((p) => p.id)).toEqual([PME[1].id]);
+    expect(s.depois?.id).toBe(PME[4].id);
+    expect(s.proximo?.id).toBe(PME[1].id);
+    expect(s.diasParado).toBe(1);
+    expect([s.feitos, s.total]).toEqual([1, 5]);
   });
 
-  it("traz o passo vencido de semanas anteriores, que é o ponto de retomada", () => {
-    const velho = passo("d1-entrada", "2026-10-02T12:00:00.000Z", { status: "atrasado" });
-    const sexta = passo("d5-ligacao", "2026-10-16T12:00:00.000Z");
-    const saida = passosDaAgenda(
-      { steps: [velho, sexta], firstLateStep: velho },
-      SEMANA.from,
-      SEMANA.to,
+  it("anexa título, canal e roteiro do playbook ao passo", () => {
+    const s = situacaoDoLead(
+      lead([pendente(PME[0].id, "2026-10-14T12:00:00.000Z")]),
+      QUARTA_MEIO_DIA,
     );
-    expect(saida.map((p) => p.id)).toEqual(["d1-entrada", "d5-ligacao"]);
+    expect(s.hoje[0].title).toBe(PME[0].title);
+    expect(s.hoje[0].script).toBe(PME[0].script);
   });
 
-  it("deixa de fora o que vence depois da semana visível", () => {
-    const depois = passo("d27-breakup", "2026-11-02T12:00:00.000Z");
-    const saida = passosDaAgenda({ steps: [depois], firstLateStep: null }, SEMANA.from, SEMANA.to);
-    expect(saida).toEqual([]);
+  it("ignora passo de id desconhecido em vez de quebrar a tela", () => {
+    const s = situacaoDoLead(
+      lead([pendente("passo-que-saiu-do-playbook", "2026-10-14T12:00:00.000Z")]),
+      QUARTA_MEIO_DIA,
+    );
+    expect(s.total).toBe(0);
   });
 
-  it("ignora passo já executado", () => {
-    const feito = passo("d1-entrada", "2026-10-13T12:00:00.000Z", {
-      done: true,
-      doneAt: "2026-10-13T13:00:00.000Z",
-      status: "feito",
-    });
-    const saida = passosDaAgenda({ steps: [feito], firstLateStep: null }, SEMANA.from, SEMANA.to);
-    expect(saida).toEqual([]);
-  });
-
-  it("lead em dia, sem nada vencido, devolve só a semana", () => {
-    const hoje = passo("d3-audio", "2026-10-16T12:00:00.000Z");
-    const saida = passosDaAgenda({ steps: [hoje], firstLateStep: null }, SEMANA.from, SEMANA.to);
-    expect(saida.map((p) => p.id)).toEqual(["d3-audio"]);
+  it("conta quantos dias o lead está parado", () => {
+    const s = situacaoDoLead(
+      lead([pendente(PME[0].id, "2026-10-09T12:00:00.000Z")]),
+      QUARTA_MEIO_DIA,
+    );
+    expect(s.diasParado).toBe(5);
   });
 });
 
-describe("agruparPorDia", () => {
-  it("junta num grupo só os toques do mesmo dia", () => {
-    const saida = agruparPorDia([
-      passo("d1-whats", "2026-10-14T12:00:00.000Z"),
-      passo("d1-email", "2026-10-14T12:00:00.000Z"),
-      passo("d1-tel", "2026-10-14T18:00:00.000Z"),
-      passo("d2-tel", "2026-10-15T12:00:00.000Z"),
+describe("ordenarFilaDeHoje", () => {
+  const linha = (nome: string, prioridade: string, passos: PassoResumo[]) => {
+    const l = lead(passos, { leadName: nome, priority: prioridade, leadId: nome });
+    return { lead: l, situacao: situacaoDoLead(l, QUARTA_MEIO_DIA) };
+  };
+  const slaHoje = pendente(PME[0].id, "2026-10-14T12:00:00.000Z"); // WHATS (SLA <15m)
+  const comumHoje = pendente(PME[3].id, "2026-10-14T12:00:00.000Z"); // TEL (ATIVA)
+
+  it("SLA correndo vem antes de prioridade alta", () => {
+    const fila = ordenarFilaDeHoje([
+      linha("Alta sem SLA", "alta", [comumHoje]),
+      linha("Baixa com SLA", "baixa", [slaHoje]),
     ]);
-    expect(saida.map((g) => g.length)).toEqual([3, 1]);
-    expect(saida[0].map((p) => p.id)).toEqual(["d1-whats", "d1-email", "d1-tel"]);
+    expect(fila.map((l) => l.lead.leadName)).toEqual(["Baixa com SLA", "Alta sem SLA"]);
   });
 
-  it("preserva a ordem de chegada entre os dias", () => {
-    const saida = agruparPorDia([
-      passo("a", "2026-10-13T12:00:00.000Z"),
-      passo("b", "2026-10-16T12:00:00.000Z"),
+  it("entre iguais, a prioridade decide", () => {
+    const fila = ordenarFilaDeHoje([
+      linha("Média", "media", [comumHoje]),
+      linha("Alta", "alta", [comumHoje]),
     ]);
-    expect(saida.map((g) => g[0].id)).toEqual(["a", "b"]);
+    expect(fila.map((l) => l.lead.leadName)).toEqual(["Alta", "Média"]);
+  });
+
+  it("lead com tudo feito hoje desce para o fim", () => {
+    const fila = ordenarFilaDeHoje([
+      linha("Já resolvido", "alta", [feito(PME[3].id, "2026-10-14T12:00:00.000Z")]),
+      linha("Falta fazer", "baixa", [comumHoje]),
+    ]);
+    expect(fila.map((l) => l.lead.leadName)).toEqual(["Falta fazer", "Já resolvido"]);
+  });
+});
+
+describe("inicioParaRetomar", () => {
+  it("faz o passo onde o lead parou cair hoje, e o resto seguir dali", () => {
+    // Quarta 14/10. O lead parou no passo do Dia 4.
+    const passoDoDia4 = PME.find((p) => p.day === 4);
+    expect(passoDoDia4).toBeTruthy();
+    const inicio = inicioParaRetomar(4, QUARTA_MEIO_DIA);
+    const plano = buildCadencePlan({ track: "pme", startAt: inicio, doneMap: {} });
+    const dia4 = plano.steps.find((s) => s.id === passoDoDia4!.id);
+    expect(dia4?.dueAt.slice(0, 10)).toBe("2026-10-14");
+  });
+
+  it("usa o dia de Brasília, não o de UTC, perto da meia-noite", () => {
+    // 23h30 de terça em Brasília já é quarta em UTC; tem de retomar na terça.
+    const terca2330 = new Date("2026-10-14T02:30:00.000Z");
+    const inicio = inicioParaRetomar(1, terca2330);
+    expect(inicio.slice(0, 10)).toBe("2026-10-13");
+  });
+});
+
+describe("preencherRoteiro", () => {
+  it("troca nome (só o primeiro), empresa e SDR", () => {
+    expect(
+      preencherRoteiro("Olá [Nome]! Aqui é [SDR], vi que a [Empresa] pediu uma demo.", {
+        nome: "Ricardo Alves",
+        empresa: "Crgy",
+        sdr: "Lisiane Baudini",
+      }),
+    ).toBe("Olá Ricardo! Aqui é Lisiane, vi que a Crgy pediu uma demo.");
+  });
+
+  it("deixa o marcador à vista quando não há valor", () => {
+    expect(preencherRoteiro("Olá [Nome], sobre a [Empresa]", { nome: "Ana" })).toBe(
+      "Olá Ana, sobre a [Empresa]",
+    );
   });
 });
