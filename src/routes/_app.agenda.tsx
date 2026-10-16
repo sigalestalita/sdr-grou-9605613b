@@ -398,6 +398,13 @@ function AgendaItem({
         <Badge variant="secondary" className="text-[10px]">
           {item.touchCount} touches
         </Badge>
+        {/* Um card por lead por dia: quando a trilha pede mais de um toque no
+            mesmo dia, o card mostra o primeiro e avisa quantos vêm atrás. */}
+        {(item.passosNoDia ?? 1) > 1 && (
+          <Badge variant="outline" className="text-[10px]" title={item.subtitle ?? undefined}>
+            +{(item.passosNoDia ?? 1) - 1} nesse dia
+          </Badge>
+        )}
         <Link
           to="/lead/$id"
           params={{ id: item.leadId }}

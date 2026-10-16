@@ -48,17 +48,36 @@ export function suggestTrack(lead: LeadCadenceSizeInput): SdrTrack {
   return "enterprise";
 }
 
-export function resolveTrack(lead: LeadCadenceSizeInput & { cadence_track?: string | null }): SdrTrack {
+export function resolveTrack(
+  lead: LeadCadenceSizeInput & { cadence_track?: string | null },
+): SdrTrack {
   const t = lead.cadence_track;
   if (t === "pme" || t === "mid" || t === "enterprise") return t;
   return suggestTrack(lead);
 }
 
+/**
+ * Empurra sábado e domingo para a segunda seguinte.
+ *
+ * A trilha somava dias corridos, então um passo caía no fim de semana e
+ * nascia morto: ninguém liga no sábado, e na segunda ele já entra na tela
+ * como atrasado. O passivo da SDR inchava sozinho, sem ninguém ter falhado.
+ *
+ * Os dois horários da trilha (09h e 15h de Brasília) são 12h e 18h em UTC, e
+ * nessas horas a data UTC coincide com a de Brasília — por isso dá para ler o
+ * dia da semana direto em UTC sem converter.
+ */
+function emDiaUtil(instante: number): number {
+  const diaDaSemana = new Date(instante).getUTCDay();
+  if (diaDaSemana === 6) return instante + 2 * DAY_MS; // sábado → segunda
+  if (diaDaSemana === 0) return instante + DAY_MS; // domingo → segunda
+  return instante;
+}
+
 function dueAtFor(startAt: Date, s: CadenceStep): string {
-  const base = new Date(
-    Date.UTC(startAt.getUTCFullYear(), startAt.getUTCMonth(), startAt.getUTCDate()),
-  );
-  return new Date(base.getTime() + (s.day - 1) * DAY_MS + PERIOD_UTC_HOUR[s.period] * 3600000).toISOString();
+  const base = Date.UTC(startAt.getUTCFullYear(), startAt.getUTCMonth(), startAt.getUTCDate());
+  const bruto = base + (s.day - 1) * DAY_MS + PERIOD_UTC_HOUR[s.period] * 3600000;
+  return new Date(emDiaUtil(bruto)).toISOString();
 }
 
 export type CadencePlan = {
@@ -140,7 +159,10 @@ export function evaluateSla(input: {
   if (!startISO) return { minutes: null, status: "sem_dado", limitMinutes };
   const start = new Date(startISO).getTime();
   if (input.firstTouchAt) {
-    const minutes = Math.max(0, Math.round((new Date(input.firstTouchAt).getTime() - start) / 60000));
+    const minutes = Math.max(
+      0,
+      Math.round((new Date(input.firstTouchAt).getTime() - start) / 60000),
+    );
     return { minutes, status: minutes <= limitMinutes ? "ok" : "estourado", limitMinutes };
   }
   const minutes = Math.max(0, Math.round(((input.now ?? new Date()).getTime() - start) / 60000));

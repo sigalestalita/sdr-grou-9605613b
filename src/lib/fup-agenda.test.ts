@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { passosDaAgenda } from "./fup-agenda";
+import { agruparPorDia, passosDaAgenda } from "./fup-agenda";
 import type { CadenceStepState } from "./sdr-cadence";
 
 const SEMANA = { from: "2026-10-11T00:00:00.000Z", to: "2026-10-18T00:00:00.000Z" };
@@ -68,5 +68,26 @@ describe("passosDaAgenda", () => {
     const hoje = passo("d3-audio", "2026-10-16T12:00:00.000Z");
     const saida = passosDaAgenda({ steps: [hoje], firstLateStep: null }, SEMANA.from, SEMANA.to);
     expect(saida.map((p) => p.id)).toEqual(["d3-audio"]);
+  });
+});
+
+describe("agruparPorDia", () => {
+  it("junta num grupo só os toques do mesmo dia", () => {
+    const saida = agruparPorDia([
+      passo("d1-whats", "2026-10-14T12:00:00.000Z"),
+      passo("d1-email", "2026-10-14T12:00:00.000Z"),
+      passo("d1-tel", "2026-10-14T18:00:00.000Z"),
+      passo("d2-tel", "2026-10-15T12:00:00.000Z"),
+    ]);
+    expect(saida.map((g) => g.length)).toEqual([3, 1]);
+    expect(saida[0].map((p) => p.id)).toEqual(["d1-whats", "d1-email", "d1-tel"]);
+  });
+
+  it("preserva a ordem de chegada entre os dias", () => {
+    const saida = agruparPorDia([
+      passo("a", "2026-10-13T12:00:00.000Z"),
+      passo("b", "2026-10-16T12:00:00.000Z"),
+    ]);
+    expect(saida.map((g) => g[0].id)).toEqual(["a", "b"]);
   });
 });

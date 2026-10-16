@@ -28,3 +28,23 @@ export function passosDaAgenda(
   if (naSemana.some((p) => p.id === vencido.id)) return naSemana;
   return [vencido, ...naSemana];
 }
+
+/**
+ * Agrupa os passos de um lead por dia.
+ *
+ * Cada "Dia" da trilha tem mais de um toque — WhatsApp, e-mail e ligação, por
+ * exemplo — e a agenda desenhava um card para cada um. O resultado é o mesmo
+ * lead ocupando quatro cards na quarta-feira e a SDR achando, com razão, que a
+ * tela estava repetindo. Um card por lead por dia; os toques daquele dia vão
+ * dentro dele.
+ */
+export function agruparPorDia(passos: CadenceStepState[]): CadenceStepState[][] {
+  const porDia = new Map<string, CadenceStepState[]>();
+  for (const passo of passos) {
+    const dia = passo.dueAt.slice(0, 10);
+    const atual = porDia.get(dia);
+    if (atual) atual.push(passo);
+    else porDia.set(dia, [passo]);
+  }
+  return [...porDia.values()];
+}

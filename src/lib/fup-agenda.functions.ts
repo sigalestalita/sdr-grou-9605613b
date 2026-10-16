@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildCadencePlan, resolveTrack, stepIdFromTouchMetadata } from "./sdr-cadence";
-import { passosDaAgenda } from "./fup-agenda";
+import { agruparPorDia, passosDaAgenda } from "./fup-agenda";
 
 /** Mesma janela do quadro de Cadência: trilha mais longa termina bem antes disso. */
 const JANELA_CADENCIA_DIAS = 75;
@@ -100,6 +100,8 @@ export const getFupAgenda = createServerFn({ method: "GET" })
       touchId?: string;
       /** Só em `cadencia`: o passo do playbook, para marcar como feito. */
       stepId?: string;
+      /** Só em `cadencia`: quantos toques da trilha caem nesse dia para esse lead. */
+      passosNoDia?: number;
       done: boolean;
       doneAt?: string | null;
       doneByName?: string | null;
@@ -281,12 +283,14 @@ export const getFupAgenda = createServerFn({ method: "GET" })
         doneMap: passosFeitos.get(l.id) ?? {},
       });
       const stage = l.stage_id ? stageById.get(l.stage_id) : null;
-      const aFazer = passosDaAgenda(plan, from, to);
-      for (const passo of aFazer) {
+      for (const passosDoDia of agruparPorDia(passosDaAgenda(plan, from, to))) {
+        const passo = passosDoDia[0];
         items.push({
-          key: `cadencia:${l.id}:${passo.id}`,
+          // A chave é o dia, não o passo: um card por lead por dia.
+          key: `cadencia:${l.id}:${passo.dueAt.slice(0, 10)}`,
           kind: "cadencia",
           stepId: passo.id,
+          passosNoDia: passosDoDia.length,
           done: false,
           dueAt: passo.dueAt,
           leadId: l.id,
@@ -302,7 +306,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
           lastTouchAt: l.last_touch_at,
           lastTouchChannel: l.last_touch_channel,
           title: `Dia ${passo.day} — ${passo.title}`,
-          subtitle: passo.channelTag ?? passo.channel,
+          subtitle: passosDoDia.map((x) => x.channelTag ?? x.channel).join(" · "),
         });
       }
     }
