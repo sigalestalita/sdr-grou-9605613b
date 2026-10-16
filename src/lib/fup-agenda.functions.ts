@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildCadencePlan, resolveTrack, stepIdFromTouchMetadata } from "./sdr-cadence";
+import { passosDaAgenda } from "./fup-agenda";
 
 /** Mesma janela do quadro de Cadência: trilha mais longa termina bem antes disso. */
 const JANELA_CADENCIA_DIAS = 75;
@@ -280,8 +281,7 @@ export const getFupAgenda = createServerFn({ method: "GET" })
         doneMap: passosFeitos.get(l.id) ?? {},
       });
       const stage = l.stage_id ? stageById.get(l.stage_id) : null;
-      const naSemana = plan.steps.filter((p) => !p.done && p.dueAt >= from && p.dueAt <= to);
-      const aFazer = plan.firstLateStep ? [plan.firstLateStep, ...naSemana] : naSemana;
+      const aFazer = passosDaAgenda(plan, from, to);
       for (const passo of aFazer) {
         items.push({
           key: `cadencia:${l.id}:${passo.id}`,
