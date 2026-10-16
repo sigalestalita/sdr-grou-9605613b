@@ -160,7 +160,7 @@ describe("FilaDeHoje", () => {
         onVerAtrasados={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { expanded: false }));
+    fireEvent.click(screen.getByRole("button", { name: /Ver roteiro/ }));
     expect(screen.getByText(/Ricardo/, { selector: "p" }).textContent).not.toContain("[Nome]");
   });
 });

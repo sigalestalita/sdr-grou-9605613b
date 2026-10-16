@@ -244,10 +244,13 @@ function ToqueDeHoje({
             type="button"
             onClick={() => setAberto((v) => !v)}
             aria-expanded={aberto}
-            className="inline-flex shrink-0 items-center gap-1 text-[12px] text-muted-foreground hover:text-foreground"
+            /* Era só um ícone cinza no canto, com o texto escondido em tela
+               estreita — e a primeira pergunta depois do lançamento foi "onde
+               acho o roteiro". Agora tem cara de botão e diz o que faz. */
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-[12px] font-medium text-primary hover:bg-primary/10"
           >
             <ScrollText className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{aberto ? "Fechar roteiro" : "Roteiro"}</span>
+            {aberto ? "Fechar" : "Ver roteiro"}
           </button>
         )}
       </div>
