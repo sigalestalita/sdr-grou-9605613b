@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { conferirGanho, resolverPolitica, soDigitos } from "@/lib/faturamento/politica";
 import { carregarPolitica, type Db } from "@/lib/faturamento/politica.server";
+import { notificar } from "@/lib/notificacoes.server";
 
 /*
  * O que o executivo comercial roda no dia a dia.
@@ -99,6 +100,8 @@ export const registrarAtividade = createServerFn({ method: "POST" })
         occurredAt: z.string().datetime().optional(),
         proximoPasso: z.string().max(300).nullable().optional(),
         proximoPassoEm: z.string().datetime().nullable().optional(),
+        // Pessoas marcadas no registro: recebem notificação com o link do negócio.
+        mencionados: z.array(z.string().uuid()).max(10).optional(),
       })
       .parse(d),
   )
@@ -124,6 +127,21 @@ export const registrarAtividade = createServerFn({ method: "POST" })
         .update(patch as never)
         .eq("id", data.dealId);
       if (upErr) throw new Error(upErr.message);
+    }
+
+    if (data.mencionados?.length) {
+      const [{ data: deal }, { data: autor }] = await Promise.all([
+        supabase.from("deals").select("nome").eq("id", data.dealId).maybeSingle(),
+        supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle(),
+      ]);
+      await notificar(supabase as unknown as Db, userId, {
+        para: data.mencionados,
+        tipo: "mencao",
+        titulo: `${autor?.full_name || autor?.email || "Alguém"} mencionou você em ${deal?.nome ?? "um negócio"}`,
+        corpo: data.descricao ?? null,
+        link: `/negocio/${data.dealId}`,
+        dealId: data.dealId,
+      });
     }
 
     // Reunião registrada alimenta a métrica de agendas da meta.

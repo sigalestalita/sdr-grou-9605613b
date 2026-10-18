@@ -42,6 +42,7 @@ import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
+import { NotificacoesBell } from "@/components/app-shell/notificacoes-bell";
 import { CsFollowUpNotifier } from "@/components/app-shell/cs-followup-notifier";
 import { useCurrentRole } from "@/lib/use-role";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -555,6 +556,7 @@ function AppShell() {
           <div className="ml-auto flex items-center gap-2">
             <InboxNotifier />
             {role.canAccessTeam("cs") && <CsFollowUpNotifier />}
+            <NotificacoesBell />
           </div>
         </header>
         <main

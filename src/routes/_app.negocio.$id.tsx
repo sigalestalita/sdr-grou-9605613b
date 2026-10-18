@@ -39,6 +39,7 @@ import {
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
 import { FaturamentoDoNegocio } from "@/components/faturamento/faturamento-do-negocio";
 import { ItensNegocio } from "@/components/catalogo/itens-negocio";
+import { MencionarPessoas } from "@/components/app-shell/mencionar-pessoas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -103,6 +104,7 @@ function NegocioPage() {
   const [descricao, setDescricao] = useState("");
   const [proximoPasso, setProximoPasso] = useState("");
   const [proximoEm, setProximoEm] = useState("");
+  const [mencionados, setMencionados] = useState<string[]>([]);
   const [fechando, setFechando] = useState<null | "ganho" | "perdido">(null);
 
   const recarrega = () => {
@@ -119,6 +121,7 @@ function NegocioPage() {
           dealId: id,
           tipo,
           descricao: descricao.trim() || undefined,
+          ...(mencionados.length ? { mencionados } : {}),
           ...(proximoPasso.trim() || proximoEm
             ? {
                 proximoPasso: proximoPasso.trim() || null,
@@ -132,6 +135,7 @@ function NegocioPage() {
       setDescricao("");
       setProximoPasso("");
       setProximoEm("");
+      setMencionados([]);
       recarrega();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
@@ -256,8 +260,8 @@ function NegocioPage() {
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         <div className="space-y-4">
-          {/* registrar atividade */}
-          {aberto && (
+          {/* registrar atividade (depois do fechamento, vira conversa com o ADM/CS) */}
+          {
             <section className="surface-panel p-4">
               <p className="section-label mb-2">Registrar o que foi feito</p>
               <div className="mb-2 flex flex-wrap gap-1.5">
@@ -286,24 +290,29 @@ function NegocioPage() {
                 onChange={(e) => setDescricao(e.target.value)}
                 placeholder="O que aconteceu nesse contato"
               />
-              <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Próximo passo</Label>
-                  <Input
-                    value={proximoPasso}
-                    onChange={(e) => setProximoPasso(e.target.value)}
-                    placeholder="Enviar proposta revisada"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px]">Quando</Label>
-                  <Input
-                    type="datetime-local"
-                    value={proximoEm}
-                    onChange={(e) => setProximoEm(e.target.value)}
-                  />
-                </div>
+              <div className="mt-2">
+                <MencionarPessoas valor={mencionados} onChange={setMencionados} />
               </div>
+              {aberto && (
+                <div className="mt-3 grid gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Próximo passo</Label>
+                    <Input
+                      value={proximoPasso}
+                      onChange={(e) => setProximoPasso(e.target.value)}
+                      placeholder="Enviar proposta revisada"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Quando</Label>
+                    <Input
+                      type="datetime-local"
+                      value={proximoEm}
+                      onChange={(e) => setProximoEm(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="mt-3 flex items-center gap-2">
                 <Button
                   size="sm"
@@ -312,21 +321,23 @@ function NegocioPage() {
                 >
                   {registrar.isPending ? "Registrando…" : "Registrar"}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + 3);
-                    d.setHours(9, 0, 0, 0);
-                    setProximoEm(paraLocal(d));
-                  }}
-                >
-                  Próximo passo em 3 dias
-                </Button>
+                {aberto && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      const d = new Date();
+                      d.setDate(d.getDate() + 3);
+                      d.setHours(9, 0, 0, 0);
+                      setProximoEm(paraLocal(d));
+                    }}
+                  >
+                    Próximo passo em 3 dias
+                  </Button>
+                )}
               </div>
             </section>
-          )}
+          }
 
           {/* histórico */}
           <section className="surface-panel p-4">

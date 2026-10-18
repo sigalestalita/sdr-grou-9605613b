@@ -8,6 +8,7 @@ import {
   POLITICA_COLS,
   type Db,
 } from "@/lib/faturamento/politica.server";
+import { notificar, notificarFaturamento } from "@/lib/notificacoes.server";
 
 /*
  * Módulo Administrativo / Faturamento.
@@ -405,6 +406,20 @@ export const devolverAoComercial = createServerFn({ method: "POST" })
       context.userId,
       `Pendência para o comercial: ${data.texto}`,
     );
+    const { data: deal } = await db
+      .from("deals")
+      .select("nome, executivo_user_id")
+      .eq("id", data.dealId)
+      .maybeSingle();
+    const d = deal as { nome: string; executivo_user_id: string | null } | null;
+    await notificar(db, context.userId, {
+      para: [d?.executivo_user_id],
+      tipo: "pendencia_adm",
+      titulo: `O ADM precisa de informação para faturar ${d?.nome ?? "a venda"}`,
+      corpo: data.texto,
+      link: `/negocio/${data.dealId}`,
+      dealId: data.dealId,
+    });
     return { ok: true };
   });
 
@@ -457,13 +472,20 @@ export const completarDadosGanho = createServerFn({ method: "POST" })
     if (Object.keys(patch).length === 0) return { ok: true };
     const { error } = await db.from("deals").update(patch).eq("id", data.dealId);
     if (error) throw new Error(error.message);
-    if (data.resolverPendencia)
+    if (data.resolverPendencia) {
       await registrarNoHistorico(
         db,
         data.dealId,
         context.userId,
         "Comercial respondeu a pendência do ADM.",
       );
+      await notificarFaturamento(db, {
+        tipo: "pendencia_respondida",
+        titulo: "O comercial respondeu a pendência de faturamento",
+        link: "/faturamento",
+        dealId: data.dealId,
+      });
+    }
     return { ok: true };
   });
 
