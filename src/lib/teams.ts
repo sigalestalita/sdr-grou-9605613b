@@ -14,7 +14,7 @@
 export const TEAMS = ["comercial", "cs", "administrativo"] as const;
 export type AppTeam = (typeof TEAMS)[number];
 
-export const ROLES = ["super_admin", "gestao", "executivo", "sdr"] as const;
+export const ROLES = ["super_admin", "gestao", "executivo", "sdr", "trainer"] as const;
 export type AppRole = (typeof ROLES)[number];
 
 export const TEAM_LABEL: Record<AppTeam, string> = {
@@ -133,6 +133,11 @@ export const ACCESS_TYPES: Record<AppTeam | "none", AccessType[]> = {
       label: "Faturamento",
       hint: "Política do cliente, fila de faturamento, notas, parcelas e relatório",
     },
+    {
+      value: "trainer",
+      label: "Trainer",
+      hint: "Requerimentos de serviço dela: cronograma, briefing e conclusão",
+    },
     { value: "gestao", label: "Gestão", hint: "Vê e configura tudo, em todos os módulos" },
   ],
   none: [
@@ -156,7 +161,8 @@ export function accessLabel(value: string): string {
 /**
  * Módulos que a pessoa enxerga a partir dos vínculos:
  *  - time do módulo cs → "cs" (qualquer tipo de acesso)
- *  - time do módulo administrativo → "administrativo" (qualquer tipo de acesso)
+ *  - time do módulo administrativo → "administrativo" só com acesso faturamento
+ *    ou gestao (a trainer entra pelo papel trainer, só nos requerimentos)
  *  - time do módulo comercial → "comercial" só com acesso sdr ou gestao
  *    (executivo entra pelos objetos Início/Empresas/Tarefas, não pelo SDR)
  */
@@ -167,8 +173,10 @@ export function modulesFromMemberships(memberships: Membership[], teams: Team[])
     const t = bySlug.get(m.team);
     if (!t || !t.ativo || !t.modulo) continue;
     if (t.modulo === "cs") out.add("cs");
-    else if (t.modulo === "administrativo") out.add("administrativo");
-    else if (m.access.includes("sdr") || m.access.includes("gestao")) out.add("comercial");
+    else if (t.modulo === "administrativo") {
+      if (m.access.includes("faturamento") || m.access.includes("gestao"))
+        out.add("administrativo");
+    } else if (m.access.includes("sdr") || m.access.includes("gestao")) out.add("comercial");
   }
   return [...out];
 }
