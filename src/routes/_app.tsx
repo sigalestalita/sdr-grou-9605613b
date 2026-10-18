@@ -35,6 +35,7 @@ import {
   Upload,
   MessageCircle,
   Ticket,
+  Receipt,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -69,6 +70,7 @@ type NavItem = {
  *  - Executivo (Comercial): além do SDR, os objetos Início, Empresas e Tarefas
  *    — a carteira que ele fechou e as tarefas que o CS aciona para ele.
  *  - CS: objetos + Canais + Customer Success.
+ *  - Administrativo: fila de faturamento (conferir, faturar, receber) e relatório.
  *  - BI: as leituras analíticas de cada módulo (Performance SDR, Dashboard CS, Chat Analytics).
  *  - Administração: sistema (usuários, configurações) + referência de cada módulo (playbooks, novidades).
  *  - Gestão: tudo (itens repetidos entre módulos aparecem uma vez).
@@ -168,6 +170,11 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         managerOnly: true,
       },
     ],
+  },
+  {
+    // Faturamento: o ADM confere o ganho, emite a nota e acompanha o recebimento.
+    label: "Administrativo",
+    items: [{ to: "/faturamento", label: "Faturamento", icon: Receipt, team: "administrativo" }],
   },
   {
     // BI: leitura analítica de todos os módulos

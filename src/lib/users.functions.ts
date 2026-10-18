@@ -18,7 +18,7 @@ const TeamInputSchema = z.object({
     .optional(),
   nome: z.string().trim().min(2).max(80),
   descricao: z.string().trim().max(300).optional().nullable(),
-  modulo: z.enum(["comercial", "cs"]).nullable(),
+  modulo: z.enum(["comercial", "cs", "administrativo"]).nullable(),
   cor: z
     .string()
     .regex(/^[a-z]+$/)

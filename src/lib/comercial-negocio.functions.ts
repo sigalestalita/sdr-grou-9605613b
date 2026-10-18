@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { conferirGanho, resolverPolitica, soDigitos } from "@/lib/faturamento/politica";
+import { carregarPolitica, type Db } from "@/lib/faturamento/politica.server";
 
 /*
  * O que o executivo comercial roda no dia a dia.
@@ -183,9 +185,14 @@ export const salvarNegocio = createServerFn({ method: "POST" })
   });
 
 /**
- * Fecha o negócio. Ganho exige a ordem de compra, que é a regra da gestão:
- * aceite de proposta não é venda, e é daí que vinha a diferença entre o número
- * dela e o do financeiro.
+ * Fecha o negócio. Ganho exige a data da ordem de compra, que é a regra da
+ * gestão: aceite de proposta não é venda, e é daí que vinha a diferença entre
+ * o número dela e o do financeiro.
+ *
+ * O ganho também leva o que o ADM precisa para faturar (os campos que hoje
+ * vão por e-mail) e é conferido contra a política do cliente: se o cliente
+ * exige OC e ela não veio, ou se só paga à vista e veio parcelado, o ganho não
+ * passa — é a nota que voltaria 60 dias depois.
  */
 export const fecharNegocio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -196,10 +203,19 @@ export const fecharNegocio = createServerFn({ method: "POST" })
           resultado: z.literal("ganho"),
           dealId: z.string().uuid(),
           ordemCompraEm: z.string().datetime(),
-          ordemCompraNumero: z.string().min(1).max(60),
+          // "numero" (padrão), "nao_tem" (cliente não emite OC) ou "anexo".
+          ocSituacao: z.enum(["numero", "nao_tem", "anexo"]).default("numero"),
+          ordemCompraNumero: z.string().trim().max(60).optional(),
+          ocAnexoUrl: z.string().trim().url().max(500).optional(),
           contratoAssinadoEm: z.string().datetime().nullable().optional(),
           amount: z.number().min(0).max(100_000_000).optional(),
           observacaoAdm: z.string().max(4000).optional(),
+          cnpjFaturamento: z.string().max(20).optional(),
+          emissaoPrevistaEm: z.string().date().optional(),
+          prazoPagamento: z.string().trim().max(120).optional(),
+          formaPagamento: z.string().trim().max(60).optional(),
+          parcelas: z.number().int().min(1).max(24).optional(),
+          contatoFaturamentoId: z.string().uuid().optional(),
         }),
         z.object({
           resultado: z.literal("perdido"),
@@ -219,9 +235,29 @@ export const fecharNegocio = createServerFn({ method: "POST" })
       .eq("kind", data.resultado === "ganho" ? "won" : "lost");
     const { data: negocio } = await supabase
       .from("deals")
-      .select("pipeline_id")
+      .select("pipeline_id, company_id, amount, tipo_venda")
       .eq("id", data.dealId)
       .maybeSingle();
+
+    if (data.resultado === "ganho") {
+      const companyId = (negocio as { company_id?: string | null } | null)?.company_id ?? null;
+      const pol = companyId ? await carregarPolitica(supabase as unknown as Db, companyId) : null;
+      const bloqueios = conferirGanho(
+        {
+          ocSituacao: data.ocSituacao,
+          ocNumero: data.ordemCompraNumero ?? null,
+          ocAnexoUrl: data.ocAnexoUrl ?? null,
+          cnpjFaturamento: data.cnpjFaturamento || pol?.empresa?.cnpj || null,
+          emissaoPrevistaEm: data.emissaoPrevistaEm ?? null,
+          parcelas: data.parcelas ?? null,
+          valor: data.amount ?? Number((negocio as { amount?: number } | null)?.amount ?? 0),
+          contatoFaturamento: true,
+          clienteNovo: false,
+        },
+        pol?.efetiva ?? resolverPolitica(null),
+      ).filter((p) => p.bloqueia);
+      if (bloqueios.length > 0) throw new Error(bloqueios.map((p) => p.mensagem).join(" · "));
+    }
     const etapaFinal =
       ((etapas ?? []) as Array<{ id: string; pipeline_id: string }>).find(
         (e) => e.pipeline_id === negocio?.pipeline_id,
@@ -232,7 +268,16 @@ export const fecharNegocio = createServerFn({ method: "POST" })
         ? {
             status: "won",
             ordem_compra_em: data.ordemCompraEm,
-            ordem_compra_numero: data.ordemCompraNumero,
+            oc_situacao: data.ocSituacao,
+            ordem_compra_numero:
+              data.ocSituacao === "numero" ? data.ordemCompraNumero || null : null,
+            oc_anexo_url: data.ocSituacao === "anexo" ? data.ocAnexoUrl || null : null,
+            cnpj_faturamento: soDigitos(data.cnpjFaturamento) || null,
+            emissao_prevista_em: data.emissaoPrevistaEm ?? null,
+            prazo_pagamento: data.prazoPagamento || null,
+            forma_pagamento: data.formaPagamento || null,
+            parcelas: data.parcelas ?? null,
+            contato_faturamento_id: data.contatoFaturamentoId ?? null,
             contrato_assinado_em: data.contratoAssinadoEm ?? null,
             closed_at: data.ordemCompraEm,
             ...(data.amount !== undefined ? { amount: data.amount } : {}),
@@ -261,7 +306,13 @@ export const fecharNegocio = createServerFn({ method: "POST" })
       tipo: "nota",
       descricao:
         data.resultado === "ganho"
-          ? `Venda ganha — ordem de compra ${data.ordemCompraNumero}. Segue para o ADM.`
+          ? `Venda ganha — ${
+              data.ocSituacao === "nao_tem"
+                ? "cliente não emite ordem de compra"
+                : data.ocSituacao === "anexo"
+                  ? "ordem de compra anexada"
+                  : `ordem de compra ${data.ordemCompraNumero}`
+            }. Segue para o ADM.`
           : `Negócio perdido — ${data.motivo}`,
       author_id: userId,
     } as never);

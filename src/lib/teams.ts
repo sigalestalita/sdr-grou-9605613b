@@ -1,8 +1,9 @@
 /*
  * Módulos, times/áreas e tipos de acesso.
  *
- *  - MÓDULO (AppTeam): o que o sistema tem — "comercial" (SDR + executivos) e
- *    "cs" (Customer Success). É por módulo que rotas e menu são liberados.
+ *  - MÓDULO (AppTeam): o que o sistema tem — "comercial" (SDR + executivos),
+ *    "cs" (Customer Success) e "administrativo" (faturamento). É por módulo
+ *    que rotas e menu são liberados.
  *  - TIME / ÁREA: cadastro livre (tabela teams). Cada time habilita um módulo
  *    (ou nenhum, se for área de apoio). "Comercial" e "Customer Success" vêm
  *    de fábrica; a gestão pode criar outros (ex.: "CS Enterprise" → módulo cs).
@@ -10,7 +11,7 @@
  *    Uma pessoa pode estar em vários times com tipos diferentes — analista de
  *    CS e executiva comercial, sem ser SDR.
  */
-export const TEAMS = ["comercial", "cs"] as const;
+export const TEAMS = ["comercial", "cs", "administrativo"] as const;
 export type AppTeam = (typeof TEAMS)[number];
 
 export const ROLES = ["super_admin", "gestao", "executivo", "sdr"] as const;
@@ -19,17 +20,20 @@ export type AppRole = (typeof ROLES)[number];
 export const TEAM_LABEL: Record<AppTeam, string> = {
   comercial: "Comercial / SDR",
   cs: "Customer Success",
+  administrativo: "Administrativo",
 };
 
 export const TEAM_DESCRIPTION: Record<AppTeam, string> = {
   comercial: "Pipeline de leads, inbox WhatsApp, cadência e performance",
   cs: "Carteira de clientes, sinaleira e alertas de Customer Success",
+  administrativo: "Política do cliente, conferência do ganho, notas e recebimento",
 };
 
 /** Cor de destaque por módulo (classes utilitárias já existentes no tema). */
 export const TEAM_TONE: Record<AppTeam, string> = {
   comercial: "border-primary/40 bg-primary/10 text-primary",
   cs: "border-emerald-500/40 bg-emerald-500/10 text-emerald-500",
+  administrativo: "border-amber-500/40 bg-amber-500/10 text-amber-600",
 };
 
 // ---------------------------------------------------------------------------
@@ -54,6 +58,11 @@ export const MODULE_OPTIONS: Array<{ value: AppTeam | "none"; label: string; hin
     hint: "Pipeline, inbox, cadência e carteira fechada",
   },
   { value: "cs", label: "Customer Success", hint: "Empresas, sinaleira, tarefas e alertas" },
+  {
+    value: "administrativo",
+    label: "Administrativo",
+    hint: "Faturamento: política do cliente, notas e recebimento",
+  },
   { value: "none", label: "Área de apoio", hint: "Sem módulo próprio — só organiza pessoas" },
 ];
 
@@ -118,6 +127,14 @@ export const ACCESS_TYPES: Record<AppTeam | "none", AccessType[]> = {
     },
     { value: "gestao", label: "Gestão", hint: "Vê e configura tudo, em todos os módulos" },
   ],
+  administrativo: [
+    {
+      value: "faturamento",
+      label: "Faturamento",
+      hint: "Política do cliente, fila de faturamento, notas, parcelas e relatório",
+    },
+    { value: "gestao", label: "Gestão", hint: "Vê e configura tudo, em todos os módulos" },
+  ],
   none: [
     { value: "membro", label: "Membro", hint: "Faz parte da área, sem módulo no sistema" },
     { value: "gestao", label: "Gestão", hint: "Vê e configura tudo, em todos os módulos" },
@@ -139,6 +156,7 @@ export function accessLabel(value: string): string {
 /**
  * Módulos que a pessoa enxerga a partir dos vínculos:
  *  - time do módulo cs → "cs" (qualquer tipo de acesso)
+ *  - time do módulo administrativo → "administrativo" (qualquer tipo de acesso)
  *  - time do módulo comercial → "comercial" só com acesso sdr ou gestao
  *    (executivo entra pelos objetos Início/Empresas/Tarefas, não pelo SDR)
  */
@@ -149,6 +167,7 @@ export function modulesFromMemberships(memberships: Membership[], teams: Team[])
     const t = bySlug.get(m.team);
     if (!t || !t.ativo || !t.modulo) continue;
     if (t.modulo === "cs") out.add("cs");
+    else if (t.modulo === "administrativo") out.add("administrativo");
     else if (m.access.includes("sdr") || m.access.includes("gestao")) out.add("comercial");
   }
   return [...out];
@@ -184,7 +203,8 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/cs-emails", teams: ["cs"] },
   { prefix: "/cs-integracoes", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/jornada", teams: ["comercial", "cs"], roles: ["executivo"] },
-  { prefix: "/negocio", teams: ["comercial"], roles: ["executivo"] },
+  // O ADM abre o negócio e a empresa a partir da fila de faturamento.
+  { prefix: "/negocio", teams: ["comercial", "administrativo"], roles: ["executivo"] },
   { prefix: "/comercial-analise", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-pipeline", teams: ["comercial"], roles: ["executivo"] },
@@ -198,6 +218,8 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/leads-analytics", teams: ["comercial"] },
   { prefix: "/analytics-chat", teams: ["comercial"] },
   { prefix: "/playbook", teams: ["comercial"] },
+  // Faturamento: Administrativo (e gestão). O servidor confere de novo.
+  { prefix: "/faturamento", teams: ["administrativo"] },
   // Importação da base do RD: gestão apenas, e o servidor confere de novo.
   { prefix: "/importar-rd", teams: ["comercial", "cs"] },
 ];

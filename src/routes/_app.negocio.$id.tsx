@@ -27,6 +27,17 @@ import {
   TIPOS_ATIVIDADE,
 } from "@/lib/comercial-negocio.functions";
 import { moeda } from "@/lib/comercial/metas";
+import { getFaturamentoNegocio } from "@/lib/faturamento.functions";
+import {
+  cnpjValido,
+  conferirGanho,
+  formatarCnpj,
+  primeiroVencimento,
+  proximaEmissao,
+  resumoPolitica,
+} from "@/lib/faturamento/politica";
+import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
+import { FaturamentoDoNegocio } from "@/components/faturamento/faturamento-do-negocio";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -424,6 +435,10 @@ function NegocioPage() {
             </dl>
           </section>
 
+          {n.status === "won" && <FaturamentoDoNegocio dealId={id} />}
+
+          {n.company_id ? <PoliticaFaturamentoCard companyId={String(n.company_id)} /> : null}
+
           {n.proximo_passo_em ? (
             <section className="surface-panel p-4">
               <p className="section-label mb-1">Próximo passo</p>
@@ -466,11 +481,54 @@ function FecharDialog({
   onDone: () => void;
   fechar: ReturnType<typeof useServerFn<typeof fecharNegocio>>;
 }) {
+  const [ocSituacao, setOcSituacao] = useState<"numero" | "nao_tem" | "anexo">("numero");
   const [oc, setOc] = useState("");
+  const [ocAnexo, setOcAnexo] = useState("");
   const [ocEm, setOcEm] = useState(paraLocal(new Date()));
   const [valor, setValor] = useState(String(valorAtual || ""));
   const [briefing, setBriefing] = useState("");
   const [motivo, setMotivo] = useState("");
+  const [cnpj, setCnpj] = useState<string | null>(null);
+  const [emissao, setEmissao] = useState("");
+  const [forma, setForma] = useState("");
+  const [prazo, setPrazo] = useState("");
+  const [parcelas, setParcelas] = useState("1");
+  const [contatoId, setContatoId] = useState("");
+
+  // Política do cliente + contatos da empresa: o que o ADM vai precisar.
+  const fatFn = useServerFn(getFaturamentoNegocio);
+  const { data: fat } = useQuery({
+    queryKey: ["faturamento", "negocio", dealId],
+    queryFn: () => fatFn({ data: { dealId } }),
+    enabled: modo === "ganho",
+  });
+  const politica = fat?.politica ?? null;
+  const cnpjEfetivo = cnpj ?? (fat?.empresa?.cnpj ? formatarCnpj(fat.empresa.cnpj) : "");
+  const emissaoSugerida = politica
+    ? proximaEmissao(
+        new Date().toISOString().slice(0, 10),
+        politica.janela_emissao_inicio,
+        politica.janela_emissao_fim,
+      )
+    : "";
+
+  const pendencias = politica
+    ? conferirGanho(
+        {
+          ocSituacao,
+          ocNumero: oc,
+          ocAnexoUrl: ocAnexo,
+          cnpjFaturamento: cnpjEfetivo || null,
+          emissaoPrevistaEm: emissao || null,
+          parcelas: Number(parcelas) || 1,
+          valor: Number(valor) || 0,
+          contatoFaturamento: !!contatoId || (politica.emails_nf ?? []).length > 0,
+          clienteNovo: false,
+        },
+        politica,
+      )
+    : [];
+  const bloqueado = pendencias.some((p) => p.bloqueia);
 
   const MOTIVOS = [
     "Sem orçamento",
@@ -488,9 +546,17 @@ function FecharDialog({
               resultado: "ganho",
               dealId,
               ordemCompraEm: new Date(ocEm).toISOString(),
-              ordemCompraNumero: oc.trim(),
+              ocSituacao,
+              ordemCompraNumero: ocSituacao === "numero" ? oc.trim() : undefined,
+              ocAnexoUrl: ocSituacao === "anexo" ? ocAnexo.trim() : undefined,
               amount: Number(valor) || 0,
               observacaoAdm: briefing.trim() || undefined,
+              cnpjFaturamento: cnpjEfetivo || undefined,
+              emissaoPrevistaEm: emissao || undefined,
+              formaPagamento: forma.trim() || undefined,
+              prazoPagamento: prazo.trim() || undefined,
+              parcelas: Number(parcelas) || undefined,
+              contatoFaturamentoId: contatoId || undefined,
             },
           })
         : fechar({ data: { resultado: "perdido", dealId, motivo: motivo.trim() } }),
@@ -502,62 +568,219 @@ function FecharDialog({
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
+  const selectCls = "h-9 w-full rounded-md border bg-background px-2 text-[13px]";
+  const regras = politica ? resumoPolitica(politica) : [];
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent
+        className={`max-h-[90vh] overflow-y-auto ${modo === "ganho" ? "sm:max-w-2xl" : "sm:max-w-md"}`}
+      >
         <DialogHeader>
           <DialogTitle>{modo === "ganho" ? "Registrar venda" : "Marcar perda"}</DialogTitle>
           <DialogDescription>
             {modo === "ganho"
-              ? "A venda só conta com a ordem de compra. Depois disso o negócio segue para o ADM."
+              ? "A venda conta pela data da ordem de compra. Os dados abaixo vão direto para o ADM faturar — sem e-mail."
               : "O motivo alimenta a análise de perdas do time."}
           </DialogDescription>
         </DialogHeader>
 
         {modo === "ganho" ? (
-          <div className="space-y-3">
+          <div className="space-y-4">
+            {(regras.length > 0 || politica?.observacoes) && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-[12px]">
+                <p className="mb-1 font-medium">Regras deste cliente</p>
+                <ul className="flex flex-wrap gap-1">
+                  {regras.map((r) => (
+                    <li key={r} className="rounded-full border px-2 py-0.5 text-[11px]">
+                      {r}
+                    </li>
+                  ))}
+                </ul>
+                {politica?.observacoes && (
+                  <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                    {politica.observacoes}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label>Ordem de compra</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {(
+                  [
+                    ["numero", "Tem número"],
+                    ["anexo", "Veio em anexo"],
+                    ["nao_tem", "Cliente não emite"],
+                  ] as const
+                ).map(([v, l]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setOcSituacao(v)}
+                    className={`rounded-full border px-2.5 py-1 text-[12px] ${
+                      ocSituacao === v
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {l}
+                  </button>
+                ))}
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {ocSituacao === "numero" && (
+                  <Input
+                    value={oc}
+                    onChange={(e) => setOc(e.target.value)}
+                    placeholder="Número da OC (ex.: 4500123456)"
+                  />
+                )}
+                {ocSituacao === "anexo" && (
+                  <Input
+                    value={ocAnexo}
+                    onChange={(e) => setOcAnexo(e.target.value)}
+                    placeholder="Link do arquivo da OC (Drive)"
+                  />
+                )}
+                <div className="space-y-1 sm:col-start-2">
+                  <Label className="text-[11px]">Data da venda (ordem de compra / aceite)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={ocEm}
+                    onChange={(e) => setOcEm(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
-                <Label>Número da ordem de compra</Label>
+                <Label>Valor bruto fechado</Label>
                 <Input
-                  value={oc}
-                  onChange={(e) => setOc(e.target.value)}
-                  placeholder="OC-2026-0431"
+                  type="number"
+                  value={valor}
+                  onChange={(e) => setValor(e.target.value)}
+                  placeholder="18500"
+                />
+                {Number(valor) > 0 && (
+                  <p className="text-[11px] text-muted-foreground">{moeda(Number(valor))}</p>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label>CNPJ de faturamento</Label>
+                <Input
+                  value={cnpjEfetivo}
+                  onChange={(e) => setCnpj(e.target.value)}
+                  placeholder="00.000.000/0000-00"
+                />
+                {cnpjEfetivo && !cnpjValido(cnpjEfetivo) && (
+                  <p className="text-[11px] text-destructive">CNPJ inválido</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="space-y-1">
+                <Label className="text-[11px]">Emissão da nota</Label>
+                <Input type="date" value={emissao} onChange={(e) => setEmissao(e.target.value)} />
+                {emissaoSugerida && !emissao && (
+                  <button
+                    type="button"
+                    className="text-[11px] text-primary hover:underline"
+                    onClick={() => setEmissao(emissaoSugerida)}
+                  >
+                    Sugerida: {emissaoSugerida.split("-").reverse().join("/")}
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px]">Parcelas</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={24}
+                  value={parcelas}
+                  onChange={(e) => setParcelas(e.target.value)}
+                  disabled={politica?.aceita_parcelamento === false}
                 />
               </div>
               <div className="space-y-1">
-                <Label>Data da ordem</Label>
+                <Label className="text-[11px]">Forma de pagamento</Label>
                 <Input
-                  type="datetime-local"
-                  value={ocEm}
-                  onChange={(e) => setOcEm(e.target.value)}
+                  value={forma}
+                  onChange={(e) => setForma(e.target.value)}
+                  placeholder={politica?.forma_pagamento ?? "Boleto"}
                 />
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>Valor fechado</Label>
-              <Input
-                type="number"
-                value={valor}
-                onChange={(e) => setValor(e.target.value)}
-                placeholder="18500"
-              />
-              {Number(valor) > 0 && (
-                <p className="text-[11px] text-muted-foreground">{moeda(Number(valor))}</p>
-              )}
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label className="text-[11px]">Prazo de pagamento combinado</Label>
+                <Input
+                  value={prazo}
+                  onChange={(e) => setPrazo(e.target.value)}
+                  placeholder={
+                    politica?.prazo_tipo
+                      ? `Regra do cliente: ${
+                          emissao
+                            ? `1º vencimento ${primeiroVencimento(emissao, politica).split("-").reverse().join("/")}`
+                            : (resumoPolitica({ ...politica, exige_oc: null }).find((r) =>
+                                /Paga|vista/.test(r),
+                              ) ?? "")
+                        }`
+                      : "15 dias após a emissão"
+                  }
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[11px]">Quem recebe nota e boleto</Label>
+                <select
+                  className={selectCls}
+                  value={contatoId}
+                  onChange={(e) => setContatoId(e.target.value)}
+                >
+                  <option value="">
+                    {(politica?.emails_nf ?? []).length > 0
+                      ? `E-mails da política (${politica?.emails_nf.join(", ")})`
+                      : "Escolha um contato"}
+                  </option>
+                  {(fat?.contatos ?? []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.nome ?? c.email}
+                      {c.email ? ` · ${c.email}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
             <div className="space-y-1">
-              <Label>Briefing para o CS</Label>
+              <Label>Observações para o ADM e o CS</Label>
               <Textarea
-                rows={4}
+                rows={3}
                 value={briefing}
                 onChange={(e) => setBriefing(e.target.value)}
-                placeholder="O que foi fechado, quem é o contato, o que o cliente espera e prazos combinados"
+                placeholder="O que foi fechado, se fatura como licença, OS aprovada, qual capacitação, prazos combinados"
               />
-              <p className="text-[11px] text-muted-foreground">
-                É o que o CS vai ler quando o ADM passar o bastão.
-              </p>
             </div>
+
+            {pendencias.length > 0 && (
+              <ul className="space-y-1 rounded-md border p-2 text-[12px]">
+                {pendencias.map((p) => (
+                  <li
+                    key={p.campo + p.mensagem}
+                    className={
+                      p.bloqueia ? "text-destructive" : "text-amber-700 dark:text-amber-400"
+                    }
+                  >
+                    {p.bloqueia ? "✕" : "!"} {p.mensagem}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ) : (
           <div className="space-y-2">
@@ -591,7 +814,7 @@ function FecharDialog({
             Cancelar
           </Button>
           <Button
-            disabled={acao.isPending || (modo === "ganho" ? !oc.trim() : motivo.trim().length < 2)}
+            disabled={acao.isPending || (modo === "ganho" ? bloqueado : motivo.trim().length < 2)}
             onClick={() => acao.mutate()}
           >
             {acao.isPending ? "Salvando…" : modo === "ganho" ? "Registrar venda" : "Marcar perda"}
