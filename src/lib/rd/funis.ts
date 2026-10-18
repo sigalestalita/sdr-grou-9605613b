@@ -5,7 +5,9 @@
  *   Leads - Alianças Estratégicas [SDR]    → lead do SDR (consultoria)
  *   Vendas (e cross/up sell, indicação)     → negócio
  *   Gestão da Carteira Comercial           → funil de conta (card = empresa)
- *   [CS] Novos / Em atendimento / Gestão da Carteira → jornada do CS
+ *   [CS] Novos / Em atendimento             → carteira do CS, etapa da jornada
+ *   [CS] Gestão da Carteira                 → carteira do CS (todos os clientes
+ *                                             atendidos, por CS responsável)
  *
  * Funil desconhecido vira negócio, que é o que a importação fazia antes.
  */
@@ -13,7 +15,8 @@ export type DestinoRd =
   | { tipo: "lead"; leadType: "empresa" | "consultoria" }
   | { tipo: "negocio" }
   | { tipo: "conta"; pipelineSlug: "gestao-carteira-comercial" }
-  | { tipo: "cs"; journeyStage: "onboarding" | "ativacao" | "renovacao" };
+  /** journeyStage null: só entra na carteira do CS, sem mexer na etapa. */
+  | { tipo: "cs"; journeyStage: "onboarding" | "ativacao" | "renovacao" | null };
 
 const norm = (s: string | null | undefined) =>
   (s ?? "")
@@ -24,10 +27,9 @@ const norm = (s: string | null | undefined) =>
     .trim();
 
 /** Etapa da jornada do CS para cada funil [CS] do RD. */
-export const JORNADA_CS_POR_FUNIL: Array<[RegExp, "onboarding" | "ativacao" | "renovacao"]> = [
+export const JORNADA_CS_POR_FUNIL: Array<[RegExp, "onboarding" | "ativacao"]> = [
   [/\bnovos?\b/, "onboarding"],
   [/em atendimento/, "ativacao"],
-  [/gestao da carteira/, "renovacao"],
 ];
 
 export function destinoDoFunilRd(pipeline: string | null | undefined): DestinoRd {
@@ -35,7 +37,8 @@ export function destinoDoFunilRd(pipeline: string | null | undefined): DestinoRd
   if (p.startsWith("[cs]")) {
     for (const [re, journeyStage] of JORNADA_CS_POR_FUNIL)
       if (re.test(p)) return { tipo: "cs", journeyStage };
-    return { tipo: "cs", journeyStage: "ativacao" };
+    // [CS] Gestão da Carteira (ou outro [CS]): é a carteira inteira do CS.
+    return { tipo: "cs", journeyStage: null };
   }
   if (p.includes("[sdr]") || p.startsWith("leads")) {
     return {

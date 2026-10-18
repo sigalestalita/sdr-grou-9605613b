@@ -51,8 +51,10 @@ export interface RdTransformResult {
     leadsDoSdr: number;
     /** Cards de "Gestão da Carteira Comercial" → company_funis. */
     carteira: number;
-    /** Cards dos funis [CS] → etapa da jornada em cs_clients. */
-    jornadaCs: number;
+    /** Empresas em cards abertos dos funis [CS] → carteira do CS (cs_clients). */
+    carteiraCs: number;
+    /** Dessas, as que ainda não tinham ficha no CS e ganharam uma. */
+    fichasCsCriadas: number;
     /** Carteira/CS sem empresa no RD: não há onde pôr. */
     semEmpresa: number;
     /** Etapas do RD que não existiam aqui e foram criadas. */
@@ -262,7 +264,8 @@ export async function transformRdToObjects(opts?: {
       wonFromStage: 0,
       leadsDoSdr: 0,
       carteira: 0,
-      jornadaCs: 0,
+      carteiraCs: 0,
+      fichasCsCriadas: 0,
       semEmpresa: 0,
       etapasCriadas: 0,
     },
@@ -684,7 +687,12 @@ export async function transformRdToObjects(opts?: {
 
     // Carteira comercial e jornada do CS: a empresa é o card.
     const contaPorEmpresa = new Map<string, Row>();
-    const jornadaPorEmpresa = new Map<string, { stage: string; em: string }>();
+    // [CS] Gestão da Carteira = todos os clientes com atendimento de CS, cada um
+    // com seu CS responsável. Novos / Em atendimento também dizem a etapa.
+    const csPorEmpresa = new Map<
+      string,
+      { stage: string | null; stageEm: string; owner: string | null; ownerEm: string }
+    >();
     for (const d of rdDeals) {
       const destino = destinoDe.get(String(d.rd_id));
       if (!destino || destino.tipo === "negocio") continue;
@@ -710,13 +718,26 @@ export async function transformRdToObjects(opts?: {
           __em: em,
         });
       } else if (destino.tipo === "cs" && String(d.status ?? "open") === "open") {
-        const atual = jornadaPorEmpresa.get(companyId);
-        if (!atual || atual.em <= em)
-          jornadaPorEmpresa.set(companyId, { stage: destino.journeyStage, em });
+        const atual = csPorEmpresa.get(companyId) ?? {
+          stage: null,
+          stageEm: "",
+          owner: null,
+          ownerEm: "",
+        };
+        if (destino.journeyStage && atual.stageEm <= em) {
+          atual.stage = destino.journeyStage;
+          atual.stageEm = em;
+        }
+        const owner = d.owner_name ? userOf(d.owner_name) : null;
+        if (owner && atual.ownerEm <= em) {
+          atual.owner = owner;
+          atual.ownerEm = em;
+        }
+        csPorEmpresa.set(companyId, atual);
       }
     }
     result.deals.carteira = contaPorEmpresa.size;
-    result.deals.jornadaCs = jornadaPorEmpresa.size;
+    result.deals.carteiraCs = csPorEmpresa.size;
     if (!dryRun) {
       const linhas = [...contaPorEmpresa.values()].map(({ __em: _, ...r }) => r);
       for (const part of chunk(linhas, 300)) {
@@ -725,18 +746,7 @@ export async function transformRdToObjects(opts?: {
           .upsert(part as never, { onConflict: "company_id,pipeline_id" });
         if (error) errors.push(`carteira comercial: ${error.message}`);
       }
-      const porEtapa = new Map<string, string[]>();
-      for (const [companyId, j] of jornadaPorEmpresa)
-        porEtapa.set(j.stage, [...(porEtapa.get(j.stage) ?? []), companyId]);
-      for (const [stage, ids] of porEtapa)
-        for (const part of chunk(ids, 150)) {
-          const { error } = await supabaseAdmin
-            .from("cs_clients")
-            .update({ journey_stage: stage } as never)
-            .in("company_id", part)
-            .neq("journey_stage", stage as never);
-          if (error) errors.push(`jornada CS: ${error.message}`);
-        }
+      await levarParaCarteiraCs(csPorEmpresa, result, errors);
     }
 
     // catálogo de produtos
@@ -951,4 +961,81 @@ export async function transformRdToObjects(opts?: {
   }
   result.errors = errors.slice(0, 50);
   return result;
+}
+
+/**
+ * Põe as empresas dos funis [CS] na carteira do CS (tela Empresas, filtrável
+ * por CS responsável): cria a ficha que faltar, marca como ativa, preenche o
+ * CS responsável quando ainda está vazio (a distribuição feita aqui vale mais
+ * que a do RD) e acerta a etapa vinda de [CS] Novos / Em atendimento.
+ */
+async function levarParaCarteiraCs(
+  csPorEmpresa: Map<string, { stage: string | null; owner: string | null }>,
+  result: RdTransformResult,
+  errors: string[],
+) {
+  const ids = [...csPorEmpresa.keys()];
+  const existentes: Row[] = [];
+  for (const part of chunk(ids, 150)) {
+    const { data, error } = await supabaseAdmin
+      .from("cs_clients")
+      .select("id, company_id, cs_responsavel_id, journey_stage, ativo")
+      .in("company_id", part);
+    if (error) errors.push(`carteira CS: ${error.message}`);
+    else existentes.push(...((data ?? []) as Row[]));
+  }
+  const comFicha = new Set(existentes.map((c) => String(c.company_id)));
+
+  const faltam = ids.filter((id) => !comFicha.has(id));
+  for (const part of chunk(faltam, 150)) {
+    const { data: empresas, error } = await supabaseAdmin
+      .from("companies")
+      .select("id, uid, nome, tipo_lead, cnpj, site_url, owner_user_id")
+      .in("id", part);
+    if (error) {
+      errors.push(`carteira CS: ${error.message}`);
+      continue;
+    }
+    const linhas = ((empresas ?? []) as Row[]).map((e) => {
+      const cs = csPorEmpresa.get(String(e.id));
+      return {
+        client_uid: String(e.uid),
+        nome_empresa: String(e.nome),
+        company_id: String(e.id),
+        tipo_lead: e.tipo_lead ?? "empresa",
+        cnpj: e.cnpj ?? null,
+        site_url: e.site_url ?? null,
+        comercial_responsavel_id: e.owner_user_id ?? null,
+        cs_responsavel_id: cs?.owner ?? null,
+        journey_stage: cs?.stage ?? "ativacao",
+        ativo: true,
+      };
+    });
+    if (!linhas.length) continue;
+    const { data: criadas, error: errIns } = await supabaseAdmin
+      .from("cs_clients")
+      .upsert(linhas as never, { onConflict: "client_uid", ignoreDuplicates: true })
+      .select("id");
+    if (errIns) errors.push(`carteira CS (fichas): ${errIns.message}`);
+    else result.deals.fichasCsCriadas += (criadas ?? []).length;
+  }
+
+  for (const part of chunk(existentes, 100)) {
+    await Promise.all(
+      part.map(async (c) => {
+        const cs = csPorEmpresa.get(String(c.company_id));
+        if (!cs) return;
+        const patch: Row = {};
+        if (!c.ativo) patch.ativo = true;
+        if (!c.cs_responsavel_id && cs.owner) patch.cs_responsavel_id = cs.owner;
+        if (cs.stage && c.journey_stage !== cs.stage) patch.journey_stage = cs.stage;
+        if (!Object.keys(patch).length) return;
+        const { error } = await supabaseAdmin
+          .from("cs_clients")
+          .update(patch as never)
+          .eq("id", String(c.id));
+        if (error) errors.push(`carteira CS ${c.id}: ${error.message}`);
+      }),
+    );
+  }
 }

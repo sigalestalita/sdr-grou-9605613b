@@ -33,10 +33,8 @@ describe("destinoDoFunilRd", () => {
       tipo: "cs",
       journeyStage: "ativacao",
     });
-    expect(destinoDoFunilRd("[CS] Gestão da Carteira")).toEqual({
-      tipo: "cs",
-      journeyStage: "renovacao",
-    });
+    // Gestão da Carteira é a carteira inteira do CS: não define etapa.
+    expect(destinoDoFunilRd("[CS] Gestão da Carteira")).toEqual({ tipo: "cs", journeyStage: null });
   });
 });
 
