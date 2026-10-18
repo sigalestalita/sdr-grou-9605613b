@@ -228,6 +228,8 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/playbook", teams: ["comercial"] },
   // Faturamento: Administrativo (e gestão). O servidor confere de novo.
   { prefix: "/faturamento", teams: ["administrativo"] },
+  // Comissão: o executivo vê só a dele (a RLS garante); o ADM confere e fecha.
+  { prefix: "/comissao", teams: ["administrativo"], roles: ["executivo"] },
   // Requerimento de serviço: comercial abre, ADM prepara, trainer executa, CS acompanha.
   {
     prefix: "/requerimentos",

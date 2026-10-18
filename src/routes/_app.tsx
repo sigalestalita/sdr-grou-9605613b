@@ -38,6 +38,7 @@ import {
   Receipt,
   Package,
   ClipboardList,
+  BadgeDollarSign,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -146,6 +147,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         label: "Metas",
         icon: Target,
         team: "comercial",
+        roles: ["executivo"],
+      },
+      {
+        to: "/comissao",
+        label: "Comissão",
+        icon: BadgeDollarSign,
+        team: "administrativo",
         roles: ["executivo"],
       },
     ],

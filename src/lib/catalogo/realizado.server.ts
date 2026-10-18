@@ -15,6 +15,7 @@ export type NegocioRealizado = {
   dataGanho: string;
   valor: number;
   tipoVenda: string | null;
+  parcelas: number | null;
   divisao: Divisao;
   itens: Array<{ nome: string; tipo: TipoItem | null; marca: string | null; total: number }>;
 };
@@ -29,7 +30,7 @@ export async function negociosGanhosNoPeriodo(
   let q = db
     .from("deals")
     .select(
-      "id, nome, amount, executivo_user_id, ordem_compra_em, closed_at, tipo_venda, companies:company_id(nome)",
+      "id, nome, amount, executivo_user_id, ordem_compra_em, closed_at, tipo_venda, parcelas, companies:company_id(nome)",
     )
     .eq("status", "won")
     .or(
@@ -78,6 +79,7 @@ export async function negociosGanhosNoPeriodo(
       dataGanho: String(d.ordem_compra_em ?? d.closed_at ?? ""),
       valor: Number(d.amount ?? 0),
       tipoVenda: (d.tipo_venda as string | null) ?? null,
+      parcelas: (d.parcelas as number | null) ?? null,
       divisao: dividirNegocio(Number(d.amount ?? 0), its),
       itens: its.map((i) => ({
         nome: i.nome,
