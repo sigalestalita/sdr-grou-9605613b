@@ -4,6 +4,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { podeFaturar } from "@/lib/faturamento/politica.server";
 import { agrupar, DIMENSOES, type LinhaBase } from "@/lib/relatorios/segmentos";
+import { inicioDoDiaSP } from "@/lib/datas-sp";
+import { emLotes, todasAsPaginas } from "@/lib/paginar.server";
 
 /*
  * Relatório segmentado (porte, tipo, status, produto × serviço, cidade, UF,
@@ -30,7 +32,7 @@ export const relatorioSegmentado = createServerFn({ method: "GET" })
     if (!isManager && !(await podeFaturar(db, context.userId)))
       throw new Error("Relatórios do faturamento são do ADM e da gestão");
 
-    // fim inclusivo: até o fim do dia "ate"
+    // fim inclusivo: até o fim do dia "ate" (datas de calendário)
     const fim = new Date(`${data.ate}T00:00:00Z`);
     fim.setUTCDate(fim.getUTCDate() + 1);
     const ate = fim.toISOString().slice(0, 10);
@@ -38,52 +40,55 @@ export const relatorioSegmentado = createServerFn({ method: "GET" })
     // Negócios e o valor de cada um no período (venda ou nota emitida)
     const valorPorDeal = new Map<string, number>();
     if (data.base === "venda") {
-      const { data: ds, error } = await db
-        .from("deals")
-        .select("id, amount")
-        .eq("status", "won")
-        .or(
-          `and(ordem_compra_em.gte.${data.de},ordem_compra_em.lt.${ate}),and(ordem_compra_em.is.null,closed_at.gte.${data.de},closed_at.lt.${ate})`,
-        )
-        .limit(5000);
-      if (error) throw new Error(error.message);
-      for (const d of (ds ?? []) as Array<{ id: string; amount: number }>)
-        valorPorDeal.set(d.id, Number(d.amount ?? 0));
+      // ganho é timestamptz: limites na meia-noite de Brasília
+      const a = inicioDoDiaSP(data.de);
+      const b = inicioDoDiaSP(ate);
+      const ds = await todasAsPaginas<{ id: string; amount: number }>((de, atePag) =>
+        db
+          .from("deals")
+          .select("id, amount")
+          .eq("status", "won")
+          .or(
+            `and(ordem_compra_em.gte.${a},ordem_compra_em.lt.${b}),and(ordem_compra_em.is.null,closed_at.gte.${a},closed_at.lt.${b})`,
+          )
+          .order("id")
+          .range(de, atePag),
+      );
+      for (const d of ds) valorPorDeal.set(d.id, Number(d.amount ?? 0));
     } else {
-      const { data: fs, error } = await db
-        .from("faturas")
-        .select("deal_id, valor_bruto")
-        .eq("status", "emitida")
-        .gte("emitida_em", data.de)
-        .lt("emitida_em", ate)
-        .limit(5000);
-      if (error) throw new Error(error.message);
-      for (const f of (fs ?? []) as Array<{ deal_id: string; valor_bruto: number }>)
+      // emitida_em é date: o filtro já é de calendário
+      const fs = await todasAsPaginas<{ deal_id: string; valor_bruto: number }>((de, atePag) =>
+        db
+          .from("faturas")
+          .select("deal_id, valor_bruto")
+          .eq("status", "emitida")
+          .gte("emitida_em", data.de)
+          .lt("emitida_em", ate)
+          .order("id")
+          .range(de, atePag),
+      );
+      for (const f of fs)
         valorPorDeal.set(f.deal_id, (valorPorDeal.get(f.deal_id) ?? 0) + Number(f.valor_bruto));
     }
     const ids = [...valorPorDeal.keys()];
     if (ids.length === 0) return { grupos: [], total: 0, negocios: 0 };
 
-    const lotes: string[][] = [];
-    for (let i = 0; i < ids.length; i += 300) lotes.push(ids.slice(i, i + 300));
-    const deals: Array<Record<string, unknown>> = [];
-    const itens: Array<Record<string, unknown>> = [];
-    for (const lote of lotes) {
-      const [{ data: ds }, { data: its }] = await Promise.all([
+    const [deals, itens] = await Promise.all([
+      emLotes<Record<string, unknown>>(ids, (lote) =>
         db
           .from("deals")
           .select(
             "id, amount, tipo_venda, executivo_user_id, companies:company_id(porte, cidade, estado, lifecycle)",
           )
           .in("id", lote),
+      ),
+      emLotes<Record<string, unknown>>(ids, (lote) =>
         db
           .from("deal_products")
           .select("deal_id, quantidade, valor_unitario, products:product_id(tipo, marca)")
           .in("deal_id", lote),
-      ]);
-      deals.push(...((ds ?? []) as Array<Record<string, unknown>>));
-      itens.push(...((its ?? []) as Array<Record<string, unknown>>));
-    }
+      ),
+    ]);
     const { data: perfis } = await db.from("profiles").select("id, full_name, email");
     const nome = new Map(
       ((perfis ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>).map(

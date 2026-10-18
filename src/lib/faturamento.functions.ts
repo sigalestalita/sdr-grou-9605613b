@@ -9,6 +9,7 @@ import {
   type Db,
 } from "@/lib/faturamento/politica.server";
 import { notificar, notificarFaturamento } from "@/lib/notificacoes.server";
+import { hojeSP } from "@/lib/datas-sp";
 
 /*
  * Módulo Administrativo / Faturamento.
@@ -162,7 +163,9 @@ export const listarFilaFaturamento = createServerFn({ method: "GET" })
       .eq("status", "won")
       .not("ordem_compra_em", "is", null)
       .or(`faturado_em.is.null,faturado_em.gte.${corte}`)
-      .order("ordem_compra_em", { ascending: true })
+      // mais recentes primeiro: ganhos antigos nunca faturados (base do RD)
+      // não podem empurrar as vendas novas para fora da fila
+      .order("ordem_compra_em", { ascending: false })
       .limit(500);
     if (error) throw new Error(error.message);
     const lista = (deals ?? []) as DealFat[];
@@ -212,7 +215,7 @@ export const listarFilaFaturamento = createServerFn({ method: "GET" })
       ).map((p) => [p.id, p.full_name || p.email || ""]),
     );
 
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeSP();
     const itens = lista.map((d) => {
       const empresa = d.companies as {
         id: string;
@@ -448,6 +451,16 @@ export const completarDadosGanho = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const db = solto(context.supabase);
+    // Quem completa o ganho é o executivo do negócio (ou quem fatura / gestão).
+    const [{ data: dono }, adm] = await Promise.all([
+      db.from("deals").select("executivo_user_id").eq("id", data.dealId).maybeSingle(),
+      podeFaturar(db, context.userId),
+    ]);
+    if (
+      !adm &&
+      (dono as { executivo_user_id?: string } | null)?.executivo_user_id !== context.userId
+    )
+      throw new Error("Só o executivo deste negócio responde ao ADM");
     const patch: Record<string, unknown> = {};
     const mapa: Record<string, string> = {
       cnpjFaturamento: "cnpj_faturamento",
@@ -519,7 +532,7 @@ export const registrarFatura = createServerFn({ method: "POST" })
     const liquido = Math.round((data.valorBruto - data.retencoes) * 100) / 100;
     if (liquido < 0) throw new Error("Retenções maiores que o valor da nota");
     const somaParcelas = data.parcelas.reduce((s, p) => s + p.valor, 0);
-    if (Math.abs(somaParcelas - liquido) > 0.05)
+    if (Math.round(somaParcelas * 100) !== Math.round(liquido * 100))
       throw new Error(
         `As parcelas somam ${somaParcelas.toFixed(2)} e o líquido da nota é ${liquido.toFixed(2)}`,
       );
@@ -708,7 +721,7 @@ export const relatorioFaturamento = createServerFn({ method: "GET" })
       cur.notas += 1;
       porExecutivo.set(k, cur);
     }
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeSP();
     const abertasArr = (abertas ?? []) as Array<{ valor: number; vencimento: string }>;
 
     return {

@@ -147,34 +147,77 @@ CREATE OR REPLACE FUNCTION public.comissao_fechamentos_guarda()
 RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
 AS $$
+DECLARE
+  v_resposta boolean := current_setting('app.comissao_resposta', true) = '1';
 BEGIN
-  IF TG_OP = 'UPDATE' THEN
-    IF OLD.status = 'fechado' THEN
-      RAISE EXCEPTION 'Comissão fechada não pode ser alterada';
-    END IF;
-    -- Só fecha o que o executivo aprovou.
-    IF NEW.status = 'fechado' AND OLD.status <> 'aprovado_executivo' THEN
-      RAISE EXCEPTION 'Só fecha depois que o executivo aprova';
-    END IF;
-    -- Valores mudaram depois de enviado: reabre.
-    IF OLD.status IN ('conferido_adm', 'aprovado_executivo') AND NEW.status = OLD.status
-       AND (NEW.total, NEW.meta_produto, NEW.meta_servico)
-           IS DISTINCT FROM (OLD.total, OLD.meta_produto, OLD.meta_servico) THEN
-      NEW.status := 'aberto';
-      NEW.aprovado_em := NULL;
-      NEW.enviado_em := NULL;
-    END IF;
+  IF TG_OP = 'INSERT' THEN
+    -- Todo fechamento nasce em aberto; aprovação e fechamento vêm depois.
+    NEW.status := 'aberto';
+    NEW.enviado_em := NULL;
+    NEW.aprovado_em := NULL;
+    NEW.fechado_em := NULL;
+    NEW.fechado_por := NULL;
+    NEW.contestacao := NULL;
+    RETURN NEW;
   END IF;
-  IF TG_OP = 'DELETE' AND OLD.status <> 'aberto' THEN
-    RAISE EXCEPTION 'Só um fechamento em aberto pode ser apagado';
+
+  IF TG_OP = 'DELETE' THEN
+    IF OLD.status <> 'aberto' THEN
+      RAISE EXCEPTION 'Só um fechamento em aberto pode ser apagado';
+    END IF;
+    RETURN OLD;
   END IF;
-  RETURN COALESCE(NEW, OLD);
+
+  IF OLD.status = 'fechado' THEN
+    RAISE EXCEPTION 'Comissão fechada não pode ser alterada';
+  END IF;
+  IF NEW.user_id IS DISTINCT FROM OLD.user_id OR NEW.mes IS DISTINCT FROM OLD.mes THEN
+    RAISE EXCEPTION 'Executivo e mês do fechamento não mudam';
+  END IF;
+
+  IF NEW.status IS DISTINCT FROM OLD.status THEN
+    -- Transições permitidas. Aprovar/contestar é só do executivo, pela
+    -- função comissao_responder (que liga app.comissao_resposta).
+    IF NOT (
+         (OLD.status IN ('aberto', 'contestado') AND NEW.status = 'conferido_adm')
+      OR (OLD.status IN ('conferido_adm', 'aprovado_executivo', 'contestado') AND NEW.status = 'aberto')
+      OR (OLD.status = 'conferido_adm' AND NEW.status IN ('aprovado_executivo', 'contestado')
+          AND v_resposta AND auth.uid() = OLD.user_id)
+      OR (OLD.status = 'aprovado_executivo' AND NEW.status = 'fechado')
+    ) THEN
+      RAISE EXCEPTION 'Mudança de situação não permitida: % → %', OLD.status, NEW.status;
+    END IF;
+    -- Mudar de situação não mexe em valor: o que foi aprovado é o que fecha.
+    IF (NEW.meta_produto, NEW.meta_servico, NEW.meta_self_guru, NEW.realizado_produto,
+        NEW.realizado_servico, NEW.realizado_self_guru, NEW.sem_tipo, NEW.comissao_produto,
+        NEW.comissao_servico, NEW.super_meta, NEW.total)
+       IS DISTINCT FROM
+       (OLD.meta_produto, OLD.meta_servico, OLD.meta_self_guru, OLD.realizado_produto,
+        OLD.realizado_servico, OLD.realizado_self_guru, OLD.sem_tipo, OLD.comissao_produto,
+        OLD.comissao_servico, OLD.super_meta, OLD.total) THEN
+      RAISE EXCEPTION 'Valores não mudam junto com a situação; recalcule com o fechamento em aberto';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  -- Valores mudaram depois de enviado ao executivo: volta para aberto.
+  IF OLD.status IN ('conferido_adm', 'aprovado_executivo')
+     AND (NEW.meta_produto, NEW.meta_servico, NEW.realizado_produto, NEW.realizado_servico,
+          NEW.comissao_produto, NEW.comissao_servico, NEW.super_meta, NEW.total)
+         IS DISTINCT FROM
+         (OLD.meta_produto, OLD.meta_servico, OLD.realizado_produto, OLD.realizado_servico,
+          OLD.comissao_produto, OLD.comissao_servico, OLD.super_meta, OLD.total) THEN
+    NEW.status := 'aberto';
+    NEW.aprovado_em := NULL;
+    NEW.enviado_em := NULL;
+  END IF;
+  RETURN NEW;
 END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.comissao_fechamentos_guarda() FROM PUBLIC, anon, authenticated;
 DROP TRIGGER IF EXISTS comissao_fechamentos_guarda ON public.comissao_fechamentos;
 CREATE TRIGGER comissao_fechamentos_guarda
-  BEFORE UPDATE OR DELETE ON public.comissao_fechamentos
+  BEFORE INSERT OR UPDATE OR DELETE ON public.comissao_fechamentos
   FOR EACH ROW EXECUTE FUNCTION public.comissao_fechamentos_guarda();
 
 CREATE OR REPLACE FUNCTION public.comissao_fechamentos_audita()
@@ -217,11 +260,13 @@ BEGIN
   IF NOT _aprova AND char_length(coalesce(trim(_texto), '')) < 3 THEN
     RAISE EXCEPTION 'Diga o que está errado para o ADM revisar';
   END IF;
+  PERFORM set_config('app.comissao_resposta', '1', true);
   UPDATE public.comissao_fechamentos
      SET status = CASE WHEN _aprova THEN 'aprovado_executivo' ELSE 'contestado' END,
          aprovado_em = CASE WHEN _aprova THEN now() END,
          contestacao = CASE WHEN _aprova THEN NULL ELSE left(_texto, 4000) END
    WHERE id = _fechamento;
+  PERFORM set_config('app.comissao_resposta', '', true);
 END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.comissao_responder(uuid, boolean, text) FROM PUBLIC, anon;

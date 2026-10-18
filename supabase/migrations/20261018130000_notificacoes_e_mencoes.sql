@@ -39,10 +39,47 @@ CREATE POLICY "notificacoes_marcar" ON public.notificacoes
 DROP POLICY IF EXISTS "notificacoes_apagar" ON public.notificacoes;
 CREATE POLICY "notificacoes_apagar" ON public.notificacoes
   FOR DELETE TO authenticated USING (user_id = auth.uid());
--- Mencionar alguém: a notificação sai sempre no nome de quem mencionou.
+-- Sem INSERT direto: quem envia passa por notificar_usuarios, que confere se
+-- a pessoa pode mandar aquele tipo (ninguém forja "comissão aprovada").
 DROP POLICY IF EXISTS "notificacoes_mencionar" ON public.notificacoes;
-CREATE POLICY "notificacoes_mencionar" ON public.notificacoes
-  FOR INSERT TO authenticated WITH CHECK (criado_por = auth.uid());
+
+/**
+ * Envia notificação no nome de quem está logado. Menção: qualquer pessoa.
+ * Avisos do ADM (pendência, licença, contrato, turma, trainer, comissão): só
+ * quem fatura. Requerimento: ADM ou trainer.
+ */
+CREATE OR REPLACE FUNCTION public.notificar_usuarios(
+  _users uuid[], _tipo text, _titulo text, _corpo text, _link text, _deal_id uuid
+)
+RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE n integer;
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Sem sessão'; END IF;
+  IF _tipo = 'mencao' THEN
+    NULL;
+  ELSIF _tipo IN ('pendencia_adm', 'licenca', 'contrato', 'turma', 'trainer', 'comissao') THEN
+    IF NOT public.pode_faturar(auth.uid()) THEN
+      RAISE EXCEPTION 'Sem permissão para este aviso';
+    END IF;
+  ELSIF _tipo = 'requerimento' THEN
+    IF NOT (public.pode_faturar(auth.uid()) OR public.e_trainer(auth.uid())) THEN
+      RAISE EXCEPTION 'Sem permissão para este aviso';
+    END IF;
+  ELSE
+    RAISE EXCEPTION 'Tipo de aviso não pode ser enviado diretamente';
+  END IF;
+  IF array_length(_users, 1) > 50 THEN RAISE EXCEPTION 'Destinatários demais'; END IF;
+  INSERT INTO public.notificacoes (user_id, tipo, titulo, corpo, link, deal_id, criado_por)
+  SELECT DISTINCT u, _tipo, left(_titulo, 200), left(_corpo, 2000), _link, _deal_id, auth.uid()
+    FROM unnest(_users) u
+   WHERE u IS NOT NULL AND u <> auth.uid()
+     AND EXISTS (SELECT 1 FROM auth.users au WHERE au.id = u);
+  GET DIAGNOSTICS n = ROW_COUNT;
+  RETURN n;
+END;
+$$;
 
 /**
  * Avisa quem fatura (time do módulo administrativo com acesso faturamento ou
@@ -60,6 +97,10 @@ BEGIN
   IF auth.uid() IS NULL THEN
     RAISE EXCEPTION 'Sem sessão';
   END IF;
+  -- O que o resto da casa pode avisar ao ADM (o ganho é o trigger que avisa).
+  IF _tipo NOT IN ('pendencia_respondida', 'requerimento', 'contrato', 'turma', 'comissao') THEN
+    RAISE EXCEPTION 'Tipo de aviso não permitido';
+  END IF;
   INSERT INTO public.notificacoes (user_id, tipo, titulo, corpo, link, deal_id, criado_por)
   SELECT DISTINCT ut.user_id, _tipo, left(_titulo, 200), left(_corpo, 2000), _link, _deal_id, auth.uid()
     FROM public.user_teams ut
@@ -71,6 +112,8 @@ BEGIN
   RETURN n;
 END;
 $$;
+REVOKE EXECUTE ON FUNCTION public.notificar_usuarios(uuid[], text, text, text, text, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.notificar_usuarios(uuid[], text, text, text, text, uuid) TO authenticated;
 REVOKE EXECUTE ON FUNCTION public.notificar_faturamento(text, text, text, text, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.notificar_faturamento(text, text, text, text, uuid) TO authenticated, service_role;
 

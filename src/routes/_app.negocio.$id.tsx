@@ -27,6 +27,7 @@ import {
   TIPOS_ATIVIDADE,
 } from "@/lib/comercial-negocio.functions";
 import { moeda } from "@/lib/comercial/metas";
+import { hojeSP } from "@/lib/datas-sp";
 import { getFaturamentoNegocio } from "@/lib/faturamento.functions";
 import {
   cnpjValido,
@@ -444,7 +445,8 @@ function NegocioPage() {
             </dl>
           </section>
 
-          <ItensNegocio dealId={id} editavel />
+          {/* depois de faturado, o valor é o da nota: itens só para consulta */}
+          <ItensNegocio dealId={id} editavel={!n.faturado_em} />
 
           {n.status === "won" && <FaturamentoDoNegocio dealId={id} />}
 
@@ -518,11 +520,7 @@ function FecharDialog({
   const politica = fat?.politica ?? null;
   const cnpjEfetivo = cnpj ?? (fat?.empresa?.cnpj ? formatarCnpj(fat.empresa.cnpj) : "");
   const emissaoSugerida = politica
-    ? proximaEmissao(
-        new Date().toISOString().slice(0, 10),
-        politica.janela_emissao_inicio,
-        politica.janela_emissao_fim,
-      )
+    ? proximaEmissao(hojeSP(), politica.janela_emissao_inicio, politica.janela_emissao_fim)
     : "";
 
   const pendencias = politica

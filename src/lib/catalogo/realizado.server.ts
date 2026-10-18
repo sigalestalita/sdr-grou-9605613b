@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { dividirNegocio, type Divisao, type ItemNegocio, type TipoItem } from "./itens";
+import { dataSP, inicioDoDiaSP } from "@/lib/datas-sp";
+import { emLotes, todasAsPaginas } from "@/lib/paginar.server";
 
 /*
  * Venda realizada no período, dividida em produto × serviço, por executivo.
@@ -12,6 +14,7 @@ export type NegocioRealizado = {
   nome: string;
   empresa: string | null;
   executivoId: string | null;
+  /** Dia do ganho em Brasília, "YYYY-MM-DD". */
   dataGanho: string;
   valor: number;
   tipoVenda: string | null;
@@ -26,36 +29,39 @@ export async function negociosGanhosNoPeriodo(
   fim: string,
   executivoId?: string | null,
 ): Promise<NegocioRealizado[]> {
-  // ordem_compra_em no período, ou (sem OC) closed_at no período.
-  let q = db
-    .from("deals")
-    .select(
-      "id, nome, amount, executivo_user_id, ordem_compra_em, closed_at, tipo_venda, parcelas, companies:company_id(nome)",
-    )
-    .eq("status", "won")
-    .or(
-      `and(ordem_compra_em.gte.${ini},ordem_compra_em.lt.${fim}),and(ordem_compra_em.is.null,closed_at.gte.${ini},closed_at.lt.${fim})`,
-    )
-    .limit(2000);
-  if (executivoId) q = q.eq("executivo_user_id", executivoId);
-  const { data: deals, error } = await q;
-  if (error) throw new Error(error.message);
-  const lista = (deals ?? []) as Array<Record<string, unknown>>;
+  // ordem_compra_em no período, ou (sem OC) closed_at no período — em Brasília.
+  const a = inicioDoDiaSP(ini);
+  const b = inicioDoDiaSP(fim);
+  const lista = await todasAsPaginas<Record<string, unknown>>((de, ate) => {
+    let q = db
+      .from("deals")
+      .select(
+        "id, nome, amount, executivo_user_id, ordem_compra_em, closed_at, tipo_venda, parcelas, companies:company_id(nome)",
+      )
+      .eq("status", "won")
+      .or(
+        `and(ordem_compra_em.gte.${a},ordem_compra_em.lt.${b}),and(ordem_compra_em.is.null,closed_at.gte.${a},closed_at.lt.${b})`,
+      )
+      .order("id")
+      .range(de, ate);
+    if (executivoId) q = q.eq("executivo_user_id", executivoId);
+    return q;
+  });
   if (lista.length === 0) return [];
 
-  const { data: itens, error: iErr } = await db
-    .from("deal_products")
-    .select(
-      "deal_id, nome, quantidade, valor_unitario, product_id, products:product_id(tipo, marca)",
-    )
-    .in(
-      "deal_id",
-      lista.map((d) => d.id as string),
-    );
-  if (iErr) throw new Error(iErr.message);
+  const itens = await emLotes<Record<string, unknown>>(
+    lista.map((d) => d.id as string),
+    (lote) =>
+      db
+        .from("deal_products")
+        .select(
+          "deal_id, nome, quantidade, valor_unitario, product_id, products:product_id(tipo, marca)",
+        )
+        .in("deal_id", lote),
+  );
 
   const porDeal = new Map<string, Array<ItemNegocio & { marca: string | null }>>();
-  for (const i of (itens ?? []) as Array<Record<string, unknown>>) {
+  for (const i of itens) {
     const prod = i.products as { tipo?: TipoItem | null; marca?: string | null } | null;
     const arr = porDeal.get(i.deal_id as string) ?? [];
     arr.push({
@@ -76,7 +82,8 @@ export async function negociosGanhosNoPeriodo(
       nome: String(d.nome ?? ""),
       empresa: (d.companies as { nome?: string } | null)?.nome ?? null,
       executivoId: (d.executivo_user_id as string | null) ?? null,
-      dataGanho: String(d.ordem_compra_em ?? d.closed_at ?? ""),
+      // dia do ganho no calendário de Brasília ("YYYY-MM-DD")
+      dataGanho: dataSP(String(d.ordem_compra_em ?? d.closed_at)),
       valor: Number(d.amount ?? 0),
       tipoVenda: (d.tipo_venda as string | null) ?? null,
       parcelas: (d.parcelas as number | null) ?? null,

@@ -67,9 +67,12 @@ function RequerimentoPage() {
   const { id } = useParams({ from: "/_app/requerimento/$id" });
   const qc = useQueryClient();
   const fn = useServerFn(getRequerimento);
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, dataUpdatedAt } = useQuery({
     queryKey: ["requerimento", id],
     queryFn: () => fn({ data: { id } }),
+    // os formulários reiniciam a cada dado novo; sem refetch no foco para não
+    // apagar o que a pessoa está digitando
+    refetchOnWindowFocus: false,
   });
   const recarrega = () => {
     qc.invalidateQueries({ queryKey: ["requerimento", id] });
@@ -126,6 +129,7 @@ function RequerimentoPage() {
       </header>
 
       <Formulario
+        key={`formulario-${dataUpdatedAt}`}
         id={id}
         requerimento={r}
         editavel={editavel}
@@ -135,6 +139,7 @@ function RequerimentoPage() {
       />
 
       <Cronograma
+        key={`cronograma-${dataUpdatedAt}`}
         id={id}
         sessoes={data.sessoes}
         trainerIds={data.trainerIds}
@@ -145,6 +150,7 @@ function RequerimentoPage() {
       />
 
       <Entrega
+        key={`entrega-${dataUpdatedAt}`}
         id={id}
         requerimento={r}
         podeEditar={data.souTrainer || data.podeEditarTudo}
@@ -505,8 +511,18 @@ function Cronograma({
   );
   const [trainers, setTrainers] = useState<string[]>(trainerIds);
 
+  const statusOriginal = new Map(sessoes.map((x) => [x.id as string, x.status as string]));
   const salvar = useMutation({
-    mutationFn: () => salvarFn({ data: { id, trainerIds: trainers, sessoes: lista } }),
+    mutationFn: () =>
+      salvarFn({
+        data: {
+          id,
+          trainerIds: trainers,
+          sessoes: lista.map(({ status, ...x }) =>
+            !x.id || statusOriginal.get(x.id) !== status ? { ...x, status } : x,
+          ),
+        },
+      }),
     onSuccess: () => {
       toast.success("Cronograma salvo");
       onDone();

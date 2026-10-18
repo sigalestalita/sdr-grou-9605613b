@@ -34,9 +34,10 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
   const catalogoFn = useServerFn(listarCatalogo);
   const salvarFn = useServerFn(salvarItensNegocio);
 
-  const { data } = useQuery({
+  const { data, dataUpdatedAt } = useQuery({
     queryKey: ["itens-negocio", dealId],
     queryFn: () => itensFn({ data: { dealId } }),
+    refetchOnWindowFocus: false,
   });
   const { data: catalogo } = useQuery({
     queryKey: ["catalogo"],
@@ -47,22 +48,37 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
 
   const [linhas, setLinhas] = useState<Linha[] | null>(null);
   const [impostos, setImpostos] = useState<string>("");
+  // Recomeça do servidor a cada dado novo (inclusive depois de salvar), e não
+  // do cache antigo — senão um segundo "salvar" regravaria a lista anterior.
   useEffect(() => {
-    if (data && linhas === null) {
-      setLinhas(data.itens);
-      setImpostos(data.valorImpostos == null ? "" : String(data.valorImpostos));
-    }
-  }, [data, linhas]);
+    if (!data) return;
+    setLinhas(data.itens.map(({ marca: _m, ...l }) => l));
+    setImpostos(data.valorImpostos == null ? "" : String(data.valorImpostos));
+  }, [data, dataUpdatedAt]);
 
-  const atual = linhas ?? data?.itens ?? [];
+  const atual: Linha[] = linhas ?? [];
   const total = atual.reduce((s, i) => s + totalItem(i), 0);
   const conta = proposta(total, impostos === "" ? null : Number(impostos.replace(",", ".")));
   const divisao = dividirNegocio(data?.valor ?? 0, atual);
   const sujo =
     !!data &&
-    (JSON.stringify(atual.map(({ tipo: _t, ...r }) => r)) !==
-      JSON.stringify(data.itens.map(({ tipo: _t, marca: _m, ...r }) => r)) ||
-      (impostos === "" ? null : Number(impostos)) !== data.valorImpostos);
+    (JSON.stringify(
+      atual.map(({ product_id, nome, quantidade, valor_unitario }) => [
+        product_id,
+        nome,
+        quantidade,
+        valor_unitario,
+      ]),
+    ) !==
+      JSON.stringify(
+        data.itens.map(({ product_id, nome, quantidade, valor_unitario }) => [
+          product_id,
+          nome,
+          quantidade,
+          valor_unitario,
+        ]),
+      ) ||
+      (impostos === "" ? null : Number(impostos.replace(",", "."))) !== data.valorImpostos);
 
   const ativos = useMemo(() => (catalogo?.produtos ?? []).filter((p) => p.ativo), [catalogo]);
   const grupos = useMemo(() => {
@@ -90,7 +106,6 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
       }),
     onSuccess: () => {
       toast.success("Itens salvos");
-      setLinhas(null);
       qc.invalidateQueries({ queryKey: ["itens-negocio", dealId] });
       qc.invalidateQueries({ queryKey: ["negocio", dealId] });
     },

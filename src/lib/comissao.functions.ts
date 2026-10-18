@@ -364,20 +364,25 @@ export const gerarFechamento = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       id = (novo as { id: string }).id;
     } else {
-      await db
+      const { error } = await db
         .from("comissao_fechamentos")
         .update({ meta_produto: m.produto, meta_servico: m.servico })
         .eq("id", id);
+      if (error) throw new Error(error.message);
     }
 
     const { data: atuais } = await db
       .from("comissao_linhas")
-      .select("id, deal_id, item, origem, conferida, excluida, valor_original, valor_considerado")
+      .select(
+        "id, deal_id, item, marca, tipo, origem, conferida, excluida, valor_original, valor_considerado",
+      )
       .eq("fechamento_id", id);
     const lista = (atuais ?? []) as Array<{
       id: string;
       deal_id: string | null;
       item: string;
+      marca: string | null;
+      tipo: string | null;
       origem: string;
       conferida: boolean;
       excluida: boolean;
@@ -412,26 +417,37 @@ export const gerarFechamento = createServerFn({ method: "POST" })
       const { error } = await db.from("comissao_linhas").insert(inserir);
       if (error) throw new Error(error.message);
     }
-    // valor mudou no CRM e a linha não foi tocada: acompanha
+    // Linha não tocada acompanha o CRM (valor, tipo e marca). Linha tocada pelo
+    // ADM mantém o valor, mas ganha a classificação do catálogo se ainda não tinha.
     for (const l of novas) {
       const e = existentes.get(chave(l.deal_id, l.item));
-      if (e && !mexida(e) && Number(e.valor_original) !== l.valor)
-        await db
-          .from("comissao_linhas")
-          .update({
+      if (!e) continue;
+      let patch: Record<string, unknown> | null = null;
+      if (!mexida(e)) {
+        if (Number(e.valor_original) !== l.valor || e.tipo !== l.tipo || e.marca !== l.marca)
+          patch = {
             valor_original: l.valor,
             valor_considerado: l.valor,
             tipo: l.tipo,
             marca: l.marca,
-          })
-          .eq("id", e.id);
+          };
+      } else if (!e.tipo && l.tipo) {
+        patch = { tipo: l.tipo, marca: l.marca };
+      }
+      if (patch) {
+        const { error } = await db.from("comissao_linhas").update(patch).eq("id", e.id);
+        if (error) throw new Error(error.message);
+      }
     }
     const remover = lista
       .filter(
         (l) => l.origem === "sistema" && !mexida(l) && !chavesNovas.has(chave(l.deal_id, l.item)),
       )
       .map((l) => l.id);
-    if (remover.length) await db.from("comissao_linhas").delete().in("id", remover);
+    if (remover.length) {
+      const { error } = await db.from("comissao_linhas").delete().in("id", remover);
+      if (error) throw new Error(error.message);
+    }
 
     await recalcular(db, id);
     return { id };

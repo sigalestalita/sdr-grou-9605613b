@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { podeFaturar } from "@/lib/faturamento/politica.server";
 import { notificar, notificarFaturamento } from "@/lib/notificacoes.server";
 import { licencaParaConferir, logisticaPadrao } from "@/lib/requerimentos/regras";
+import { hojeSP } from "@/lib/datas-sp";
 
 /*
  * Requerimento de serviço (comercial → ADM → trainer) e liberação de licença
@@ -60,7 +61,7 @@ export const listarRequerimentos = createServerFn({ method: "GET" })
       eTrainer(db, context.userId),
     ]);
     if (error) throw new Error(error.message);
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeSP();
     let itens = ((rows ?? []) as Array<Record<string, unknown>>).map((r) => {
       const sess = (r.requerimento_sessoes ?? []) as Array<{
         data: string | null;
@@ -331,7 +332,9 @@ export const salvarCronograma = createServerFn({ method: "POST" })
               horario: z.string().trim().max(60).nullable(),
               formato: z.enum(["online", "presencial"]).nullable(),
               local: z.string().trim().max(300).nullable(),
-              status: z.enum(["a_confirmar", "confirmado", "realizado", "cancelado"]),
+              // Só vem quando o ADM mudou (ou sessão nova): não pisa no que a
+              // trainer confirmou enquanto a tela estava aberta.
+              status: z.enum(["a_confirmar", "confirmado", "realizado", "cancelado"]).optional(),
             }),
           )
           .max(80),
@@ -358,7 +361,11 @@ export const salvarCronograma = createServerFn({ method: "POST" })
     ]);
 
     // trainers: substitui a lista
-    await db.from("requerimento_trainers").delete().eq("requerimento_id", data.id);
+    const { error: delT } = await db
+      .from("requerimento_trainers")
+      .delete()
+      .eq("requerimento_id", data.id);
+    if (delT) throw new Error(delT.message);
     if (data.trainerIds.length) {
       const { error } = await db
         .from("requerimento_trainers")
@@ -367,19 +374,28 @@ export const salvarCronograma = createServerFn({ method: "POST" })
     }
 
     // sessões: atualiza as que existem, cria as novas, remove as que saíram
-    const manter = new Set(data.sessoes.map((s) => s.id).filter(Boolean));
-    const remover = ((antesS ?? []) as Array<{ id: string }>)
-      .map((s) => s.id)
-      .filter((sid) => !manter.has(sid));
-    for (const [ordem, s] of data.sessoes.entries()) {
-      const { id: sid, ...campos } = s;
+    const doRequerimento = new Set(((antesS ?? []) as Array<{ id: string }>).map((x) => x.id));
+    const manter = new Set(data.sessoes.map((x) => x.id).filter(Boolean));
+    const remover = [...doRequerimento].filter((sid) => !manter.has(sid));
+    for (const [ordem, sessao] of data.sessoes.entries()) {
+      const { id: sid, ...campos } = sessao;
+      if (sid && !doRequerimento.has(sid)) throw new Error("Sessão de outro requerimento");
       const linha = { ...campos, ordem, requerimento_id: data.id };
       const { error } = sid
-        ? await db.from("requerimento_sessoes").update(linha).eq("id", sid)
-        : await db.from("requerimento_sessoes").insert(linha);
+        ? await db
+            .from("requerimento_sessoes")
+            .update(linha)
+            .eq("id", sid)
+            .eq("requerimento_id", data.id)
+        : await db
+            .from("requerimento_sessoes")
+            .insert({ ...linha, status: sessao.status ?? "a_confirmar" });
       if (error) throw new Error(error.message);
     }
-    if (remover.length) await db.from("requerimento_sessoes").delete().in("id", remover);
+    if (remover.length) {
+      const { error } = await db.from("requerimento_sessoes").delete().in("id", remover);
+      if (error) throw new Error(error.message);
+    }
 
     const r = req as {
       numero: number;
@@ -573,7 +589,9 @@ export const criarLicencasDoNegocio = createServerFn({ method: "POST" })
               : sub.includes("crédito")
                 ? "credito"
                 : "licenca",
-          quantidade: Number(i.nome.replace(/\D/g, "")) || null,
+          // "PACOTE 10 - LIC. 1.000" → 1000 (o último número do nome)
+          quantidade:
+            Number((i.nome.match(/(\d[\d.]*)\s*$/)?.[1] ?? "").replace(/\./g, "")) || null,
           login_contato_id: d?.contato_faturamento_id ?? null,
           login_email: d?.contacts?.email ?? null,
         };

@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 /*
- * Envio de notificação no nome de quem está logado (a RLS exige
- * criado_por = auth.uid()). Falha ao notificar nunca derruba a ação principal:
+ * Envio de notificação no nome de quem está logado, pela função
+ * notificar_usuarios (que confere quem pode mandar cada tipo). Falha ao notificar nunca derruba a ação principal:
  * o registro já foi feito, o aviso é complemento.
  */
 export type TipoNotificacao =
@@ -31,17 +31,15 @@ export async function notificar(
 ): Promise<void> {
   const destinos = [...new Set(n.para.filter((u): u is string => !!u && u !== autorId))];
   if (destinos.length === 0) return;
-  const { error } = await db.from("notificacoes").insert(
-    destinos.map((user_id) => ({
-      user_id,
-      tipo: n.tipo,
-      titulo: n.titulo.slice(0, 200),
-      corpo: n.corpo ? n.corpo.slice(0, 2000) : null,
-      link: n.link ?? null,
-      deal_id: n.dealId ?? null,
-      criado_por: autorId,
-    })),
-  );
+  // Pela função do banco: ela confere se quem está logado pode mandar esse tipo.
+  const { error } = await db.rpc("notificar_usuarios", {
+    _users: destinos,
+    _tipo: n.tipo,
+    _titulo: n.titulo.slice(0, 200),
+    _corpo: n.corpo ? n.corpo.slice(0, 2000) : null,
+    _link: n.link ?? null,
+    _deal_id: n.dealId ?? null,
+  });
   if (error) console.error("[notificar]", error.message);
 }
 

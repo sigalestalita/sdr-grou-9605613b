@@ -33,6 +33,7 @@ import {
   type Parcela,
 } from "@/lib/faturamento/politica";
 import { moeda } from "@/lib/comercial/metas";
+import { hojeSP } from "@/lib/datas-sp";
 import { downloadCsv } from "@/lib/export-csv";
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
 import { dataBr } from "@/components/faturamento/faturamento-do-negocio";
@@ -62,7 +63,7 @@ const ETAPAS: Array<{ v: EtapaFila; l: string; dica: string }> = [
   { v: "recebido", l: "Recebido", dica: "Últimos 120 dias" },
 ];
 
-const hojeIso = () => new Date().toISOString().slice(0, 10);
+const hojeIso = () => hojeSP();
 
 /**
  * O módulo da Fabiana. Antes: o ganho chegava por e-mail, a nota saía fora do
@@ -690,7 +691,7 @@ function EmitirNota({
           </li>
         ))}
       </ul>
-      {Math.abs(soma - liquido) > 0.05 && (
+      {Math.round(soma * 100) !== Math.round(liquido * 100) && (
         <p className="text-[11px] text-destructive">
           As parcelas somam {moeda(soma)}; o líquido é {moeda(liquido)}.
         </p>
@@ -707,7 +708,7 @@ function EmitirNota({
             !numero.trim() ||
             !emissao ||
             liquido < 0 ||
-            Math.abs(soma - liquido) > 0.05 ||
+            Math.round(soma * 100) !== Math.round(liquido * 100) ||
             salvar.isPending
           }
           onClick={() => salvar.mutate()}
