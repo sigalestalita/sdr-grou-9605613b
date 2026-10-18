@@ -240,7 +240,12 @@ export async function syncRdEverything(opts?: { dryRun?: boolean }): Promise<RdF
   const leadByDeal = new Map<string, string>();
   for (const l of existingLeads ?? []) if (l.rd_deal_id) leadByDeal.set(l.rd_deal_id, l.id);
 
+  // Só os funis do SDR viram lead. Vendas, carteira e CS são negócio, conta e
+  // jornada — a transformação (rd-transform) cuida deles.
+  const { destinoDoFunilRd } = await import("./funis");
   for (const d of dealRows) {
+    const destino = destinoDoFunilRd(d.pipeline);
+    if (destino.tipo !== "lead") continue;
     const contact = d.rd_contact_id ? contactById.get(d.rd_contact_id) : undefined;
     const companyName = d.rd_org_name ?? (d.rd_org_id ? orgNameById.get(d.rd_org_id) ?? null : null);
     const lifecycle = d.rd_org_id ? orgLifecycleById.get(d.rd_org_id) ?? null : null;
@@ -258,7 +263,9 @@ export async function syncRdEverything(opts?: { dryRun?: boolean }): Promise<RdF
       position: contact?.position ?? null,
       linkedin_url: contact?.linkedin_url ?? null,
       company_name: companyName,
-      lead_type: guessLeadType(companyName, lifecycle),
+      // O funil manda: Alianças Estratégicas é consultoria.
+      lead_type:
+        destino.leadType === "consultoria" ? "consultoria" : guessLeadType(companyName, lifecycle),
       source: d.source_name,
       campaign: d.campaign_name,
       converted_at: d.rd_created_at,

@@ -34,6 +34,7 @@ import { toast } from "sonner";
 import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type";
 import { MOTIVOS_DE_DESCARTE } from "@/lib/leads/motivos-descarte";
+import { LeadNaEspinha } from "@/components/leads/lead-na-espinha";
 import {
   ArrowLeft,
   MessageSquare,
@@ -304,6 +305,8 @@ function LeadDetailPage() {
             LinkedIn
           </p>
         )}
+
+        <LeadNaEspinha leadId={lead.id} />
 
         <Card className="p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

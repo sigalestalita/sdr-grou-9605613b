@@ -130,7 +130,8 @@ function SettingsPage() {
 
   const pipelineSetting = data.settings.find((s) => s.key === "rd_pipeline");
   const pipelineName =
-    (pipelineSetting?.value as { name?: string } | null)?.name ?? "Leads - Empresas";
+    (pipelineSetting?.value as { name?: string } | null)?.name ??
+    "Leads - Empresa [SDR]; Leads - Alianças Estratéticas [SDR]";
   const tplSetting = data.settings.find((s) => s.key === "whatsapp_template");
   const tplText = (tplSetting?.value as { text?: string } | null)?.text ?? "";
   const slaSetting = data.settings.find((s) => s.key === "sla");
@@ -225,7 +226,9 @@ function SettingsPage() {
           )}
         </div>
         <div>
-          <label className="text-xs text-muted-foreground">Nome do funil</label>
+          <label className="text-xs text-muted-foreground">
+            Funis do SDR no RD (separe por ;) — Alianças entra como consultoria
+          </label>
           <div className="flex gap-2 mt-1">
             <Input
               defaultValue={pipelineName}

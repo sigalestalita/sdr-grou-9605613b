@@ -612,7 +612,29 @@ export async function sendMeetingInvite(opts: {
     metadata: { uid, sequence, briefing: !!briefingId } as never,
   } as never);
 
-  return { ok: true, isUpdate, sentAt: now, briefingSent: !!briefingId, briefingError, when };
+  // Reunião marcada com o executivo = o lead foi passado: nasce o negócio no
+  // funil Vendas (ou confirma o que já existe). Não derruba o convite se falhar.
+  let dealId: string | null = null;
+  const { data: deal, error: dealErr } = await (
+    supabaseAdmin as unknown as {
+      rpc: (
+        f: string,
+        a: Record<string, unknown>,
+      ) => Promise<{ data: string | null; error: { message: string } | null }>;
+    }
+  ).rpc("passar_lead_para_executivo", { _lead: lead.id, _executivo: executivo.id });
+  if (dealErr) console.error("[passar_lead_para_executivo]", dealErr.message);
+  else dealId = deal;
+
+  return {
+    ok: true,
+    isUpdate,
+    sentAt: now,
+    briefingSent: !!briefingId,
+    briefingError,
+    when,
+    dealId,
+  };
 }
 
 /** Cancela o convite (METHOD:CANCEL) — quando a reunião cai. */

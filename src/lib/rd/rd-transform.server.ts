@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import fieldMap from "../../../docs/rd-field-map.json";
 import { rdId, type Json, type RdCustomField } from "./rd-api.server";
+import { destinoDoFunilRd, slugDaEtapa, type DestinoRd } from "./funis";
 
 /*
  * Transformação staging → objetos (onda 2).
@@ -41,7 +42,24 @@ export interface RdTransformResult {
     csClientsUpdated: number;
   };
   contacts: { total: number; created: number; updated: number; semEmpresa: number };
-  deals: { total: number; created: number; updated: number; wonFromStage: number };
+  deals: {
+    total: number;
+    created: number;
+    updated: number;
+    wonFromStage: number;
+    /** Cards dos funis do SDR: são leads (rd-sync), não negócios. */
+    leadsDoSdr: number;
+    /** Cards de "Gestão da Carteira Comercial" → company_funis. */
+    carteira: number;
+    /** Empresas em cards abertos dos funis [CS] → carteira do CS (cs_clients). */
+    carteiraCs: number;
+    /** Dessas, as que ainda não tinham ficha no CS e ganharam uma. */
+    fichasCsCriadas: number;
+    /** Carteira/CS sem empresa no RD: não há onde pôr. */
+    semEmpresa: number;
+    /** Etapas do RD que não existiam aqui e foram criadas. */
+    etapasCriadas: number;
+  };
   products: number;
   dedupe: { company: number; parent: number };
   errors: string[];
@@ -239,7 +257,18 @@ export async function transformRdToObjects(opts?: {
   const result: RdTransformResult = {
     companies: { total: 0, created: 0, updated: 0, linkedByKey: 0, csClientsUpdated: 0 },
     contacts: { total: 0, created: 0, updated: 0, semEmpresa: 0 },
-    deals: { total: 0, created: 0, updated: 0, wonFromStage: 0 },
+    deals: {
+      total: 0,
+      created: 0,
+      updated: 0,
+      wonFromStage: 0,
+      leadsDoSdr: 0,
+      carteira: 0,
+      carteiraCs: 0,
+      fichasCsCriadas: 0,
+      semEmpresa: 0,
+      etapasCriadas: 0,
+    },
     products: 0,
     dedupe: { company: 0, parent: 0 },
     errors,
@@ -568,19 +597,48 @@ export async function transformRdToObjects(opts?: {
       stages
         .filter((s) => s.pipeline_id === pipelineId)
         .sort((a, b) => Number(a.ordem) - Number(b.ordem));
+    const etapaAberta = (pipelineId: string, rdStage: string | null) => {
+      const n = norm(rdStage);
+      if (!n) return undefined;
+      const list = stagesOf(pipelineId).filter((s) => s.kind === "open");
+      return (
+        list.find((s) => norm(s.nome) === n) ??
+        list.find((s) => n.includes(norm(s.nome)) || norm(s.nome).includes(n))
+      );
+    };
     const pickStage = (pipelineId: string, status: string, rdStage: string | null) => {
       const list = stagesOf(pipelineId);
       if (status === "won") return list.find((s) => s.kind === "won")?.id ?? null;
       if (status === "lost") return list.find((s) => s.kind === "lost")?.id ?? null;
-      const n = norm(rdStage);
-      const hit = n
-        ? list.find(
-            (s) =>
-              s.kind === "open" &&
-              (norm(s.nome) === n || n.includes(norm(s.nome)) || norm(s.nome).includes(n)),
-          )
-        : undefined;
-      return (hit ?? list.find((s) => s.kind === "open"))?.id ?? null;
+      return (etapaAberta(pipelineId, rdStage) ?? list.find((s) => s.kind === "open"))?.id ?? null;
+    };
+    /** Etapa do RD que não existe aqui vira etapa nova, antes das de fechamento. */
+    const garantirEtapas = async (pares: Array<[string, string]>) => {
+      const faltam = new Map<string, { pipeline_id: string; nome: string }>();
+      for (const [pipelineId, nome] of pares) {
+        if (!nome || etapaAberta(pipelineId, nome)) continue;
+        faltam.set(`${pipelineId}|${slugDaEtapa(nome)}`, { pipeline_id: pipelineId, nome });
+      }
+      if (dryRun) {
+        result.deals.etapasCriadas += faltam.size;
+        return;
+      }
+      for (const { pipeline_id, nome } of faltam.values()) {
+        const abertas = stagesOf(pipeline_id).filter((s) => s.kind === "open");
+        const ordem = Math.max(0, ...abertas.map((s) => Number(s.ordem))) + 1;
+        const { data, error } = await supabaseAdmin
+          .from("pipeline_stages")
+          .upsert({ pipeline_id, nome, slug: slugDaEtapa(nome), ordem, kind: "open" } as never, {
+            onConflict: "pipeline_id,slug",
+            ignoreDuplicates: true,
+          })
+          .select("id, pipeline_id, slug, nome, kind, ordem");
+        if (error) errors.push(`etapa ${nome}: ${error.message}`);
+        else if (data?.length) {
+          stages.push(...(data as Row[]));
+          result.deals.etapasCriadas++;
+        }
+      }
     };
 
     const existingDeals = await fetchAll("deals", "id, rd_deal_id, provenance");
@@ -596,6 +654,100 @@ export async function transformRdToObjects(opts?: {
       ),
     );
     result.deals.total = rdDeals.length;
+
+    // Cada funil do RD tem um destino (funis.ts). Lead do SDR fica com o
+    // rd-sync; carteira e CS não viram negócio.
+    const destinoDe = new Map<string, DestinoRd>(
+      rdDeals.map((d) => [String(d.rd_id), destinoDoFunilRd(clean(d.pipeline) || null)]),
+    );
+    const carteiraId = pipeBySlug.get("gestao-carteira-comercial") ?? null;
+    const slugDoNegocio = (d: Row) => {
+      const tipoVenda = String(
+        project(MAP.deal, customFields((d.raw ?? {}) as Json)).deals?.tipo_venda ?? "",
+      );
+      for (const [re, s] of RD_PIPELINE_TO_SLUG)
+        if (re.test(tipoVenda) || re.test(String(d.pipeline ?? ""))) return s;
+      return "novos-negocios";
+    };
+    const pares: Array<[string, string]> = [];
+    for (const d of rdDeals) {
+      const destino = destinoDe.get(String(d.rd_id));
+      const etapa = clean(d.stage);
+      if (destino?.tipo === "conta" && carteiraId) pares.push([carteiraId, etapa]);
+      if (
+        destino?.tipo === "negocio" &&
+        String(d.status ?? "open") === "open" &&
+        !/^venda$/i.test(etapa)
+      ) {
+        const pid = pipeBySlug.get(slugDoNegocio(d));
+        if (pid) pares.push([pid, etapa]);
+      }
+    }
+    await garantirEtapas(pares);
+
+    // Carteira comercial e jornada do CS: a empresa é o card.
+    const contaPorEmpresa = new Map<string, Row>();
+    // [CS] Gestão da Carteira = todos os clientes com atendimento de CS, cada um
+    // com seu CS responsável. Novos / Em atendimento também dizem a etapa.
+    const csPorEmpresa = new Map<
+      string,
+      { stage: string | null; stageEm: string; owner: string | null; ownerEm: string }
+    >();
+    for (const d of rdDeals) {
+      const destino = destinoDe.get(String(d.rd_id));
+      if (!destino || destino.tipo === "negocio") continue;
+      if (destino.tipo === "lead") {
+        result.deals.leadsDoSdr++;
+        continue;
+      }
+      const companyId = d.rd_org_id ? orgToCompany.get(String(d.rd_org_id)) : undefined;
+      if (!companyId) {
+        result.deals.semEmpresa++;
+        continue;
+      }
+      const em = String(d.rd_created_at ?? "");
+      if (destino.tipo === "conta" && carteiraId) {
+        const atual = contaPorEmpresa.get(companyId);
+        if (atual && String(atual.__em) > em) continue;
+        contaPorEmpresa.set(companyId, {
+          company_id: companyId,
+          pipeline_id: carteiraId,
+          stage_id: etapaAberta(carteiraId, clean(d.stage) || null)?.id ?? null,
+          owner_user_id: d.owner_name ? userOf(d.owner_name) : null,
+          rd_deal_id: String(d.rd_id),
+          __em: em,
+        });
+      } else if (destino.tipo === "cs" && String(d.status ?? "open") === "open") {
+        const atual = csPorEmpresa.get(companyId) ?? {
+          stage: null,
+          stageEm: "",
+          owner: null,
+          ownerEm: "",
+        };
+        if (destino.journeyStage && atual.stageEm <= em) {
+          atual.stage = destino.journeyStage;
+          atual.stageEm = em;
+        }
+        const owner = d.owner_name ? userOf(d.owner_name) : null;
+        if (owner && atual.ownerEm <= em) {
+          atual.owner = owner;
+          atual.ownerEm = em;
+        }
+        csPorEmpresa.set(companyId, atual);
+      }
+    }
+    result.deals.carteira = contaPorEmpresa.size;
+    result.deals.carteiraCs = csPorEmpresa.size;
+    if (!dryRun) {
+      const linhas = [...contaPorEmpresa.values()].map(({ __em: _, ...r }) => r);
+      for (const part of chunk(linhas, 300)) {
+        const { error } = await supabaseAdmin
+          .from("company_funis" as never)
+          .upsert(part as never, { onConflict: "company_id,pipeline_id" });
+        if (error) errors.push(`carteira comercial: ${error.message}`);
+      }
+      await levarParaCarteiraCs(csPorEmpresa, result, errors);
+    }
 
     // catálogo de produtos
     const newProducts = new Map<string, string>();
@@ -626,6 +778,7 @@ export async function transformRdToObjects(opts?: {
     const productLines = new Map<string, Row[]>(); // rd_deal_id -> linhas
     const contactLinks = new Map<string, string[]>(); // rd_deal_id -> contact ids
     for (const d of rdDeals) {
+      if (destinoDe.get(String(d.rd_id))?.tipo !== "negocio") continue;
       const raw = (d.raw ?? {}) as Json;
       const cf = customFields(raw);
       const proj = project(MAP.deal, cf);
@@ -636,14 +789,7 @@ export async function transformRdToObjects(opts?: {
         status = "won";
         result.deals.wonFromStage++;
       }
-      const tipoVenda = String(dealProj.tipo_venda ?? "");
-      let slug = "novos-negocios";
-      for (const [re, s] of RD_PIPELINE_TO_SLUG)
-        if (re.test(tipoVenda) || re.test(String(d.pipeline ?? ""))) {
-          slug = s;
-          break;
-        }
-      const pipelineId = pipeBySlug.get(slug) ?? null;
+      const pipelineId = pipeBySlug.get(slugDoNegocio(d)) ?? null;
       const amountRd = Number(d.amount ?? 0);
       const amountBackup = toNumber(cf["[backup] Valor"]);
       const fields: Row = {
@@ -815,4 +961,81 @@ export async function transformRdToObjects(opts?: {
   }
   result.errors = errors.slice(0, 50);
   return result;
+}
+
+/**
+ * Põe as empresas dos funis [CS] na carteira do CS (tela Empresas, filtrável
+ * por CS responsável): cria a ficha que faltar, marca como ativa, preenche o
+ * CS responsável quando ainda está vazio (a distribuição feita aqui vale mais
+ * que a do RD) e acerta a etapa vinda de [CS] Novos / Em atendimento.
+ */
+async function levarParaCarteiraCs(
+  csPorEmpresa: Map<string, { stage: string | null; owner: string | null }>,
+  result: RdTransformResult,
+  errors: string[],
+) {
+  const ids = [...csPorEmpresa.keys()];
+  const existentes: Row[] = [];
+  for (const part of chunk(ids, 150)) {
+    const { data, error } = await supabaseAdmin
+      .from("cs_clients")
+      .select("id, company_id, cs_responsavel_id, journey_stage, ativo")
+      .in("company_id", part);
+    if (error) errors.push(`carteira CS: ${error.message}`);
+    else existentes.push(...((data ?? []) as Row[]));
+  }
+  const comFicha = new Set(existentes.map((c) => String(c.company_id)));
+
+  const faltam = ids.filter((id) => !comFicha.has(id));
+  for (const part of chunk(faltam, 150)) {
+    const { data: empresas, error } = await supabaseAdmin
+      .from("companies")
+      .select("id, uid, nome, tipo_lead, cnpj, site_url, owner_user_id")
+      .in("id", part);
+    if (error) {
+      errors.push(`carteira CS: ${error.message}`);
+      continue;
+    }
+    const linhas = ((empresas ?? []) as Row[]).map((e) => {
+      const cs = csPorEmpresa.get(String(e.id));
+      return {
+        client_uid: String(e.uid),
+        nome_empresa: String(e.nome),
+        company_id: String(e.id),
+        tipo_lead: e.tipo_lead ?? "empresa",
+        cnpj: e.cnpj ?? null,
+        site_url: e.site_url ?? null,
+        comercial_responsavel_id: e.owner_user_id ?? null,
+        cs_responsavel_id: cs?.owner ?? null,
+        journey_stage: cs?.stage ?? "ativacao",
+        ativo: true,
+      };
+    });
+    if (!linhas.length) continue;
+    const { data: criadas, error: errIns } = await supabaseAdmin
+      .from("cs_clients")
+      .upsert(linhas as never, { onConflict: "client_uid", ignoreDuplicates: true })
+      .select("id");
+    if (errIns) errors.push(`carteira CS (fichas): ${errIns.message}`);
+    else result.deals.fichasCsCriadas += (criadas ?? []).length;
+  }
+
+  for (const part of chunk(existentes, 100)) {
+    await Promise.all(
+      part.map(async (c) => {
+        const cs = csPorEmpresa.get(String(c.company_id));
+        if (!cs) return;
+        const patch: Row = {};
+        if (!c.ativo) patch.ativo = true;
+        if (!c.cs_responsavel_id && cs.owner) patch.cs_responsavel_id = cs.owner;
+        if (cs.stage && c.journey_stage !== cs.stage) patch.journey_stage = cs.stage;
+        if (!Object.keys(patch).length) return;
+        const { error } = await supabaseAdmin
+          .from("cs_clients")
+          .update(patch as never)
+          .eq("id", String(c.id));
+        if (error) errors.push(`carteira CS ${c.id}: ${error.message}`);
+      }),
+    );
+  }
 }

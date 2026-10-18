@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getRdTokenInfo, type RdTokenSource } from "./rd-token.server";
 import { calculateScore, type IcpRules, type IcpThresholds } from "./icp-score";
+import { destinoDoFunilRd } from "@/lib/rd/funis";
 
 const RD_BASE = "https://crm.rdstation.com/api/v1";
 
@@ -144,7 +145,15 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
     ]),
   );
   const get = (k: string) => settings.get(k) ?? {};
-  const pipelineName = (get("rd_pipeline").name as string | undefined) ?? "Leads - Empresas";
+  // Um ou mais funis do SDR, separados por ";". Alianças Estratégicas entra
+  // como lead de consultoria (destinoDoFunilRd).
+  const pipelineName =
+    (get("rd_pipeline").name as string | undefined) ??
+    "Leads - Empresa [SDR]; Leads - Alianças Estratéticas [SDR]";
+  const pipelineNames = pipelineName
+    .split(";")
+    .map((n) => n.trim())
+    .filter(Boolean);
   const windowDays = Number((get("rd_sync_window_days").days as number | undefined) ?? 90);
   const incrementalMinutes = Number(
     (get("rd_sync_incremental_minutes").minutes as number | undefined) ?? 15,
@@ -184,7 +193,13 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
 
   let deals: RdDeal[] = [];
   try {
-    deals = await fetchAllDeals(token, tokenSource, pipelineName, startDate, endDate);
+    deals = [];
+    for (const nome of pipelineNames) {
+      const doFunil = await fetchAllDeals(token, tokenSource, nome, startDate, endDate);
+      const destino = destinoDoFunilRd(nome);
+      const leadType = destino.tipo === "lead" ? destino.leadType : "empresa";
+      for (const d of doFunil) deals.push(Object.assign(d, { __leadType: leadType }));
+    }
   } catch (e) {
     await supabase.from("integration_logs").insert({
       provider: "rd_station",
@@ -222,6 +237,9 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
       rd_status: d.deal_stage?.name ?? null,
       rd_owner: d.user?.name ?? null,
       converted_at: d.created_at ?? null,
+      ...((d as { __leadType?: string }).__leadType === "consultoria"
+        ? { lead_type: "consultoria" }
+        : {}),
     };
 
     const { score, priority, signals } = calculateScore(candidate, rules, thresholds);
