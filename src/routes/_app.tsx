@@ -37,6 +37,7 @@ import {
   Ticket,
   Receipt,
   Package,
+  ClipboardList,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -158,6 +159,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/cs-whatsapp", label: "WhatsApp CS", icon: MessageCircle, team: "cs" },
       { to: "/cs-tickets", label: "Tickets", icon: Ticket, team: "cs" },
       {
+        to: "/requerimentos",
+        label: "Requerimentos",
+        icon: ClipboardList,
+        team: "cs",
+        also: ["/requerimento"],
+      },
+      {
         to: "/cs-integracoes",
         label: "Integrações",
         icon: Link2,
@@ -178,6 +186,14 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Administrativo",
     items: [
       { to: "/faturamento", label: "Faturamento", icon: Receipt, team: "administrativo" },
+      {
+        to: "/requerimentos",
+        label: "Requerimentos",
+        icon: ClipboardList,
+        team: "administrativo",
+        roles: ["trainer", "executivo"],
+        also: ["/requerimento"],
+      },
       {
         to: "/catalogo",
         label: "Catálogo",

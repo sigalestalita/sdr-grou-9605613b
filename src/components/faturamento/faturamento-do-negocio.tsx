@@ -1,11 +1,19 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, Receipt } from "lucide-react";
 import { completarDadosGanho, getFaturamentoNegocio } from "@/lib/faturamento.functions";
 import { registrarAtividade } from "@/lib/comercial-negocio.functions";
+import {
+  criarLicencasDoNegocio,
+  criarRequerimentoDoNegocio,
+  listarLicencas,
+  listarRequerimentos,
+  mudarStatusLicenca,
+} from "@/lib/requerimentos.functions";
+import { STATUS_REQUERIMENTO } from "@/lib/requerimentos/regras";
 import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -98,6 +106,8 @@ export function FaturamentoDoNegocio({ dealId }: { dealId: string }) {
         </div>
       ) : null}
 
+      <Execucao dealId={dealId} podeFaturar={data.podeEditar} />
+
       {notas.length > 0 && (
         <ul className="space-y-2 text-[12px]">
           {notas.map((f) => (
@@ -126,5 +136,127 @@ export function FaturamentoDoNegocio({ dealId }: { dealId: string }) {
         </ul>
       )}
     </section>
+  );
+}
+
+const STATUS_LICENCA: Record<string, string> = {
+  a_solicitar: "a solicitar",
+  solicitado: "solicitada à PDA",
+  liberado: "liberada",
+  cancelado: "cancelada",
+};
+const ROTULO_REQ = Object.fromEntries(STATUS_REQUERIMENTO.map((s) => [s.v, s.l]));
+
+/**
+ * O que precisa acontecer para entregar: o requerimento de serviço (comercial
+ * abre, ADM prepara, trainer executa) e a liberação das licenças PDA.
+ */
+function Execucao({ dealId, podeFaturar }: { dealId: string; podeFaturar: boolean }) {
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const reqFn = useServerFn(listarRequerimentos);
+  const licFn = useServerFn(listarLicencas);
+  const criarReqFn = useServerFn(criarRequerimentoDoNegocio);
+  const criarLicFn = useServerFn(criarLicencasDoNegocio);
+  const statusLicFn = useServerFn(mudarStatusLicenca);
+  const { data: reqs } = useQuery({
+    queryKey: ["requerimentos", "negocio", dealId],
+    queryFn: () => reqFn({ data: { dealId } }),
+  });
+  const { data: lics } = useQuery({
+    queryKey: ["licencas", dealId],
+    queryFn: () => licFn({ data: { dealId } }),
+  });
+  const recarrega = () => {
+    qc.invalidateQueries({ queryKey: ["licencas"] });
+    qc.invalidateQueries({ queryKey: ["requerimentos"] });
+  };
+  const erro = (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro");
+
+  const abrirReq = useMutation({
+    mutationFn: () => criarReqFn({ data: { dealId } }),
+    onSuccess: (r) => navigate({ to: "/requerimento/$id", params: { id: r.id } }),
+    onError: erro,
+  });
+  const pedirLic = useMutation({
+    mutationFn: () => criarLicFn({ data: { dealId } }),
+    onSuccess: (r) => {
+      toast.success(r.criadas ? `${r.criadas} licença(s) para solicitar` : "Nenhum item PDA novo");
+      recarrega();
+    },
+    onError: erro,
+  });
+  const statusLic = useMutation({
+    mutationFn: (v: { id: string; status: "solicitado" | "liberado" }) => statusLicFn({ data: v }),
+    onSuccess: recarrega,
+    onError: erro,
+  });
+
+  return (
+    <div className="space-y-2 border-t pt-2 text-[12px]">
+      <p className="font-medium">Execução</p>
+      {(reqs?.itens ?? []).map((r) => (
+        <Link
+          key={r.id}
+          to="/requerimento/$id"
+          params={{ id: r.id }}
+          className="flex justify-between gap-2 rounded border px-2 py-1 hover:border-primary/40"
+        >
+          <span className="truncate">
+            Requerimento nº {r.numero} · {r.servico}
+          </span>
+          <span className="shrink-0 text-muted-foreground">{ROTULO_REQ[r.status] ?? r.status}</span>
+        </Link>
+      ))}
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={abrirReq.isPending}
+        onClick={() => abrirReq.mutate()}
+      >
+        {abrirReq.isPending ? "Abrindo…" : "Abrir requerimento de serviço"}
+      </Button>
+
+      {(lics?.itens ?? []).length > 0 && (
+        <ul className="space-y-1">
+          {lics?.itens.map((l) => (
+            <li key={l.id} className="flex flex-wrap items-center justify-between gap-2">
+              <span className={l.paraConferir ? "text-amber-700 dark:text-amber-400" : undefined}>
+                {l.descricao} · {STATUS_LICENCA[l.status] ?? l.status}
+                {l.paraConferir ? " — conferir na PDA" : ""}
+              </span>
+              {podeFaturar && l.status === "a_solicitar" && (
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => statusLic.mutate({ id: l.id, status: "solicitado" })}
+                >
+                  marcar solicitada
+                </button>
+              )}
+              {podeFaturar && l.status === "solicitado" && (
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => statusLic.mutate({ id: l.id, status: "liberado" })}
+                >
+                  marcar liberada
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {podeFaturar && (
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={pedirLic.isPending}
+          onClick={() => pedirLic.mutate()}
+        >
+          Pedir liberação das licenças PDA do negócio
+        </Button>
+      )}
+    </div>
   );
 }

@@ -16,6 +16,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
 import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
+import { Route as AppRequerimentosRouteImport } from './routes/_app.requerimentos'
 import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
 import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analytics'
@@ -60,6 +61,7 @@ import { Route as AppWhatsappContasRouteImport } from './routes/_app.whatsapp.co
 import { Route as AppWhatsappCampanhasRouteImport } from './routes/_app.whatsapp.campanhas'
 import { Route as AppWhatsappAutomacoesRouteImport } from './routes/_app.whatsapp.automacoes'
 import { Route as AppWhatsappAlertasRouteImport } from './routes/_app.whatsapp.alertas'
+import { Route as AppRequerimentoIdRouteImport } from './routes/_app.requerimento.$id'
 import { Route as AppNegocioIdRouteImport } from './routes/_app.negocio.$id'
 import { Route as AppLeadIdRouteImport } from './routes/_app.lead.$id'
 import { Route as AppEmpresasUidRouteImport } from './routes/_app.empresas.$uid'
@@ -113,6 +115,11 @@ const AppWhatsappRoute = AppWhatsappRouteImport.update({
 const AppUsuariosRoute = AppUsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRequerimentosRoute = AppRequerimentosRouteImport.update({
+  id: '/requerimentos',
+  path: '/requerimentos',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPlaybookRoute = AppPlaybookRouteImport.update({
@@ -335,6 +342,11 @@ const AppWhatsappAlertasRoute = AppWhatsappAlertasRouteImport.update({
   path: '/alertas',
   getParentRoute: () => AppWhatsappRoute,
 } as any)
+const AppRequerimentoIdRoute = AppRequerimentoIdRouteImport.update({
+  id: '/requerimento/$id',
+  path: '/requerimento/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNegocioIdRoute = AppNegocioIdRouteImport.update({
   id: '/negocio/$id',
   path: '/negocio/$id',
@@ -483,12 +495,14 @@ export interface FileRoutesByFullPath {
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/novidades': typeof AppNovidadesRoute
+  '/requerimentos': typeof AppRequerimentosRoute
   '/playbook': typeof AppPlaybookRoute
   '/usuarios': typeof AppUsuariosRoute
   '/whatsapp': typeof AppWhatsappRouteWithChildren
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
+  '/requerimento/$id': typeof AppRequerimentoIdRoute
   '/negocio/$id': typeof AppNegocioIdRoute
   '/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
@@ -555,11 +569,13 @@ export interface FileRoutesByTo {
   '/kanban': typeof AppKanbanRoute
   '/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/novidades': typeof AppNovidadesRoute
+  '/requerimentos': typeof AppRequerimentosRoute
   '/playbook': typeof AppPlaybookRoute
   '/usuarios': typeof AppUsuariosRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
+  '/requerimento/$id': typeof AppRequerimentoIdRoute
   '/negocio/$id': typeof AppNegocioIdRoute
   '/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
@@ -628,12 +644,14 @@ export interface FileRoutesById {
   '/_app/kanban': typeof AppKanbanRoute
   '/_app/leads-analytics': typeof AppLeadsAnalyticsRoute
   '/_app/novidades': typeof AppNovidadesRoute
+  '/_app/requerimentos': typeof AppRequerimentosRoute
   '/_app/playbook': typeof AppPlaybookRoute
   '/_app/usuarios': typeof AppUsuariosRoute
   '/_app/whatsapp': typeof AppWhatsappRouteWithChildren
   '/_app/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/_app/empresas/$uid': typeof AppEmpresasUidRoute
   '/_app/lead/$id': typeof AppLeadIdRoute
+  '/_app/requerimento/$id': typeof AppRequerimentoIdRoute
   '/_app/negocio/$id': typeof AppNegocioIdRoute
   '/_app/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/_app/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
@@ -702,12 +720,14 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/leads-analytics'
     | '/novidades'
+    | '/requerimentos'
     | '/playbook'
     | '/usuarios'
     | '/whatsapp'
     | '/analytics-chat/$threadId'
     | '/empresas/$uid'
     | '/lead/$id'
+    | '/requerimento/$id'
     | '/negocio/$id'
     | '/whatsapp/alertas'
     | '/whatsapp/automacoes'
@@ -774,11 +794,13 @@ export interface FileRouteTypes {
     | '/kanban'
     | '/leads-analytics'
     | '/novidades'
+    | '/requerimentos'
     | '/playbook'
     | '/usuarios'
     | '/analytics-chat/$threadId'
     | '/empresas/$uid'
     | '/lead/$id'
+    | '/requerimento/$id'
     | '/negocio/$id'
     | '/whatsapp/alertas'
     | '/whatsapp/automacoes'
@@ -846,12 +868,14 @@ export interface FileRouteTypes {
     | '/_app/kanban'
     | '/_app/leads-analytics'
     | '/_app/novidades'
+    | '/_app/requerimentos'
     | '/_app/playbook'
     | '/_app/usuarios'
     | '/_app/whatsapp'
     | '/_app/analytics-chat/$threadId'
     | '/_app/empresas/$uid'
     | '/_app/lead/$id'
+    | '/_app/requerimento/$id'
     | '/_app/negocio/$id'
     | '/_app/whatsapp/alertas'
     | '/_app/whatsapp/automacoes'
@@ -954,6 +978,13 @@ declare module '@tanstack/react-router' {
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof AppUsuariosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/requerimentos': {
+      id: '/_app/requerimentos'
+      path: '/requerimentos'
+      fullPath: '/requerimentos'
+      preLoaderRoute: typeof AppRequerimentosRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/playbook': {
@@ -1264,6 +1295,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWhatsappAlertasRouteImport
       parentRoute: typeof AppWhatsappRoute
     }
+    '/_app/requerimento/$id': {
+      id: '/_app/requerimento/$id'
+      path: '/requerimento/$id'
+      fullPath: '/requerimento/$id'
+      preLoaderRoute: typeof AppRequerimentoIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/negocio/$id': {
       id: '/_app/negocio/$id'
       path: '/negocio/$id'
@@ -1494,11 +1532,13 @@ interface AppRouteChildren {
   AppKanbanRoute: typeof AppKanbanRoute
   AppLeadsAnalyticsRoute: typeof AppLeadsAnalyticsRoute
   AppNovidadesRoute: typeof AppNovidadesRoute
+  AppRequerimentosRoute: typeof AppRequerimentosRoute
   AppPlaybookRoute: typeof AppPlaybookRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
   AppWhatsappRoute: typeof AppWhatsappRouteWithChildren
   AppEmpresasUidRoute: typeof AppEmpresasUidRoute
   AppLeadIdRoute: typeof AppLeadIdRoute
+  AppRequerimentoIdRoute: typeof AppRequerimentoIdRoute
   AppNegocioIdRoute: typeof AppNegocioIdRoute
 }
 
@@ -1535,11 +1575,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppKanbanRoute: AppKanbanRoute,
   AppLeadsAnalyticsRoute: AppLeadsAnalyticsRoute,
   AppNovidadesRoute: AppNovidadesRoute,
+  AppRequerimentosRoute: AppRequerimentosRoute,
   AppPlaybookRoute: AppPlaybookRoute,
   AppUsuariosRoute: AppUsuariosRoute,
   AppWhatsappRoute: AppWhatsappRouteWithChildren,
   AppEmpresasUidRoute: AppEmpresasUidRoute,
   AppLeadIdRoute: AppLeadIdRoute,
+  AppRequerimentoIdRoute: AppRequerimentoIdRoute,
   AppNegocioIdRoute: AppNegocioIdRoute,
 }
 

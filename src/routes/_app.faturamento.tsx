@@ -15,6 +15,8 @@ import {
   relatorioFaturamento,
   type EtapaFila,
 } from "@/lib/faturamento.functions";
+import { listarLicencas, mudarStatusLicenca } from "@/lib/requerimentos.functions";
+import { PRAZO_PDA_DIAS_UTEIS } from "@/lib/requerimentos/regras";
 import {
   calcularRetencoes,
   formatarCnpj,
@@ -62,7 +64,7 @@ const hojeIso = () => new Date().toISOString().slice(0, 10);
  * com as parcelas e acompanha o recebimento — e o relatório do mês sai pronto.
  */
 function FaturamentoPage() {
-  const [aba, setAba] = useState<"fila" | "relatorio">("fila");
+  const [aba, setAba] = useState<"fila" | "licencas" | "relatorio">("fila");
   return (
     <div className="mx-auto max-w-[1400px] space-y-5 p-4 lg:p-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -78,6 +80,7 @@ function FaturamentoPage() {
           {(
             [
               ["fila", "Fila"],
+              ["licencas", "Licenças PDA"],
               ["relatorio", "Relatório do mês"],
             ] as const
           ).map(([v, l]) => (
@@ -96,7 +99,7 @@ function FaturamentoPage() {
           ))}
         </div>
       </header>
-      {aba === "fila" ? <Fila /> : <Relatorio />}
+      {aba === "fila" ? <Fila /> : aba === "licencas" ? <Licencas /> : <Relatorio />}
     </div>
   );
 }
@@ -695,6 +698,107 @@ function EmitirNota({
         </Button>
       </div>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Licenças PDA — substitui a planilha paralela de solicitado/liberado
+// ---------------------------------------------------------------------------
+function Licencas() {
+  const qc = useQueryClient();
+  const fn = useServerFn(listarLicencas);
+  const statusFn = useServerFn(mudarStatusLicenca);
+  const [abertas, setAbertas] = useState(true);
+  const { data, isLoading } = useQuery({
+    queryKey: ["licencas", "todas", abertas],
+    queryFn: () => fn({ data: { abertas } }),
+  });
+  const mudar = useMutation({
+    mutationFn: (v: { id: string; status: "solicitado" | "liberado" | "cancelado" }) =>
+      statusFn({ data: v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["licencas"] }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+  const conferir = (data?.itens ?? []).filter((l) => l.paraConferir).length;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3 text-[12px]">
+        <label className="flex items-center gap-1.5">
+          <input type="checkbox" checked={abertas} onChange={(e) => setAbertas(e.target.checked)} />
+          Só as em aberto
+        </label>
+        {conferir > 0 && (
+          <span className="flex items-center gap-1 text-amber-700 dark:text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" /> {conferir} solicitada(s) há{" "}
+            {PRAZO_PDA_DIAS_UTEIS}+ dias úteis: conferir na PDA
+          </span>
+        )}
+      </div>
+      <section className="surface-panel overflow-x-auto p-3">
+        {isLoading ? (
+          <p className="text-[13px] text-muted-foreground">Carregando…</p>
+        ) : (data?.itens ?? []).length === 0 ? (
+          <p className="py-4 text-center text-[13px] text-muted-foreground">
+            Nenhuma licença. Elas nascem pelo botão “Pedir liberação” no negócio ganho.
+          </p>
+        ) : (
+          <table className="w-full text-[12px]">
+            <thead className="text-left text-muted-foreground">
+              <tr>
+                <th className="py-1 pr-2">Empresa</th>
+                <th className="py-1 pr-2">Licença</th>
+                <th className="py-1 pr-2">Login</th>
+                <th className="py-1 pr-2">Solicitada</th>
+                <th className="py-1 pr-2">Liberada</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {data?.itens.map((l) => (
+                <tr key={l.id} className={`border-t ${l.paraConferir ? "bg-amber-500/5" : ""}`}>
+                  <td className="py-1 pr-2">
+                    {l.dealId ? (
+                      <Link to="/negocio/$id" params={{ id: l.dealId }} className="hover:underline">
+                        {l.empresa ?? l.negocio}
+                      </Link>
+                    ) : (
+                      (l.empresa ?? "—")
+                    )}
+                  </td>
+                  <td className="py-1 pr-2">{l.descricao}</td>
+                  <td className="py-1 pr-2">{l.loginEmail ?? "—"}</td>
+                  <td className="py-1 pr-2">{dataBr(l.solicitadoEm)}</td>
+                  <td className="py-1 pr-2">{dataBr(l.liberadoEm)}</td>
+                  <td className="py-1 text-right">
+                    {data.podeEditar && l.status === "a_solicitar" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7"
+                        onClick={() => mudar.mutate({ id: l.id, status: "solicitado" })}
+                      >
+                        Solicitei à PDA
+                      </Button>
+                    )}
+                    {data.podeEditar && l.status === "solicitado" && (
+                      <Button
+                        size="sm"
+                        className="h-7"
+                        onClick={() => mudar.mutate({ id: l.id, status: "liberado" })}
+                      >
+                        Liberada
+                      </Button>
+                    )}
+                    {l.status === "liberado" && <span className="text-emerald-600">liberada</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
   );
 }
 

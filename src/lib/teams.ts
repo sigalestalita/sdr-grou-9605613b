@@ -228,6 +228,17 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/playbook", teams: ["comercial"] },
   // Faturamento: Administrativo (e gestão). O servidor confere de novo.
   { prefix: "/faturamento", teams: ["administrativo"] },
+  // Requerimento de serviço: comercial abre, ADM prepara, trainer executa, CS acompanha.
+  {
+    prefix: "/requerimentos",
+    teams: ["administrativo", "comercial", "cs"],
+    roles: ["trainer", "executivo"],
+  },
+  {
+    prefix: "/requerimento",
+    teams: ["administrativo", "comercial", "cs"],
+    roles: ["trainer", "executivo"],
+  },
   // Importação da base do RD: gestão apenas, e o servidor confere de novo.
   { prefix: "/importar-rd", teams: ["comercial", "cs"] },
 ];
