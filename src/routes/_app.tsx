@@ -35,11 +35,17 @@ import {
   Upload,
   MessageCircle,
   Ticket,
+  Receipt,
+  Package,
+  ClipboardList,
+  BadgeDollarSign,
+  GraduationCap,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
+import { NotificacoesBell } from "@/components/app-shell/notificacoes-bell";
 import { CsFollowUpNotifier } from "@/components/app-shell/cs-followup-notifier";
 import { useCurrentRole } from "@/lib/use-role";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -69,6 +75,7 @@ type NavItem = {
  *  - Executivo (Comercial): além do SDR, os objetos Início, Empresas e Tarefas
  *    — a carteira que ele fechou e as tarefas que o CS aciona para ele.
  *  - CS: objetos + Canais + Customer Success.
+ *  - Administrativo: fila de faturamento (conferir, faturar, receber) e relatório.
  *  - BI: as leituras analíticas de cada módulo (Performance SDR, Dashboard CS, Chat Analytics).
  *  - Administração: sistema (usuários, configurações) + referência de cada módulo (playbooks, novidades).
  *  - Gestão: tudo (itens repetidos entre módulos aparecem uma vez).
@@ -143,6 +150,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         team: "comercial",
         roles: ["executivo"],
       },
+      {
+        to: "/comissao",
+        label: "Comissão",
+        icon: BadgeDollarSign,
+        team: "administrativo",
+        roles: ["executivo"],
+      },
     ],
   },
   {
@@ -153,6 +167,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/cs-consultorias", label: "Consultorias", icon: Handshake, team: "cs" },
       { to: "/cs-whatsapp", label: "WhatsApp CS", icon: MessageCircle, team: "cs" },
       { to: "/cs-tickets", label: "Tickets", icon: Ticket, team: "cs" },
+      {
+        to: "/requerimentos",
+        label: "Requerimentos",
+        icon: ClipboardList,
+        team: "cs",
+        also: ["/requerimento"],
+      },
       {
         to: "/cs-integracoes",
         label: "Integrações",
@@ -166,6 +187,36 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         icon: SlidersHorizontal,
         team: "cs",
         managerOnly: true,
+      },
+    ],
+  },
+  {
+    // Faturamento: o ADM confere o ganho, emite a nota e acompanha o recebimento.
+    label: "Administrativo",
+    items: [
+      { to: "/faturamento", label: "Faturamento", icon: Receipt, team: "administrativo" },
+      {
+        to: "/requerimentos",
+        label: "Requerimentos",
+        icon: ClipboardList,
+        team: "administrativo",
+        roles: ["trainer", "executivo"],
+        also: ["/requerimento"],
+      },
+      {
+        to: "/turmas",
+        label: "Turmas",
+        icon: GraduationCap,
+        team: "administrativo",
+        roles: ["trainer", "executivo"],
+        also: ["/turma"],
+      },
+      {
+        to: "/catalogo",
+        label: "Catálogo",
+        icon: Package,
+        team: "administrativo",
+        roles: ["executivo"],
       },
     ],
   },
@@ -538,6 +589,7 @@ function AppShell() {
           <div className="ml-auto flex items-center gap-2">
             <InboxNotifier />
             {role.canAccessTeam("cs") && <CsFollowUpNotifier />}
+            <NotificacoesBell />
           </div>
         </header>
         <main

@@ -458,6 +458,9 @@ export const salvarMetaComercial = createServerFn({ method: "POST" })
         meta_agendas: z.number().int().min(0).max(10_000).nullable().optional(),
         meta_propostas: z.number().int().min(0).max(10_000).nullable().optional(),
         meta_contatos: z.number().int().min(0).max(100_000).nullable().optional(),
+        // Meta dividida (comissão é separada em produto e serviço).
+        meta_produto: z.number().min(0).max(100_000_000).nullable().optional(),
+        meta_servico: z.number().min(0).max(100_000_000).nullable().optional(),
         observacao: z.string().max(500).nullable().optional(),
       })
       .parse(d),
@@ -466,6 +469,11 @@ export const salvarMetaComercial = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: isManager } = await supabase.rpc("is_manager", { _user_id: userId });
     if (!isManager) throw new Error("Apenas a gestão define metas");
+    // Com a meta dividida, a de valor é a soma das duas.
+    const dividida = data.meta_produto != null || data.meta_servico != null;
+    const metaValor = dividida
+      ? (data.meta_produto ?? 0) + (data.meta_servico ?? 0)
+      : data.meta_valor;
 
     const { error } = await supabase.from("commercial_goals").upsert(
       {
@@ -473,7 +481,9 @@ export const salvarMetaComercial = createServerFn({ method: "POST" })
         periodo: data.periodo,
         escopo: data.escopo,
         pipeline_id: null,
-        meta_valor: data.meta_valor,
+        meta_valor: metaValor,
+        meta_produto: data.meta_produto ?? null,
+        meta_servico: data.meta_servico ?? null,
         meta_quantidade: data.meta_quantidade,
         meta_agendas: data.meta_agendas ?? null,
         meta_propostas: data.meta_propostas ?? null,

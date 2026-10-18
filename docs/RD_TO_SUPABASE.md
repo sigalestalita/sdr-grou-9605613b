@@ -1,5 +1,10 @@
 # Importar deals do RD CRM para o Lovable via Claude
 
+> **Obsoleto.** A importação da base do RD é feita pela tela **Importar base do
+> RD** (`/importar-rd`), que roda no servidor. A `service_role` key ignora todas
+> as regras de acesso do banco: não cole essa chave em conversas com IA, chats
+> ou documentos. O botão que a revelava em Configurações foi removido.
+
 Este guia é para colar dentro de uma conversa com o Claude (ou qualquer
 agente com acesso à API do RD CRM). Ele insere/atualiza leads direto na
 tabela `leads` deste projeto.
