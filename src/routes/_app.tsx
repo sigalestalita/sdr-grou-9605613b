@@ -39,6 +39,7 @@ import {
   Package,
   ClipboardList,
   BadgeDollarSign,
+  GraduationCap,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -201,6 +202,14 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         team: "administrativo",
         roles: ["trainer", "executivo"],
         also: ["/requerimento"],
+      },
+      {
+        to: "/turmas",
+        label: "Turmas",
+        icon: GraduationCap,
+        team: "administrativo",
+        roles: ["trainer", "executivo"],
+        also: ["/turma"],
       },
       {
         to: "/catalogo",

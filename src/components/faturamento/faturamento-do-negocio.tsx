@@ -14,6 +14,7 @@ import {
   mudarStatusLicenca,
 } from "@/lib/requerimentos.functions";
 import { STATUS_REQUERIMENTO } from "@/lib/requerimentos/regras";
+import { InscreverEmTurma } from "@/components/faturamento/contrato-e-turma";
 import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -216,6 +217,7 @@ function Execucao({ dealId, podeFaturar }: { dealId: string; podeFaturar: boolea
       >
         {abrirReq.isPending ? "Abrindo…" : "Abrir requerimento de serviço"}
       </Button>
+      <InscreverEmTurma dealId={dealId} />
 
       {(lics?.itens ?? []).length > 0 && (
         <ul className="space-y-1">

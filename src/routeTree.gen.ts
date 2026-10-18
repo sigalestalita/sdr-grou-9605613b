@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
+import { Route as AppTurmasRouteImport } from './routes/_app.turmas'
 import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
 import { Route as AppRequerimentosRouteImport } from './routes/_app.requerimentos'
 import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
@@ -63,6 +64,7 @@ import { Route as AppWhatsappCampanhasRouteImport } from './routes/_app.whatsapp
 import { Route as AppWhatsappAutomacoesRouteImport } from './routes/_app.whatsapp.automacoes'
 import { Route as AppWhatsappAlertasRouteImport } from './routes/_app.whatsapp.alertas'
 import { Route as AppRequerimentoIdRouteImport } from './routes/_app.requerimento.$id'
+import { Route as AppTurmaIdRouteImport } from './routes/_app.turma.$id'
 import { Route as AppNegocioIdRouteImport } from './routes/_app.negocio.$id'
 import { Route as AppLeadIdRouteImport } from './routes/_app.lead.$id'
 import { Route as AppEmpresasUidRouteImport } from './routes/_app.empresas.$uid'
@@ -111,6 +113,11 @@ const IndexRoute = IndexRouteImport.update({
 const AppWhatsappRoute = AppWhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTurmasRoute = AppTurmasRouteImport.update({
+  id: '/turmas',
+  path: '/turmas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUsuariosRoute = AppUsuariosRouteImport.update({
@@ -353,6 +360,11 @@ const AppRequerimentoIdRoute = AppRequerimentoIdRouteImport.update({
   path: '/requerimento/$id',
   getParentRoute: () => AppRoute,
 } as any)
+const AppTurmaIdRoute = AppTurmaIdRouteImport.update({
+  id: '/turma/$id',
+  path: '/turma/$id',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNegocioIdRoute = AppNegocioIdRouteImport.update({
   id: '/negocio/$id',
   path: '/negocio/$id',
@@ -504,12 +516,14 @@ export interface FileRoutesByFullPath {
   '/novidades': typeof AppNovidadesRoute
   '/requerimentos': typeof AppRequerimentosRoute
   '/playbook': typeof AppPlaybookRoute
+  '/turmas': typeof AppTurmasRoute
   '/usuarios': typeof AppUsuariosRoute
   '/whatsapp': typeof AppWhatsappRouteWithChildren
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
   '/requerimento/$id': typeof AppRequerimentoIdRoute
+  '/turma/$id': typeof AppTurmaIdRoute
   '/negocio/$id': typeof AppNegocioIdRoute
   '/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
@@ -579,11 +593,13 @@ export interface FileRoutesByTo {
   '/novidades': typeof AppNovidadesRoute
   '/requerimentos': typeof AppRequerimentosRoute
   '/playbook': typeof AppPlaybookRoute
+  '/turmas': typeof AppTurmasRoute
   '/usuarios': typeof AppUsuariosRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
   '/requerimento/$id': typeof AppRequerimentoIdRoute
+  '/turma/$id': typeof AppTurmaIdRoute
   '/negocio/$id': typeof AppNegocioIdRoute
   '/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
@@ -655,12 +671,14 @@ export interface FileRoutesById {
   '/_app/novidades': typeof AppNovidadesRoute
   '/_app/requerimentos': typeof AppRequerimentosRoute
   '/_app/playbook': typeof AppPlaybookRoute
+  '/_app/turmas': typeof AppTurmasRoute
   '/_app/usuarios': typeof AppUsuariosRoute
   '/_app/whatsapp': typeof AppWhatsappRouteWithChildren
   '/_app/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/_app/empresas/$uid': typeof AppEmpresasUidRoute
   '/_app/lead/$id': typeof AppLeadIdRoute
   '/_app/requerimento/$id': typeof AppRequerimentoIdRoute
+  '/_app/turma/$id': typeof AppTurmaIdRoute
   '/_app/negocio/$id': typeof AppNegocioIdRoute
   '/_app/whatsapp/alertas': typeof AppWhatsappAlertasRoute
   '/_app/whatsapp/automacoes': typeof AppWhatsappAutomacoesRoute
@@ -732,12 +750,14 @@ export interface FileRouteTypes {
     | '/novidades'
     | '/requerimentos'
     | '/playbook'
+    | '/turmas'
     | '/usuarios'
     | '/whatsapp'
     | '/analytics-chat/$threadId'
     | '/empresas/$uid'
     | '/lead/$id'
     | '/requerimento/$id'
+    | '/turma/$id'
     | '/negocio/$id'
     | '/whatsapp/alertas'
     | '/whatsapp/automacoes'
@@ -807,11 +827,13 @@ export interface FileRouteTypes {
     | '/novidades'
     | '/requerimentos'
     | '/playbook'
+    | '/turmas'
     | '/usuarios'
     | '/analytics-chat/$threadId'
     | '/empresas/$uid'
     | '/lead/$id'
     | '/requerimento/$id'
+    | '/turma/$id'
     | '/negocio/$id'
     | '/whatsapp/alertas'
     | '/whatsapp/automacoes'
@@ -882,12 +904,14 @@ export interface FileRouteTypes {
     | '/_app/novidades'
     | '/_app/requerimentos'
     | '/_app/playbook'
+    | '/_app/turmas'
     | '/_app/usuarios'
     | '/_app/whatsapp'
     | '/_app/analytics-chat/$threadId'
     | '/_app/empresas/$uid'
     | '/_app/lead/$id'
     | '/_app/requerimento/$id'
+    | '/_app/turma/$id'
     | '/_app/negocio/$id'
     | '/_app/whatsapp/alertas'
     | '/_app/whatsapp/automacoes'
@@ -983,6 +1007,13 @@ declare module '@tanstack/react-router' {
       path: '/whatsapp'
       fullPath: '/whatsapp'
       preLoaderRoute: typeof AppWhatsappRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/turmas': {
+      id: '/_app/turmas'
+      path: '/turmas'
+      fullPath: '/turmas'
+      preLoaderRoute: typeof AppTurmasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/usuarios': {
@@ -1321,6 +1352,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRequerimentoIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/turma/$id': {
+      id: '/_app/turma/$id'
+      path: '/turma/$id'
+      fullPath: '/turma/$id'
+      preLoaderRoute: typeof AppTurmaIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/negocio/$id': {
       id: '/_app/negocio/$id'
       path: '/negocio/$id'
@@ -1554,11 +1592,13 @@ interface AppRouteChildren {
   AppNovidadesRoute: typeof AppNovidadesRoute
   AppRequerimentosRoute: typeof AppRequerimentosRoute
   AppPlaybookRoute: typeof AppPlaybookRoute
+  AppTurmasRoute: typeof AppTurmasRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
   AppWhatsappRoute: typeof AppWhatsappRouteWithChildren
   AppEmpresasUidRoute: typeof AppEmpresasUidRoute
   AppLeadIdRoute: typeof AppLeadIdRoute
   AppRequerimentoIdRoute: typeof AppRequerimentoIdRoute
+  AppTurmaIdRoute: typeof AppTurmaIdRoute
   AppNegocioIdRoute: typeof AppNegocioIdRoute
 }
 
@@ -1598,11 +1638,13 @@ const AppRouteChildren: AppRouteChildren = {
   AppNovidadesRoute: AppNovidadesRoute,
   AppRequerimentosRoute: AppRequerimentosRoute,
   AppPlaybookRoute: AppPlaybookRoute,
+  AppTurmasRoute: AppTurmasRoute,
   AppUsuariosRoute: AppUsuariosRoute,
   AppWhatsappRoute: AppWhatsappRouteWithChildren,
   AppEmpresasUidRoute: AppEmpresasUidRoute,
   AppLeadIdRoute: AppLeadIdRoute,
   AppRequerimentoIdRoute: AppRequerimentoIdRoute,
+  AppTurmaIdRoute: AppTurmaIdRoute,
   AppNegocioIdRoute: AppNegocioIdRoute,
 }
 

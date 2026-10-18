@@ -39,6 +39,7 @@ import {
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
 import { FaturamentoDoNegocio } from "@/components/faturamento/faturamento-do-negocio";
 import { ItensNegocio } from "@/components/catalogo/itens-negocio";
+import { ContratoDoNegocio } from "@/components/faturamento/contrato-e-turma";
 import { MencionarPessoas } from "@/components/app-shell/mencionar-pessoas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -448,6 +449,8 @@ function NegocioPage() {
           {n.status === "won" && <FaturamentoDoNegocio dealId={id} />}
 
           {n.company_id ? <PoliticaFaturamentoCard companyId={String(n.company_id)} /> : null}
+
+          <ContratoDoNegocio dealId={id} valor={Number(n.amount ?? 0)} fichaUrl={null} />
 
           {n.proximo_passo_em ? (
             <section className="surface-panel p-4">

@@ -18,6 +18,13 @@ import {
 import { listarLicencas, mudarStatusLicenca } from "@/lib/requerimentos.functions";
 import { PRAZO_PDA_DIAS_UTEIS } from "@/lib/requerimentos/regras";
 import {
+  atualizarContrato,
+  listarContratos,
+  STATUS_CONTRATO,
+} from "@/lib/contratos-turmas.functions";
+import { relatorioSegmentado } from "@/lib/relatorios.functions";
+import { DIMENSOES, type Dimensao } from "@/lib/relatorios/segmentos";
+import {
   calcularRetencoes,
   formatarCnpj,
   gerarParcelas,
@@ -64,7 +71,9 @@ const hojeIso = () => new Date().toISOString().slice(0, 10);
  * com as parcelas e acompanha o recebimento — e o relatório do mês sai pronto.
  */
 function FaturamentoPage() {
-  const [aba, setAba] = useState<"fila" | "licencas" | "relatorio">("fila");
+  const [aba, setAba] = useState<"fila" | "licencas" | "contratos" | "relatorio" | "segmentado">(
+    "fila",
+  );
   return (
     <div className="mx-auto max-w-[1400px] space-y-5 p-4 lg:p-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -81,7 +90,9 @@ function FaturamentoPage() {
             [
               ["fila", "Fila"],
               ["licencas", "Licenças PDA"],
+              ["contratos", "Contratos"],
               ["relatorio", "Relatório do mês"],
+              ["segmentado", "Segmentado"],
             ] as const
           ).map(([v, l]) => (
             <button
@@ -99,7 +110,17 @@ function FaturamentoPage() {
           ))}
         </div>
       </header>
-      {aba === "fila" ? <Fila /> : aba === "licencas" ? <Licencas /> : <Relatorio />}
+      {aba === "fila" ? (
+        <Fila />
+      ) : aba === "licencas" ? (
+        <Licencas />
+      ) : aba === "contratos" ? (
+        <Contratos />
+      ) : aba === "segmentado" ? (
+        <Segmentado />
+      ) : (
+        <Relatorio />
+      )}
     </div>
   );
 }
@@ -798,6 +819,262 @@ function Licencas() {
           </table>
         )}
       </section>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Contratos — pedidos de minuta/aditivo
+// ---------------------------------------------------------------------------
+function Contratos() {
+  const qc = useQueryClient();
+  const fn = useServerFn(listarContratos);
+  const atualizarFn = useServerFn(atualizarContrato);
+  const [abertos, setAbertos] = useState(true);
+  const { data, isLoading } = useQuery({
+    queryKey: ["contratos", "todos", abertos],
+    queryFn: () => fn({ data: { abertos } }),
+  });
+  const atualizar = useMutation({
+    mutationFn: (v: {
+      id: string;
+      status?: (typeof STATUS_CONTRATO)[number]["v"];
+      contrato_url?: string | null;
+    }) => atualizarFn({ data: v }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contratos"] }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  return (
+    <div className="space-y-3">
+      <label className="flex items-center gap-1.5 text-[12px]">
+        <input type="checkbox" checked={abertos} onChange={(e) => setAbertos(e.target.checked)} />
+        Só os em andamento
+      </label>
+      {isLoading ? (
+        <p className="text-[13px] text-muted-foreground">Carregando…</p>
+      ) : (data?.itens ?? []).length === 0 ? (
+        <p className="surface-panel p-6 text-center text-[13px] text-muted-foreground">
+          Nenhum pedido de contrato. O comercial pede pelo card “Contrato” no negócio.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {data?.itens.map((c) => (
+            <li key={c.id} className="surface-panel space-y-1 p-3 text-[12px]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[13px] font-medium">
+                  {c.tipo === "aditivo"
+                    ? "Aditivo"
+                    : c.tipo === "minuta_geral"
+                      ? "Minuta geral"
+                      : "Minuta"}{" "}
+                  · {c.empresa ?? c.negocio ?? "—"}
+                </p>
+                <select
+                  className="h-8 rounded-md border bg-background px-2"
+                  value={c.status}
+                  disabled={!data.podeConduzir}
+                  onChange={(e) =>
+                    atualizar.mutate({
+                      id: c.id,
+                      status: e.target.value as (typeof STATUS_CONTRATO)[number]["v"],
+                    })
+                  }
+                >
+                  {STATUS_CONTRATO.map((s) => (
+                    <option key={s.v} value={s.v}>
+                      {s.l}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <dl className="grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
+                <Campo rotulo="Compra" valor={c.compra} />
+                <Campo rotulo="Vencimento" valor={c.vencimento ? dataBr(c.vencimento) : null} />
+                <Campo rotulo="Parcelamento" valor={c.regrasParcelamento} />
+                <Campo
+                  rotulo="Valor bruto"
+                  valor={c.valorBruto != null ? moeda(c.valorBruto) : null}
+                />
+                <Campo rotulo="Enviar para" valor={c.contatoEnvio} />
+                {c.modeloCompra && <Campo rotulo="Modelo de compra" valor={c.modeloCompra} />}
+              </dl>
+              {c.observacoes && <p className="text-muted-foreground">{c.observacoes}</p>}
+              <p className="flex flex-wrap gap-3">
+                {c.fichaUrl && (
+                  <a
+                    href={c.fichaUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    ficha cadastral
+                  </a>
+                )}
+                {c.propostaUrl && (
+                  <a
+                    href={c.propostaUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    proposta final
+                  </a>
+                )}
+                {c.contratoUrl && (
+                  <a
+                    href={c.contratoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    contrato
+                  </a>
+                )}
+                {data.podeConduzir && (
+                  <button
+                    type="button"
+                    className="text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      const u = window.prompt("Link do arquivo do contrato", c.contratoUrl ?? "");
+                      if (u === null) return;
+                      if (u && !/^https?:\/\//.test(u)) return toast.error("Use um link http(s)");
+                      atualizar.mutate({ id: c.id, contrato_url: u || null });
+                    }}
+                  >
+                    {c.contratoUrl ? "trocar link do contrato" : "anexar link do contrato"}
+                  </button>
+                )}
+                {c.dealId && (
+                  <Link
+                    to="/negocio/$id"
+                    params={{ id: c.dealId }}
+                    className="text-muted-foreground hover:underline"
+                  >
+                    negócio
+                  </Link>
+                )}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Relatório segmentado — porte, tipo, status, produto × serviço, região…
+// ---------------------------------------------------------------------------
+function Segmentado() {
+  const fn = useServerFn(relatorioSegmentado);
+  const hoje = hojeIso();
+  const [de, setDe] = useState(`${hoje.slice(0, 4)}-01-01`);
+  const [ate, setAte] = useState(hoje);
+  const [base, setBase] = useState<"venda" | "faturamento">("faturamento");
+  const [dimensao, setDimensao] = useState<Dimensao>("regiao");
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["faturamento", "segmentado", de, ate, base, dimensao],
+    queryFn: () => fn({ data: { de, ate, base, dimensao } }),
+  });
+  const rotuloDim = DIMENSOES.find((d) => d.v === dimensao)?.l ?? dimensao;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2 text-xs">
+        <select
+          className="h-8 rounded-md border bg-background px-2"
+          value={dimensao}
+          onChange={(e) => setDimensao(e.target.value as Dimensao)}
+        >
+          {DIMENSOES.map((d) => (
+            <option key={d.v} value={d.v}>
+              {d.l}
+            </option>
+          ))}
+        </select>
+        <select
+          className="h-8 rounded-md border bg-background px-2"
+          value={base}
+          onChange={(e) => setBase(e.target.value as "venda" | "faturamento")}
+        >
+          <option value="faturamento">Pelo faturamento (notas emitidas)</option>
+          <option value="venda">Pela venda (data do ganho)</option>
+        </select>
+        <Input
+          type="date"
+          className="h-8 w-36 text-xs"
+          value={de}
+          onChange={(e) => setDe(e.target.value)}
+        />
+        <span>até</span>
+        <Input
+          type="date"
+          className="h-8 w-36 text-xs"
+          value={ate}
+          onChange={(e) => setAte(e.target.value)}
+        />
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={!data?.grupos.length}
+          onClick={() =>
+            data &&
+            downloadCsv(
+              `faturamento-${dimensao}-${de}-a-${ate}.csv`,
+              data.grupos.map((g) => ({
+                [rotuloDim]: g.chave,
+                Negócios: g.negocios,
+                Valor: g.valor.toFixed(2).replace(".", ","),
+                Produto: g.produto.toFixed(2).replace(".", ","),
+                Serviço: g.servico.toFixed(2).replace(".", ","),
+              })),
+            )
+          }
+        >
+          <Download className="mr-1 h-3.5 w-3.5" /> CSV
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <p className="text-[13px] text-muted-foreground">Carregando…</p>
+      ) : error ? (
+        <p className="text-[13px] text-destructive">
+          {error instanceof Error ? error.message : "Erro"}
+        </p>
+      ) : data ? (
+        <section className="surface-panel overflow-x-auto p-3">
+          <p className="mb-2 text-[12px] text-muted-foreground">
+            {data.negocios} negócio(s) · {moeda(data.total)}
+          </p>
+          <table className="w-full text-[12px]">
+            <thead className="text-left text-muted-foreground">
+              <tr>
+                <th className="py-1 pr-2">{rotuloDim}</th>
+                <th className="py-1 pr-2 text-right">Negócios</th>
+                <th className="py-1 pr-2 text-right">Valor</th>
+                <th className="py-1 pr-2 text-right">%</th>
+                <th className="py-1 pr-2 text-right">Produto</th>
+                <th className="py-1 text-right">Serviço</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.grupos.map((g) => (
+                <tr key={g.chave} className="border-t">
+                  <td className="py-1 pr-2">{g.chave}</td>
+                  <td className="py-1 pr-2 text-right">{g.negocios}</td>
+                  <td className="py-1 pr-2 text-right tabular-nums">{moeda(g.valor)}</td>
+                  <td className="py-1 pr-2 text-right">
+                    {data.total ? `${Math.round((g.valor / data.total) * 1000) / 10}%` : "—"}
+                  </td>
+                  <td className="py-1 pr-2 text-right tabular-nums">{moeda(g.produto)}</td>
+                  <td className="py-1 text-right tabular-nums">{moeda(g.servico)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
     </div>
   );
 }
