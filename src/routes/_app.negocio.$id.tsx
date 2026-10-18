@@ -38,6 +38,7 @@ import {
 } from "@/lib/faturamento/politica";
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
 import { FaturamentoDoNegocio } from "@/components/faturamento/faturamento-do-negocio";
+import { ItensNegocio } from "@/components/catalogo/itens-negocio";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -373,6 +374,8 @@ function NegocioPage() {
               <Label className="text-[11px]">Valor</Label>
               <Input
                 type="number"
+                // com itens, o valor é a soma deles: recarrega quando mudar
+                key={String(n.amount ?? 0)}
                 defaultValue={Number(n.amount ?? 0)}
                 onBlur={(e) => {
                   const v = Number(e.target.value);
@@ -401,18 +404,6 @@ function NegocioPage() {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <Label className="text-[11px]">Produtos / serviços</Label>
-              <Textarea
-                rows={2}
-                defaultValue={String(n.produtos_texto ?? "")}
-                onBlur={(e) => {
-                  if (e.target.value !== (n.produtos_texto ?? ""))
-                    salvarCampo.mutate({ produtos_texto: e.target.value || null });
-                }}
-              />
-            </div>
-
             <dl className="space-y-1 text-[11px] text-muted-foreground">
               {etapaAtual && (
                 <div className="flex justify-between gap-2">
@@ -420,6 +411,12 @@ function NegocioPage() {
                   <dd className="text-foreground">{etapaAtual.nome}</dd>
                 </div>
               )}
+              {n.produtos_texto ? (
+                <div className="flex justify-between gap-2">
+                  <dt>Produtos</dt>
+                  <dd className="text-right text-foreground">{String(n.produtos_texto)}</dd>
+                </div>
+              ) : null}
               {n.fonte ? (
                 <div className="flex justify-between gap-2">
                   <dt>Origem</dt>
@@ -434,6 +431,8 @@ function NegocioPage() {
               ) : null}
             </dl>
           </section>
+
+          <ItensNegocio dealId={id} editavel />
 
           {n.status === "won" && <FaturamentoDoNegocio dealId={id} />}
 

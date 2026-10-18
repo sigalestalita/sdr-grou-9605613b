@@ -12,6 +12,7 @@ import {
   removerMetaComercial,
   salvarMetaComercial,
 } from "@/lib/comercial.functions";
+import { realizadoPorTipo } from "@/lib/catalogo.functions";
 import { moeda, quantidadeSugerida } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +49,8 @@ type MetaRow = {
   meta_agendas: number | null;
   meta_propostas: number | null;
   meta_contatos: number | null;
+  meta_produto: number | null;
+  meta_servico: number | null;
   observacao: string | null;
 };
 
@@ -67,6 +70,7 @@ function MetasPage() {
   const salvarEmpresaFn = useServerFn(salvarMetaDaEmpresa);
   const salvarFn = useServerFn(salvarMetaComercial);
   const removerFn = useServerFn(removerMetaComercial);
+  const realizadoFn = useServerFn(realizadoPorTipo);
   const qc = useQueryClient();
 
   const [ref, setRef] = useState(() => startOfMonth(new Date()));
@@ -80,6 +84,12 @@ function MetasPage() {
     queryKey: ["metas-comerciais", periodo],
     queryFn: () => listFn({ data: { periodo } }),
   });
+  // Venda do mês dividida em produto × serviço, pelos itens dos negócios.
+  const { data: realizado } = useQuery({
+    queryKey: ["metas-realizado", periodo],
+    queryFn: () => realizadoFn({ data: { mes: periodo.slice(0, 7) } }),
+  });
+  const realizadoDe = new Map((realizado?.porExecutivo ?? []).map((r) => [r.executivoId ?? "", r]));
 
   const salvarEmpresa = useMutation({
     mutationFn: () => salvarEmpresaFn({ data: { valor: Number(metaEmpresa), base: metaBase } }),
@@ -101,7 +111,7 @@ function MetasPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
-  const metas = (data?.metas ?? []) as MetaRow[];
+  const metas = (data?.metas ?? []) as unknown as MetaRow[];
   const nomeDe = new Map(
     (data?.profiles ?? []).map(
       (p: { id: string; full_name: string | null; email: string | null }) => [
@@ -233,6 +243,21 @@ function MetasPage() {
                 {m.meta_agendas ? (
                   <span className="text-muted-foreground">{m.meta_agendas} agendas</span>
                 ) : null}
+                {(() => {
+                  const r = realizadoDe.get(m.user_id);
+                  const pct = (feito: number, meta: number | null) =>
+                    meta ? ` (${Math.round((feito / meta) * 100)}%)` : "";
+                  return (
+                    <span className="w-full text-[11px] text-muted-foreground">
+                      Produto {moeda(r?.produto ?? 0)}
+                      {m.meta_produto != null ? ` de ${moeda(m.meta_produto)}` : ""}
+                      {pct(r?.produto ?? 0, m.meta_produto)} · Serviço {moeda(r?.servico ?? 0)}
+                      {m.meta_servico != null ? ` de ${moeda(m.meta_servico)}` : ""}
+                      {pct(r?.servico ?? 0, m.meta_servico)}
+                      {r && r.semTipo > 0 ? ` · sem tipo ${moeda(r.semTipo)}` : ""}
+                    </span>
+                  );
+                })()}
                 {m.meta_propostas ? (
                   <span className="text-muted-foreground">{m.meta_propostas} propostas</span>
                 ) : null}
@@ -308,6 +333,13 @@ function MetaDialog({
   const [agendas, setAgendas] = useState(String(meta?.meta_agendas ?? ""));
   const [propostas, setPropostas] = useState(String(meta?.meta_propostas ?? ""));
   const [contatos, setContatos] = useState(String(meta?.meta_contatos ?? ""));
+  const [produto, setProduto] = useState(
+    meta?.meta_produto != null ? String(meta.meta_produto) : "",
+  );
+  const [servico, setServico] = useState(
+    meta?.meta_servico != null ? String(meta.meta_servico) : "",
+  );
+  const dividida = produto !== "" || servico !== "";
 
   const sugestao = quantidadeSugerida(Number(valor) || 0, ticketMedio);
   const divergente = sugestao > 0 && Number(quantidade) > 0 && Number(quantidade) < sugestao;
@@ -319,7 +351,11 @@ function MetaDialog({
           userId,
           periodo,
           escopo: escopo as "novos" | "carteira" | "ambos",
-          meta_valor: Number(valor) || 0,
+          meta_valor: dividida
+            ? (Number(produto) || 0) + (Number(servico) || 0)
+            : Number(valor) || 0,
+          meta_produto: produto !== "" ? Number(produto) : null,
+          meta_servico: servico !== "" ? Number(servico) : null,
           meta_quantidade: Number(quantidade) || 0,
           meta_agendas: agendas ? Number(agendas) : null,
           meta_propostas: propostas ? Number(propostas) : null,
@@ -380,11 +416,43 @@ function MetaDialog({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
+              <Label htmlFor="produto">Meta de produto (R$)</Label>
+              <Input
+                id="produto"
+                inputMode="numeric"
+                value={produto}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d]/g, "");
+                  setProduto(v);
+                  setValor(String((Number(v) || 0) + (Number(servico) || 0)));
+                }}
+                placeholder="licenças, créditos"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="servico">Meta de serviço (R$)</Label>
+              <Input
+                id="servico"
+                inputMode="numeric"
+                value={servico}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d]/g, "");
+                  setServico(v);
+                  setValor(String((Number(produto) || 0) + (Number(v) || 0)));
+                }}
+                placeholder="certificações, workshops"
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
               <Label htmlFor="valor">Meta de valor (R$)</Label>
               <Input
                 id="valor"
                 inputMode="numeric"
                 value={valor}
+                disabled={dividida}
                 onChange={(e) => setValor(e.target.value.replace(/[^\d]/g, ""))}
                 placeholder="50000"
               />

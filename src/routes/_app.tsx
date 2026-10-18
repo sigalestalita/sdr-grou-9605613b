@@ -36,6 +36,7 @@ import {
   MessageCircle,
   Ticket,
   Receipt,
+  Package,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -174,7 +175,16 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     // Faturamento: o ADM confere o ganho, emite a nota e acompanha o recebimento.
     label: "Administrativo",
-    items: [{ to: "/faturamento", label: "Faturamento", icon: Receipt, team: "administrativo" }],
+    items: [
+      { to: "/faturamento", label: "Faturamento", icon: Receipt, team: "administrativo" },
+      {
+        to: "/catalogo",
+        label: "Catálogo",
+        icon: Package,
+        team: "administrativo",
+        roles: ["executivo"],
+      },
+    ],
   },
   {
     // BI: leitura analítica de todos os módulos

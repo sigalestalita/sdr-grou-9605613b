@@ -45,6 +45,7 @@ import { Route as AppComercialMetasRouteImport } from './routes/_app.comercial-m
 import { Route as AppComercialAnaliseRouteImport } from './routes/_app.comercial-analise'
 import { Route as AppComercialAgendaRouteImport } from './routes/_app.comercial-agenda'
 import { Route as AppComercialRouteImport } from './routes/_app.comercial'
+import { Route as AppCatalogoRouteImport } from './routes/_app.catalogo'
 import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
 import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
@@ -259,6 +260,11 @@ const AppComercialRoute = AppComercialRouteImport.update({
   path: '/comercial',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCatalogoRoute = AppCatalogoRouteImport.update({
+  id: '/catalogo',
+  path: '/catalogo',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCadenciaRoute = AppCadenciaRouteImport.update({
   id: '/cadencia',
   path: '/cadencia',
@@ -447,6 +453,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/agenda': typeof AppAgendaRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
+  '/catalogo': typeof AppCatalogoRoute
   '/cadencia': typeof AppCadenciaRoute
   '/comercial': typeof AppComercialRoute
   '/comercial-agenda': typeof AppComercialAgendaRoute
@@ -518,6 +525,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/agenda': typeof AppAgendaRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
+  '/catalogo': typeof AppCatalogoRoute
   '/cadencia': typeof AppCadenciaRoute
   '/comercial': typeof AppComercialRoute
   '/comercial-agenda': typeof AppComercialAgendaRoute
@@ -590,6 +598,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/_app/agenda': typeof AppAgendaRoute
   '/_app/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
+  '/_app/catalogo': typeof AppCatalogoRoute
   '/_app/cadencia': typeof AppCadenciaRoute
   '/_app/comercial': typeof AppComercialRoute
   '/_app/comercial-agenda': typeof AppComercialAgendaRoute
@@ -663,6 +672,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/agenda'
     | '/analytics-chat'
+    | '/catalogo'
     | '/cadencia'
     | '/comercial'
     | '/comercial-agenda'
@@ -734,6 +744,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/agenda'
     | '/analytics-chat'
+    | '/catalogo'
     | '/cadencia'
     | '/comercial'
     | '/comercial-agenda'
@@ -805,6 +816,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/_app/agenda'
     | '/_app/analytics-chat'
+    | '/_app/catalogo'
     | '/_app/cadencia'
     | '/_app/comercial'
     | '/_app/comercial-agenda'
@@ -1147,6 +1159,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppComercialRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/catalogo': {
+      id: '/_app/catalogo'
+      path: '/catalogo'
+      fullPath: '/catalogo'
+      preLoaderRoute: typeof AppCatalogoRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cadencia': {
       id: '/_app/cadencia'
       path: '/cadencia'
@@ -1445,6 +1464,7 @@ const AppWhatsappRouteWithChildren = AppWhatsappRoute._addFileChildren(
 interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
   AppAnalyticsChatRoute: typeof AppAnalyticsChatRouteWithChildren
+  AppCatalogoRoute: typeof AppCatalogoRoute
   AppCadenciaRoute: typeof AppCadenciaRoute
   AppComercialRoute: typeof AppComercialRoute
   AppComercialAgendaRoute: typeof AppComercialAgendaRoute
@@ -1485,6 +1505,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
   AppAnalyticsChatRoute: AppAnalyticsChatRouteWithChildren,
+  AppCatalogoRoute: AppCatalogoRoute,
   AppCadenciaRoute: AppCadenciaRoute,
   AppComercialRoute: AppComercialRoute,
   AppComercialAgendaRoute: AppComercialAgendaRoute,
