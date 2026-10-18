@@ -146,7 +146,8 @@ ALTER TABLE public.notificacoes ADD CONSTRAINT notificacoes_tipo_check CHECK (ti
 ));
 
 -- Venda ganha põe a empresa na carteira comercial (se ainda não está), na
--- primeira etapa e sem dono, e avisa a gestão para definir.
+-- primeira etapa e sem dono, e avisa a gestão para definir (quando quem
+-- ganhou foi uma pessoa no sistema).
 CREATE OR REPLACE FUNCTION public.deals_entra_na_carteira()
 RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
@@ -171,7 +172,9 @@ BEGIN
   ON CONFLICT (company_id, pipeline_id) DO NOTHING
   RETURNING id INTO v_id;
 
-  IF v_id IS NOT NULL THEN
+  -- Sem sessão é importação/servidor: milhares de vendas antigas não viram
+  -- milhares de avisos; a gestão vê as "sem dono" no quadro.
+  IF v_id IS NOT NULL AND auth.uid() IS NOT NULL THEN
     SELECT nome, uid INTO v_nome, v_uid FROM public.companies WHERE id = NEW.company_id;
     INSERT INTO public.notificacoes (user_id, tipo, titulo, corpo, link, deal_id)
     SELECT DISTINCT ur.user_id, 'carteira',
