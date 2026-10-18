@@ -96,7 +96,7 @@ export const getComercialAgenda = createServerFn({ method: "GET" })
       supabaseAdmin
         .from("leads")
         .select(
-          "id, name, company_name, executivo_id, meeting_at, meeting_duration_min, meeting_invite_sent_at",
+          "id, name, company_name, executivo_id, meeting_at, meeting_duration_min, meeting_invite_sent_at, deal_id",
         )
         .in("executivo_id", alvos)
         .gte("meeting_at", data.from)
@@ -146,13 +146,18 @@ export const getComercialAgenda = createServerFn({ method: "GET" })
         empresa: (l.company_name as string | null) ?? null,
         convidado: (l.name as string | null) ?? null,
         leadId: l.id as string,
-        dealId: null,
+        dealId: (l.deal_id as string | null) ?? null,
         cancelado: false,
       });
     }
 
+    // O negócio que nasceu da reunião do SDR repete a mesma reunião: mostra uma vez.
+    const jaNaAgenda = new Set(
+      (leads ?? []).map((l) => l.deal_id as string | null).filter((x): x is string => !!x),
+    );
+
     for (const n of negocios ?? []) {
-      if (!n.reuniao_em) continue;
+      if (!n.reuniao_em || jaNaAgenda.has(n.id as string)) continue;
       const inicio = new Date(n.reuniao_em as string);
       const empresa = (n.companies as { nome?: string | null } | null)?.nome ?? null;
       eventos.push({
