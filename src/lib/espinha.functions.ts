@@ -35,18 +35,27 @@ export const getLeadNaEspinha = createServerFn({ method: "GET" })
     const { data: lead, error } = await db
       .from("leads")
       .select(
-        "id, deal_id, executivo_id, contacts:contact_id(id, nome), companies:company_id(id, uid, nome, tipo_lead), deals:deal_id(id, nome, status)",
+        "id, deal_id, executivo_id, contacts:contact_id(id, nome), companies:company_id(id, nome, tipo_lead), deals:deal_id(id, nome, status)",
       )
       .eq("id", data.leadId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!lead) throw new Error("Lead não encontrado");
     const l = lead as Record<string, unknown>;
+    const empresaId = (l.companies as { id: string } | null)?.id;
+    // A página da empresa hoje é a ficha do CS: só há link quando ela existe.
+    const { data: ficha } = empresaId
+      ? await db
+          .from("cs_clients")
+          .select("client_uid")
+          .eq("company_id", empresaId)
+          .limit(1)
+          .maybeSingle()
+      : { data: null };
     return {
+      fichaCs: (ficha as { client_uid: string } | null)?.client_uid ?? null,
       contato: (l.contacts as { id: string; nome: string } | null) ?? null,
-      empresa:
-        (l.companies as { id: string; uid: string; nome: string; tipo_lead: string } | null) ??
-        null,
+      empresa: (l.companies as { id: string; nome: string; tipo_lead: string } | null) ?? null,
       negocio: (l.deals as { id: string; nome: string; status: string } | null) ?? null,
       executivoId: (l.executivo_id as string | null) ?? null,
     };

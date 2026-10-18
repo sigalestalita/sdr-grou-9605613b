@@ -213,6 +213,7 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/jornada", teams: ["comercial", "cs"], roles: ["executivo"] },
   // O ADM abre o negócio e a empresa a partir da fila de faturamento.
   { prefix: "/negocio", teams: ["comercial", "administrativo"], roles: ["executivo"] },
+  { prefix: "/carteira-comercial", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-analise", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-pipeline", teams: ["comercial"], roles: ["executivo"] },

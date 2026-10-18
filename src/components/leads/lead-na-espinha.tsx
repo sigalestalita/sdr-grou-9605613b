@@ -47,14 +47,18 @@ export function LeadNaEspinha({ leadId }: { leadId: string }) {
         <User className="h-3.5 w-3.5" /> {data.contato?.nome ?? "sem contato"}
       </span>
       <ArrowRight className="h-3 w-3 text-muted-foreground" />
-      {data.empresa ? (
+      {data.empresa && data.fichaCs ? (
         <Link
           to="/empresas/$uid"
-          params={{ uid: data.empresa.uid }}
+          params={{ uid: data.fichaCs }}
           className="inline-flex items-center gap-1 hover:underline"
         >
           <Building2 className="h-3.5 w-3.5" /> {data.empresa.nome}
         </Link>
+      ) : data.empresa ? (
+        <span className="inline-flex items-center gap-1">
+          <Building2 className="h-3.5 w-3.5" /> {data.empresa.nome}
+        </span>
       ) : (
         <span className="inline-flex items-center gap-1 text-muted-foreground">
           <Building2 className="h-3.5 w-3.5" /> empresa definida na passagem

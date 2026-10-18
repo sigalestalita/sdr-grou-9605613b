@@ -49,6 +49,7 @@ import { Route as AppComercialAgendaRouteImport } from './routes/_app.comercial-
 import { Route as AppComissaoRouteImport } from './routes/_app.comissao'
 import { Route as AppComercialRouteImport } from './routes/_app.comercial'
 import { Route as AppCatalogoRouteImport } from './routes/_app.catalogo'
+import { Route as AppCarteiraComercialRouteImport } from './routes/_app.carteira-comercial'
 import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
 import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
@@ -285,6 +286,11 @@ const AppCatalogoRoute = AppCatalogoRouteImport.update({
   path: '/catalogo',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCarteiraComercialRoute = AppCarteiraComercialRouteImport.update({
+  id: '/carteira-comercial',
+  path: '/carteira-comercial',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCadenciaRoute = AppCadenciaRouteImport.update({
   id: '/cadencia',
   path: '/cadencia',
@@ -484,6 +490,7 @@ export interface FileRoutesByFullPath {
   '/agenda': typeof AppAgendaRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/catalogo': typeof AppCatalogoRoute
+  '/carteira-comercial': typeof AppCarteiraComercialRoute
   '/cadencia': typeof AppCadenciaRoute
   '/comissao': typeof AppComissaoRoute
   '/comercial': typeof AppComercialRoute
@@ -561,6 +568,7 @@ export interface FileRoutesByTo {
   '/agenda': typeof AppAgendaRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/catalogo': typeof AppCatalogoRoute
+  '/carteira-comercial': typeof AppCarteiraComercialRoute
   '/cadencia': typeof AppCadenciaRoute
   '/comissao': typeof AppComissaoRoute
   '/comercial': typeof AppComercialRoute
@@ -639,6 +647,7 @@ export interface FileRoutesById {
   '/_app/agenda': typeof AppAgendaRoute
   '/_app/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/_app/catalogo': typeof AppCatalogoRoute
+  '/_app/carteira-comercial': typeof AppCarteiraComercialRoute
   '/_app/cadencia': typeof AppCadenciaRoute
   '/_app/comissao': typeof AppComissaoRoute
   '/_app/comercial': typeof AppComercialRoute
@@ -718,6 +727,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/analytics-chat'
     | '/catalogo'
+    | '/carteira-comercial'
     | '/cadencia'
     | '/comissao'
     | '/comercial'
@@ -795,6 +805,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/analytics-chat'
     | '/catalogo'
+    | '/carteira-comercial'
     | '/cadencia'
     | '/comissao'
     | '/comercial'
@@ -872,6 +883,7 @@ export interface FileRouteTypes {
     | '/_app/agenda'
     | '/_app/analytics-chat'
     | '/_app/catalogo'
+    | '/_app/carteira-comercial'
     | '/_app/cadencia'
     | '/_app/comissao'
     | '/_app/comercial'
@@ -1247,6 +1259,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCatalogoRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/carteira-comercial': {
+      id: '/_app/carteira-comercial'
+      path: '/carteira-comercial'
+      fullPath: '/carteira-comercial'
+      preLoaderRoute: typeof AppCarteiraComercialRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/cadencia': {
       id: '/_app/cadencia'
       path: '/cadencia'
@@ -1560,6 +1579,7 @@ interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
   AppAnalyticsChatRoute: typeof AppAnalyticsChatRouteWithChildren
   AppCatalogoRoute: typeof AppCatalogoRoute
+  AppCarteiraComercialRoute: typeof AppCarteiraComercialRoute
   AppCadenciaRoute: typeof AppCadenciaRoute
   AppComissaoRoute: typeof AppComissaoRoute
   AppComercialRoute: typeof AppComercialRoute
@@ -1606,6 +1626,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
   AppAnalyticsChatRoute: AppAnalyticsChatRouteWithChildren,
   AppCatalogoRoute: AppCatalogoRoute,
+  AppCarteiraComercialRoute: AppCarteiraComercialRoute,
   AppCadenciaRoute: AppCadenciaRoute,
   AppComissaoRoute: AppComissaoRoute,
   AppComercialRoute: AppComercialRoute,

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
 import {
   Kanban as KanbanIcon,
+  Briefcase,
   BarChart3,
   Target,
   Route as RouteIcon,
@@ -133,6 +134,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         to: "/comercial-pipeline",
         label: "Pipeline de negócios",
         icon: KanbanIcon,
+        team: "comercial",
+        roles: ["executivo"],
+      },
+      {
+        to: "/carteira-comercial",
+        label: "Carteira comercial",
+        icon: Briefcase,
         team: "comercial",
         roles: ["executivo"],
       },
