@@ -127,6 +127,13 @@
       "when": 1792374075178,
       "tag": "0017_historico_autor_rd",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1792430644814,
+      "tag": "0018_20261019200000_cadencia_para_ao_agendar",
+      "breakpoints": true
     }
   ]
 }
