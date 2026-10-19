@@ -24,6 +24,7 @@ import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analy
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
 import { Route as AppJornadaRouteImport } from './routes/_app.jornada'
 import { Route as AppInicioRouteImport } from './routes/_app.inicio'
+import { Route as AppMigracaoRdRouteImport } from './routes/_app.migracao-rd'
 import { Route as AppImportarRdRouteImport } from './routes/_app.importar-rd'
 import { Route as AppFaturamentoRouteImport } from './routes/_app.faturamento'
 import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
@@ -159,6 +160,11 @@ const AppJornadaRoute = AppJornadaRouteImport.update({
 const AppInicioRoute = AppInicioRouteImport.update({
   id: '/inicio',
   path: '/inicio',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMigracaoRdRoute = AppMigracaoRdRouteImport.update({
+  id: '/migracao-rd',
+  path: '/migracao-rd',
   getParentRoute: () => AppRoute,
 } as any)
 const AppImportarRdRoute = AppImportarRdRouteImport.update({
@@ -515,6 +521,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/faturamento': typeof AppFaturamentoRoute
   '/diagnostico': typeof AppDiagnosticoRoute
+  '/migracao-rd': typeof AppMigracaoRdRoute
   '/importar-rd': typeof AppImportarRdRoute
   '/inicio': typeof AppInicioRoute
   '/jornada': typeof AppJornadaRoute
@@ -593,6 +600,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/faturamento': typeof AppFaturamentoRoute
   '/diagnostico': typeof AppDiagnosticoRoute
+  '/migracao-rd': typeof AppMigracaoRdRoute
   '/importar-rd': typeof AppImportarRdRoute
   '/inicio': typeof AppInicioRoute
   '/jornada': typeof AppJornadaRoute
@@ -672,6 +680,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/faturamento': typeof AppFaturamentoRoute
   '/_app/diagnostico': typeof AppDiagnosticoRoute
+  '/_app/migracao-rd': typeof AppMigracaoRdRoute
   '/_app/importar-rd': typeof AppImportarRdRoute
   '/_app/inicio': typeof AppInicioRoute
   '/_app/jornada': typeof AppJornadaRoute
@@ -752,6 +761,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/faturamento'
     | '/diagnostico'
+    | '/migracao-rd'
     | '/importar-rd'
     | '/inicio'
     | '/jornada'
@@ -830,6 +840,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/faturamento'
     | '/diagnostico'
+    | '/migracao-rd'
     | '/importar-rd'
     | '/inicio'
     | '/jornada'
@@ -908,6 +919,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/faturamento'
     | '/_app/diagnostico'
+    | '/_app/migracao-rd'
     | '/_app/importar-rd'
     | '/_app/inicio'
     | '/_app/jornada'
@@ -1082,6 +1094,13 @@ declare module '@tanstack/react-router' {
       path: '/inicio'
       fullPath: '/inicio'
       preLoaderRoute: typeof AppInicioRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/migracao-rd': {
+      id: '/_app/migracao-rd'
+      path: '/migracao-rd'
+      fullPath: '/migracao-rd'
+      preLoaderRoute: typeof AppMigracaoRdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/importar-rd': {
@@ -1604,6 +1623,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppFaturamentoRoute: typeof AppFaturamentoRoute
   AppDiagnosticoRoute: typeof AppDiagnosticoRoute
+  AppMigracaoRdRoute: typeof AppMigracaoRdRoute
   AppImportarRdRoute: typeof AppImportarRdRoute
   AppInicioRoute: typeof AppInicioRoute
   AppJornadaRoute: typeof AppJornadaRoute
@@ -1651,6 +1671,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppFaturamentoRoute: AppFaturamentoRoute,
   AppDiagnosticoRoute: AppDiagnosticoRoute,
+  AppMigracaoRdRoute: AppMigracaoRdRoute,
   AppImportarRdRoute: AppImportarRdRoute,
   AppInicioRoute: AppInicioRoute,
   AppJornadaRoute: AppJornadaRoute,

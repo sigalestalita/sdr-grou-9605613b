@@ -195,7 +195,9 @@ function applyWithProvenance(
   return patch;
 }
 
-function userMatcher(profiles: { id: string; full_name: string | null; email: string | null }[]) {
+export function userMatcher(
+  profiles: { id: string; full_name: string | null; email: string | null }[],
+) {
   const byNorm = new Map<string, string>();
   for (const p of profiles) {
     if (p.full_name) byNorm.set(norm(p.full_name), p.id);
@@ -777,6 +779,7 @@ export async function transformRdToObjects(opts?: {
     const updates: Array<{ id: string; patch: Row }> = [];
     const productLines = new Map<string, Row[]>(); // rd_deal_id -> linhas
     const contactLinks = new Map<string, string[]>(); // rd_deal_id -> contact ids
+    const companyOfDeal = new Map<string, string>(); // rd_deal_id -> companies.id
     for (const d of rdDeals) {
       if (destinoDe.get(String(d.rd_id))?.tipo !== "negocio") continue;
       const raw = (d.raw ?? {}) as Json;
@@ -821,7 +824,10 @@ export async function transformRdToObjects(opts?: {
         else delete fields[col];
       }
       const companyId = d.rd_org_id ? orgToCompany.get(String(d.rd_org_id)) : undefined;
-      if (companyId) fields.company_id = companyId;
+      if (companyId) {
+        fields.company_id = companyId;
+        companyOfDeal.set(String(d.rd_id), companyId);
+      }
       const contactIds = (
         ((raw.contacts as Array<{ _id?: string; id?: string }> | undefined) ?? [])
           .map((c) => rdId(c))
@@ -945,6 +951,36 @@ export async function transformRdToObjects(opts?: {
           .upsert(part as never, { onConflict: "deal_id,contact_id", ignoreDuplicates: true });
         if (error) errors.push(`deal_contacts: ${error.message}`);
       }
+      // Contato que participa do negócio de uma empresa faz parte dela, mesmo
+      // que no RD o cadastro do contato não aponte a empresa: entra em
+      // company_contacts e, se estava sem empresa, ela vira a principal.
+      const porEmpresa = new Map<string, Set<string>>();
+      for (const [rd, ids] of contactLinks) {
+        const companyId = companyOfDeal.get(rd);
+        if (!companyId) continue;
+        const set = porEmpresa.get(companyId) ?? new Set<string>();
+        ids.forEach((cid) => set.add(cid));
+        porEmpresa.set(companyId, set);
+      }
+      const ccRows: Row[] = [];
+      for (const [companyId, ids] of porEmpresa)
+        for (const cid of ids)
+          ccRows.push({ company_id: companyId, contact_id: cid, principal: false });
+      for (const part of chunk(ccRows, 500)) {
+        const { error } = await supabaseAdmin
+          .from("company_contacts")
+          .upsert(part as never, { onConflict: "company_id,contact_id", ignoreDuplicates: true });
+        if (error) errors.push(`company_contacts (via negócio): ${error.message}`);
+      }
+      for (const [companyId, ids] of porEmpresa)
+        for (const part of chunk([...ids], 150)) {
+          const { error } = await supabaseAdmin
+            .from("contacts")
+            .update({ company_id: companyId } as never)
+            .in("id", part)
+            .is("company_id", null);
+          if (error) errors.push(`contato sem empresa → ${companyId}: ${error.message}`);
+        }
     } else {
       result.deals.created = inserts.length;
       result.deals.updated = updates.length;

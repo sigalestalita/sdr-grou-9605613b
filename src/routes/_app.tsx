@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
 import {
   Kanban as KanbanIcon,
+  History,
   Briefcase,
   BarChart3,
   Target,
@@ -257,6 +258,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/usuarios", label: "Usuários", icon: Users, managerOnly: true },
       { to: "/configuracoes", label: "Configurações", icon: SettingsIcon, managerOnly: true },
       { to: "/importar-rd", label: "Importar base do RD", icon: Upload, managerOnly: true },
+      { to: "/migracao-rd", label: "Migração do RD", icon: History, managerOnly: true },
       { to: "/playbook", label: "Playbook SDR", icon: BookOpen, team: "comercial" },
       { to: "/cs-playbook", label: "Playbook CS", icon: BookOpen, team: "cs" },
       { to: "/novidades", label: "Novidades", icon: Sparkles },
