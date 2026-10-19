@@ -219,3 +219,68 @@ export const importarHistoricoRd = createServerFn({ method: "POST" })
       .is("rd_historico_em", null);
     return { negocios, atividades, restantes: count ?? 0, erro };
   });
+
+/**
+ * Preenche o funil dos cards já espelhados (rd_deals.pipeline). A listagem de
+ * negócios do RD traz a etapa mas não o funil; o nome vem da lista de funis e
+ * etapas do RD, pelo id da etapa guardado no card cru.
+ */
+export const preencherFunisRd = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirGestao(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getRdTokenInfo } = await import("@/lib/rd-token.server");
+    const { fetchMapaDeFunis } = await import("@/lib/rd/rd-api.server");
+    const { todasAsPaginas } = await import("@/lib/paginar.server");
+    const db = supabaseAdmin as unknown as SupabaseClient;
+
+    const { token } = await getRdTokenInfo();
+    if (!token) throw new Error("RD Station não conectado. Conecte em Configurações.");
+    const mapa = await fetchMapaDeFunis(token);
+
+    const semFunil = await todasAsPaginas<{
+      rd_id: string;
+      etapa: string | null;
+      funil: string | null;
+      funil2: string | null;
+    }>(
+      (de, ate) =>
+        db
+          .from("rd_deals")
+          .select(
+            "rd_id, etapa:raw->deal_stage->>_id, funil:raw->deal_pipeline->>_id, funil2:raw->>deal_pipeline_id",
+          )
+          .is("pipeline", null)
+          .order("rd_id")
+          .range(de, ate),
+      400_000,
+    );
+
+    const porNome = new Map<string, string[]>();
+    let semMapa = 0;
+    for (const c of semFunil) {
+      const idFunil = c.funil ?? c.funil2;
+      const nome =
+        (idFunil && mapa.porFunil.get(idFunil)) || (c.etapa && mapa.porEtapa.get(c.etapa)) || null;
+      if (!nome) {
+        semMapa++;
+        continue;
+      }
+      porNome.set(nome, [...(porNome.get(nome) ?? []), c.rd_id]);
+    }
+    let preenchidos = 0;
+    for (const [nome, ids] of porNome)
+      for (let i = 0; i < ids.length; i += 200) {
+        const parte = ids.slice(i, i + 200);
+        const { error } = await db.from("rd_deals").update({ pipeline: nome }).in("rd_id", parte);
+        if (error) throw new Error(error.message);
+        preenchidos += parte.length;
+      }
+    return {
+      funisNoRd: [...mapa.porFunil.values()],
+      preenchidos,
+      semMapa,
+      porFunil: [...porNome.entries()].map(([nome, ids]) => ({ nome, cards: ids.length })),
+    };
+  });
