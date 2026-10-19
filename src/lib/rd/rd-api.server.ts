@@ -259,3 +259,41 @@ export function dealStatus(d: RdDealRaw): "won" | "lost" | "open" {
   if (d.win === false && d.closed_at) return "lost";
   return "open";
 }
+
+export interface RdAtividade {
+  _id?: string;
+  id?: string;
+  text?: string;
+  subject?: string;
+  type?: string;
+  activity_kind?: string;
+  date?: string;
+  created_at?: string;
+  user?: { name?: string; email?: string };
+}
+
+/**
+ * Anotações e atividades de um negócio (o RD expõe as duas por rotas
+ * diferentes; a mesma atividade pode vir nas duas, por isso o id dedupe).
+ * Erro de rede ou 404 vira lista vazia; 429 (limite) sobe, para a fatia parar.
+ */
+export async function fetchDealHistorico(token: string, dealId: string): Promise<RdAtividade[]> {
+  const out = new Map<string, RdAtividade>();
+  for (const [rota, chave] of [
+    ["activities", "activities"],
+    ["notes", "notes"],
+  ] as const) {
+    const qs = new URLSearchParams({ token }).toString();
+    const res = await fetch(`${RD_BASE}/deals/${encodeURIComponent(dealId)}/${rota}?${qs}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (res.status === 429) throw new Error("RD 429: limite de requisições, tente em 1 minuto");
+    if (!res.ok) continue;
+    const json = (await res.json()) as Record<string, RdAtividade[] | undefined>;
+    for (const a of json[chave] ?? []) {
+      const id = rdId(a);
+      if (id) out.set(id, a);
+    }
+  }
+  return [...out.values()];
+}

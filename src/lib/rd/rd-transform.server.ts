@@ -195,7 +195,7 @@ function applyWithProvenance(
   return patch;
 }
 
-function userMatcher(profiles: { id: string; full_name: string | null; email: string | null }[]) {
+export function userMatcher(profiles: { id: string; full_name: string | null; email: string | null }[]) {
   const byNorm = new Map<string, string>();
   for (const p of profiles) {
     if (p.full_name) byNorm.set(norm(p.full_name), p.id);
