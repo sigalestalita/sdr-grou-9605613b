@@ -176,9 +176,11 @@ UPDATE public.deals SET company_id = NULL WHERE company_id IS NULL;
 DO $$
 BEGIN
   PERFORM cron.unschedule('vincular-leads') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'vincular-leads');
-  PERFORM cron.schedule('vincular-leads', '*/2 * * * *', 'SELECT public.vincular_leads_pendentes(1000)');
+  -- De hora em hora (24 execuções/dia), até 5.000 leads por vez; a função se
+  -- desagenda quando não há mais pendentes (20261019145000).
+  PERFORM cron.schedule('vincular-leads', '17 * * * *', 'SELECT public.vincular_leads_pendentes(5000)');
 EXCEPTION WHEN undefined_function OR invalid_schema_name OR undefined_table THEN
-  RAISE NOTICE 'pg_cron indisponível: rode SELECT public.vincular_leads_pendentes(1000) até voltar 0';
+  RAISE NOTICE 'pg_cron indisponível: rode SELECT public.vincular_leads_pendentes(5000) até voltar 0';
 END $$;
 
 -- ===== de 20261019110000_funis_de_conta_carteira.sql =====
