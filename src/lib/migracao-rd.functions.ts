@@ -205,6 +205,7 @@ export const importarHistoricoRd = createServerFn({ method: "POST" })
             descricao: texto.slice(0, 10_000),
             occurred_at: a.date ?? a.created_at ?? new Date().toISOString(),
             author_id: a.user?.name ? userOf(a.user.name) : null,
+            rd_autor: a.user?.name?.trim() || null,
             rd_activity_id: id,
           };
         })
@@ -331,4 +332,55 @@ export const salvarRegraDeDono = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/**
+ * Preenche o autor do histórico já importado que ficou sem usuário, pelo nome
+ * do RD (rd_autor), com as regras de dono e os usuários de agora. Rodar depois
+ * de criar usuários ou definir regras.
+ */
+export const reaplicarDonosNoHistorico = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirGestao(context.supabase, context.userId);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { todasAsPaginas } = await import("@/lib/paginar.server");
+    const { userMatcher, carregarRegrasDeDono } = await import("@/lib/rd/rd-transform.server");
+    const db = supabaseAdmin as unknown as SupabaseClient;
+
+    const pendentes = await todasAsPaginas<{ rd_autor: string }>(
+      (de, ate) =>
+        db
+          .from("deal_activities")
+          .select("rd_autor")
+          .is("author_id", null)
+          .not("rd_autor", "is", null)
+          .order("id")
+          .range(de, ate),
+      400_000,
+    );
+    const nomes = [...new Set(pendentes.map((p) => p.rd_autor))];
+    const { data: profiles } = await db.from("profiles").select("id, full_name, email");
+    const userOf = userMatcher(
+      (profiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>,
+      await carregarRegrasDeDono(),
+    );
+    let atualizadas = 0;
+    const semUsuario: string[] = [];
+    for (const nome of nomes) {
+      const id = userOf(nome);
+      if (!id) {
+        semUsuario.push(nome);
+        continue;
+      }
+      const { data, error } = await db
+        .from("deal_activities")
+        .update({ author_id: id })
+        .eq("rd_autor", nome)
+        .is("author_id", null)
+        .select("id");
+      if (error) throw new Error(error.message);
+      atualizadas += data?.length ?? 0;
+    }
+    return { atualizadas, semUsuario };
   });
