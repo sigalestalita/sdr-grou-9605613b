@@ -9,6 +9,7 @@ import {
   getConferenciaRd,
   importarHistoricoRd,
   preencherFunisRd,
+  reaplicarDonosNoHistorico,
   salvarRegraDeDono,
 } from "@/lib/migracao-rd.functions";
 import { moeda } from "@/lib/comercial/metas";
@@ -34,6 +35,16 @@ function MigracaoRdPage() {
   const histFn = useServerFn(importarHistoricoRd);
   const funisFn = useServerFn(preencherFunisRd);
   const regraFn = useServerFn(salvarRegraDeDono);
+  const reaplicarFn = useServerFn(reaplicarDonosNoHistorico);
+  const reaplicar = useMutation({
+    mutationFn: () => reaplicarFn(),
+    onSuccess: (r) =>
+      toast.success(
+        `${r.atualizadas} anotações com autor preenchido` +
+          (r.semUsuario.length ? ` · ainda sem usuário: ${r.semUsuario.join(", ")}` : ""),
+      ),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
   const salvarRegra = useMutation({
     mutationFn: (v: { nomeRd: string; destino: string }) => regraFn({ data: v }),
     onSuccess: () => {
@@ -316,6 +327,15 @@ function MigracaoRdPage() {
               {hist.negocios ? "Continuar" : "Importar histórico"}
             </Button>
           )}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => reaplicar.mutate()}
+            disabled={reaplicar.isPending || hist.rodando}
+            title="Depois de criar usuários ou definir regras de dono"
+          >
+            {reaplicar.isPending ? "Reaplicando…" : "Reaplicar donos no histórico"}
+          </Button>
           {(hist.negocios > 0 || hist.restantes !== null) && (
             <span>
               {hist.negocios} negócios · {hist.atividades} anotações/atividades
