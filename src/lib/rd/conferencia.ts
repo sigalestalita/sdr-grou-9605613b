@@ -60,6 +60,7 @@ export const DESTINO_LABEL: Record<DestinoRd["tipo"], string> = {
   negocio: "Negócio",
   conta: "Carteira comercial",
   cs: "Carteira do CS",
+  ignorar: "Fica de fora (decidir depois)",
 };
 
 /** O RD deixou ~10 mil vendas "abertas" na etapa Venda; a transformação as trata como ganhas. */
@@ -103,7 +104,7 @@ export function conferir(
     else if (status === "won") f.ganhos++;
     else f.perdidos++;
 
-    const esperado = destino.tipo !== "cs" || status === "open";
+    const esperado = destino.tipo !== "ignorar" && (destino.tipo !== "cs" || status === "open");
     const chegou =
       destino.tipo === "lead"
         ? crm.leads.has(c.rd_id)

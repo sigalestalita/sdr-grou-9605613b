@@ -17,7 +17,17 @@ describe("destinoDoFunilRd", () => {
   it("Vendas e funis de venda viram negócio", () => {
     expect(destinoDoFunilRd("Vendas")).toEqual({ tipo: "negocio" });
     expect(destinoDoFunilRd("CROSS SELL - Cliente")).toEqual({ tipo: "negocio" });
-    expect(destinoDoFunilRd(null)).toEqual({ tipo: "negocio" });
+    expect(destinoDoFunilRd("[C] Vendas")).toEqual({ tipo: "negocio" });
+    expect(destinoDoFunilRd("Negócios dos Parceiros de Negócios [PN]")).toEqual({
+      tipo: "negocio",
+    });
+  });
+
+  it("funil sem destino definido fica de fora", () => {
+    expect(destinoDoFunilRd(null)).toEqual({ tipo: "ignorar" });
+    expect(destinoDoFunilRd("FUNIL OUTBOUND - REPESCAGEM")).toEqual({ tipo: "ignorar" });
+    expect(destinoDoFunilRd("Prospecção de novos PN [C]")).toEqual({ tipo: "ignorar" });
+    expect(destinoDoFunilRd("Gestor de Canais")).toEqual({ tipo: "ignorar" });
   });
 
   it("carteira comercial é funil de conta", () => {
