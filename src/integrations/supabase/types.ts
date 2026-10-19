@@ -5356,6 +5356,7 @@ export type Database = {
         Returns: string
       }
       e_trainer: { Args: { _user_id: string }; Returns: boolean }
+      etapa_encerra_cadencia: { Args: { _stage: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
