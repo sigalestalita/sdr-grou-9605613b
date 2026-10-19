@@ -35,12 +35,7 @@ AS $$
     ELSE ARRAY['membro', 'gestao']
   END;
 $$;
-
-INSERT INTO public.teams (slug, nome, descricao, modulo, cor, ordem) VALUES
-  ('administrativo', 'Administrativo',
-   'Faturamento: política do cliente, conferência do ganho, notas, parcelas e recebimento',
-   'administrativo', 'amber', 30)
-ON CONFLICT (slug) DO NOTHING;
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
 
 /** Quem mexe no faturamento: time Administrativo ou gestão. */
 CREATE OR REPLACE FUNCTION public.pode_faturar(_user_id uuid)

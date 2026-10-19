@@ -22,12 +22,7 @@ AS $$
     ELSE ARRAY['membro', 'gestao']
   END;
 $$;
-
-INSERT INTO public.teams (slug, nome, descricao, modulo, cor, ordem) VALUES
-  ('trainers', 'Trainers',
-   'Quem entrega certificações, workshops e mentorias: requerimentos, cronograma, briefing e conclusão',
-   'administrativo', 'violet', 40)
-ON CONFLICT (slug) DO NOTHING;
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
 
 -- trainer vira papel (user_roles), como sdr/executivo/gestao.
 CREATE OR REPLACE FUNCTION public.sync_user_roles(_user_id uuid)
