@@ -761,6 +761,93 @@ export type Database = {
           },
         ]
       }
+      contrato_solicitacoes: {
+        Row: {
+          assinado_em: string | null
+          company_id: string | null
+          compra: string | null
+          contato_envio: string | null
+          contrato_url: string | null
+          created_at: string
+          deal_id: string | null
+          enviado_em: string | null
+          ficha_url: string | null
+          id: string
+          modelo_compra: string | null
+          observacoes: string | null
+          proposta_url: string | null
+          regras_parcelamento: string | null
+          responsavel_id: string | null
+          solicitado_por: string | null
+          status: string
+          tipo: string
+          updated_at: string
+          valor_bruto: number | null
+          vencimento: string | null
+        }
+        Insert: {
+          assinado_em?: string | null
+          company_id?: string | null
+          compra?: string | null
+          contato_envio?: string | null
+          contrato_url?: string | null
+          created_at?: string
+          deal_id?: string | null
+          enviado_em?: string | null
+          ficha_url?: string | null
+          id?: string
+          modelo_compra?: string | null
+          observacoes?: string | null
+          proposta_url?: string | null
+          regras_parcelamento?: string | null
+          responsavel_id?: string | null
+          solicitado_por?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_bruto?: number | null
+          vencimento?: string | null
+        }
+        Update: {
+          assinado_em?: string | null
+          company_id?: string | null
+          compra?: string | null
+          contato_envio?: string | null
+          contrato_url?: string | null
+          created_at?: string
+          deal_id?: string | null
+          enviado_em?: string | null
+          ficha_url?: string | null
+          id?: string
+          modelo_compra?: string | null
+          observacoes?: string | null
+          proposta_url?: string | null
+          regras_parcelamento?: string | null
+          responsavel_id?: string | null
+          solicitado_por?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+          valor_bruto?: number | null
+          vencimento?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contrato_solicitacoes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contrato_solicitacoes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cs_alerts: {
         Row: {
           agenda_type: string | null
@@ -4088,6 +4175,150 @@ export type Database = {
           },
         ]
       }
+      turma_inscricoes: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          checkin_em: string | null
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string | null
+          id: string
+          motivo: string | null
+          participante_email: string | null
+          participante_nome: string
+          participante_telefone: string | null
+          status: string
+          turma_id: string
+          updated_at: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          checkin_em?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          motivo?: string | null
+          participante_email?: string | null
+          participante_nome: string
+          participante_telefone?: string | null
+          status?: string
+          turma_id: string
+          updated_at?: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          checkin_em?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string | null
+          id?: string
+          motivo?: string | null
+          participante_email?: string | null
+          participante_nome?: string
+          participante_telefone?: string | null
+          status?: string
+          turma_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turma_inscricoes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turma_inscricoes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turma_inscricoes_turma_id_fkey"
+            columns: ["turma_id"]
+            isOneToOne: false
+            referencedRelation: "turmas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      turmas: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          fim: string | null
+          formato: string | null
+          horario: string | null
+          id: string
+          inicio: string | null
+          kickoff_em: string | null
+          link_acesso: string | null
+          local: string | null
+          nome: string
+          observacoes: string | null
+          product_id: string | null
+          status: string
+          trainer_id: string | null
+          updated_at: string
+          vagas: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          fim?: string | null
+          formato?: string | null
+          horario?: string | null
+          id?: string
+          inicio?: string | null
+          kickoff_em?: string | null
+          link_acesso?: string | null
+          local?: string | null
+          nome: string
+          observacoes?: string | null
+          product_id?: string | null
+          status?: string
+          trainer_id?: string | null
+          updated_at?: string
+          vagas?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          fim?: string | null
+          formato?: string | null
+          horario?: string | null
+          id?: string
+          inicio?: string | null
+          kickoff_em?: string | null
+          link_acesso?: string | null
+          local?: string | null
+          nome?: string
+          observacoes?: string | null
+          product_id?: string | null
+          status?: string
+          trainer_id?: string | null
+          updated_at?: string
+          vagas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turmas_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -5070,6 +5301,10 @@ export type Database = {
       }
       trainer_status_sessao: {
         Args: { _sessao: string; _status: string }
+        Returns: undefined
+      }
+      turma_checkin: {
+        Args: { _inscricao: string; _presente: boolean }
         Returns: undefined
       }
     }
