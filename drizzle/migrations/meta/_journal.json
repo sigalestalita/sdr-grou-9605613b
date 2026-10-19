@@ -120,6 +120,13 @@
       "when": 1792373555278,
       "tag": "0016_20261019170000_rd_regras_de_dono",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1792374075178,
+      "tag": "0017_historico_autor_rd",
+      "breakpoints": true
     }
   ]
 }
