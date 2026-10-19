@@ -431,8 +431,10 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       : null;
 
     const agendados = bySlug["agendado"] ?? 0;
+    // No-show também foi agendado: conta na conversão em agendamento.
+    const noShow = bySlug["no_show"] ?? 0;
     const total = all.length;
-    const conversionRate = total ? Math.round((agendados / total) * 1000) / 10 : 0;
+    const conversionRate = total ? Math.round(((agendados + noShow) / total) * 1000) / 10 : 0;
 
     // by source
     const bySource: Record<string, number> = {};
@@ -462,6 +464,7 @@ export const getDashboardStats = createServerFn({ method: "GET" })
       em_contato: bySlug["em_contato"] ?? 0,
       qualificacao: bySlug["qualificacao"] ?? 0,
       agendados,
+      noShow,
       desqualificados: bySlug["desqualificado"] ?? 0,
       aguardando: bySlug["aguardando"] ?? 0,
       avgFirstApproachMin,
