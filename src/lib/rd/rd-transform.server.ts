@@ -49,6 +49,8 @@ export interface RdTransformResult {
     wonFromStage: number;
     /** Cards dos funis do SDR: são leads (rd-sync), não negócios. */
     leadsDoSdr: number;
+    /** Cards de funis ainda sem destino (não importados). */
+    ignorados: number;
     /** Cards de "Gestão da Carteira Comercial" → company_funis. */
     carteira: number;
     /** Empresas em cards abertos dos funis [CS] → carteira do CS (cs_clients). */
@@ -291,6 +293,7 @@ export async function transformRdToObjects(opts?: {
       updated: 0,
       wonFromStage: 0,
       leadsDoSdr: 0,
+      ignorados: 0,
       carteira: 0,
       carteiraCs: 0,
       fichasCsCriadas: 0,
@@ -724,6 +727,10 @@ export async function transformRdToObjects(opts?: {
     for (const d of rdDeals) {
       const destino = destinoDe.get(String(d.rd_id));
       if (!destino || destino.tipo === "negocio") continue;
+      if (destino.tipo === "ignorar") {
+        result.deals.ignorados++;
+        continue;
+      }
       if (destino.tipo === "lead") {
         result.deals.leadsDoSdr++;
         continue;
