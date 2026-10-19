@@ -6,6 +6,12 @@ import { getDashboardStats } from "@/lib/settings.functions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, CartesianGrid } from "recharts";
+import {
+  FiltroPeriodo,
+  periodoDoAtalho,
+  periodoEmIso,
+  type Periodo,
+} from "@/components/filtro-periodo";
 
 export const Route = createFileRoute("/_app/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — SDR GROU" }] }),
@@ -14,20 +20,13 @@ export const Route = createFileRoute("/_app/dashboard")({
 
 function DashboardPage() {
   const fetchFn = useServerFn(getDashboardStats);
-  const [range, setRange] = useState<"7d" | "30d" | "90d" | "180d">("30d");
+  const [periodo, setPeriodo] = useState<Periodo>(() => periodoDoAtalho("30d"));
   const [assignedTo, setAssignedTo] = useState<string>("all");
 
-  const { from, to } = useMemo(() => {
-    const now = new Date();
-    const days = range === "7d" ? 7 : range === "90d" ? 90 : range === "180d" ? 180 : 30;
-    return {
-      from: new Date(now.getTime() - days * 86400000).toISOString(),
-      to: now.toISOString(),
-    };
-  }, [range]);
+  const { from, to } = useMemo(() => periodoEmIso(periodo), [periodo]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard", range, assignedTo],
+    queryKey: ["dashboard", periodo.de, periodo.ate, assignedTo],
     queryFn: () => fetchFn({ data: { from, to, assignedTo: assignedTo === "all" ? undefined : assignedTo } }),
   });
 
@@ -46,17 +45,7 @@ function DashboardPage() {
           ))}
         </SelectContent>
       </Select>
-      <Select value={range} onValueChange={(v) => setRange(v as typeof range)}>
-        <SelectTrigger className="h-8 w-32 text-xs">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="7d">Últimos 7d</SelectItem>
-          <SelectItem value="30d">Últimos 30d</SelectItem>
-          <SelectItem value="90d">Últimos 90d</SelectItem>
-          <SelectItem value="180d">Últimos 180d</SelectItem>
-        </SelectContent>
-      </Select>
+      <FiltroPeriodo value={periodo} onChange={setPeriodo} />
     </div>
   );
 
