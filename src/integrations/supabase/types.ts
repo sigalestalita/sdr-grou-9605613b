@@ -4425,7 +4425,7 @@ export type Database = {
       team_access_types: { Args: { _modulo: string }; Returns: string[] }
     }
     Enums: {
-      app_role: "super_admin" | "gestao" | "executivo" | "sdr"
+      app_role: "super_admin" | "gestao" | "executivo" | "sdr" | "trainer"
       app_team: "comercial" | "cs" | "administrativo"
       cs_client_type: "empresa" | "consultoria" | "pessoa_fisica"
       cs_contact_origin: "manual" | "email_bcc" | "pda_api" | "linkedin"
@@ -4561,7 +4561,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["super_admin", "gestao", "executivo", "sdr"],
+      app_role: ["super_admin", "gestao", "executivo", "sdr", "trainer"],
       app_team: ["comercial", "cs", "administrativo"],
       cs_client_type: ["empresa", "consultoria", "pessoa_fisica"],
       cs_contact_origin: ["manual", "email_bcc", "pda_api", "linkedin"],

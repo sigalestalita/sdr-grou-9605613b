@@ -15,6 +15,13 @@
       "when": 1792370852050,
       "tag": "0001_20261018100100_modulo_faturamento",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792370890681,
+      "tag": "0002_20261018110000_papel_trainer_enum",
+      "breakpoints": true
     }
   ]
 }
