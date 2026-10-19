@@ -645,6 +645,73 @@ export type Database = {
           },
         ]
       }
+      company_funis: {
+        Row: {
+          company_id: string
+          created_at: string
+          created_by: string | null
+          entrou_em: string
+          id: string
+          observacao: string | null
+          owner_user_id: string | null
+          pipeline_id: string
+          rd_deal_id: string | null
+          stage_entered_at: string
+          stage_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string
+          created_by?: string | null
+          entrou_em?: string
+          id?: string
+          observacao?: string | null
+          owner_user_id?: string | null
+          pipeline_id: string
+          rd_deal_id?: string | null
+          stage_entered_at?: string
+          stage_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string
+          created_by?: string | null
+          entrou_em?: string
+          id?: string
+          observacao?: string | null
+          owner_user_id?: string | null
+          pipeline_id?: string
+          rd_deal_id?: string | null
+          stage_entered_at?: string
+          stage_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_funis_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_funis_pipeline_id_fkey"
+            columns: ["pipeline_id"]
+            isOneToOne: false
+            referencedRelation: "pipelines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_funis_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           analista_certificado_em: string | null
