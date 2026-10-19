@@ -48,13 +48,18 @@ export const MIRROR_PASSES: Array<[string, string]> = [
 ];
 export const MIRROR_WINDOW = 2; // páginas por chamada (≈400 registros)
 export const CONTACT_BUCKETS = "bcdfghjklmnpqrstvwxyz";
-export const TRANSFORM_LIMITS = { companies: 1000, contacts: 1500, deals: 800 } as const;
+// Negócios em fatias menores: cada negócio gravado dispara gatilhos (empresa,
+// carteira, ciclo de vida) e fatias grandes estouravam o tempo do servidor.
+export const TRANSFORM_LIMITS = { companies: 1000, contacts: 1500, deals: 400 } as const;
 
 export class Aborted extends Error {
   constructor() {
     super("Interrompido");
   }
 }
+
+/** Espera entre tentativas (o teste encurta). */
+export const ESPERA = { entreTentativasMs: 3000 };
 
 async function retry<T>(fn: () => Promise<T>, tries = 5, log?: (s: string) => void): Promise<T> {
   let last: unknown;
@@ -64,7 +69,7 @@ async function retry<T>(fn: () => Promise<T>, tries = 5, log?: (s: string) => vo
     } catch (e) {
       last = e;
       log?.(`  falhou (${a}/${tries}): ${e instanceof Error ? e.message : String(e)}`);
-      await new Promise((r) => setTimeout(r, 3000 * a));
+      await new Promise((r) => setTimeout(r, ESPERA.entreTentativasMs * a));
     }
   }
   throw last instanceof Error ? last : new Error(String(last));
@@ -153,19 +158,48 @@ export async function driveTransform(
   const add = (k: "companies" | "contacts" | "deals" | "dedupe", part?: TransformPart) => {
     for (const [f, v] of Object.entries(part ?? {})) agg[k][f] = (agg[k][f] ?? 0) + Number(v);
   };
+  /*
+   * Uma fatia que falha (tempo esgotado no servidor, por exemplo) não pode
+   * parar a carga: antes, depois de 5 tentativas a transformação inteira
+   * abortava e as fatias seguintes nunca rodavam. Agora a fatia é dividida ao
+   * meio e tentada de novo; o que ainda falhar com até 50 registros é pulado,
+   * registrado no log e nos erros, e a carga segue. Rodar de novo completa.
+   */
+  const fatia = async (
+    only: "companies" | "contacts" | "deals",
+    offset: number,
+    limit: number,
+    total: number,
+  ): Promise<void> => {
+    if (signal?.aborted) throw new Aborted();
+    let r;
+    try {
+      r = await retry(() => call({ dryRun, only: [only], offset, limit }), 3, log);
+    } catch (e) {
+      if (e instanceof Aborted) throw e;
+      if (limit > 50) {
+        const meio = Math.ceil(limit / 2);
+        log(`${only} ${offset + 1}–${offset + limit}: dividindo em duas partes`);
+        await fatia(only, offset, meio, total);
+        await fatia(only, offset + meio, limit - meio, total);
+        return;
+      }
+      const msg = `${only} ${offset + 1}–${offset + limit} pulado: ${e instanceof Error ? e.message : String(e)}`;
+      log(msg);
+      agg.errors.push(msg);
+      return;
+    }
+    add(only, r[only]);
+    agg.products = Math.max(agg.products, r.products ?? 0);
+    agg.errors.push(...(r.errors ?? []));
+    const p = r[only] ?? {};
+    log(
+      `${only} ${Math.min(offset + limit, total)}/${total}: ${p.created ?? 0} novos · ${p.updated ?? 0} atualizados${r.errors?.length ? ` · erro: ${r.errors[0]}` : ""}`,
+    );
+  };
   const run = async (only: "companies" | "contacts" | "deals", total: number) => {
     const limit = TRANSFORM_LIMITS[only];
-    for (let offset = 0; offset < total; offset += limit) {
-      if (signal?.aborted) throw new Aborted();
-      const r = await retry(() => call({ dryRun, only: [only], offset, limit }), 5, log);
-      add(only, r[only]);
-      agg.products = Math.max(agg.products, r.products ?? 0);
-      agg.errors.push(...(r.errors ?? []));
-      const p = r[only] ?? {};
-      log(
-        `${only} ${Math.min(offset + limit, total)}/${total}: ${p.created ?? 0} novos · ${p.updated ?? 0} atualizados${r.errors?.length ? ` · erro: ${r.errors[0]}` : ""}`,
-      );
-    }
+    for (let offset = 0; offset < total; offset += limit) await fatia(only, offset, limit, total);
   };
   await run("companies", counts.organizations);
   await run("contacts", counts.contacts);
