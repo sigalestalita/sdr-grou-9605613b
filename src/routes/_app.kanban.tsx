@@ -89,6 +89,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { formatDistanceToNow, format, differenceInDays } from "date-fns";
+import { FiltroPeriodo } from "@/components/filtro-periodo";
 import { ptBR } from "date-fns/locale";
 import { rotuloDaOrigem, VINDO_DO_WHATSAPP } from "@/lib/leads/origem";
 
@@ -630,6 +631,15 @@ function KanbanPage() {
               className="h-8 w-60 pl-7 text-[13px]"
             />
           </div>
+          {/* Período da conversão do lead: atalhos ou intervalo personalizado. */}
+          <FiltroPeriodo
+            value={{ de: dateFrom, ate: dateTo }}
+            onChange={(p) => {
+              setDateFrom(p.de);
+              setDateTo(p.ate);
+            }}
+            permitirTodos
+          />
           <Button
             variant={showFilters ? "secondary" : "outline"}
             size="sm"
@@ -818,79 +828,6 @@ function KanbanPage() {
                 label="Motivo de descarte"
               />
             )}
-            <div className="flex flex-wrap items-center gap-1 sm:col-span-2">
-              <select
-                value=""
-                onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) return;
-                  const fmt = (d: Date) => {
-                    const y = d.getFullYear();
-                    const m = String(d.getMonth() + 1).padStart(2, "0");
-                    const day = String(d.getDate()).padStart(2, "0");
-                    return `${y}-${m}-${day}`;
-                  };
-                  const today = new Date();
-                  today.setHours(0, 0, 0, 0);
-                  let from = new Date(today);
-                  let to = new Date(today);
-                  if (v === "hoje") {
-                    /* same */
-                  } else if (v === "ontem") {
-                    from.setDate(from.getDate() - 1);
-                    to.setDate(to.getDate() - 1);
-                  } else if (v === "7d") {
-                    from.setDate(from.getDate() - 6);
-                  } else if (v === "15d") {
-                    from.setDate(from.getDate() - 14);
-                  } else if (v === "mes") {
-                    from = new Date(today.getFullYear(), today.getMonth(), 1);
-                  } else if (v === "mes_ant") {
-                    from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                    to = new Date(today.getFullYear(), today.getMonth(), 0);
-                  }
-                  setDateFrom(fmt(from));
-                  setDateTo(fmt(to));
-                }}
-                className="h-9 w-full rounded-md border bg-background px-2 text-sm"
-                title="Período rápido"
-              >
-                <option value="">Período…</option>
-                <option value="hoje">Hoje</option>
-                <option value="ontem">Ontem</option>
-                <option value="7d">Últimos 7 dias</option>
-                <option value="15d">Últimos 15 dias</option>
-                <option value="mes">Este mês</option>
-                <option value="mes_ant">Mês anterior</option>
-              </select>
-              <Input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="h-9 w-[140px]"
-                title="Conversão a partir de"
-              />
-              <span className="text-xs text-muted-foreground">até</span>
-              <Input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="h-9 w-[140px]"
-                title="Conversão até"
-              />
-              {(dateFrom || dateTo) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setDateFrom("");
-                    setDateTo("");
-                  }}
-                >
-                  Limpar
-                </Button>
-              )}
-            </div>
           </div>
         </div>
       )}
