@@ -8,6 +8,13 @@
       "when": 1792370385037,
       "tag": "0000_20261018100000_modulo_administrativo_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792370852050,
+      "tag": "0001_20261018100100_modulo_faturamento",
+      "breakpoints": true
     }
   ]
 }

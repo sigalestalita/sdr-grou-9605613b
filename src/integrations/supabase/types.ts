@@ -326,6 +326,98 @@ export type Database = {
           },
         ]
       }
+      company_faturamento: {
+        Row: {
+          aceita_parcelamento: boolean | null
+          codigo_webmais: string | null
+          company_id: string
+          created_at: string
+          emails_nf: string[]
+          exige_oc: boolean | null
+          ficha_recebida_em: string | null
+          ficha_url: string | null
+          forma_pagamento: string | null
+          inscricao_estadual: string | null
+          inscricao_municipal: string | null
+          janela_emissao_fim: number | null
+          janela_emissao_inicio: number | null
+          observacoes: string | null
+          prazo_tipo: string | null
+          prazo_valor: number | null
+          regime_tributario: string | null
+          retencao_cofins: number | null
+          retencao_csll: number | null
+          retencao_inss: number | null
+          retencao_irrf: number | null
+          retencao_iss: number | null
+          retencao_pis: number | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          aceita_parcelamento?: boolean | null
+          codigo_webmais?: string | null
+          company_id: string
+          created_at?: string
+          emails_nf?: string[]
+          exige_oc?: boolean | null
+          ficha_recebida_em?: string | null
+          ficha_url?: string | null
+          forma_pagamento?: string | null
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          janela_emissao_fim?: number | null
+          janela_emissao_inicio?: number | null
+          observacoes?: string | null
+          prazo_tipo?: string | null
+          prazo_valor?: number | null
+          regime_tributario?: string | null
+          retencao_cofins?: number | null
+          retencao_csll?: number | null
+          retencao_inss?: number | null
+          retencao_irrf?: number | null
+          retencao_iss?: number | null
+          retencao_pis?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          aceita_parcelamento?: boolean | null
+          codigo_webmais?: string | null
+          company_id?: string
+          created_at?: string
+          emails_nf?: string[]
+          exige_oc?: boolean | null
+          ficha_recebida_em?: string | null
+          ficha_url?: string | null
+          forma_pagamento?: string | null
+          inscricao_estadual?: string | null
+          inscricao_municipal?: string | null
+          janela_emissao_fim?: number | null
+          janela_emissao_inicio?: number | null
+          observacoes?: string | null
+          prazo_tipo?: string | null
+          prazo_valor?: number | null
+          regime_tributario?: string | null
+          retencao_cofins?: number | null
+          retencao_csll?: number | null
+          retencao_inss?: number | null
+          retencao_irrf?: number | null
+          retencao_iss?: number | null
+          retencao_pis?: number | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_faturamento_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: true
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           analista_certificado_em: string | null
@@ -2017,14 +2109,18 @@ export type Database = {
         Row: {
           adm_checked_at: string | null
           adm_checked_by: string | null
+          adm_pendencia: string | null
+          adm_pendencia_em: string | null
           agendado_em: string | null
           amount: number
           campanha: string | null
           categoria_venda: string | null
           closed_at: string | null
           closed_at_original: string | null
+          cnpj_faturamento: string | null
           company_id: string | null
           contact_id: string | null
+          contato_faturamento_id: string | null
           contrato_assinado_em: string | null
           created_at: string
           created_at_original: string | null
@@ -2033,12 +2129,14 @@ export type Database = {
           currency: string
           devolutiva_em: string | null
           devolutiva_user_id: string | null
+          emissao_prevista_em: string | null
           esteira: string
           executivo_user_id: string | null
           exemplo: boolean
           faturado_em: string | null
           fonte: string | null
           fonte_original: string | null
+          forma_pagamento: string | null
           hubspot_id: string | null
           id: string
           lost_note: string | null
@@ -2046,11 +2144,15 @@ export type Database = {
           motivo_venda: string | null
           nome: string
           observacao_adm: string | null
+          oc_anexo_url: string | null
+          oc_situacao: string | null
           ordem_compra_em: string | null
           ordem_compra_numero: string | null
           owner_original: string | null
           owner_user_id: string | null
+          parcelas: number | null
           pipeline_id: string | null
+          prazo_pagamento: string | null
           produtos_texto: string | null
           proposta_aceita_em: string | null
           provenance: Json
@@ -2068,18 +2170,23 @@ export type Database = {
           tipo_venda: string | null
           trilha: string | null
           updated_at: string
+          valor_liquido: number | null
         }
         Insert: {
           adm_checked_at?: string | null
           adm_checked_by?: string | null
+          adm_pendencia?: string | null
+          adm_pendencia_em?: string | null
           agendado_em?: string | null
           amount?: number
           campanha?: string | null
           categoria_venda?: string | null
           closed_at?: string | null
           closed_at_original?: string | null
+          cnpj_faturamento?: string | null
           company_id?: string | null
           contact_id?: string | null
+          contato_faturamento_id?: string | null
           contrato_assinado_em?: string | null
           created_at?: string
           created_at_original?: string | null
@@ -2088,12 +2195,14 @@ export type Database = {
           currency?: string
           devolutiva_em?: string | null
           devolutiva_user_id?: string | null
+          emissao_prevista_em?: string | null
           esteira?: string
           executivo_user_id?: string | null
           exemplo?: boolean
           faturado_em?: string | null
           fonte?: string | null
           fonte_original?: string | null
+          forma_pagamento?: string | null
           hubspot_id?: string | null
           id?: string
           lost_note?: string | null
@@ -2101,11 +2210,15 @@ export type Database = {
           motivo_venda?: string | null
           nome: string
           observacao_adm?: string | null
+          oc_anexo_url?: string | null
+          oc_situacao?: string | null
           ordem_compra_em?: string | null
           ordem_compra_numero?: string | null
           owner_original?: string | null
           owner_user_id?: string | null
+          parcelas?: number | null
           pipeline_id?: string | null
+          prazo_pagamento?: string | null
           produtos_texto?: string | null
           proposta_aceita_em?: string | null
           provenance?: Json
@@ -2123,18 +2236,23 @@ export type Database = {
           tipo_venda?: string | null
           trilha?: string | null
           updated_at?: string
+          valor_liquido?: number | null
         }
         Update: {
           adm_checked_at?: string | null
           adm_checked_by?: string | null
+          adm_pendencia?: string | null
+          adm_pendencia_em?: string | null
           agendado_em?: string | null
           amount?: number
           campanha?: string | null
           categoria_venda?: string | null
           closed_at?: string | null
           closed_at_original?: string | null
+          cnpj_faturamento?: string | null
           company_id?: string | null
           contact_id?: string | null
+          contato_faturamento_id?: string | null
           contrato_assinado_em?: string | null
           created_at?: string
           created_at_original?: string | null
@@ -2143,12 +2261,14 @@ export type Database = {
           currency?: string
           devolutiva_em?: string | null
           devolutiva_user_id?: string | null
+          emissao_prevista_em?: string | null
           esteira?: string
           executivo_user_id?: string | null
           exemplo?: boolean
           faturado_em?: string | null
           fonte?: string | null
           fonte_original?: string | null
+          forma_pagamento?: string | null
           hubspot_id?: string | null
           id?: string
           lost_note?: string | null
@@ -2156,11 +2276,15 @@ export type Database = {
           motivo_venda?: string | null
           nome?: string
           observacao_adm?: string | null
+          oc_anexo_url?: string | null
+          oc_situacao?: string | null
           ordem_compra_em?: string | null
           ordem_compra_numero?: string | null
           owner_original?: string | null
           owner_user_id?: string | null
+          parcelas?: number | null
           pipeline_id?: string | null
+          prazo_pagamento?: string | null
           produtos_texto?: string | null
           proposta_aceita_em?: string | null
           provenance?: Json
@@ -2178,6 +2302,7 @@ export type Database = {
           tipo_venda?: string | null
           trilha?: string | null
           updated_at?: string
+          valor_liquido?: number | null
         }
         Relationships: [
           {
@@ -2190,6 +2315,13 @@ export type Database = {
           {
             foreignKeyName: "deals_contact_id_fkey"
             columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "deals_contato_faturamento_id_fkey"
+            columns: ["contato_faturamento_id"]
             isOneToOne: false
             referencedRelation: "contacts"
             referencedColumns: ["id"]
@@ -2248,6 +2380,119 @@ export type Database = {
           status?: string
         }
         Relationships: []
+      }
+      fatura_parcelas: {
+        Row: {
+          created_at: string
+          fatura_id: string
+          id: string
+          numero: number
+          pago_em: string | null
+          updated_at: string
+          valor: number
+          vencimento: string
+        }
+        Insert: {
+          created_at?: string
+          fatura_id: string
+          id?: string
+          numero: number
+          pago_em?: string | null
+          updated_at?: string
+          valor: number
+          vencimento: string
+        }
+        Update: {
+          created_at?: string
+          fatura_id?: string
+          id?: string
+          numero?: number
+          pago_em?: string | null
+          updated_at?: string
+          valor?: number
+          vencimento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fatura_parcelas_fatura_id_fkey"
+            columns: ["fatura_id"]
+            isOneToOne: false
+            referencedRelation: "faturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      faturas: {
+        Row: {
+          cancelada_em: string | null
+          cancelada_motivo: string | null
+          cnpj: string | null
+          company_id: string | null
+          created_at: string
+          created_by: string | null
+          deal_id: string
+          emitida_em: string
+          id: string
+          numero_nf: string
+          observacao: string | null
+          retencoes: number
+          status: string
+          updated_at: string
+          valor_bruto: number
+          valor_liquido: number
+        }
+        Insert: {
+          cancelada_em?: string | null
+          cancelada_motivo?: string | null
+          cnpj?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id: string
+          emitida_em: string
+          id?: string
+          numero_nf: string
+          observacao?: string | null
+          retencoes?: number
+          status?: string
+          updated_at?: string
+          valor_bruto: number
+          valor_liquido: number
+        }
+        Update: {
+          cancelada_em?: string | null
+          cancelada_motivo?: string | null
+          cnpj?: string | null
+          company_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          deal_id?: string
+          emitida_em?: string
+          id?: string
+          numero_nf?: string
+          observacao?: string | null
+          retencoes?: number
+          status?: string
+          updated_at?: string
+          valor_bruto?: number
+          valor_liquido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "faturas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "faturas_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       icp_config: {
         Row: {
@@ -4174,6 +4419,8 @@ export type Database = {
         Returns: boolean
       }
       phone_key: { Args: { raw: string }; Returns: string }
+      pode_faturar: { Args: { _user_id: string }; Returns: boolean }
+      pode_ver_fatura: { Args: { _deal_id: string }; Returns: boolean }
       sync_user_roles: { Args: { _user_id: string }; Returns: undefined }
       team_access_types: { Args: { _modulo: string }; Returns: string[] }
     }
