@@ -1025,7 +1025,7 @@ export async function transformRdToObjects(opts?: {
           "deals",
           inserts,
           "id, rd_deal_id",
-          300,
+          100,
           (r) => `"${r.nome}" (RD ${r.rd_deal_id})`,
         );
         errors.push(...erros);
