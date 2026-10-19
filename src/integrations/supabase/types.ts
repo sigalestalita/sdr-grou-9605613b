@@ -97,6 +97,227 @@ export type Database = {
         }
         Relationships: []
       }
+      comissao_eventos: {
+        Row: {
+          acao: string
+          antes: Json | null
+          autor: string | null
+          created_at: string
+          depois: Json | null
+          fechamento_id: string
+          id: number
+        }
+        Insert: {
+          acao: string
+          antes?: Json | null
+          autor?: string | null
+          created_at?: string
+          depois?: Json | null
+          fechamento_id: string
+          id?: never
+        }
+        Update: {
+          acao?: string
+          antes?: Json | null
+          autor?: string | null
+          created_at?: string
+          depois?: Json | null
+          fechamento_id?: string
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comissao_eventos_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "comissao_fechamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comissao_fechamentos: {
+        Row: {
+          aprovado_em: string | null
+          comissao_produto: number
+          comissao_servico: number
+          contestacao: string | null
+          created_at: string
+          enviado_em: string | null
+          fechado_em: string | null
+          fechado_por: string | null
+          id: string
+          mes: string
+          meta_produto: number
+          meta_self_guru: number
+          meta_servico: number
+          realizado_produto: number
+          realizado_self_guru: number
+          realizado_servico: number
+          sem_tipo: number
+          status: string
+          super_meta: number
+          total: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          comissao_produto?: number
+          comissao_servico?: number
+          contestacao?: string | null
+          created_at?: string
+          enviado_em?: string | null
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          mes: string
+          meta_produto?: number
+          meta_self_guru?: number
+          meta_servico?: number
+          realizado_produto?: number
+          realizado_self_guru?: number
+          realizado_servico?: number
+          sem_tipo?: number
+          status?: string
+          super_meta?: number
+          total?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          comissao_produto?: number
+          comissao_servico?: number
+          contestacao?: string | null
+          created_at?: string
+          enviado_em?: string | null
+          fechado_em?: string | null
+          fechado_por?: string | null
+          id?: string
+          mes?: string
+          meta_produto?: number
+          meta_self_guru?: number
+          meta_servico?: number
+          realizado_produto?: number
+          realizado_self_guru?: number
+          realizado_servico?: number
+          sem_tipo?: number
+          status?: string
+          super_meta?: number
+          total?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      comissao_linhas: {
+        Row: {
+          ajuste_motivo: string | null
+          cliente: string | null
+          cliente_novo: boolean | null
+          conferida: boolean
+          created_at: string
+          deal_id: string | null
+          excluida: boolean
+          fechamento_id: string
+          id: string
+          item: string
+          marca: string | null
+          origem: string
+          parcelas: number | null
+          quantidade: number | null
+          tipo: string | null
+          updated_at: string
+          valor_considerado: number
+          valor_original: number
+        }
+        Insert: {
+          ajuste_motivo?: string | null
+          cliente?: string | null
+          cliente_novo?: boolean | null
+          conferida?: boolean
+          created_at?: string
+          deal_id?: string | null
+          excluida?: boolean
+          fechamento_id: string
+          id?: string
+          item: string
+          marca?: string | null
+          origem?: string
+          parcelas?: number | null
+          quantidade?: number | null
+          tipo?: string | null
+          updated_at?: string
+          valor_considerado?: number
+          valor_original?: number
+        }
+        Update: {
+          ajuste_motivo?: string | null
+          cliente?: string | null
+          cliente_novo?: boolean | null
+          conferida?: boolean
+          created_at?: string
+          deal_id?: string | null
+          excluida?: boolean
+          fechamento_id?: string
+          id?: string
+          item?: string
+          marca?: string | null
+          origem?: string
+          parcelas?: number | null
+          quantidade?: number | null
+          tipo?: string | null
+          updated_at?: string
+          valor_considerado?: number
+          valor_original?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comissao_linhas_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comissao_linhas_fechamento_id_fkey"
+            columns: ["fechamento_id"]
+            isOneToOne: false
+            referencedRelation: "comissao_fechamentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      comissao_regras: {
+        Row: {
+          ano: number
+          base_pct: number
+          faixas: Json
+          meta_self_guru_mensal: number
+          super_meta_soma: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ano: number
+          base_pct?: number
+          faixas?: Json
+          meta_self_guru_mensal?: number
+          super_meta_soma?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ano?: number
+          base_pct?: number
+          faixas?: Json
+          meta_self_guru_mensal?: number
+          super_meta_soma?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       commercial_goals: {
         Row: {
           created_at: string
@@ -4723,6 +4944,10 @@ export type Database = {
         Returns: boolean
       }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
+      comissao_responder: {
+        Args: { _aprova: boolean; _fechamento: string; _texto: string }
+        Returns: undefined
+      }
       cs_can_see_client: { Args: { _client_uid: string }; Returns: boolean }
       cs_channel_requires_evidence: {
         Args: { _channel: string }
