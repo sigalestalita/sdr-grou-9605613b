@@ -72,7 +72,8 @@ function mapStageSlug(stageName: string | null, status: "won" | "lost" | "open")
   if (/perdid|n[aã]o avan|declin/.test(s)) return "perdido";
   if (/proposta|contrato|fechamento|negocia|comercial|closer/.test(s)) return "comercial";
   if (/agend|reuni[aã]o|meeting|demo/.test(s)) return "agendado";
-  if (/aguard|retorno|follow|no[- ]?show/.test(s)) return "aguardando";
+  if (/no[- ]?show|n[aã]o compareceu|faltou/.test(s)) return "no_show";
+  if (/aguard|retorno|follow/.test(s)) return "aguardando";
   if (/qualific|diagn[oó]stic|descoberta/.test(s)) return "qualificacao";
   if (/abord|contato|cad[eê]ncia|prospec/.test(s)) return "abordado";
   if (/pronto|enriquec/.test(s)) return "pronto";

@@ -97,7 +97,8 @@ function DashboardPage() {
     "Em qualificação": data.qualificacao,
     "Em contato": data.em_contato,
     "Aguardando retorno": data.aguardando,
-    "Agenda marcada": data.agendados,
+    // No-show chegou a ter agenda marcada: conta no degrau do funil.
+    "Agenda marcada": data.agendados + (data.noShow ?? 0),
   };
   // Cumulative funnel: each step = leads currently in this stage OR later (more downstream).
   // Approx: count this stage + all later stages.

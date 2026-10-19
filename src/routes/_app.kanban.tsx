@@ -1399,7 +1399,17 @@ function LeadCard({
         </div>
       )}
 
-      {stageSlug === "agendado" && (
+      {stageSlug === "no_show" && (
+        <p className="mt-2 rounded-md bg-orange-500/10 px-2 py-1 text-[10px] text-orange-700 dark:text-orange-400">
+          Não compareceu
+          {lead.meeting_at
+            ? ` à reunião de ${format(new Date(lead.meeting_at), "dd/MM HH:mm")}`
+            : ""}
+          . Remarque abaixo e devolva o card para Agendado.
+        </p>
+      )}
+
+      {(stageSlug === "agendado" || stageSlug === "no_show") && (
         <ScheduledBlock
           lead={lead}
           profiles={profiles}
