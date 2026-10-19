@@ -113,6 +113,13 @@
       "when": 1792372088558,
       "tag": "0015_20261019160000_negocio_exige_empresa",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1792373555278,
+      "tag": "0016_20261019170000_rd_regras_de_dono",
+      "breakpoints": true
     }
   ]
 }
