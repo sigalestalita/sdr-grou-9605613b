@@ -105,8 +105,10 @@ export type Database = {
           id: string
           meta_agendas: number | null
           meta_contatos: number | null
+          meta_produto: number | null
           meta_propostas: number | null
           meta_quantidade: number
+          meta_servico: number | null
           meta_valor: number
           observacao: string | null
           periodo: string
@@ -121,8 +123,10 @@ export type Database = {
           id?: string
           meta_agendas?: number | null
           meta_contatos?: number | null
+          meta_produto?: number | null
           meta_propostas?: number | null
           meta_quantidade?: number
+          meta_servico?: number | null
           meta_valor?: number
           observacao?: string | null
           periodo: string
@@ -137,8 +141,10 @@ export type Database = {
           id?: string
           meta_agendas?: number | null
           meta_contatos?: number | null
+          meta_produto?: number | null
           meta_propostas?: number | null
           meta_quantidade?: number
+          meta_servico?: number | null
           meta_valor?: number
           observacao?: string | null
           periodo?: string
@@ -2065,6 +2071,7 @@ export type Database = {
           deal_id: string
           id: string
           nome: string
+          ordem: number
           product_id: string | null
           quantidade: number
           total: number
@@ -2074,6 +2081,7 @@ export type Database = {
           deal_id: string
           id?: string
           nome: string
+          ordem?: number
           product_id?: string | null
           quantidade?: number
           total?: number
@@ -2083,6 +2091,7 @@ export type Database = {
           deal_id?: string
           id?: string
           nome?: string
+          ordem?: number
           product_id?: string | null
           quantidade?: number
           total?: number
@@ -2170,6 +2179,7 @@ export type Database = {
           tipo_venda: string | null
           trilha: string | null
           updated_at: string
+          valor_impostos: number | null
           valor_liquido: number | null
         }
         Insert: {
@@ -2236,6 +2246,7 @@ export type Database = {
           tipo_venda?: string | null
           trilha?: string | null
           updated_at?: string
+          valor_impostos?: number | null
           valor_liquido?: number | null
         }
         Update: {
@@ -2302,6 +2313,7 @@ export type Database = {
           tipo_venda?: string | null
           trilha?: string | null
           updated_at?: string
+          valor_impostos?: number | null
           valor_liquido?: number | null
         }
         Relationships: [
@@ -3065,25 +3077,49 @@ export type Database = {
           ativo: boolean
           categoria: string | null
           created_at: string
+          descricao: string | null
           id: string
+          marca: string | null
           nome: string
+          ordem: number
+          parcelamento_max: number | null
+          preco_tabela: number | null
           rd_product_id: string | null
+          subcategoria: string | null
+          tipo: string | null
+          updated_at: string
         }
         Insert: {
           ativo?: boolean
           categoria?: string | null
           created_at?: string
+          descricao?: string | null
           id?: string
+          marca?: string | null
           nome: string
+          ordem?: number
+          parcelamento_max?: number | null
+          preco_tabela?: number | null
           rd_product_id?: string | null
+          subcategoria?: string | null
+          tipo?: string | null
+          updated_at?: string
         }
         Update: {
           ativo?: boolean
           categoria?: string | null
           created_at?: string
+          descricao?: string | null
           id?: string
+          marca?: string | null
           nome?: string
+          ordem?: number
+          parcelamento_max?: number | null
+          preco_tabela?: number | null
           rd_product_id?: string | null
+          subcategoria?: string | null
+          tipo?: string | null
+          updated_at?: string
         }
         Relationships: []
       }

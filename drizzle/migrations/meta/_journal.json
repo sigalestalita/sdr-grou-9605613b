@@ -29,6 +29,13 @@
       "when": 1792370932884,
       "tag": "0003_20261018110100_acessos_administrativo_trainer",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792370968781,
+      "tag": "0004_20261018120000_catalogo_produto_servico",
+      "breakpoints": true
     }
   ]
 }
