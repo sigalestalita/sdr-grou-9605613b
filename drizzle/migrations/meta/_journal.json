@@ -99,6 +99,13 @@
       "when": 1792371418532,
       "tag": "0013_20261019140000_migracao_rd_historico",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1792372027018,
+      "tag": "0014_20261019145000_vincular_leads_lote_horario",
+      "breakpoints": true
     }
   ]
 }
