@@ -177,6 +177,63 @@ function project(
   return out;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const COLUNAS_UUID = new Set([
+  "company_id",
+  "contact_id",
+  "pipeline_id",
+  "stage_id",
+  "product_id",
+  "parent_company_id",
+]);
+/**
+ * O mapa de campos copia texto do RD para colunas de usuário (ex.: "[Grou] SDR"
+ * → sdr_user_id). Quando a pessoa não tem usuário, sobrava o nome numa coluna
+ * uuid e o lote inteiro era recusado. Tira o que não é uuid (o nome original
+ * fica nos campos *_original).
+ */
+function semUuidInvalido(row: Row): Row {
+  for (const [k, v] of Object.entries(row))
+    if ((k.endsWith("_user_id") || COLUNAS_UUID.has(k)) && v != null && !UUID_RE.test(String(v)))
+      delete row[k];
+  return row;
+}
+
+/**
+ * Insere em lotes. Colunas ausentes numa linha usam o DEFAULT da tabela (e não
+ * NULL, que quebrava tipo_lead). Se o lote falhar, tenta linha a linha, para um
+ * registro ruim não derrubar os outros; devolve as linhas gravadas e os erros.
+ */
+async function inserirEmLotes(
+  tabela: "companies" | "contacts" | "deals",
+  linhas: Row[],
+  colunas: string,
+  tamanho: number,
+  rotulo: (r: Row) => string,
+): Promise<{ gravadas: Row[]; erros: string[] }> {
+  const gravadas: Row[] = [];
+  const erros: string[] = [];
+  for (const parte of chunk(linhas, tamanho)) {
+    const { data, error } = await supabaseAdmin
+      .from(tabela)
+      .insert(parte as never, { defaultToNull: false })
+      .select(colunas);
+    if (!error) {
+      gravadas.push(...((data ?? []) as unknown as Row[]));
+      continue;
+    }
+    for (const linha of parte) {
+      const r = await supabaseAdmin
+        .from(tabela)
+        .insert([linha] as never, { defaultToNull: false })
+        .select(colunas);
+      if (r.error) erros.push(`${tabela} ${rotulo(linha)}: ${r.error.message}`);
+      else gravadas.push(...((r.data ?? []) as unknown as Row[]));
+    }
+  }
+  return { gravadas, erros };
+}
+
 /** Mescla valores projetados num registro existente respeitando provenance 'manual'. */
 function applyWithProvenance(
   existing: Row | null,
@@ -380,6 +437,7 @@ export async function transformRdToObjects(opts?: {
         if (u) fields.owner_user_id = u;
       }
       fields.rd_org_id = String(o.rd_id);
+      semUuidInvalido(fields);
 
       const key = String(o.rd_id);
       let existing = byRd.get(key) ?? null;
@@ -410,18 +468,19 @@ export async function transformRdToObjects(opts?: {
       }
     }
     if (!dryRun) {
-      for (const part of chunk(inserts, 400)) {
-        const { data, error } = await supabaseAdmin
-          .from("companies")
-          .insert(part as never)
-          .select("id, rd_org_id, cnpj, dominio, nome_normalizado");
-        if (error) errors.push(`companies insert: ${error.message}`);
-        else {
-          result.companies.created += part.length;
-          for (const c of (data ?? []) as Row[]) {
-            indexCompany(c);
-            if (c.rd_org_id) orgToCompany.set(String(c.rd_org_id), String(c.id));
-          }
+      {
+        const { gravadas, erros } = await inserirEmLotes(
+          "companies",
+          inserts,
+          "id, rd_org_id, cnpj, dominio, nome_normalizado",
+          400,
+          (r) => `"${r.nome}" (RD ${r.rd_org_id})`,
+        );
+        errors.push(...erros);
+        result.companies.created += gravadas.length;
+        for (const c of gravadas) {
+          indexCompany(c);
+          if (c.rd_org_id) orgToCompany.set(String(c.rd_org_id), String(c.id));
         }
       }
       for (const part of chunk(updates, 200)) {
@@ -563,6 +622,7 @@ export async function transformRdToObjects(opts?: {
         if (hit) fields.company_id = hit.id;
       }
 
+      semUuidInvalido(fields);
       const existing = byRdC.get(String(c.rd_id)) ?? null;
       if (existing) {
         const patch = applyWithProvenance(existing, fields);
@@ -575,17 +635,18 @@ export async function transformRdToObjects(opts?: {
       }
     }
     if (!dryRun) {
-      for (const part of chunk(inserts, 400)) {
-        const { data, error } = await supabaseAdmin
-          .from("contacts")
-          .insert(part as never)
-          .select("id, rd_contact_id, company_id");
-        if (error) errors.push(`contacts insert: ${error.message}`);
-        else {
-          result.contacts.created += part.length;
-          for (const r of (data ?? []) as Row[])
-            if (r.rd_contact_id) contactByRd.set(String(r.rd_contact_id), String(r.id));
-        }
+      {
+        const { gravadas, erros } = await inserirEmLotes(
+          "contacts",
+          inserts,
+          "id, rd_contact_id, company_id",
+          400,
+          (r) => `"${r.nome}" (RD ${r.rd_contact_id})`,
+        );
+        errors.push(...erros);
+        result.contacts.created += gravadas.length;
+        for (const r of gravadas)
+          if (r.rd_contact_id) contactByRd.set(String(r.rd_contact_id), String(r.id));
       }
       for (const part of chunk(updates, 200)) {
         await Promise.all(
@@ -915,6 +976,7 @@ export async function transformRdToObjects(opts?: {
       }
       if (lines.length) productLines.set(String(d.rd_id), lines);
 
+      semUuidInvalido(fields);
       const existing = byRdD.get(String(d.rd_id)) ?? null;
       if (existing) {
         const patch = applyWithProvenance(existing, fields);
@@ -930,16 +992,17 @@ export async function transformRdToObjects(opts?: {
       const idByRd = new Map<string, string>(
         existingDeals.filter((d) => d.rd_deal_id).map((d) => [String(d.rd_deal_id), String(d.id)]),
       );
-      for (const part of chunk(inserts, 300)) {
-        const { data, error } = await supabaseAdmin
-          .from("deals")
-          .insert(part as never)
-          .select("id, rd_deal_id");
-        if (error) errors.push(`deals insert: ${error.message}`);
-        else {
-          result.deals.created += part.length;
-          for (const r of (data ?? []) as Row[]) idByRd.set(String(r.rd_deal_id), String(r.id));
-        }
+      {
+        const { gravadas, erros } = await inserirEmLotes(
+          "deals",
+          inserts,
+          "id, rd_deal_id",
+          300,
+          (r) => `"${r.nome}" (RD ${r.rd_deal_id})`,
+        );
+        errors.push(...erros);
+        result.deals.created += gravadas.length;
+        for (const r of gravadas) idByRd.set(String(r.rd_deal_id), String(r.id));
       }
       for (const part of chunk(updates, 200)) {
         await Promise.all(
