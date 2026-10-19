@@ -43,6 +43,13 @@
       "when": 1792371013566,
       "tag": "0005_20261018130000_notificacoes_e_mencoes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792371071553,
+      "tag": "0006_20261018140000_requerimentos_e_licencas",
+      "breakpoints": true
     }
   ]
 }

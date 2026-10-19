@@ -2998,6 +2998,85 @@ export type Database = {
           },
         ]
       }
+      licencas_pda: {
+        Row: {
+          company_id: string | null
+          created_at: string
+          deal_id: string | null
+          descricao: string
+          id: string
+          liberado_em: string | null
+          liberado_por: string | null
+          login_contato_id: string | null
+          login_email: string | null
+          observacao: string | null
+          quantidade: number | null
+          solicitado_em: string | null
+          solicitado_por: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          company_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          descricao: string
+          id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          login_contato_id?: string | null
+          login_email?: string | null
+          observacao?: string | null
+          quantidade?: number | null
+          solicitado_em?: string | null
+          solicitado_por?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          company_id?: string | null
+          created_at?: string
+          deal_id?: string | null
+          descricao?: string
+          id?: string
+          liberado_em?: string | null
+          liberado_por?: string | null
+          login_contato_id?: string | null
+          login_email?: string | null
+          observacao?: string | null
+          quantidade?: number | null
+          solicitado_em?: string | null
+          solicitado_por?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "licencas_pda_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licencas_pda_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "licencas_pda_login_contato_id_fkey"
+            columns: ["login_contato_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notificacoes: {
         Row: {
           corpo: string | null
@@ -3373,6 +3452,227 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      requerimento_sessoes: {
+        Row: {
+          created_at: string
+          data: string | null
+          formato: string | null
+          horario: string | null
+          id: string
+          local: string | null
+          ordem: number
+          requerimento_id: string
+          status: string
+          titulo: string
+          trainer_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data?: string | null
+          formato?: string | null
+          horario?: string | null
+          id?: string
+          local?: string | null
+          ordem?: number
+          requerimento_id: string
+          status?: string
+          titulo: string
+          trainer_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data?: string | null
+          formato?: string | null
+          horario?: string | null
+          id?: string
+          local?: string | null
+          ordem?: number
+          requerimento_id?: string
+          status?: string
+          titulo?: string
+          trainer_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requerimento_sessoes_requerimento_id_fkey"
+            columns: ["requerimento_id"]
+            isOneToOne: false
+            referencedRelation: "requerimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requerimento_trainers: {
+        Row: {
+          requerimento_id: string
+          user_id: string
+        }
+        Insert: {
+          requerimento_id: string
+          user_id: string
+        }
+        Update: {
+          requerimento_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requerimento_trainers_requerimento_id_fkey"
+            columns: ["requerimento_id"]
+            isOneToOne: false
+            referencedRelation: "requerimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      requerimentos: {
+        Row: {
+          apoio_adm_id: string | null
+          base_avaliacao: string | null
+          briefing_em: string | null
+          briefing_texto: string | null
+          carga_horaria: string | null
+          cidade_uf: string | null
+          company_id: string | null
+          conclusao_em: string | null
+          conclusao_texto: string | null
+          contexto_cliente: string | null
+          contratante_area: string | null
+          contratante_cargo: string | null
+          contratante_email: string | null
+          contratante_nome: string | null
+          contratante_telefone: string | null
+          created_at: string
+          criado_por: string | null
+          data_texto: string | null
+          deal_id: string | null
+          formato: string | null
+          horario_texto: string | null
+          id: string
+          lista_participantes_url: string | null
+          local: string | null
+          logistica: Json
+          materiais: boolean | null
+          numero: number
+          objetivo: string | null
+          observacoes_adm: string | null
+          plataforma: string | null
+          plataforma_transmissao: string | null
+          product_id: string | null
+          produtos_avaliacao: string | null
+          publico: string | null
+          quantidade: string | null
+          servico: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          apoio_adm_id?: string | null
+          base_avaliacao?: string | null
+          briefing_em?: string | null
+          briefing_texto?: string | null
+          carga_horaria?: string | null
+          cidade_uf?: string | null
+          company_id?: string | null
+          conclusao_em?: string | null
+          conclusao_texto?: string | null
+          contexto_cliente?: string | null
+          contratante_area?: string | null
+          contratante_cargo?: string | null
+          contratante_email?: string | null
+          contratante_nome?: string | null
+          contratante_telefone?: string | null
+          created_at?: string
+          criado_por?: string | null
+          data_texto?: string | null
+          deal_id?: string | null
+          formato?: string | null
+          horario_texto?: string | null
+          id?: string
+          lista_participantes_url?: string | null
+          local?: string | null
+          logistica?: Json
+          materiais?: boolean | null
+          numero?: number
+          objetivo?: string | null
+          observacoes_adm?: string | null
+          plataforma?: string | null
+          plataforma_transmissao?: string | null
+          product_id?: string | null
+          produtos_avaliacao?: string | null
+          publico?: string | null
+          quantidade?: string | null
+          servico: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          apoio_adm_id?: string | null
+          base_avaliacao?: string | null
+          briefing_em?: string | null
+          briefing_texto?: string | null
+          carga_horaria?: string | null
+          cidade_uf?: string | null
+          company_id?: string | null
+          conclusao_em?: string | null
+          conclusao_texto?: string | null
+          contexto_cliente?: string | null
+          contratante_area?: string | null
+          contratante_cargo?: string | null
+          contratante_email?: string | null
+          contratante_nome?: string | null
+          contratante_telefone?: string | null
+          created_at?: string
+          criado_por?: string | null
+          data_texto?: string | null
+          deal_id?: string | null
+          formato?: string | null
+          horario_texto?: string | null
+          id?: string
+          lista_participantes_url?: string | null
+          local?: string | null
+          logistica?: Json
+          materiais?: boolean | null
+          numero?: number
+          objetivo?: string | null
+          observacoes_adm?: string | null
+          plataforma?: string | null
+          plataforma_transmissao?: string | null
+          product_id?: string | null
+          produtos_avaliacao?: string | null
+          publico?: string | null
+          quantidade?: string | null
+          servico?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "requerimentos_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requerimentos_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "requerimentos_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stages: {
         Row: {
@@ -4526,8 +4826,27 @@ export type Database = {
       phone_key: { Args: { raw: string }; Returns: string }
       pode_faturar: { Args: { _user_id: string }; Returns: boolean }
       pode_ver_fatura: { Args: { _deal_id: string }; Returns: boolean }
+      pode_ver_requerimento: { Args: { _req: string }; Returns: boolean }
       sync_user_roles: { Args: { _user_id: string }; Returns: undefined }
       team_access_types: { Args: { _modulo: string }; Returns: string[] }
+      trainer_do_requerimento: {
+        Args: { _req: string; _user: string }
+        Returns: boolean
+      }
+      trainer_registra_requerimento: {
+        Args: {
+          _briefing_em: string
+          _briefing_texto: string
+          _conclusao_em: string
+          _conclusao_texto: string
+          _req: string
+        }
+        Returns: undefined
+      }
+      trainer_status_sessao: {
+        Args: { _sessao: string; _status: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr" | "trainer"
