@@ -9,6 +9,7 @@ import {
   getConferenciaRd,
   importarHistoricoRd,
   preencherFunisRd,
+  salvarRegraDeDono,
 } from "@/lib/migracao-rd.functions";
 import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,15 @@ function MigracaoRdPage() {
   const confFn = useServerFn(getConferenciaRd);
   const histFn = useServerFn(importarHistoricoRd);
   const funisFn = useServerFn(preencherFunisRd);
+  const regraFn = useServerFn(salvarRegraDeDono);
+  const salvarRegra = useMutation({
+    mutationFn: (v: { nomeRd: string; destino: string }) => regraFn({ data: v }),
+    onSuccess: () => {
+      toast.success("Regra salva. Vale na próxima transformação.");
+      qc.invalidateQueries({ queryKey: ["conferencia-rd"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
   const preencher = useMutation({
     mutationFn: () => funisFn(),
     onSuccess: (r) => {
@@ -86,7 +96,8 @@ function MigracaoRdPage() {
   }
 
   const t = data?.totais;
-  const semUsuario = (data?.donos ?? []).filter((d) => !d.usuario);
+  // Sem usuário e sem decisão da gestão: os cards chegariam sem dono.
+  const semUsuario = (data?.donos ?? []).filter((d) => !d.usuario && !d.regra);
   const semFunil = data?.funis.find((f) => f.funil === "(sem funil)")?.total ?? 0;
 
   return (
@@ -235,8 +246,8 @@ function MigracaoRdPage() {
             <h2 className="px-4 pt-4 text-[13px] font-semibold">Donos no RD</h2>
             <p className="px-4 pb-2 text-[12px] text-muted-foreground">
               {semUsuario.length
-                ? `${semUsuario.length} sem usuário no CRM: os cards deles chegam sem dono. Crie o usuário com o mesmo nome (ou e-mail) e rode a transformação de novo.`
-                : "Todos os donos têm usuário no CRM."}
+                ? `${semUsuario.length} sem usuário no CRM e sem regra. Crie o usuário com o mesmo nome (ou e-mail), ou escolha quem herda os cards — ou "sem dono". Vale na próxima transformação.`
+                : "Todos os donos têm destino definido."}
             </p>
             <table className="w-full text-[12px]">
               <tbody>
@@ -247,11 +258,36 @@ function MigracaoRdPage() {
                       {d.cards} cards
                     </td>
                     <td className="py-1.5 pr-4">
-                      {d.usuario ? (
-                        <span className="text-emerald-600">→ {d.usuario}</span>
-                      ) : (
-                        <span className="text-destructive">sem usuário</span>
-                      )}
+                      <select
+                        className={`h-7 w-full max-w-56 rounded-md border bg-background px-1 text-[11px] ${
+                          !d.usuario && !d.regra ? "border-destructive text-destructive" : ""
+                        }`}
+                        value={
+                          d.regra === "usuario"
+                            ? (d.usuarioId ?? "auto")
+                            : d.regra === "sem_dono"
+                              ? "sem_dono"
+                              : "auto"
+                        }
+                        disabled={salvarRegra.isPending}
+                        onChange={(e) =>
+                          salvarRegra.mutate({ nomeRd: d.nome, destino: e.target.value })
+                        }
+                      >
+                        <option value="auto">
+                          {d.regra
+                            ? "Automático (pelo nome)"
+                            : d.usuario
+                              ? `Automático → ${d.usuario}`
+                              : "Sem usuário — escolha"}
+                        </option>
+                        <option value="sem_dono">Sem dono (guarda só o nome)</option>
+                        {data.usuarios.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            → {u.nome}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                   </tr>
                 ))}

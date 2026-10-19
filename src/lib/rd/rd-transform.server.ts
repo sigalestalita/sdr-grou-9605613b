@@ -195,8 +195,30 @@ function applyWithProvenance(
   return patch;
 }
 
+/** Chave das regras de dono: o nome do RD normalizado. */
+export const chaveDoDono = (nome: unknown) => norm(nome);
+
+/**
+ * Regras da gestão (rd_regras_de_dono): nome do RD → usuário que herda os
+ * cards, ou null para "sem dono". Têm prioridade sobre o casamento automático.
+ */
+export async function carregarRegrasDeDono(): Promise<Map<string, string | null>> {
+  const { data } = await supabaseAdmin
+    .from("rd_regras_de_dono" as never)
+    .select("nome_rd, user_id, sem_dono");
+  const out = new Map<string, string | null>();
+  for (const r of (data ?? []) as Array<{
+    nome_rd: string;
+    user_id: string | null;
+    sem_dono: boolean;
+  }>)
+    out.set(chaveDoDono(r.nome_rd), r.sem_dono ? null : r.user_id);
+  return out;
+}
+
 export function userMatcher(
   profiles: { id: string; full_name: string | null; email: string | null }[],
+  regras?: Map<string, string | null>,
 ) {
   const byNorm = new Map<string, string>();
   for (const p of profiles) {
@@ -205,8 +227,12 @@ export function userMatcher(
   }
   return (name: unknown): string | null => {
     const n = norm(name);
+    if (regras?.has(n)) return regras.get(n) ?? null;
     if (!n || /desativad/.test(n)) return null;
     if (byNorm.has(n)) return byNorm.get(n)!;
+    // o RD às vezes mostra o e-mail no lugar do nome
+    const email = clean(name).toLowerCase();
+    if (byNorm.has(email)) return byNorm.get(email)!;
     // primeiro + último nome
     const parts = n.split(" ");
     if (parts.length >= 2) {
@@ -281,7 +307,7 @@ export async function transformRdToObjects(opts?: {
     "profiles",
     "id, full_name, email",
   );
-  const userOf = userMatcher(profiles);
+  const userOf = userMatcher(profiles, await carregarRegrasDeDono());
 
   // ------------------------------------------------------------ empresas
   const existingCompanies = await fetchAll(
