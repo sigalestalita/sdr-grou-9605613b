@@ -3847,6 +3847,30 @@ export type Database = {
         }
         Relationships: []
       }
+      rd_regras_de_dono: {
+        Row: {
+          nome_rd: string
+          sem_dono: boolean
+          updated_at: string
+          updated_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          nome_rd: string
+          sem_dono?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          nome_rd?: string
+          sem_dono?: boolean
+          updated_at?: string
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       requerimento_sessoes: {
         Row: {
           created_at: string
