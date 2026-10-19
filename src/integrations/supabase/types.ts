@@ -2508,7 +2508,7 @@ export type Database = {
           closed_at: string | null
           closed_at_original: string | null
           cnpj_faturamento: string | null
-          company_id: string | null
+          company_id: string
           contact_id: string | null
           contato_faturamento_id: string | null
           contrato_assinado_em: string | null
@@ -2576,7 +2576,7 @@ export type Database = {
           closed_at?: string | null
           closed_at_original?: string | null
           cnpj_faturamento?: string | null
-          company_id?: string | null
+          company_id: string
           contact_id?: string | null
           contato_faturamento_id?: string | null
           contrato_assinado_em?: string | null
@@ -2644,7 +2644,7 @@ export type Database = {
           closed_at?: string | null
           closed_at_original?: string | null
           cnpj_faturamento?: string | null
-          company_id?: string | null
+          company_id?: string
           contact_id?: string | null
           contato_faturamento_id?: string | null
           contrato_assinado_em?: string | null
