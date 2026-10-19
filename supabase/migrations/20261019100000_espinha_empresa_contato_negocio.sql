@@ -66,15 +66,9 @@ DROP TRIGGER IF EXISTS deals_garante_empresa ON public.deals;
 CREATE TRIGGER deals_garante_empresa
   BEFORE INSERT OR UPDATE OF company_id, contact_id ON public.deals
   FOR EACH ROW EXECUTE FUNCTION public.deals_garante_empresa();
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
 
--- Negócios antigos sem empresa (do RD e dos exemplos) ganham uma agora.
-UPDATE public.deals SET company_id = NULL WHERE company_id IS NULL;
-
-ALTER TABLE public.deals ALTER COLUMN company_id SET NOT NULL;
--- Apagar a empresa não pode deixar negócio órfão (antes era SET NULL).
-ALTER TABLE public.deals DROP CONSTRAINT IF EXISTS deals_company_id_fkey;
-ALTER TABLE public.deals ADD CONSTRAINT deals_company_id_fkey
-  FOREIGN KEY (company_id) REFERENCES public.companies(id) ON DELETE RESTRICT;
+-- (NOT NULL e FK RESTRICT em 20261019160000_negocio_exige_empresa.sql, depois do backfill)
 
 -- ---------------------------------------------------------------------------
 -- 2. Papel do contato na empresa e no negócio
@@ -246,14 +240,7 @@ END;
 $$;
 REVOKE EXECUTE ON FUNCTION public.vincular_leads_pendentes(integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.vincular_leads_pendentes(integer) TO service_role;
-
-DO $$
-BEGIN
-  PERFORM cron.unschedule('vincular-leads') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'vincular-leads');
-  PERFORM cron.schedule('vincular-leads', '*/2 * * * *', 'SELECT public.vincular_leads_pendentes(1000)');
-EXCEPTION WHEN undefined_function OR invalid_schema_name OR undefined_table THEN
-  RAISE NOTICE 'pg_cron indisponível: rode SELECT public.vincular_leads_pendentes(1000) até voltar 0';
-END $$;
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
 
 -- ---------------------------------------------------------------------------
 -- 4. Passar o lead para o executivo = nasce o negócio

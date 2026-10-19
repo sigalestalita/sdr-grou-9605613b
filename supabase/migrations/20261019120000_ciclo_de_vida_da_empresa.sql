@@ -106,18 +106,8 @@ END $$;
 DROP TRIGGER IF EXISTS companies_nasce_lead ON public.companies;
 CREATE TRIGGER companies_nasce_lead BEFORE INSERT ON public.companies
   FOR EACH ROW EXECUTE FUNCTION public.companies_nasce_lead();
-
--- Valores antigos (vindos do RD/CS) dão lugar ao calculado.
-SELECT public.recalcular_ciclo_de_vida(NULL);
-
-DO $$
-BEGIN
-  PERFORM cron.unschedule('ciclo-de-vida') WHERE EXISTS (SELECT 1 FROM cron.job WHERE jobname = 'ciclo-de-vida');
-  -- 03:10 em Brasília: depois da virada do dia em que a licença vence.
-  PERFORM cron.schedule('ciclo-de-vida', '10 6 * * *', 'SELECT public.recalcular_ciclo_de_vida(NULL)');
-EXCEPTION WHEN undefined_function OR invalid_schema_name OR undefined_table THEN
-  RAISE NOTICE 'pg_cron indisponível: rode SELECT public.recalcular_ciclo_de_vida(NULL) diariamente';
-END $$;
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
 
 COMMENT ON COLUMN public.companies.lifecycle IS
   'Calculado por recalcular_ciclo_de_vida: lead | oportunidade | cliente | inativo (licença PDA vencida). Não editar à mão.';

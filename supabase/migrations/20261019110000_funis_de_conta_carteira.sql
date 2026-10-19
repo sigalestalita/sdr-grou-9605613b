@@ -15,21 +15,8 @@
 ALTER TABLE public.pipelines DROP CONSTRAINT IF EXISTS pipelines_tipo_check;
 ALTER TABLE public.pipelines ADD CONSTRAINT pipelines_tipo_check
   CHECK (tipo IN ('comercial', 'cs', 'ticket', 'conta'));
-
-INSERT INTO public.pipelines (nome, slug, tipo, ordem)
-VALUES ('Gestão da Carteira Comercial', 'gestao-carteira-comercial', 'conta', 100)
-ON CONFLICT (slug) DO NOTHING;
-
--- Etapas iniciais; a importação do RD acrescenta as que existirem lá.
-INSERT INTO public.pipeline_stages (pipeline_id, nome, slug, ordem, kind)
-SELECT p.id, s.nome, s.slug, s.ordem, 'open'
-  FROM public.pipelines p
-  CROSS JOIN (VALUES
-    ('Novo na carteira', 'novo-na-carteira', 10),
-    ('Em acompanhamento', 'em-acompanhamento', 20)
-  ) AS s(nome, slug, ordem)
- WHERE p.slug = 'gestao-carteira-comercial'
-ON CONFLICT (pipeline_id, slug) DO NOTHING;
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
 
 -- Um negócio nunca entra num funil de conta.
 CREATE OR REPLACE FUNCTION public.deals_pipeline_de_negocio()
@@ -191,21 +178,7 @@ CREATE TRIGGER deals_entra_na_carteira
   AFTER INSERT OR UPDATE OF status ON public.deals
   FOR EACH ROW WHEN (NEW.status = 'won')
   EXECUTE FUNCTION public.deals_entra_na_carteira();
-
--- Quem já comprou entra na carteira agora, sem aviso (a gestão distribui pelo
--- quadro). O dono herda o da empresa, quando houver.
-INSERT INTO public.company_funis (company_id, pipeline_id, stage_id, owner_user_id)
-SELECT DISTINCT ON (d.company_id) d.company_id, p.id, st.id, c.owner_user_id
-  FROM public.deals d
-  JOIN public.pipelines dp ON dp.id = d.pipeline_id AND dp.tipo = 'comercial'
-  JOIN public.companies c ON c.id = d.company_id
-  CROSS JOIN public.pipelines p
-  LEFT JOIN LATERAL (
-    SELECT id FROM public.pipeline_stages
-     WHERE pipeline_id = p.id AND kind = 'open' ORDER BY ordem OFFSET 1 LIMIT 1
-  ) st ON true
- WHERE d.status = 'won' AND p.slug = 'gestao-carteira-comercial'
-ON CONFLICT (company_id, pipeline_id) DO NOTHING;
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
 
 -- O dono da carteira comercial é o dono da empresa: mantém companies em dia
 -- para o resto do sistema (negócios de recompra, relatórios por executivo).

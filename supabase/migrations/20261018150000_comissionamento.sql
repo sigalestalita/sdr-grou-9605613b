@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.comissao_regras (
   updated_at timestamptz NOT NULL DEFAULT now(),
   updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL
 );
-INSERT INTO public.comissao_regras (ano) VALUES (2026) ON CONFLICT (ano) DO NOTHING;
+-- (dado/backfill movido para 20261019150000_dados_e_backfills.sql)
 
 -- ---------------------------------------------------------------------------
 -- Fechamento mensal e linhas
