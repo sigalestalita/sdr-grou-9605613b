@@ -64,6 +64,13 @@
       "when": 1792371196316,
       "tag": "0008_20261018160000_contratos_e_turmas",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792371257942,
+      "tag": "0009_20261019100000_espinha_empresa_contato_negocio",
+      "breakpoints": true
     }
   ]
 }

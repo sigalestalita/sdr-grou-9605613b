@@ -2345,16 +2345,19 @@ export type Database = {
         Row: {
           contact_id: string
           deal_id: string
+          papel: string | null
           principal: boolean
         }
         Insert: {
           contact_id: string
           deal_id: string
+          papel?: string | null
           principal?: boolean
         }
         Update: {
           contact_id?: string
           deal_id?: string
+          papel?: string | null
           principal?: boolean
         }
         Relationships: [
@@ -3088,6 +3091,7 @@ export type Database = {
           company_size: string | null
           company_summary: string | null
           company_website: string | null
+          contact_id: string | null
           converted_at: string | null
           created_at: string
           deal_id: string | null
@@ -3159,6 +3163,7 @@ export type Database = {
           company_size?: string | null
           company_summary?: string | null
           company_website?: string | null
+          contact_id?: string | null
           converted_at?: string | null
           created_at?: string
           deal_id?: string | null
@@ -3230,6 +3235,7 @@ export type Database = {
           company_size?: string | null
           company_summary?: string | null
           company_website?: string | null
+          contact_id?: string | null
           converted_at?: string | null
           created_at?: string
           deal_id?: string | null
@@ -3288,6 +3294,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
             referencedColumns: ["id"]
           },
           {
@@ -5237,6 +5250,10 @@ export type Database = {
         Args: { _deal: Database["public"]["Tables"]["deals"]["Row"] }
         Returns: string
       }
+      dominio_corporativo: {
+        Args: { _email: string; _site: string }
+        Returns: string
+      }
       e_trainer: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -5258,6 +5275,7 @@ export type Database = {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: boolean
       }
+      nome_empresa_normalizado: { Args: { _nome: string }; Returns: string }
       notificar_faturamento: {
         Args: {
           _corpo: string
@@ -5278,6 +5296,15 @@ export type Database = {
           _users: string[]
         }
         Returns: number
+      }
+      passar_lead_para_executivo: {
+        Args: {
+          _executivo: string
+          _lead: string
+          _nome?: string
+          _valor?: number
+        }
+        Returns: string
       }
       phone_key: { Args: { raw: string }; Returns: string }
       pode_faturar: { Args: { _user_id: string }; Returns: boolean }
@@ -5307,6 +5334,8 @@ export type Database = {
         Args: { _inscricao: string; _presente: boolean }
         Returns: undefined
       }
+      vincular_lead: { Args: { _lead: string }; Returns: undefined }
+      vincular_leads_pendentes: { Args: { _limite?: number }; Returns: number }
     }
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr" | "trainer"
