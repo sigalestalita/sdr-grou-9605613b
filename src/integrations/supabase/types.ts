@@ -2360,6 +2360,7 @@ export type Database = {
           id: string
           occurred_at: string
           para_stage_id: string | null
+          rd_activity_id: string | null
           tipo: string
         }
         Insert: {
@@ -2371,6 +2372,7 @@ export type Database = {
           id?: string
           occurred_at?: string
           para_stage_id?: string | null
+          rd_activity_id?: string | null
           tipo: string
         }
         Update: {
@@ -2382,6 +2384,7 @@ export type Database = {
           id?: string
           occurred_at?: string
           para_stage_id?: string | null
+          rd_activity_id?: string | null
           tipo?: string
         }
         Relationships: [
@@ -2546,6 +2549,7 @@ export type Database = {
           proximo_passo: string | null
           proximo_passo_em: string | null
           rd_deal_id: string | null
+          rd_historico_em: string | null
           rd_pipeline: string | null
           rd_stage: string | null
           reuniao_em: string | null
@@ -2613,6 +2617,7 @@ export type Database = {
           proximo_passo?: string | null
           proximo_passo_em?: string | null
           rd_deal_id?: string | null
+          rd_historico_em?: string | null
           rd_pipeline?: string | null
           rd_stage?: string | null
           reuniao_em?: string | null
@@ -2680,6 +2685,7 @@ export type Database = {
           proximo_passo?: string | null
           proximo_passo_em?: string | null
           rd_deal_id?: string | null
+          rd_historico_em?: string | null
           rd_pipeline?: string | null
           rd_stage?: string | null
           reuniao_em?: string | null

@@ -92,6 +92,13 @@
       "when": 1792371400306,
       "tag": "0012_20261019130000_sdr_protecao_vinculo",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792371418532,
+      "tag": "0013_20261019140000_migracao_rd_historico",
+      "breakpoints": true
     }
   ]
 }
