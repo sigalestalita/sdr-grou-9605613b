@@ -8,6 +8,97 @@
       "when": 1792370385037,
       "tag": "0000_20261018100000_modulo_administrativo_enum",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792370852050,
+      "tag": "0001_20261018100100_modulo_faturamento",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792370890681,
+      "tag": "0002_20261018110000_papel_trainer_enum",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792370932884,
+      "tag": "0003_20261018110100_acessos_administrativo_trainer",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792370968781,
+      "tag": "0004_20261018120000_catalogo_produto_servico",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792371013566,
+      "tag": "0005_20261018130000_notificacoes_e_mencoes",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792371071553,
+      "tag": "0006_20261018140000_requerimentos_e_licencas",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792371140381,
+      "tag": "0007_20261018150000_comissionamento",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1792371196316,
+      "tag": "0008_20261018160000_contratos_e_turmas",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1792371257942,
+      "tag": "0009_20261019100000_espinha_empresa_contato_negocio",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1792371309079,
+      "tag": "0010_20261019110000_funis_de_conta_carteira",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792371354874,
+      "tag": "0011_20261019120000_ciclo_de_vida_da_empresa",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1792371400306,
+      "tag": "0012_20261019130000_sdr_protecao_vinculo",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1792371418532,
+      "tag": "0013_20261019140000_migracao_rd_historico",
+      "breakpoints": true
     }
   ]
 }
