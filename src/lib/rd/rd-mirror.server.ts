@@ -1,9 +1,12 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getRdTokenInfo } from "@/lib/rd-token.server";
 import {
+  fetchMapaDeFunis,
   findField,
+  funilDoNegocio,
   rdId,
   rdGet,
+  type MapaDeFunis,
   type Json,
   type RdContactRaw,
   type RdCustomField,
@@ -83,11 +86,11 @@ export function contactRow(c: RdContactRaw) {
     synced_at: now(),
   };
 }
-export function dealRow(d: RdDealRaw) {
+export function dealRow(d: RdDealRaw, mapa?: MapaDeFunis | null) {
   return {
     rd_id: rdId(d) as string,
     name: clean(d.name) || "Sem nome",
-    pipeline: clean(d.deal_pipeline?.name ?? d.deal_stage?.deal_pipeline?.name) || null,
+    pipeline: clean(funilDoNegocio(d, mapa)) || null,
     stage: clean(d.deal_stage?.name) || null,
     amount: Number(d.amount_total ?? d.amount_unique ?? 0) || null,
     status: d.win === true ? "won" : d.win === false ? "lost" : "open",
@@ -127,6 +130,8 @@ export async function mirrorSlice(slice: MirrorSlice): Promise<MirrorSliceResult
     let total: number | null = null;
     const rows: Json[] = [];
     let hasMore = true;
+    // A listagem de negócios não traz o nome do funil: vem pelo id da etapa.
+    const mapa = await fetchMapaDeFunis(token);
     for (let i = 0; i < pages; i++) {
       const json = await rdGet(
         "/deals",
@@ -135,7 +140,7 @@ export async function mirrorSlice(slice: MirrorSlice): Promise<MirrorSliceResult
       );
       if (typeof json.total === "number") total = json.total as number;
       const batch = (json.deals ?? []) as RdDealRaw[];
-      for (const d of batch) if (rdId(d)) rows.push(dealRow(d) as never);
+      for (const d of batch) if (rdId(d)) rows.push(dealRow(d, mapa) as never);
       next = (json.next_page as string | undefined) ?? null;
       if (!next || batch.length === 0) {
         hasMore = false;

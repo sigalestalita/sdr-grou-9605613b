@@ -6,10 +6,13 @@ import {
   dealAmount,
   dealStatus,
   fetchRdContacts,
+  fetchMapaDeFunis,
   fetchRdDeals,
   fetchRdOrganizations,
   findField,
+  funilDoNegocio,
   rdId,
+  type MapaDeFunis,
   type RdContactRaw,
   type RdCustomField,
   type RdDealRaw,
@@ -54,8 +57,10 @@ function orgCnpj(o: RdOrganizationRaw): string | null {
   return raw.length >= 11 ? raw : null;
 }
 
+// A listagem de negócios não traz o nome do funil: vem pelo id da etapa.
+let mapaDeFunis: MapaDeFunis | null = null;
 function dealPipeline(d: RdDealRaw): string | null {
-  return (d.deal_pipeline?.name ?? d.deal_stage?.deal_pipeline?.name ?? "").trim() || null;
+  return funilDoNegocio(d, mapaDeFunis);
 }
 
 /** Traduz a etapa do funil do RD para o slug do nosso Kanban. */
@@ -96,6 +101,7 @@ export async function syncRdEverything(opts?: { dryRun?: boolean }): Promise<RdF
   const orgs = await fetchRdOrganizations(token);
   const contacts = await fetchRdContacts(token);
   const deals = await fetchRdDeals(token);
+  mapaDeFunis = await fetchMapaDeFunis(token);
 
   const pipelines: Record<string, number> = {};
   for (const d of deals) {

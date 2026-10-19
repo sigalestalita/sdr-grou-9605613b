@@ -1,11 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Fragment, useRef, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { AlertTriangle, CheckCircle2, History, RefreshCw } from "lucide-react";
-import { getConferenciaRd, importarHistoricoRd } from "@/lib/migracao-rd.functions";
+import {
+  getConferenciaRd,
+  importarHistoricoRd,
+  preencherFunisRd,
+} from "@/lib/migracao-rd.functions";
 import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -27,6 +31,17 @@ function MigracaoRdPage() {
   const qc = useQueryClient();
   const confFn = useServerFn(getConferenciaRd);
   const histFn = useServerFn(importarHistoricoRd);
+  const funisFn = useServerFn(preencherFunisRd);
+  const preencher = useMutation({
+    mutationFn: () => funisFn(),
+    onSuccess: (r) => {
+      toast.success(
+        `${r.preenchidos} cards com funil preenchido${r.semMapa ? ` · ${r.semMapa} sem funil no RD` : ""}`,
+      );
+      qc.invalidateQueries({ queryKey: ["conferencia-rd"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
   const { data, isFetching, refetch, error } = useQuery({
     queryKey: ["conferencia-rd"],
     queryFn: () => confFn(),
@@ -72,6 +87,7 @@ function MigracaoRdPage() {
 
   const t = data?.totais;
   const semUsuario = (data?.donos ?? []).filter((d) => !d.usuario);
+  const semFunil = data?.funis.find((f) => f.funil === "(sem funil)")?.total ?? 0;
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 lg:p-6">
@@ -92,6 +108,18 @@ function MigracaoRdPage() {
           {isFetching ? "Conferindo…" : "Atualizar conferência"}
         </Button>
       </header>
+
+      {semFunil > 0 && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 border-amber-500/50 p-4 text-[13px]">
+          <p>
+            <strong>{semFunil.toLocaleString("pt-BR")} cards sem funil.</strong> Sem o funil, todos
+            virariam negócio (inclusive leads do SDR e carteiras). Preencha antes de transformar.
+          </p>
+          <Button size="sm" onClick={() => preencher.mutate()} disabled={preencher.isPending}>
+            {preencher.isPending ? "Preenchendo…" : "Preencher funis"}
+          </Button>
+        </Card>
+      )}
 
       {error && (
         <Card className="p-4 text-sm text-destructive">

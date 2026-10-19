@@ -297,3 +297,55 @@ export async function fetchDealHistorico(token: string, dealId: string): Promise
   }
   return [...out.values()];
 }
+
+export type MapaDeFunis = {
+  /** id do funil → nome */
+  porFunil: Map<string, string>;
+  /** id da etapa → nome do funil */
+  porEtapa: Map<string, string>;
+};
+
+/**
+ * Funis e etapas do RD. A listagem de negócios traz a etapa (id e nome), mas
+ * nem sempre o funil: o nome do funil vem daqui, pelo id da etapa.
+ */
+export async function fetchMapaDeFunis(token: string): Promise<MapaDeFunis> {
+  const porFunil = new Map<string, string>();
+  const porEtapa = new Map<string, string>();
+  const json = (await rdGet("/deal_pipelines", {}, token)) as unknown;
+  const funis = (Array.isArray(json) ? json : ((json as Json).deal_pipelines ?? [])) as Array<
+    Json & { _id?: string; id?: string; name?: string; deal_stages?: Json[] }
+  >;
+  for (const f of funis) {
+    const id = rdId(f);
+    const nome = String(f.name ?? "").trim();
+    if (!id || !nome) continue;
+    porFunil.set(id, nome);
+    let etapas = f.deal_stages;
+    if (!etapas) {
+      const e = (await rdGet(
+        "/deal_stages",
+        { deal_pipeline_id: id, limit: "200" },
+        token,
+      )) as unknown;
+      etapas = (Array.isArray(e) ? e : ((e as Json).deal_stages ?? [])) as Json[];
+    }
+    for (const s of etapas ?? []) {
+      const sid = rdId(s as { _id?: string; id?: string });
+      if (sid) porEtapa.set(sid, nome);
+    }
+  }
+  return { porFunil, porEtapa };
+}
+
+/** Nome do funil de um negócio: o que vier no próprio negócio, ou pelo mapa. */
+export function funilDoNegocio(d: RdDealRaw, mapa?: MapaDeFunis | null): string | null {
+  const direto = (d.deal_pipeline?.name ?? d.deal_stage?.deal_pipeline?.name ?? "").trim();
+  if (direto) return direto;
+  if (!mapa) return null;
+  const raw = d as RdDealRaw & { deal_pipeline_id?: string };
+  const idFunil = rdId(d.deal_pipeline ?? undefined) ?? raw.deal_pipeline_id ?? null;
+  if (idFunil && mapa.porFunil.has(idFunil)) return mapa.porFunil.get(idFunil)!;
+  const idEtapa = rdId(d.deal_stage ?? undefined);
+  return (idEtapa && mapa.porEtapa.get(idEtapa)) || null;
+}
