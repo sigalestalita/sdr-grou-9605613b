@@ -2361,6 +2361,7 @@ export type Database = {
           occurred_at: string
           para_stage_id: string | null
           rd_activity_id: string | null
+          rd_autor: string | null
           tipo: string
         }
         Insert: {
@@ -2373,6 +2374,7 @@ export type Database = {
           occurred_at?: string
           para_stage_id?: string | null
           rd_activity_id?: string | null
+          rd_autor?: string | null
           tipo: string
         }
         Update: {
@@ -2385,6 +2387,7 @@ export type Database = {
           occurred_at?: string
           para_stage_id?: string | null
           rd_activity_id?: string | null
+          rd_autor?: string | null
           tipo?: string
         }
         Relationships: [
