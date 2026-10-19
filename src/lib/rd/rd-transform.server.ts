@@ -107,12 +107,23 @@ const toDate = (s: unknown): string | null => {
   const iso = v.match(/^(\d{4}-\d{2}-\d{2})/);
   return iso ? iso[1] : null;
 };
-const toNumber = (s: unknown): number | null => {
-  const v = clean(s)
-    .replace(/[R$\s.]/g, "")
-    .replace(",", ".");
+/**
+ * Número escrito à brasileira ("1.500,00") ou com ponto decimal ("1500.00").
+ * Antes todo ponto era tratado como milhar, e "1500.00" virava 150000 — os
+ * valores de "[backup] Valor" chegavam 100× maiores.
+ */
+export const toNumber = (s: unknown): number | null => {
+  let v = clean(s).replace(/[R$\s]/g, "");
+  if (!v) return null;
+  if (v.includes(",")) {
+    // vírgula é o decimal; pontos são milhar
+    v = v.replace(/\./g, "").replace(",", ".");
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(v)) {
+    // só pontos, em grupos de três: milhar ("1.500", "12.000.000")
+    v = v.replace(/\./g, "");
+  }
   const n = Number(v);
-  return v && Number.isFinite(n) ? n : null;
+  return Number.isFinite(n) ? n : null;
 };
 
 /** {label: valor} dos campos customizados de um registro cru do RD. */
@@ -682,6 +693,21 @@ export async function transformRdToObjects(opts?: {
 
   // ------------------------------------------------------------ negócios
   if (only.has("deals")) {
+    const empresaDoContato = new Map<string, string>();
+    for (const c of await fetchAll("contacts", "id, company_id"))
+      if (c.company_id) empresaDoContato.set(String(c.id), String(c.company_id));
+    const empresaDoCard = (d: Row): string | undefined => {
+      const contatos =
+        ((d.raw as Json | undefined)?.contacts as
+          | Array<{ _id?: string; id?: string }>
+          | undefined) ?? [];
+      for (const c of contatos) {
+        const id = contactByRd.get(String(rdId(c)));
+        const empresa = id ? empresaDoContato.get(id) : undefined;
+        if (empresa) return empresa;
+      }
+      return undefined;
+    };
     const pipelines = await fetchAll("pipelines", "id, slug");
     const stages = await fetchAll("pipeline_stages", "id, pipeline_id, slug, nome, kind, ordem");
     const pipeBySlug = new Map(pipelines.map((p) => [String(p.slug), String(p.id)]));
@@ -796,7 +822,9 @@ export async function transformRdToObjects(opts?: {
         result.deals.leadsDoSdr++;
         continue;
       }
-      const companyId = d.rd_org_id ? orgToCompany.get(String(d.rd_org_id)) : undefined;
+      // Card de carteira/CS sem organização no RD: a empresa do contato do card.
+      const companyId =
+        (d.rd_org_id ? orgToCompany.get(String(d.rd_org_id)) : undefined) ?? empresaDoCard(d);
       if (!companyId) {
         result.deals.semEmpresa++;
         continue;
