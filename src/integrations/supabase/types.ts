@@ -4179,7 +4179,7 @@ export type Database = {
     }
     Enums: {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr"
-      app_team: "comercial" | "cs"
+      app_team: "comercial" | "cs" | "administrativo"
       cs_client_type: "empresa" | "consultoria" | "pessoa_fisica"
       cs_contact_origin: "manual" | "email_bcc" | "pda_api" | "linkedin"
       cs_journey_stage: "onboarding" | "ativacao" | "renovacao"
@@ -4315,7 +4315,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["super_admin", "gestao", "executivo", "sdr"],
-      app_team: ["comercial", "cs"],
+      app_team: ["comercial", "cs", "administrativo"],
       cs_client_type: ["empresa", "consultoria", "pessoa_fisica"],
       cs_contact_origin: ["manual", "email_bcc", "pda_api", "linkedin"],
       cs_journey_stage: ["onboarding", "ativacao", "renovacao"],
