@@ -2998,6 +2998,53 @@ export type Database = {
           },
         ]
       }
+      notificacoes: {
+        Row: {
+          corpo: string | null
+          created_at: string
+          criado_por: string | null
+          deal_id: string | null
+          id: string
+          lida_em: string | null
+          link: string | null
+          tipo: string
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          corpo?: string | null
+          created_at?: string
+          criado_por?: string | null
+          deal_id?: string | null
+          id?: string
+          lida_em?: string | null
+          link?: string | null
+          tipo: string
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          corpo?: string | null
+          created_at?: string
+          criado_por?: string | null
+          deal_id?: string | null
+          id?: string
+          lida_em?: string | null
+          link?: string | null
+          tipo?: string
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pipeline_stages: {
         Row: {
           cor: string | null
@@ -4454,6 +4501,27 @@ export type Database = {
       lead_is_rd_import: {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: boolean
+      }
+      notificar_faturamento: {
+        Args: {
+          _corpo: string
+          _deal_id: string
+          _link: string
+          _tipo: string
+          _titulo: string
+        }
+        Returns: number
+      }
+      notificar_usuarios: {
+        Args: {
+          _corpo: string
+          _deal_id: string
+          _link: string
+          _tipo: string
+          _titulo: string
+          _users: string[]
+        }
+        Returns: number
       }
       phone_key: { Args: { raw: string }; Returns: string }
       pode_faturar: { Args: { _user_id: string }; Returns: boolean }

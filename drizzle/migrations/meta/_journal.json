@@ -36,6 +36,13 @@
       "when": 1792370968781,
       "tag": "0004_20261018120000_catalogo_produto_servico",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792371013566,
+      "tag": "0005_20261018130000_notificacoes_e_mencoes",
+      "breakpoints": true
     }
   ]
 }
