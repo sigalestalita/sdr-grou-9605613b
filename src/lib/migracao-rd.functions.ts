@@ -21,7 +21,8 @@ export const getConferenciaRd = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { todasAsPaginas } = await import("@/lib/paginar.server");
     const { conferir } = await import("@/lib/rd/conferencia");
-    const { userMatcher } = await import("@/lib/rd/rd-transform.server");
+    const { userMatcher, carregarRegrasDeDono, chaveDoDono } =
+      await import("@/lib/rd/rd-transform.server");
     const db = supabaseAdmin as unknown as SupabaseClient;
     const MAX = 400_000;
     const todas = <T>(tabela: string, colunas: string, naoNulo?: string) =>
@@ -89,7 +90,8 @@ export const getConferenciaRd = createServerFn({ method: "GET" })
       g.valor += Number(d.amount ?? 0) || 0;
       ganhosCrm.set(ano, g);
     }
-    const userOf = userMatcher(profiles);
+    const regras = await carregarRegrasDeDono();
+    const userOf = userMatcher(profiles, regras);
     const nomeDe = new Map(profiles.map((p) => [p.id, p.full_name || p.email || p.id]));
     const r = conferir(
       cards,
@@ -129,7 +131,15 @@ export const getConferenciaRd = createServerFn({ method: "GET" })
         comHistorico: negocios.filter((d) => d.rd_historico_em).length,
       },
       funis: r.funis,
-      donos: r.donos,
+      // regra: definida pela gestão ("usuario" ou "sem_dono"), ou null = automático
+      donos: r.donos.map((d) => {
+        const chave = chaveDoDono(d.nome);
+        const regra = regras.has(chave) ? (regras.get(chave) ? "usuario" : "sem_dono") : null;
+        return { ...d, usuarioId: userOf(d.nome), regra };
+      }),
+      usuarios: profiles
+        .map((p) => ({ id: p.id, nome: p.full_name || p.email || p.id }))
+        .sort((a, b) => a.nome.localeCompare(b.nome)),
       anos: r.anos,
     };
   });
@@ -150,7 +160,7 @@ export const importarHistoricoRd = createServerFn({ method: "POST" })
     const { getRdTokenInfo } = await import("@/lib/rd-token.server");
     const { fetchDealHistorico, rdId } = await import("@/lib/rd/rd-api.server");
     const { tipoDaAtividadeRd } = await import("@/lib/rd/conferencia");
-    const { userMatcher } = await import("@/lib/rd/rd-transform.server");
+    const { userMatcher, carregarRegrasDeDono } = await import("@/lib/rd/rd-transform.server");
     const db = supabaseAdmin as unknown as SupabaseClient;
 
     const { token } = await getRdTokenInfo();
@@ -169,6 +179,7 @@ export const importarHistoricoRd = createServerFn({ method: "POST" })
     const { data: profiles } = await db.from("profiles").select("id, full_name, email");
     const userOf = userMatcher(
       (profiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>,
+      await carregarRegrasDeDono(),
     );
 
     let atividades = 0;
@@ -283,4 +294,41 @@ export const preencherFunisRd = createServerFn({ method: "POST" })
       semMapa,
       porFunil: [...porNome.entries()].map(([nome, ids]) => ({ nome, cards: ids.length })),
     };
+  });
+
+/**
+ * Regra de dono: para onde vão os cards de um nome do RD. `destino` é um
+ * usuário do CRM, "sem_dono" (fica só o nome original) ou "auto" (apaga a
+ * regra e volta ao casamento por nome/e-mail). Vale na próxima transformação.
+ */
+export const salvarRegraDeDono = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        nomeRd: z.string().trim().min(1).max(200),
+        destino: z.union([z.literal("auto"), z.literal("sem_dono"), z.string().uuid()]),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirGestao(context.supabase, context.userId);
+    const db = context.supabase as unknown as SupabaseClient;
+    if (data.destino === "auto") {
+      const { error } = await db.from("rd_regras_de_dono").delete().eq("nome_rd", data.nomeRd);
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    }
+    const { error } = await db.from("rd_regras_de_dono").upsert(
+      {
+        nome_rd: data.nomeRd,
+        user_id: data.destino === "sem_dono" ? null : data.destino,
+        sem_dono: data.destino === "sem_dono",
+        updated_by: context.userId,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "nome_rd" },
+    );
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
