@@ -5255,6 +5255,7 @@ export type Database = {
         Returns: boolean
       }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
+      ciclo_de_vida_calculado: { Args: { _company: string }; Returns: string }
       comissao_responder: {
         Args: { _aprova: boolean; _fechamento: string; _texto: string }
         Returns: undefined
@@ -5377,6 +5378,7 @@ export type Database = {
       pode_faturar: { Args: { _user_id: string }; Returns: boolean }
       pode_ver_fatura: { Args: { _deal_id: string }; Returns: boolean }
       pode_ver_requerimento: { Args: { _req: string }; Returns: boolean }
+      recalcular_ciclo_de_vida: { Args: { _company?: string }; Returns: number }
       sync_user_roles: { Args: { _user_id: string }; Returns: undefined }
       team_access_types: { Args: { _modulo: string }; Returns: string[] }
       trainer_do_requerimento: {

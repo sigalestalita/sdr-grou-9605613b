@@ -78,6 +78,13 @@
       "when": 1792371309079,
       "tag": "0010_20261019110000_funis_de_conta_carteira",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1792371354874,
+      "tag": "0011_20261019120000_ciclo_de_vida_da_empresa",
+      "breakpoints": true
     }
   ]
 }
