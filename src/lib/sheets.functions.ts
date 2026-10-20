@@ -378,27 +378,63 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
     type LeadJaNaBase = {
       id: string;
       oculto_sdr: boolean | null;
-      form_payload: Record<string, unknown> | null;
     };
     const existingIds = new Set<string>();
     const porEmail = new Map<string, LeadJaNaBase>();
     const PAGE = 1000;
     for (let from = 0; ; from += PAGE) {
+      /*
+       * Só os pedaços do form_payload que importam aqui. O blob inteiro de
+       * toda a base, a cada 90 s, era a parte mais pesada da sincronização.
+       * As reconversões entram na conta: a linha da planilha que já foi
+       * registrada como reconversão não é nova, e antes ela era registrada de
+       * novo a cada rodada (o histórico do lead crescia sem parar).
+       */
       const { data: rows2, error } = await supabaseAdmin
         .from("leads")
-        .select("id, email, oculto_sdr, form_payload")
+        .select(
+          "id, email, oculto_sdr, lead_id:form_payload->>lead_id, reconversoes:form_payload->reconversoes",
+        )
         .order("id", { ascending: true })
         .range(from, from + PAGE - 1);
-      if (error || !rows2 || rows2.length === 0) break;
+      // Base lida pela metade faria lead existente parecer novo: melhor parar.
+      if (error) {
+        const msg = `Leitura dos leads falhou: ${error.message}`;
+        await supabase.from("app_settings").upsert(
+          {
+            key: "sheets_sync_state",
+            value: {
+              ...(prevState ?? {}),
+              last_attempt_at: startedAt,
+              last_error_at: new Date().toISOString(),
+              last_error: msg,
+              status: "error",
+            } as never,
+          } as never,
+          { onConflict: "key" },
+        );
+        await supabase.from("integration_logs").insert({
+          provider: "google_sheets",
+          action: "sync_leads",
+          status: "error",
+          detail: { error: msg } as never,
+        });
+        return { total, parsed: parsed.length, inserted: 0, skipped: 0, error: msg };
+      }
+      if (!rows2 || rows2.length === 0) break;
       for (const r of rows2) {
-        const rr = r as unknown as LeadJaNaBase & { email: string | null };
-        const lid = (rr.form_payload as { lead_id?: string } | null)?.lead_id;
-        if (lid) existingIds.add(lid);
+        const rr = r as unknown as LeadJaNaBase & {
+          email: string | null;
+          lead_id: string | null;
+          reconversoes: Array<{ lead_id?: string }> | null;
+        };
+        if (rr.lead_id) existingIds.add(rr.lead_id);
+        if (Array.isArray(rr.reconversoes))
+          for (const rc of rr.reconversoes) if (rc?.lead_id) existingIds.add(rc.lead_id);
         if (rr.email)
           porEmail.set(rr.email.toLowerCase(), {
             id: rr.id,
             oculto_sdr: rr.oculto_sdr,
-            form_payload: rr.form_payload,
           });
       }
       if (rows2.length < PAGE) break;
@@ -566,7 +602,9 @@ export const syncLeadsFromSheet = createServerFn({ method: "POST" })
             (linha.payload.form_payload as { lead_type?: string } | null)?.lead_type ??
             null,
           reconversoes: [
-            ...historico,
+            ...historico.filter(
+              (h) => (h as { lead_id?: string } | null)?.lead_id !== linha.meta_lead_id,
+            ),
             {
               em: quando,
               lead_id: linha.meta_lead_id,
