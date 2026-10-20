@@ -171,9 +171,27 @@ function KanbanPage() {
    * mudar a data é uma consulta nova. O placeholderData abaixo segura o quadro
    * anterior na tela enquanto a nova volta, para não piscar em branco.
    */
+  // A busca também vai ao banco (o quadro só traz os cards mais recentes de
+  // cada coluna); espera a digitação parar para não consultar a cada tecla.
+  const [buscaNoBanco, setBuscaNoBanco] = useState("");
+  useEffect(() => {
+    const t = setTimeout(
+      () => setBuscaNoBanco(search.trim().length >= 3 ? search.trim() : ""),
+      400,
+    );
+    return () => clearTimeout(t);
+  }, [search]);
+  const chaveDoQuadro = ["kanban", dateFrom, dateTo, buscaNoBanco];
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["kanban", dateFrom, dateTo],
-    queryFn: () => fetchData({ data: { de: dateFrom || undefined, ate: dateTo || undefined } }),
+    queryKey: chaveDoQuadro,
+    queryFn: () =>
+      fetchData({
+        data: {
+          de: dateFrom || undefined,
+          ate: dateTo || undefined,
+          busca: buscaNoBanco || undefined,
+        },
+      }),
     // Volta ao Pipeline sem tela em branco: mostra o que já tinha e atualiza atrás.
     staleTime: 30_000,
     placeholderData: (prev) => prev,
@@ -255,9 +273,11 @@ function KanbanPage() {
     mutationFn: (vars: { leadId: string; stageId: string }) => moveFn({ data: vars }),
     onMutate: async (vars) => {
       await qc.cancelQueries({ queryKey: ["kanban"] });
-      const prev = qc.getQueryData<Awaited<ReturnType<typeof fetchData>>>(["kanban"]);
+      // A chave inteira (período e busca): só ["kanban"] não acha o quadro na
+      // tela e o card voltava para a coluna antiga até a recarga.
+      const prev = qc.getQueryData<Awaited<ReturnType<typeof fetchData>>>(chaveDoQuadro);
       if (prev) {
-        qc.setQueryData(["kanban"], {
+        qc.setQueryData(chaveDoQuadro, {
           ...prev,
           leads: prev.leads.map((l) =>
             l.id === vars.leadId
@@ -271,10 +291,10 @@ function KanbanPage() {
           ),
         });
       }
-      return { prev };
+      return { prev, chave: chaveDoQuadro };
     },
     onError: (e, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(["kanban"], ctx.prev);
+      if (ctx?.prev) qc.setQueryData(ctx.chave, ctx.prev);
       toast.error(e instanceof Error ? e.message : "Falha ao mover");
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ["kanban"] }),
@@ -614,7 +634,7 @@ function KanbanPage() {
             {(data.cardsOmitidos ?? 0) > 0 && (
               <span
                 className="ml-2 text-muted-foreground"
-                title="Cada coluna carrega os 250 cards mais recentes do período selecionado, para o quadro não travar conforme a base cresce. Eles continuam no banco — aparecem na busca do topo e na ficha do lead. Para alcançá-los no quadro, estreite o período."
+                title="Cada coluna carrega os 250 cards mais recentes do período selecionado, para o quadro não travar conforme a base cresce. Eles continuam no banco — a busca do topo procura neles também, e estão na ficha do lead. Para alcançá-los no quadro, estreite o período."
               >
                 · {data.cardsOmitidos.toLocaleString("pt-BR")} cards mais antigos fora do quadro
               </span>

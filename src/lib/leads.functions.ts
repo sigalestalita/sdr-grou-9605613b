@@ -9,11 +9,17 @@ import { normalizeLeadType } from "./lead-type";
 export const listKanbanData = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ de: z.string().optional(), ate: z.string().optional() }).parse(d ?? {}),
+    z
+      .object({
+        de: z.string().optional(),
+        ate: z.string().optional(),
+        busca: z.string().max(120).optional(),
+      })
+      .parse(d ?? {}),
   )
   .handler(async ({ context, data }) => {
     const { supabase } = context;
-    const { de, ate } = data ?? {};
+    const { de, ate, busca } = data ?? {};
     const PAGE = 1000;
     // Só as colunas que o Kanban usa: os campos longos (BANT, resumo da
     // empresa, sinais de ICP, dor provável) ficam para a página do lead.
@@ -163,6 +169,32 @@ export const listKanbanData = createServerFn({ method: "GET" })
     ]);
 
     const leads = colunas.flatMap((c) => c.linhas);
+
+    /*
+     * A busca do topo vai ao banco.
+     *
+     * Cada coluna traz só os 250 cards mais recentes, e a busca filtrava o que
+     * tinha cabido no quadro: um lead que existia, mas estava fora do teto,
+     * dava "0 leads" — parecia que não tinha entrado. Agora quem bate com o
+     * texto vem do banco e se junta ao quadro, esteja onde estiver.
+     */
+    const termo = (busca ?? "").replace(/[,()*%\\]/g, " ").trim();
+    if (termo.length >= 3) {
+      const padrao = `*${termo}*`;
+      const { data: achados, error: erroBusca } = await supabase
+        .from("leads")
+        .select(KANBAN_COLUMNS)
+        .or(filter)
+        .or(["name", "email", "company_name", "phone"].map((c) => `${c}.ilike.${padrao}`).join(","))
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (erroBusca) throw new Error(erroBusca.message);
+      const jaNoQuadro = new Set(leads.map((l) => l.id as string));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const l of (achados ?? []) as any[]) {
+        if (!jaNoQuadro.has(l.id)) leads.push(enxugarLead(l));
+      }
+    }
     const totalPorEtapa: Record<string, number> = {};
     let cardsOmitidos = 0;
     for (const c of colunas) {
