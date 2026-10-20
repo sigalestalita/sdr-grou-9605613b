@@ -205,7 +205,11 @@ const COLUNAS_UUID = new Set([
  */
 function semUuidInvalido(row: Row): Row {
   for (const [k, v] of Object.entries(row))
-    if ((k.endsWith("_user_id") || COLUNAS_UUID.has(k)) && v != null && !UUID_RE.test(String(v)))
+    if (
+      (k.endsWith("_user_id") || k.endsWith("_responsavel_id") || COLUNAS_UUID.has(k)) &&
+      v != null &&
+      !UUID_RE.test(String(v))
+    )
       delete row[k];
   return row;
 }
@@ -416,6 +420,17 @@ export async function transformRdToObjects(opts?: {
       const proj = project(MAP.organization, cf);
       {
         const csFields: Row = { ...(proj.cs_clients ?? {}) };
+        // "[CS] Atendimento Sucesso do Cliente" traz o nome da analista: vira o
+        // usuário dela (regras de dono valem); sem usuário, o campo não vai.
+        if (
+          csFields.cs_responsavel_id != null &&
+          !UUID_RE.test(String(csFields.cs_responsavel_id))
+        ) {
+          const u = userOf(csFields.cs_responsavel_id);
+          if (u) csFields.cs_responsavel_id = u;
+          else delete csFields.cs_responsavel_id;
+        }
+        semUuidInvalido(csFields);
         // porte e funcionários decidem o roteamento do CS: espelha da empresa
         if (proj.companies?.porte != null) csFields.porte = proj.companies.porte;
         if (proj.companies?.num_funcionarios != null)
