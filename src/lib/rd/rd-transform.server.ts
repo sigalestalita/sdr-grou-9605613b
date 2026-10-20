@@ -261,7 +261,7 @@ function applyWithProvenance(
   const patch: Row = {};
   for (const [k, v] of Object.entries(incoming)) {
     if (prov[k] === "manual") continue;
-    if (existing && existing[k] === v) continue;
+    if (existing && JSON.stringify(existing[k]) === JSON.stringify(v)) continue;
     patch[k] = v;
     prov[k] = source;
   }
@@ -450,6 +450,16 @@ export async function transformRdToObjects(opts?: {
           else delete csFields.cs_responsavel_id;
         }
         semUuidInvalido(csFields);
+        // produtos_ativos é lista (text[]): "[Grou] Categoria" vem como texto,
+        // às vezes com vários itens ("Licença PDA, Certificação PDA").
+        if (typeof csFields.produtos_ativos === "string") {
+          const itens = csFields.produtos_ativos
+            .split(/[;,|]/)
+            .map((x) => x.trim())
+            .filter(Boolean);
+          if (itens.length) csFields.produtos_ativos = itens;
+          else delete csFields.produtos_ativos;
+        }
         // porte e funcionários decidem o roteamento do CS: espelha da empresa
         if (proj.companies?.porte != null) csFields.porte = proj.companies.porte;
         if (proj.companies?.num_funcionarios != null)
