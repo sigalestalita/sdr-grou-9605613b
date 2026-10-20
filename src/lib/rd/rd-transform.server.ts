@@ -321,18 +321,36 @@ export function userMatcher(
   };
 }
 
+/**
+ * Lê a tabela inteira em páginas, SEMPRE ordenada pela primeira coluna do
+ * select (id / rd_id). Sem ordem, o Postgres não garante a mesma sequência
+ * entre páginas: registros vinham repetidos e outros nunca vinham.
+ */
 async function fetchAll<T = Row>(table: string, select: string): Promise<T[]> {
+  return fetchIntervalo<T>(table, select, 0, 200000);
+}
+
+/** Registros [de, de + quantos) da tabela, na ordem da primeira coluna do select. */
+async function fetchIntervalo<T = Row>(
+  table: string,
+  select: string,
+  de: number,
+  quantos: number,
+): Promise<T[]> {
+  const ordem = select.split(",")[0].trim();
   const out: T[] = [];
   const size = 1000;
-  for (let from = 0; from < 200000; from += size) {
+  for (let from = de; from < de + quantos; from += size) {
+    const ate = Math.min(from + size, de + quantos) - 1;
     const { data, error } = await supabaseAdmin
       .from(table as never)
       .select(select)
-      .range(from, from + size - 1);
+      .order(ordem)
+      .range(from, ate);
     if (error) throw new Error(`${table}: ${error.message}`);
     const rows = (data ?? []) as T[];
     out.push(...rows);
-    if (rows.length < size) break;
+    if (rows.length < ate - from + 1) break;
   }
   return out;
 }
@@ -354,7 +372,10 @@ export async function transformRdToObjects(opts?: {
   const only = new Set(opts?.only ?? ["companies", "contacts", "deals", "parents"]);
   const offset = Math.max(opts?.offset ?? 0, 0);
   const limit = opts?.limit && opts.limit > 0 ? opts.limit : null;
-  const slice = <T>(rows: T[]) => (limit ? rows.slice(offset, offset + limit) : rows);
+  // A fatia é buscada no banco (ordenada por rd_id), em vez de baixar o
+  // espelho inteiro — com o JSON cru de 24 mil negócios — a cada fatia.
+  const fatiaDo = <T = Row>(table: string, select: string) =>
+    limit ? fetchIntervalo<T>(table, select, offset, limit) : fetchAll<T>(table, select);
   const errors: string[] = [];
   const result: RdTransformResult = {
     companies: { total: 0, created: 0, updated: 0, linkedByKey: 0, csClientsUpdated: 0 },
@@ -402,9 +423,7 @@ export async function transformRdToObjects(opts?: {
   existingCompanies.forEach(indexCompany);
 
   const rdOrgs = only.has("companies")
-    ? slice(
-        await fetchAll("rd_organizations", "rd_id, name, cnpj, site_url, segment, owner_name, raw"),
-      )
+    ? await fatiaDo("rd_organizations", "rd_id, name, cnpj, site_url, segment, owner_name, raw")
     : [];
   const orgToCompany = new Map<string, string>(); // rd_org_id -> companies.id
 
@@ -599,11 +618,9 @@ export async function transformRdToObjects(opts?: {
     const byRdC = new Map(
       existingContacts.filter((c) => c.rd_contact_id).map((c) => [String(c.rd_contact_id), c]),
     );
-    const rdContacts = slice(
-      await fetchAll(
-        "rd_contacts",
-        "rd_id, name, email, phone, position, linkedin_url, rd_org_id, owner_name, raw",
-      ),
+    const rdContacts = await fatiaDo(
+      "rd_contacts",
+      "rd_id, name, email, phone, position, linkedin_url, rd_org_id, owner_name, raw",
     );
     result.contacts.total = rdContacts.length;
     const inserts: Row[] = [];
@@ -780,11 +797,9 @@ export async function transformRdToObjects(opts?: {
     );
     const existingProducts = await fetchAll("products", "id, nome");
     const productByName = new Map(existingProducts.map((p) => [norm(p.nome), String(p.id)]));
-    const rdDeals = slice(
-      await fetchAll(
-        "rd_deals",
-        "rd_id, name, pipeline, stage, amount, status, rd_org_id, rd_contact_id, owner_name, source_name, campaign_name, rd_created_at, raw",
-      ),
+    const rdDeals = await fatiaDo(
+      "rd_deals",
+      "rd_id, name, pipeline, stage, amount, status, rd_org_id, rd_contact_id, owner_name, source_name, campaign_name, rd_created_at, raw",
     );
     result.deals.total = rdDeals.length;
 
