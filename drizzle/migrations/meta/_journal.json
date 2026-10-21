@@ -141,6 +141,13 @@
       "when": 1792591659231,
       "tag": "0019_20261021100000_sync_planilha_agendado",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1792607527171,
+      "tag": "0020_20261021120000_meta_ads_desempenho",
+      "breakpoints": true
     }
   ]
 }

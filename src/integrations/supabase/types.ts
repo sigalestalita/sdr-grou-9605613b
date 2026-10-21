@@ -3474,6 +3474,87 @@ export type Database = {
           },
         ]
       }
+      meta_ads_campanhas: {
+        Row: {
+          alterada_em: string | null
+          atualizado_em: string
+          campaign_id: string
+          criada_em: string | null
+          nome: string
+          objetivo: string | null
+          orcamento_diario: number | null
+          orcamento_total: number | null
+          status: string | null
+        }
+        Insert: {
+          alterada_em?: string | null
+          atualizado_em?: string
+          campaign_id: string
+          criada_em?: string | null
+          nome: string
+          objetivo?: string | null
+          orcamento_diario?: number | null
+          orcamento_total?: number | null
+          status?: string | null
+        }
+        Update: {
+          alterada_em?: string | null
+          atualizado_em?: string
+          campaign_id?: string
+          criada_em?: string | null
+          nome?: string
+          objetivo?: string | null
+          orcamento_diario?: number | null
+          orcamento_total?: number | null
+          status?: string | null
+        }
+        Relationships: []
+      }
+      meta_ads_diario: {
+        Row: {
+          ad_id: string
+          ad_name: string | null
+          adset_id: string | null
+          adset_name: string | null
+          atualizado_em: string
+          campaign_id: string | null
+          campaign_name: string | null
+          cliques: number
+          dia: string
+          gasto: number
+          impressoes: number
+          leads: number
+        }
+        Insert: {
+          ad_id: string
+          ad_name?: string | null
+          adset_id?: string | null
+          adset_name?: string | null
+          atualizado_em?: string
+          campaign_id?: string | null
+          campaign_name?: string | null
+          cliques?: number
+          dia: string
+          gasto?: number
+          impressoes?: number
+          leads?: number
+        }
+        Update: {
+          ad_id?: string
+          ad_name?: string | null
+          adset_id?: string | null
+          adset_name?: string | null
+          atualizado_em?: string
+          campaign_id?: string | null
+          campaign_name?: string | null
+          cliques?: number
+          dia?: string
+          gasto?: number
+          impressoes?: number
+          leads?: number
+        }
+        Relationships: []
+      }
       notificacoes: {
         Row: {
           corpo: string | null
