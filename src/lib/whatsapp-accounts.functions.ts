@@ -38,7 +38,7 @@ export const listAccounts = createServerFn({ method: "GET" })
      */
     return {
       accounts: (data ?? []).map(redact),
-      publicUrl: (process.env.APP_PUBLIC_URL || "https://compass.groupp.com").replace(/\/+$/, ""),
+      publicUrl: (process.env.APP_PUBLIC_URL || "https://compass.grougp.com").replace(/\/+$/, ""),
     };
   });
 

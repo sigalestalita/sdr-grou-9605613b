@@ -24,7 +24,7 @@ import {
   type MeetingSettings,
 } from "@/lib/sdr/meeting-invite";
 
-const APP_URL = process.env.APP_PUBLIC_URL || "https://compass.groupp.com";
+const APP_URL = process.env.APP_PUBLIC_URL || "https://compass.grougp.com";
 const SETTINGS_KEY = "sdr_meeting";
 const AI_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const AI_MODEL = "google/gemini-2.5-flash";
