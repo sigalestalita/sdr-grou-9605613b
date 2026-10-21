@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
+import { enriquecerEmpresa } from "@/lib/enriquecer.functions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -128,6 +129,19 @@ function CompanyPage() {
   );
   const addTag = useMut((t: string) => tagFn({ data: { clientUid, tag: t } }), "Tag adicionada");
   const rmTag = useMut((id: string) => untagFn({ data: { id } }), "Tag removida");
+  const enrichFn = useServerFn(enriquecerEmpresa);
+  const enrich = useMutation({
+    mutationFn: () => enrichFn({ data: { clientUid } }),
+    onSuccess: (r) => {
+      toast.success(
+        r.preenchidos.length
+          ? `Preenchido: ${r.preenchidos.join(", ")}`
+          : "Nada novo encontrado no site",
+      );
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
   const addRecord = useMut(
     (v: { tipo: string; content: string }) => recordFn({ data: { clientUid, ...v } }),
     "Registro salvo",
@@ -249,6 +263,14 @@ function CompanyPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={enrich.isPending}
+            onClick={() => enrich.mutate()}
+          >
+            {enrich.isPending ? "Buscando no site…" : "Enriquecer"}
+          </Button>
           <Button
             size="sm"
             onClick={() => {
