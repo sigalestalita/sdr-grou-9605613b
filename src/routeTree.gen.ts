@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
 import { Route as AppAnalyticsChatRouteImport } from './routes/_app.analytics-chat'
 import { Route as AppCadenciaRouteImport } from './routes/_app.cadencia'
+import { Route as AppCampanhasRouteImport } from './routes/_app.campanhas'
 import { Route as AppCarteiraComercialRouteImport } from './routes/_app.carteira-comercial'
 import { Route as AppCatalogoRouteImport } from './routes/_app.catalogo'
 import { Route as AppComercialRouteImport } from './routes/_app.comercial'
@@ -73,6 +74,7 @@ import { Route as AppWhatsappPlaygroundRouteImport } from './routes/_app.whatsap
 import { Route as AppWhatsappTemplatesRouteImport } from './routes/_app.whatsapp.templates'
 import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
 import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
+import { Route as ApiPublicHooksMetaAdsRouteImport } from './routes/api/public/hooks/meta-ads'
 import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
 import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
 import { Route as ApiPublicHooksNotifyRedListRouteImport } from './routes/api/public/hooks/notify-red-list'
@@ -127,6 +129,11 @@ const AppAnalyticsChatRoute = AppAnalyticsChatRouteImport.update({
 const AppCadenciaRoute = AppCadenciaRouteImport.update({
   id: '/cadencia',
   path: '/cadencia',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCampanhasRoute = AppCampanhasRouteImport.update({
+  id: '/campanhas',
+  path: '/campanhas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCarteiraComercialRoute = AppCarteiraComercialRouteImport.update({
@@ -410,6 +417,11 @@ const ApiPublicCsEmailInboundRoute = ApiPublicCsEmailInboundRouteImport.update({
   path: '/api/public/cs/email-inbound',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksMetaAdsRoute = ApiPublicHooksMetaAdsRouteImport.update({
+  id: '/api/public/hooks/meta-ads',
+  path: '/api/public/hooks/meta-ads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksMirrorRdRoute = ApiPublicHooksMirrorRdRouteImport.update({
   id: '/api/public/hooks/mirror-rd',
   path: '/api/public/hooks/mirror-rd',
@@ -509,6 +521,7 @@ export interface FileRoutesByFullPath {
   '/agenda': typeof AppAgendaRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/cadencia': typeof AppCadenciaRoute
+  '/campanhas': typeof AppCampanhasRoute
   '/carteira-comercial': typeof AppCarteiraComercialRoute
   '/catalogo': typeof AppCatalogoRoute
   '/comercial': typeof AppComercialRoute
@@ -565,6 +578,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp/': typeof AppWhatsappIndexRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
@@ -590,6 +604,7 @@ export interface FileRoutesByTo {
   '/agenda': typeof AppAgendaRoute
   '/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/cadencia': typeof AppCadenciaRoute
+  '/campanhas': typeof AppCampanhasRoute
   '/carteira-comercial': typeof AppCarteiraComercialRoute
   '/catalogo': typeof AppCatalogoRoute
   '/comercial': typeof AppComercialRoute
@@ -645,6 +660,7 @@ export interface FileRoutesByTo {
   '/whatsapp': typeof AppWhatsappIndexRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
@@ -672,6 +688,7 @@ export interface FileRoutesById {
   '/_app/agenda': typeof AppAgendaRoute
   '/_app/analytics-chat': typeof AppAnalyticsChatRouteWithChildren
   '/_app/cadencia': typeof AppCadenciaRoute
+  '/_app/campanhas': typeof AppCampanhasRoute
   '/_app/carteira-comercial': typeof AppCarteiraComercialRoute
   '/_app/catalogo': typeof AppCatalogoRoute
   '/_app/comercial': typeof AppComercialRoute
@@ -728,6 +745,7 @@ export interface FileRoutesById {
   '/_app/whatsapp/': typeof AppWhatsappIndexRoute
   '/_app/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
@@ -755,6 +773,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/analytics-chat'
     | '/cadencia'
+    | '/campanhas'
     | '/carteira-comercial'
     | '/catalogo'
     | '/comercial'
@@ -811,6 +830,7 @@ export interface FileRouteTypes {
     | '/whatsapp/'
     | '/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
@@ -836,6 +856,7 @@ export interface FileRouteTypes {
     | '/agenda'
     | '/analytics-chat'
     | '/cadencia'
+    | '/campanhas'
     | '/carteira-comercial'
     | '/catalogo'
     | '/comercial'
@@ -891,6 +912,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
@@ -917,6 +939,7 @@ export interface FileRouteTypes {
     | '/_app/agenda'
     | '/_app/analytics-chat'
     | '/_app/cadencia'
+    | '/_app/campanhas'
     | '/_app/carteira-comercial'
     | '/_app/catalogo'
     | '/_app/comercial'
@@ -973,6 +996,7 @@ export interface FileRouteTypes {
     | '/_app/whatsapp/'
     | '/_app/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
@@ -998,6 +1022,7 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
+  ApiPublicHooksMetaAdsRoute: typeof ApiPublicHooksMetaAdsRoute
   ApiPublicHooksMirrorRdRoute: typeof ApiPublicHooksMirrorRdRoute
   ApiPublicHooksNotifyEscalationsRoute: typeof ApiPublicHooksNotifyEscalationsRoute
   ApiPublicHooksNotifyRedListRoute: typeof ApiPublicHooksNotifyRedListRoute
@@ -1072,6 +1097,13 @@ declare module '@tanstack/react-router' {
       path: '/cadencia'
       fullPath: '/cadencia'
       preLoaderRoute: typeof AppCadenciaRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/campanhas': {
+      id: '/_app/campanhas'
+      path: '/campanhas'
+      fullPath: '/campanhas'
+      preLoaderRoute: typeof AppCampanhasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/carteira-comercial': {
@@ -1466,6 +1498,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCsEmailInboundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/meta-ads': {
+      id: '/api/public/hooks/meta-ads'
+      path: '/api/public/hooks/meta-ads'
+      fullPath: '/api/public/hooks/meta-ads'
+      preLoaderRoute: typeof ApiPublicHooksMetaAdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/mirror-rd': {
       id: '/api/public/hooks/mirror-rd'
       path: '/api/public/hooks/mirror-rd'
@@ -1639,6 +1678,7 @@ interface AppRouteChildren {
   AppAgendaRoute: typeof AppAgendaRoute
   AppAnalyticsChatRoute: typeof AppAnalyticsChatRouteWithChildren
   AppCadenciaRoute: typeof AppCadenciaRoute
+  AppCampanhasRoute: typeof AppCampanhasRoute
   AppCarteiraComercialRoute: typeof AppCarteiraComercialRoute
   AppCatalogoRoute: typeof AppCatalogoRoute
   AppComercialRoute: typeof AppComercialRoute
@@ -1687,6 +1727,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAgendaRoute: AppAgendaRoute,
   AppAnalyticsChatRoute: AppAnalyticsChatRouteWithChildren,
   AppCadenciaRoute: AppCadenciaRoute,
+  AppCampanhasRoute: AppCampanhasRoute,
   AppCarteiraComercialRoute: AppCarteiraComercialRoute,
   AppCatalogoRoute: AppCatalogoRoute,
   AppComercialRoute: AppComercialRoute,
@@ -1740,6 +1781,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
+  ApiPublicHooksMetaAdsRoute: ApiPublicHooksMetaAdsRoute,
   ApiPublicHooksMirrorRdRoute: ApiPublicHooksMirrorRdRoute,
   ApiPublicHooksNotifyEscalationsRoute: ApiPublicHooksNotifyEscalationsRoute,
   ApiPublicHooksNotifyRedListRoute: ApiPublicHooksNotifyRedListRoute,
