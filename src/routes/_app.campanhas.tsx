@@ -89,9 +89,25 @@ function CampanhasPage() {
         <>
           <div className="grid grid-cols-2 gap-px border-b border-border bg-border md:grid-cols-6">
             <Metric label="Investimento" value={brl(data.totais.gasto)} />
-            <Metric label="Leads (Meta)" value={int(data.totais.leads_meta)} />
+            <Metric
+              label="Leads (Meta)"
+              value={int(data.totais.leads_meta)}
+              hint={
+                data.totais.contatos > 0
+                  ? `fora ${int(data.totais.contatos)} contatos de site/webinar`
+                  : undefined
+              }
+            />
             <Metric label="Custo por lead" value={brl(data.totais.cpl, 2)} />
-            <Metric label="Leads no Compass" value={int(data.totais.leads_compass)} />
+            <Metric
+              label="Leads no Compass"
+              value={int(data.totais.leads_compass)}
+              hint={
+                data.totais.ja_existiam > 0
+                  ? `${int(data.totais.ja_existiam)} já eram cards`
+                  : undefined
+              }
+            />
             <Metric label="Reuniões" value={int(data.totais.reunioes)} tone="success" />
             <Metric label="Custo por reunião" value={brl(data.totais.custo_reuniao)} />
           </div>
@@ -211,9 +227,22 @@ function CampanhasPage() {
                           <td className="px-3 py-2 text-right">
                             {c.ctr != null ? `${c.ctr.toLocaleString("pt-BR")}%` : "—"}
                           </td>
-                          <td className="px-3 py-2 text-right">{int(c.leads_meta)}</td>
+                          <td className="px-3 py-2 text-right">
+                            {c.contato ? (
+                              <span
+                                className="text-muted-foreground"
+                                title="Campanha de contato (site/webinar): não gera lead para o SDR"
+                              >
+                                {int(c.contatos)} contatos
+                              </span>
+                            ) : (
+                              int(c.leads_meta)
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-right">{brl(c.cpl, 2)}</td>
-                          <td className="px-3 py-2 text-right">{int(c.leads_compass)}</td>
+                          <td className="px-3 py-2 text-right">
+                            <NoCompass total={c.leads_compass} jaExistiam={c.ja_existiam} />
+                          </td>
                           <td className="px-3 py-2 text-right">{int(c.reunioes)}</td>
                           <td className="px-3 py-2 text-right">{int(c.descartados)}</td>
                           <td className="px-3 py-2 text-right">{brl(c.custo_reuniao)}</td>
@@ -257,9 +286,19 @@ function CampanhasPage() {
                           <td className="px-3 py-2 text-right">
                             {a.ctr != null ? `${a.ctr.toLocaleString("pt-BR")}%` : "—"}
                           </td>
-                          <td className="px-3 py-2 text-right">{int(a.leads_meta)}</td>
+                          <td className="px-3 py-2 text-right">
+                            {a.contato ? (
+                              <span className="text-muted-foreground">
+                                {int(a.contatos)} contatos
+                              </span>
+                            ) : (
+                              int(a.leads_meta)
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-right">{brl(a.cpl, 2)}</td>
-                          <td className="px-3 py-2 text-right">{int(a.leads_compass)}</td>
+                          <td className="px-3 py-2 text-right">
+                            <NoCompass total={a.leads_compass} jaExistiam={a.ja_existiam} />
+                          </td>
                           <td className="px-3 py-2 text-right">{int(a.reunioes)}</td>
                           <td className="px-3 py-2 text-right">{brl(a.custo_reuniao)}</td>
                         </tr>
@@ -269,9 +308,11 @@ function CampanhasPage() {
                 )}
               </div>
               <p className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-                Leads (Meta) é a contagem da Meta. No Compass, reuniões e descartados são dos leads
-                que converteram no período, ligados à campanha pelo nome da campanha ou do anúncio.
-                Reunião = etapa Agendado ou No-show, ou reunião marcada.
+                Leads (Meta) é a contagem da Meta, sem as campanhas de contato (site/webinar), que
+                não vão para o SDR e ficam fora do CPL e do custo por reunião. No Compass conta cada
+                envio de formulário que chegou no período, pelo id do lead da Meta, inclusive os
+                anexados a um card que já existia. Reunião = etapa Agendado ou No-show, ou reunião
+                marcada.
               </p>
             </section>
           </div>
@@ -281,7 +322,28 @@ function CampanhasPage() {
   );
 }
 
-function Metric({ label, value, tone }: { label: string; value: string; tone?: "success" }) {
+function NoCompass({ total, jaExistiam }: { total: number; jaExistiam: number }) {
+  return (
+    <span title={jaExistiam > 0 ? `${jaExistiam} já eram cards antes desse envio` : undefined}>
+      {int(total)}
+      {jaExistiam > 0 && (
+        <span className="ml-1 text-[10px] text-muted-foreground">({jaExistiam} já existiam)</span>
+      )}
+    </span>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  tone,
+  hint,
+}: {
+  label: string;
+  value: string;
+  tone?: "success";
+  hint?: string;
+}) {
   return (
     <div className="bg-background px-3 py-2.5">
       <p className="truncate text-[11px] text-muted-foreground">{label}</p>
@@ -290,6 +352,7 @@ function Metric({ label, value, tone }: { label: string; value: string; tone?: "
       >
         {value}
       </p>
+      {hint && <p className="truncate text-[10px] text-muted-foreground">{hint}</p>}
     </div>
   );
 }
