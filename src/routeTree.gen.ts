@@ -85,6 +85,7 @@ import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/ho
 import { Route as ApiPublicHooksSyncRdAllRouteImport } from './routes/api/public/hooks/sync-rd-all'
 import { Route as ApiPublicHooksSyncRdCsClientsRouteImport } from './routes/api/public/hooks/sync-rd-cs-clients'
 import { Route as ApiPublicHooksTransformRdRouteImport } from './routes/api/public/hooks/transform-rd'
+import { Route as ApiPublicMetaLeadsRouteImport } from './routes/api/public/meta/leads'
 import { Route as ApiPublicRdCallbackRouteImport } from './routes/api/public/rd/callback'
 import { Route as ApiPublicWhatsappAutomationsTickRouteImport } from './routes/api/public/whatsapp/automations.tick'
 import { Route as ApiPublicWhatsappWebhookAccountIdRouteImport } from './routes/api/public/whatsapp/webhook.$accountId'
@@ -477,6 +478,11 @@ const ApiPublicHooksTransformRdRoute =
     path: '/api/public/hooks/transform-rd',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicMetaLeadsRoute = ApiPublicMetaLeadsRouteImport.update({
+  id: '/api/public/meta/leads',
+  path: '/api/public/meta/leads',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicRdCallbackRoute = ApiPublicRdCallbackRouteImport.update({
   id: '/api/public/rd/callback',
   path: '/api/public/rd/callback',
@@ -571,6 +577,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
+  '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
@@ -650,6 +657,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
+  '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
@@ -732,6 +740,7 @@ export interface FileRoutesById {
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
+  '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
@@ -814,6 +823,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
     | '/api/public/hooks/transform-rd'
+    | '/api/public/meta/leads'
     | '/api/public/rd/callback'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
@@ -893,6 +903,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
     | '/api/public/hooks/transform-rd'
+    | '/api/public/meta/leads'
     | '/api/public/rd/callback'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
@@ -974,6 +985,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
     | '/api/public/hooks/transform-rd'
+    | '/api/public/meta/leads'
     | '/api/public/rd/callback'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
@@ -998,6 +1010,7 @@ export interface RootRouteChildren {
   ApiPublicHooksSyncRdAllRoute: typeof ApiPublicHooksSyncRdAllRoute
   ApiPublicHooksSyncRdCsClientsRoute: typeof ApiPublicHooksSyncRdCsClientsRoute
   ApiPublicHooksTransformRdRoute: typeof ApiPublicHooksTransformRdRoute
+  ApiPublicMetaLeadsRoute: typeof ApiPublicMetaLeadsRoute
   ApiPublicRdCallbackRoute: typeof ApiPublicRdCallbackRoute
   ApiPublicWhatsappAutomationsTickRoute: typeof ApiPublicWhatsappAutomationsTickRoute
   ApiPublicWhatsappWebhookAccountIdRoute: typeof ApiPublicWhatsappWebhookAccountIdRoute
@@ -1537,6 +1550,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksTransformRdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/meta/leads': {
+      id: '/api/public/meta/leads'
+      path: '/api/public/meta/leads'
+      fullPath: '/api/public/meta/leads'
+      preLoaderRoute: typeof ApiPublicMetaLeadsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/rd/callback': {
       id: '/api/public/rd/callback'
       path: '/api/public/rd/callback'
@@ -1732,6 +1752,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSyncRdAllRoute: ApiPublicHooksSyncRdAllRoute,
   ApiPublicHooksSyncRdCsClientsRoute: ApiPublicHooksSyncRdCsClientsRoute,
   ApiPublicHooksTransformRdRoute: ApiPublicHooksTransformRdRoute,
+  ApiPublicMetaLeadsRoute: ApiPublicMetaLeadsRoute,
   ApiPublicRdCallbackRoute: ApiPublicRdCallbackRoute,
   ApiPublicWhatsappAutomationsTickRoute: ApiPublicWhatsappAutomationsTickRoute,
   ApiPublicWhatsappWebhookAccountIdRoute:
