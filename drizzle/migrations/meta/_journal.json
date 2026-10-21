@@ -134,6 +134,13 @@
       "when": 1792430644814,
       "tag": "0018_20261019200000_cadencia_para_ao_agendar",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1792591659231,
+      "tag": "0019_20261021100000_sync_planilha_agendado",
+      "breakpoints": true
     }
   ]
 }
