@@ -75,7 +75,7 @@ export const enriquecerEmpresa = createServerFn({ method: "POST" })
       key,
     );
     const j: Info = res?.data?.json ?? res?.json ?? {};
-    const upd: Record<string, unknown> = {};
+    const upd: Partial<Pick<Info, "setor" | "porte" | "num_funcionarios" | "linkedin_url" | "cnpj" | "site_url">> = {};
     if (!c.site_url) upd.site_url = site;
     if (!c.setor && j.setor) upd.setor = j.setor;
     if (!c.porte && j.porte) upd.porte = j.porte;
