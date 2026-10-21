@@ -22,7 +22,7 @@ export const getStatusMetaLeads = createServerFn({ method: "GET" })
       .eq("provider", "meta_leads")
       .order("created_at", { ascending: false })
       .limit(10);
-    const base = (process.env.APP_PUBLIC_URL || "https://compass.groupp.com").replace(/\/$/, "");
+    const base = (process.env.APP_PUBLIC_URL || "https://compass.grougp.com").replace(/\/$/, "");
     return {
       webhookUrl: `${base}/api/public/meta/leads`,
       faltando,
