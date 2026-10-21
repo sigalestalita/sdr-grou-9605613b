@@ -444,6 +444,77 @@ export async function sincronizarPlanilha(
     if (rows2.length < PAGE) break;
   }
 
+  const { inserted, reconversoes, completados, roteados, desocultados, insertErrors } =
+    await ingerirLeads(supabase, parsed, { existingIds, porEmail }, { limit: data.limit });
+
+  const skipped = parsed.length - inserted - reconversoes;
+  const stateValue = {
+    last_attempt_at: startedAt,
+    last_sync_at: new Date().toISOString(),
+    status: insertErrors.length ? "partial" : "ok",
+    total_rows: total,
+    parsed: parsed.length,
+    inserted_total_run: inserted,
+    reconversoes,
+    completados,
+    roteados,
+    desocultados,
+    skipped_existing: existingIds.size,
+    insert_errors: insertErrors,
+  };
+  await supabase
+    .from("app_settings")
+    .upsert({ key: "sheets_sync_state", value: stateValue as never } as never, {
+      onConflict: "key",
+    });
+  await supabase.from("integration_logs").insert({
+    provider: "google_sheets",
+    action: "sync_leads",
+    status: insertErrors.length ? "partial" : "ok",
+    detail: {
+      total,
+      parsed: parsed.length,
+      inserted,
+      reconversoes,
+      completados,
+      roteados,
+      desocultados,
+      skipped,
+      insert_errors: insertErrors,
+    } as never,
+  });
+
+  return {
+    total,
+    parsed: parsed.length,
+    inserted,
+    reconversoes,
+    completados,
+    roteados,
+    desocultados,
+    skipped,
+  };
+}
+
+export type BaseDeLeads = {
+  /** lead_id de formulário (e de reconversões) que já estão na base */
+  existingIds: Set<string>;
+  porEmail: Map<string, { id: string; oculto_sdr: boolean | null }>;
+};
+
+/**
+ * Grava no funil do SDR os leads de formulário (da planilha ou direto do
+ * Meta): lead novo entra em "Novo"; email que já existe vira reconversão no
+ * lead que já está lá. O lead_id do Meta é a chave, então o mesmo lead
+ * chegando pelos dois caminhos entra uma vez só.
+ */
+export async function ingerirLeads(
+  supabase: SupabaseClient<Database>,
+  parsed: LeadRow[],
+  { existingIds, porEmail }: BaseDeLeads,
+  opcoes: { limit?: number } = {},
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   /*
    * Uma linha cujo email já está na base não é lixo: é a mesma pessoa
    * convertendo de novo. Antes ela era descartada e a reconversão não
@@ -473,7 +544,7 @@ export async function sincronizarPlanilha(
     }
     return true;
   });
-  const limit = data.limit ?? toInsert.length;
+  const limit = opcoes.limit ?? toInsert.length;
   const batch = toInsert.slice(0, limit);
 
   // Stage "novo"
@@ -686,51 +757,5 @@ export async function sincronizarPlanilha(
     ),
   );
 
-  const skipped = parsed.length - inserted - reconversoes;
-  const stateValue = {
-    last_attempt_at: startedAt,
-    last_sync_at: new Date().toISOString(),
-    status: insertErrors.length ? "partial" : "ok",
-    total_rows: total,
-    parsed: parsed.length,
-    inserted_total_run: inserted,
-    reconversoes,
-    completados,
-    roteados,
-    desocultados,
-    skipped_existing: existingIds.size,
-    insert_errors: insertErrors,
-  };
-  await supabase
-    .from("app_settings")
-    .upsert({ key: "sheets_sync_state", value: stateValue as never } as never, {
-      onConflict: "key",
-    });
-  await supabase.from("integration_logs").insert({
-    provider: "google_sheets",
-    action: "sync_leads",
-    status: insertErrors.length ? "partial" : "ok",
-    detail: {
-      total,
-      parsed: parsed.length,
-      inserted,
-      reconversoes,
-      completados,
-      roteados,
-      desocultados,
-      skipped,
-      insert_errors: insertErrors,
-    } as never,
-  });
-
-  return {
-    total,
-    parsed: parsed.length,
-    inserted,
-    reconversoes,
-    completados,
-    roteados,
-    desocultados,
-    skipped,
-  };
+  return { inserted, reconversoes, completados, roteados, desocultados, insertErrors };
 }

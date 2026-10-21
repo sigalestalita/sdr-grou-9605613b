@@ -12,6 +12,7 @@ import {
   getSheetSyncState,
   conferirPlanilhaNoPipeline,
 } from "@/lib/sheets.functions";
+import { getStatusMetaLeads } from "@/lib/meta-leads.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,12 @@ function SettingsPage() {
   const disconnectFn = useServerFn(disconnectRd);
   const sheetSyncFn = useServerFn(syncLeadsFromSheet);
   const sheetStateFn = useServerFn(getSheetSyncState);
+  const metaLeadsFn = useServerFn(getStatusMetaLeads);
+  const { data: metaLeads } = useQuery({
+    queryKey: ["meta-leads-status"],
+    queryFn: () => metaLeadsFn(),
+    retry: false,
+  });
   /*
    * A sincronização devolve "inserted" e "skipped", e o skipped junta lead que
    * já estava lá com lead que falhou ao entrar. A conferência separa os dois, e
@@ -291,6 +298,51 @@ function SettingsPage() {
           Cron automático rodando a cada 15 min
         </div>
       </Card>
+
+      {metaLeads && (
+        <Card className="p-5 space-y-3">
+          <div className="flex justify-between items-center">
+            <h2 className="font-semibold">Leads do Meta Ads direto no kanban</h2>
+            <Badge variant={metaLeads.faltando.length ? "secondary" : "default"}>
+              {metaLeads.faltando.length ? "Falta configurar" : "Ativo"}
+            </Badge>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            O Meta avisa este endereço a cada formulário enviado e o lead cai em "Novo" na hora, sem
+            passar pela planilha. A planilha continua ligada como reserva: o lead que já entrou por
+            aqui ela reconhece e pula.
+          </p>
+          <div className="text-xs">
+            URL do webhook (campo <code>leadgen</code> da página):{" "}
+            <code className="break-all">{metaLeads.webhookUrl}</code>
+          </div>
+          {metaLeads.faltando.length > 0 && (
+            <div className="text-xs text-amber-600">
+              Variáveis de ambiente que faltam: {metaLeads.faltando.join(", ")}
+            </div>
+          )}
+          <div className="space-y-1">
+            <div className="text-xs font-medium">Últimos leads recebidos</div>
+            {metaLeads.ultimos.length === 0 && (
+              <div className="text-xs text-muted-foreground">Nenhum ainda.</div>
+            )}
+            {metaLeads.ultimos.map((l, i) => (
+              <div key={i} className="text-xs text-muted-foreground">
+                {new Date(l.em).toLocaleString("pt-BR")} ·{" "}
+                <span className={l.status === "ok" ? "text-emerald-600" : "text-destructive"}>
+                  {l.detalhe.resultado ?? l.status}
+                </span>
+                {l.detalhe.nome ? ` · ${l.detalhe.nome}` : ""}
+                {l.detalhe.email ? ` (${l.detalhe.email})` : ""}
+                {l.detalhe.erro ? ` · ${l.detalhe.erro}` : ""}
+                {l.detalhe.sem_campo?.length
+                  ? ` · perguntas sem campo: ${l.detalhe.sem_campo.join(", ")}`
+                  : ""}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-5 space-y-3">
         <div className="flex justify-between items-center">
