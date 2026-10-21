@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { montarRelatorio, type LinhaMeta, type CampanhaMeta } from "./meta-ads-relatorio";
+import {
+  montarRelatorio,
+  type CampanhaMeta,
+  type EnvioCompass,
+  type LinhaMeta,
+} from "./meta-ads-relatorio";
 
 const dia = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
@@ -54,58 +59,115 @@ export const getCampanhasMeta = createServerFn({ method: "GET" })
       .order("dia", { ascending: false })
       .limit(1);
 
-    // Leads convertidos no período (pela data do formulário ou de criação),
-    // com um dia de folga por causa do fuso; o corte exato é feito abaixo.
+    // Envios de formulário da Meta no período (pela data do envio), com um dia
+    // de folga por causa do fuso; o corte exato é feito abaixo pelo dia BRT.
     const desloca = (d: string, dias: number) =>
       new Date(Date.parse(`${d}T00:00:00Z`) + dias * 864e5).toISOString();
     const ini = desloca(data.de, -1);
     const fim = desloca(data.ate, 2);
+    const diaBr = (iso: string) =>
+      new Date(Date.parse(iso) - 3 * 3600e3).toISOString().slice(0, 10);
+    const noPeriodo = (iso: string | null | undefined) => {
+      if (!iso || Number.isNaN(Date.parse(iso))) return false;
+      const d = diaBr(iso);
+      return d >= data.de && d <= data.ate;
+    };
     const { data: stages } = await supabaseAdmin.from("stages").select("id, slug");
     const slug = new Map((stages ?? []).map((s) => [s.id as string, s.slug as string]));
+    type Payload = {
+      lead_id?: string;
+      submitted_at?: string;
+      meta_ids?: { campaign_id?: string; ad_id?: string };
+      reconversoes?: Array<{ lead_id?: string; em?: string; campanha?: string }>;
+    } | null;
     type LeadRow = {
+      id: string;
       campaign: string | null;
       ad_name: string | null;
       stage_id: string | null;
       meeting_at: string | null;
       created_at: string;
-      submitted_at: string | null;
+      form_payload: Payload;
     };
-    const leads: LeadRow[] = [];
-    for (let from = 0; ; from += PAGE) {
-      const { data: rows, error } = await supabaseAdmin
-        .from("leads")
-        .select(
-          "id, campaign, ad_name, stage_id, meeting_at, created_at, submitted_at:form_payload->>submitted_at",
-        )
-        .or("campaign.not.is.null,ad_name.not.is.null")
-        .or(
-          `and(created_at.gte.${ini},created_at.lte.${fim}),and(form_payload->>submitted_at.gte.${ini},form_payload->>submitted_at.lte.${fim})`,
-        )
-        .order("id")
-        .range(from, from + PAGE - 1);
-      if (error) throw new Error(error.message);
-      leads.push(...((rows ?? []) as unknown as LeadRow[]));
-      if (!rows || rows.length < PAGE) break;
+    const colunas = "id, campaign, ad_name, stage_id, meeting_at, created_at, form_payload";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const lerTudo = async (filtro: (q: any) => any) => {
+      const out: LeadRow[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data: rows, error } = await filtro(
+          supabaseAdmin.from("leads").select(colunas).order("id"),
+        ).range(from, from + PAGE - 1);
+        if (error) throw new Error(error.message);
+        out.push(...((rows ?? []) as LeadRow[]));
+        if (!rows || rows.length < PAGE) break;
+      }
+      return out;
+    };
+    // Cards com envio da Meta (o que criou o card ou reconversões anexadas).
+    const comEnvio = await lerTudo((q) =>
+      q.or("form_payload->>lead_id.not.is.null,form_payload->reconversoes.not.is.null"),
+    );
+    const envios = new Map<string, EnvioCompass>();
+    const cardsComEnvio = new Set<string>();
+    const etapaDe = (l: LeadRow) => (l.stage_id ? (slug.get(l.stage_id) ?? null) : null);
+    // Card criado até 1h antes do envio conta como novo (o RD costuma criar
+    // o card minutos antes de a planilha trazer o mesmo envio).
+    const novo = (l: LeadRow, em: string) => Date.parse(l.created_at) >= Date.parse(em) - 3600e3;
+    for (const l of comEnvio) {
+      const fp = l.form_payload;
+      if (fp?.lead_id) cardsComEnvio.add(l.id);
+      const em = fp?.submitted_at ?? l.created_at;
+      if (fp?.lead_id && noPeriodo(em))
+        envios.set(fp.lead_id, {
+          card: l.id,
+          campaign_id: fp.meta_ids?.campaign_id ?? null,
+          campanha: l.campaign,
+          ad_id: fp.meta_ids?.ad_id ?? null,
+          ad_name: l.ad_name,
+          novo: novo(l, em),
+          etapa: etapaDe(l),
+          meeting_at: l.meeting_at,
+        });
+      for (const r of fp?.reconversoes ?? []) {
+        if (r.lead_id) cardsComEnvio.add(l.id);
+        if (!r.lead_id || envios.has(r.lead_id) || !noPeriodo(r.em)) continue;
+        envios.set(r.lead_id, {
+          card: l.id,
+          campaign_id: null,
+          campanha: r.campanha ?? null,
+          ad_id: null,
+          ad_name: null,
+          novo: novo(l, r.em!),
+          etapa: etapaDe(l),
+          meeting_at: l.meeting_at,
+        });
+      }
     }
-    // Dia do lead no horário de Brasília.
-    const diaBr = (iso: string) =>
-      new Date(Date.parse(iso) - 3 * 3600e3).toISOString().slice(0, 10);
-    const doPeriodo = leads
-      .filter((l) => {
-        const d = diaBr(l.submitted_at ?? l.created_at);
-        return d >= data.de && d <= data.ate;
-      })
-      .map((l) => ({
-        campaign: l.campaign,
+    // Cards sem id de lead da Meta (antigos ou só do RD), pela campanha/anúncio.
+    const semEnvio = await lerTudo((q) =>
+      q
+        .or("campaign.not.is.null,ad_name.not.is.null")
+        .gte("created_at", ini)
+        .lte("created_at", fim),
+    );
+    for (const l of semEnvio) {
+      if (cardsComEnvio.has(l.id) || !noPeriodo(l.created_at)) continue;
+      envios.set(`card:${l.id}`, {
+        card: l.id,
+        campaign_id: null,
+        campanha: l.campaign,
+        ad_id: null,
         ad_name: l.ad_name,
-        etapa: l.stage_id ? (slug.get(l.stage_id) ?? null) : null,
+        novo: true,
+        etapa: etapaDe(l),
         meeting_at: l.meeting_at,
-      }));
+      });
+    }
 
     const rel = montarRelatorio({
       diario,
       campanhas: (camp ?? []) as unknown as CampanhaMeta[],
-      leads: doPeriodo,
+      envios: [...envios.values()],
     });
     const est = (estado ?? []) as unknown as Array<{ atualizado_em: string }>;
     const p = (primeiro ?? []) as unknown as Array<{ dia: string }>;
