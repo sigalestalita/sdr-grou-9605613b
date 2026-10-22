@@ -149,7 +149,7 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
   // como lead de consultoria (destinoDoFunilRd).
   const pipelineName =
     (get("rd_pipeline").name as string | undefined) ??
-    "Leads - Empresa [SDR]; Leads - Alianças Estratéticas [SDR]";
+    "Leads - Empresa [SDR]; Leads - Alianças Estratégicas [SDR]";
   const pipelineNames = pipelineName
     .split(";")
     .map((n) => n.trim())
@@ -286,6 +286,20 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
           .single();
         leadId = ins?.id ?? null;
         created++;
+      }
+    }
+
+    if (leadId) {
+      try {
+        const { seguirDonoDoRd } = await import("./lead-routing.server");
+        await seguirDonoDoRd({
+          supabase,
+          leadId,
+          rdUserEmail: d.user?.email,
+          rdUserName: d.user?.name,
+        });
+      } catch {
+        /* alinhar o dono nunca derruba a sincronização */
       }
     }
 

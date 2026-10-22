@@ -204,11 +204,13 @@ export async function reavaliarDonoPorTipo({
 }): Promise<string | null> {
   const { data: lead } = await supabase
     .from("leads")
-    .select("id, assigned_to, lead_type, form_payload")
+    .select("id, assigned_to, lead_type, form_payload, rd_deal_id")
     .eq("id", leadId)
     .maybeSingle();
   if (!lead) return null;
   if (normalizeLeadType(readRawLeadType(lead)) !== "consultoria") return null;
+  // Com negociação no RD, quem manda no dono é o RD (seguirDonoDoRd).
+  if (lead.rd_deal_id && lead.assigned_to) return lead.assigned_to;
 
   const { consultoriaUserId } = await resolveManagedRoutingUsers(supabase);
   if (!consultoriaUserId) return null;
@@ -365,4 +367,61 @@ export async function ensureLeadRouted({
   }
 
   return assignee;
+}
+
+/*
+ * O RD distribui as negociações do SDR pela equipe dele; o Compass sorteia o
+ * dono do card por conta própria. Quando a negociação chega, o card passa
+ * para quem o RD escolheu, para os dois não ficarem com donos diferentes.
+ * Casa pelo e-mail do usuário do RD; sem perfil correspondente, não mexe.
+ */
+export async function seguirDonoDoRd({
+  supabase,
+  leadId,
+  rdUserEmail,
+  rdUserName,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any;
+  leadId: string;
+  rdUserEmail?: string | null;
+  rdUserName?: string | null;
+}): Promise<string | null> {
+  const email = rdUserEmail?.trim().toLowerCase();
+  if (!email) return null;
+  const { data: perfil } = await supabase
+    .from("profiles")
+    .select("id")
+    .ilike("email", email)
+    .maybeSingle();
+  if (!perfil?.id) return null;
+
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("id, assigned_to")
+    .eq("id", leadId)
+    .maybeSingle();
+  if (!lead || lead.assigned_to === perfil.id) return lead?.assigned_to ?? null;
+
+  await supabase
+    .from("leads")
+    .update({ assigned_to: perfil.id, last_action_at: new Date().toISOString() })
+    .eq("id", leadId);
+  await supabase
+    .from("whatsapp_conversations")
+    .update({ assigned_user_id: perfil.id })
+    .eq("lead_id", leadId);
+  await supabase.from("lead_interactions").insert({
+    lead_id: leadId,
+    author_id: null,
+    type: "routing",
+    content: `Responsável alinhado ao RD Station: ${rdUserName ?? email}.`,
+    metadata: {
+      assignee_user_id: String(perfil.id),
+      previous_assignee_user_id: lead.assigned_to ? String(lead.assigned_to) : null,
+      mode: "rd",
+      criterion: "rd_owner",
+    },
+  });
+  return perfil.id;
 }
