@@ -9,7 +9,7 @@
 //   metadata.verify_token  = Verify Token configurado no callback do webhook
 //   metadata.waba_id       = (opcional) WhatsApp Business Account ID
 //   provider_base_url      = (opcional) override do endpoint Graph, default v21.0
-import { createHmac, timingSafeEqual } from "node:crypto";
+import * as nodeCrypto from "node:crypto";
 import type {
   WhatsAppProvider,
   WaSendInput,
@@ -149,11 +149,11 @@ export const metaCloudProvider: WhatsAppProvider = {
     const appSecret = secret?.trim();
     if (!sigHeader || !appSecret) return false;
     const provided = sigHeader.startsWith("sha256=") ? sigHeader.slice(7) : sigHeader;
-    const expected = createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex");
+    const expected = nodeCrypto.createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex");
     try {
       const a = Buffer.from(provided, "hex");
       const b = Buffer.from(expected, "hex");
-      return a.length === b.length && timingSafeEqual(a, b);
+      return a.length === b.length && nodeCrypto.timingSafeEqual(a, b);
     } catch {
       return false;
     }
