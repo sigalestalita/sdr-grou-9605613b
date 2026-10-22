@@ -148,6 +148,13 @@
       "when": 1792607527171,
       "tag": "0020_20261021120000_meta_ads_desempenho",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1792712581024,
+      "tag": "0021_rd_sync_funis_sdr",
+      "breakpoints": true
     }
   ]
 }
