@@ -553,6 +553,37 @@ function WhatsAppAiPage() {
               </p>
             )}
           </div>
+          <div>
+            <label className="text-xs text-muted-foreground">
+              Template de passagem para consultoria
+            </label>
+            <Select
+              value={form.consultoriaPassagemTemplateId ?? "__none"}
+              onValueChange={(v) =>
+                patch({ consultoriaPassagemTemplateId: v === "__none" ? null : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none">
+                  Sem passagem (a conversa fica no número atual)
+                </SelectItem>
+                {templates.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                    {t.status === "approved" ? "" : ` · ${t.status ?? "rascunho"}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Quando um lead de empresa se revela consultoria, a IA avisa no número atual e a dona
+              de consultoria se apresenta com este template pelo número dela — se ela tiver um
+              conectado.
+            </p>
+          </div>
         </CardContent>
       </Card>
 

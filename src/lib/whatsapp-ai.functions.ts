@@ -42,6 +42,8 @@ type AiAgentSettings = {
   defaultAccountId: string | null;
   consultoriaAccountId: string | null;
   consultoriaInitialTemplateId: string | null;
+  /** Apresentação da dona de consultoria pelo número dela, na passagem. */
+  consultoriaPassagemTemplateId: string | null;
 };
 
 export type AiHandoffDecision = {
@@ -174,6 +176,7 @@ const AiAgentSettingsSchema = z.object({
   defaultAccountId: z.string().uuid().nullable().default(null),
   consultoriaAccountId: z.string().uuid().nullable().default(null),
   consultoriaInitialTemplateId: z.string().uuid().nullable().default(null),
+  consultoriaPassagemTemplateId: z.string().uuid().nullable().default(null),
 });
 
 const UpdateAiAgentSettingsSchema = AiAgentSettingsSchema.partial();

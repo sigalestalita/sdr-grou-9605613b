@@ -483,18 +483,11 @@ export async function executarCampanha(
   let failed = 0;
 
   /*
-   * Cada lead recebe do número da SDR dona dele, quando ela tem um conectado;
-   * quem não tem dona com número recebe pela conta da campanha. Uma consulta
-   * por dona, não por lead.
+   * Cada lead recebe do número em que a conversa dele já está; sem conversa,
+   * do número da SDR dona dele, quando ela tem um conectado. Quem não tem
+   * nenhum dos dois recebe pela conta da campanha.
    */
-  const { contaDaDona, moverConversaParaConta } = await import("./whatsapp/conta-da-dona.server");
-  const contaPorDona = new Map<string, Awaited<ReturnType<typeof contaDaDona>>>();
-  async function remetenteDe(donaId: string | null) {
-    if (!donaId) return null;
-    if (!contaPorDona.has(donaId))
-      contaPorDona.set(donaId, await contaDaDona(supabaseAdmin, donaId));
-    return contaPorDona.get(donaId) ?? null;
-  }
+  const { contaParaOLead } = await import("./whatsapp/conta-da-dona.server");
 
   for (const lead of targets) {
     const phone = normPhone(lead.phone ?? "");
@@ -514,8 +507,8 @@ export async function executarCampanha(
     };
     const templateParams = tmplVarNames.map((n) => leadCtx[n] ?? "");
 
-    const daDona = await remetenteDe(lead.assigned_to ?? null);
-    const remetente = daDona ?? account;
+    const remetente =
+      (await contaParaOLead(supabaseAdmin, lead.id, lead.assigned_to ?? null)) ?? account;
 
     // garante conversa
     let convId: string | null = null;
@@ -526,7 +519,6 @@ export async function executarCampanha(
       .maybeSingle();
     if (existing) {
       convId = existing.id;
-      if (daDona) await moverConversaParaConta(supabaseAdmin, existing.id, daDona.id);
     } else {
       const { data: created } = await supabaseAdmin
         .from("whatsapp_conversations")

@@ -176,3 +176,13 @@ describe("espelho", () => {
     expect(grupos.get("A")?.map((m) => m.providerMessageId)).toEqual(["a", "b"]);
   });
 });
+
+describe("avisoDePassagem", () => {
+  it("diz quem segue e que a mensagem vem de outro número, só com o primeiro nome", async () => {
+    const { avisoDePassagem } = await import("./passagem-consultoria.server");
+    const aviso = avisoDePassagem("Mariana Borges");
+    expect(aviso).toContain("Mariana");
+    expect(aviso).not.toContain("Borges");
+    expect(aviso).toContain("outro número de WhatsApp");
+  });
+});

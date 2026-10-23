@@ -395,10 +395,11 @@ async function handleInbound(
   /*
    * Número espelhado não gera aviso: a mensagem já tocou no celular da SDR,
    * que é a dona do número. O aviso sairia do número da Grou para o celular
-   * dela — e voltaria aqui como mensagem recebida no número dela.
+   * dela — e voltaria aqui como mensagem recebida no número dela. A resposta
+   * de campanha continua sendo detectada, para a IA ficar de fora.
    */
   let isCampaignReply = false;
-  if (leadId && !espelhada)
+  if (leadId)
     try {
       const { maybeAlertCampaignReply } =
         await import("@/lib/whatsapp/campaign-reply-alert.server");
@@ -407,6 +408,7 @@ async function handleInbound(
         leadId,
         conversationId: conv.id,
         replyText: msg.body ?? null,
+        semAviso: espelhada,
       });
       isCampaignReply = res.isCampaignReply;
       if (isCampaignReply) {
@@ -457,13 +459,15 @@ async function handleInbound(
   if (!leadId) return;
 
   /*
-   * No número da SDR quem responde é ela, pelo celular.
+   * No número da SDR a IA atende o lead até a SDR entrar.
    *
-   * Mesmo para lead: a IA falando por um número pessoal se apresentaria como
-   * a SDR, e responderia por cima do que ela já está digitando no aparelho.
-   * O Compass só registra a conversa no card.
+   * O lead conversa com um número só, do primeiro contato à reunião. A IA
+   * qualifica ali mesmo, assinando como a SDR — e as mensagens dela aparecem
+   * no celular da SDR, que acompanha. Basta a SDR digitar qualquer coisa no
+   * aparelho: o eco entra como mensagem "sdr" e a IA sai da conversa (a
+   * checagem de humano assumiu, logo abaixo). Contato que não é lead já
+   * parou antes daqui.
    */
-  if (espelhada) return;
 
   // 4) resposta automática da IA quando habilitada
   try {
@@ -482,6 +486,18 @@ async function handleInbound(
 
     // Respostas de campanha vão direto para a SDR humana (IA fica fora).
     if (isCampaignReply) return;
+
+    /*
+     * Mensagem que chegou pelo celular de uma SDR que não é o número da
+     * conversa — o lead respondeu no número antigo depois da passagem para
+     * consultoria. A IA
+     * não responde por ali: a dona responde pelo Compass, e a resposta sai
+     * pelo número em que a conversa está.
+     */
+    if (espelhada && conv.account_id && conv.account_id !== accountId) {
+      await admin.from("whatsapp_conversations").update({ status: "pending" }).eq("id", conv.id);
+      return;
+    }
 
     if (conv.assumed_at && conv.assumed_by_user_id) return;
 
@@ -542,7 +558,30 @@ async function handleInbound(
         if (perfil.leadType === "consultoria") {
           // Consultoria tem dona: corrige a rota mesmo se a roleta já entregou
           // o lead a outra pessoa antes de o tipo ser conhecido.
-          await reavaliarDonoPorTipo({ supabase: admin, leadId });
+          const { data: antes } = await admin
+            .from("leads")
+            .select("assigned_to")
+            .eq("id", leadId)
+            .maybeSingle();
+          const novaDona = await reavaliarDonoPorTipo({ supabase: admin, leadId });
+          /*
+           * Virou consultoria agora: a conversa vai para o número da dona de
+           * consultoria, com aviso ao lead. É a única troca de número — e
+           * não acontece se ela não tem número conectado ou se a conversa
+           * já está nele. Passou, esta mensagem está respondida.
+           */
+          if (novaDona && novaDona !== antes?.assigned_to) {
+            const { passarParaNumeroDaConsultoria } =
+              await import("@/lib/whatsapp/passagem-consultoria.server");
+            const passagem = await passarParaNumeroDaConsultoria({
+              admin,
+              conversaId: conv.id,
+              leadId,
+              contaAtual: accountConfig,
+              telefone: phone,
+            });
+            if (passagem === "passou" || passagem === "falhou") return;
+          }
         } else {
           // Empresa e pessoa física entram na roleta entre as SDRs. Sem isso o
           // lead do WhatsApp ficava na fila geral até alguém pegar na mão.

@@ -10,7 +10,11 @@ const CAMPAIGN_WINDOW_DAYS = 14;
 /** Telefone gerencial que recebe cópia de todos os alertas. */
 const MONITORING_PHONE = "5551999969371";
 
-async function log(admin: Admin, status: "ok" | "error" | "skipped", detail: Record<string, unknown>) {
+async function log(
+  admin: Admin,
+  status: "ok" | "error" | "skipped",
+  detail: Record<string, unknown>,
+) {
   try {
     await admin
       .from("integration_logs")
@@ -43,6 +47,11 @@ export async function maybeAlertCampaignReply(params: {
   leadId: string;
   conversationId: string;
   replyText: string | null;
+  /**
+   * Só detecta, sem avisar. No número espelhado a resposta já tocou no
+   * celular da SDR dona do número; o aviso seria repetido.
+   */
+  semAviso?: boolean;
 }): Promise<{ isCampaignReply: boolean }> {
   const { admin, leadId, conversationId } = params;
   const since = new Date(Date.now() - CAMPAIGN_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -59,6 +68,7 @@ export async function maybeAlertCampaignReply(params: {
 
   if (!cm?.campaign_id) return { isCampaignReply: false };
   const campaignId = cm.campaign_id;
+  if (params.semAviso) return { isCampaignReply: true };
 
   if (await alreadyAlerted(admin, leadId, campaignId)) {
     return { isCampaignReply: true };
