@@ -92,3 +92,43 @@ export async function dadosDoNumero(
     verifiedName: json.verified_name ?? null,
   };
 }
+
+/**
+ * Pede à Meta a agenda e o histórico do app do celular.
+ *
+ * Só funciona nas primeiras 24 horas depois da conexão — passou disso, o
+ * histórico anterior não vem mais. Por isso é chamado no fim do Embedded
+ * Signup, sem esperar ninguém lembrar. A Meta responde na hora só com um id;
+ * as conversas chegam depois, em lotes, pelo webhook (campos `history` e
+ * `smb_app_state_sync`).
+ *
+ * A agenda vai primeiro: com os nomes salvos no celular, as conversas do
+ * histórico já entram com nome.
+ */
+export async function pedirSincronizacaoDoApp(
+  phoneNumberId: string,
+  token: string,
+): Promise<{ contatos: string; historico: string }> {
+  async function pedir(syncType: "smb_app_state_sync" | "history") {
+    const res = await fetch(`${GRAPH}/${encodeURIComponent(phoneNumberId)}/smb_app_data`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ messaging_product: "whatsapp", sync_type: syncType }),
+    });
+    const txt = await res.text();
+    if (!res.ok) {
+      let msg = txt.slice(0, 300);
+      try {
+        const j = JSON.parse(txt) as { error?: { message?: string; error_user_msg?: string } };
+        msg = j.error?.error_user_msg || j.error?.message || msg;
+      } catch {
+        /* texto cru serve */
+      }
+      return `erro: ${msg}`;
+    }
+    return "pedido";
+  }
+  const contatos = await pedir("smb_app_state_sync");
+  const historico = await pedir("history");
+  return { contatos, historico };
+}

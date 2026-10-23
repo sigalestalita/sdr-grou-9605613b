@@ -472,7 +472,7 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
     });
     if (!isMgr) throw new Error("Apenas gestores conectam contas de WhatsApp.");
 
-    const { trocarCodigoPorToken, assinarWebhookDoWaba, dadosDoNumero } =
+    const { trocarCodigoPorToken, assinarWebhookDoWaba, dadosDoNumero, pedirSincronizacaoDoApp } =
       await import("@/lib/whatsapp/embedded-signup.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -487,11 +487,22 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
       .eq("provider_instance_id", data.phoneNumberId)
       .maybeSingle();
 
+    /*
+     * Agenda e histórico do celular: a Meta só entrega se o pedido vier nas
+     * primeiras 24 horas, então sai já. Falhar aqui não desfaz a conexão — a
+     * tela mostra o resultado e dá para pedir de novo pelo botão.
+     */
+    const sincronizacao = await pedirSincronizacaoDoApp(data.phoneNumberId, token).catch((e) => ({
+      contatos: `erro: ${e instanceof Error ? e.message : String(e)}`,
+      historico: `erro: ${e instanceof Error ? e.message : String(e)}`,
+    }));
+
     const metadata = {
       ...(((existente?.metadata as Record<string, unknown>) ?? {}) as Record<string, unknown>),
       waba_id: data.wabaId,
       coexistencia: true,
       conectado_em: new Date().toISOString(),
+      sincronizacao: { ...sincronizacao, pedido_em: new Date().toISOString() },
     };
     const patch = {
       label: data.label?.trim() || info.verifiedName || info.displayPhoneNumber || "WhatsApp",
@@ -499,7 +510,8 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
       provider: "meta_cloud",
       provider_instance_id: data.phoneNumberId,
       access_token: token,
-      status: "connected",
+      // "active" como as demais: a tela trata qualquer outro valor como desligada.
+      status: "active",
       owner_user_id: data.ownerUserId ?? null,
       metadata,
       updated_at: new Date().toISOString(),
@@ -511,16 +523,79 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
         .update(patch as never)
         .eq("id", existente.id);
       if (error) throw new Error(error.message);
-      return { ok: true, id: existente.id, criada: false, numero: info.displayPhoneNumber };
+      return {
+        ok: true,
+        id: existente.id,
+        criada: false,
+        numero: info.displayPhoneNumber,
+        sincronizacao,
+      };
     }
 
+    /*
+     * Número que nasce pelo Embedded Signup é o celular de alguém: espelhado.
+     * O Compass registra a conversa e quem responde é a dona, pelo aparelho —
+     * a IA não fala por número pessoal. Na reconexão o valor que já estava
+     * na conta é mantido, para não desfazer uma escolha feita na tela.
+     */
     const { data: criada, error } = await supabaseAdmin
       .from("whatsapp_accounts")
-      .insert(patch as never)
+      .insert({ ...patch, espelhada: true } as never)
       .select("id")
       .single();
     if (error) throw new Error(error.message);
-    return { ok: true, id: criada.id, criada: true, numero: info.displayPhoneNumber };
+    return {
+      ok: true,
+      id: criada.id,
+      criada: true,
+      numero: info.displayPhoneNumber,
+      sincronizacao,
+    };
+  });
+
+/**
+ * Pede de novo a agenda e o histórico do celular de uma conta já conectada.
+ *
+ * Para quando o pedido do fim da conexão falhou. A Meta só aceita até 24
+ * horas depois da conexão; depois disso ela mesma responde com erro, e é esse
+ * erro que volta para a tela.
+ */
+export const sincronizarHistoricoDaConta = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isMgr) throw new Error("Apenas gestores.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conta, error } = await supabaseAdmin
+      .from("whatsapp_accounts")
+      .select("provider, provider_instance_id, access_token, metadata")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error || !conta) throw new Error(error?.message || "Conta não encontrada");
+    if (conta.provider !== "meta_cloud") throw new Error("Só vale para Meta Cloud API.");
+    if (!conta.access_token || !conta.provider_instance_id) {
+      throw new Error("Conta sem token ou sem Phone Number ID.");
+    }
+
+    const { pedirSincronizacaoDoApp } = await import("@/lib/whatsapp/embedded-signup.server");
+    const sincronizacao = await pedirSincronizacaoDoApp(
+      conta.provider_instance_id,
+      conta.access_token,
+    );
+    await supabaseAdmin
+      .from("whatsapp_accounts")
+      .update({
+        metadata: {
+          ...((conta.metadata as Record<string, unknown>) ?? {}),
+          sincronizacao: { ...sincronizacao, pedido_em: new Date().toISOString() },
+        },
+      } as never)
+      .eq("id", data.id);
+    return sincronizacao;
   });
 
 /**

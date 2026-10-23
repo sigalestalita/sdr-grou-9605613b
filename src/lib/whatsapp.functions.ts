@@ -299,11 +299,13 @@ export const getOrCreateConversationForLead = createServerFn({ method: "POST" })
       contactId = contact?.id ?? null;
     }
 
-    const { data: account } = await supabase
-      .from("whatsapp_accounts")
-      .select("id")
-      .eq("is_default", true)
-      .maybeSingle();
+    // Conversa nova nasce no número da dona do lead, se ela tiver um conectado.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { contaDaDona } = await import("./whatsapp/conta-da-dona.server");
+    const daDona = await contaDaDona(supabaseAdmin, lead.assigned_to ?? routedUserId ?? null);
+    const { data: account } = daDona
+      ? { data: daDona }
+      : await supabase.from("whatsapp_accounts").select("id").eq("is_default", true).maybeSingle();
 
     const { data: created, error } = await supabase
       .from("whatsapp_conversations")
