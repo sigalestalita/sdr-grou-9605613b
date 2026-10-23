@@ -21,20 +21,31 @@ export async function contaDaDona(
 }
 
 /**
- * A conversa passa a ser do número que acabou de mandar.
+ * De qual número sai a próxima mensagem para o lead.
  *
- * É pela conta da conversa que sai a próxima mensagem digitada no Compass;
- * se ela ficasse no número antigo, o lead receberia a primeira mensagem de
- * um número e a seguinte de outro.
+ * Conversa já começada continua no número em que começou: o lead fala com um
+ * número só, mesmo que a dona mude no meio do caminho (redistribuição, dono
+ * novo no RD) — a nova dona responde pelo Compass, pelo mesmo número. A
+ * única troca é a passagem anunciada para consultoria, feita à parte.
+ * Conversa nova sai do número da dona. Null: segue a conta de sempre.
  */
-export async function moverConversaParaConta(
+export async function contaParaOLead(
   admin: SupabaseClient<Database>,
-  conversaId: string,
-  contaId: string,
-) {
-  await admin
+  leadId: string,
+  donaId: string | null | undefined,
+): Promise<Conta | null> {
+  const { data: conversa } = await admin
     .from("whatsapp_conversations")
-    .update({ account_id: contaId })
-    .eq("id", conversaId)
-    .neq("account_id", contaId);
+    .select("account_id")
+    .eq("lead_id", leadId)
+    .maybeSingle();
+  if (conversa?.account_id) {
+    const { data: daConversa } = await admin
+      .from("whatsapp_accounts")
+      .select("*")
+      .eq("id", conversa.account_id)
+      .maybeSingle();
+    if (daConversa) return daConversa;
+  }
+  return contaDaDona(admin, donaId);
 }

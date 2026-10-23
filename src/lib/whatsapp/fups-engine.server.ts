@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getProvider } from "./provider-registry.server";
 import { renderTemplate } from "../whatsapp-templates.functions";
-import { contaDaDona, moverConversaParaConta } from "./conta-da-dona.server";
+import { contaParaOLead } from "./conta-da-dona.server";
 
 type Sequence = {
   id: string;
@@ -222,9 +222,11 @@ async function sendStep(
     .maybeSingle();
   if (!tmpl) return { ok: false, error: "Template inexistente" };
 
-  // Lead com dona que tem número conectado recebe dali; senão, a conta do FUP.
-  const daDona = await contaDaDona(supabaseAdmin, lead.assigned_to);
-  const account = daDona ?? (await getAccountById(seq.account_id)) ?? (await getDefaultAccount());
+  // Número da conversa já começada, ou o da dona; senão, a conta do FUP.
+  const account =
+    (await contaParaOLead(supabaseAdmin, lead.id, lead.assigned_to)) ??
+    (await getAccountById(seq.account_id)) ??
+    (await getDefaultAccount());
   if (!account) return { ok: false, error: "Sem conta WhatsApp configurada" };
   if (!accountAllowsLead(account, lead.lead_type)) {
     return { ok: false, error: "Lead fora do escopo da conta WhatsApp do FUP" };
@@ -242,10 +244,8 @@ async function sendStep(
     .select("id")
     .eq("lead_id", lead.id)
     .maybeSingle();
-  if (existing) {
-    convId = existing.id;
-    if (daDona) await moverConversaParaConta(supabaseAdmin, existing.id, daDona.id);
-  } else {
+  if (existing) convId = existing.id;
+  else {
     const { data: created } = await supabaseAdmin
       .from("whatsapp_conversations")
       .insert({
