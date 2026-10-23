@@ -13,11 +13,11 @@ export async function contaDaDona(
   donaId: string | null | undefined,
 ): Promise<Conta | null> {
   if (!donaId) return null;
-  const [{ data: daDona }, { data: padrao }] = await Promise.all([
-    admin.from("whatsapp_accounts").select("*").eq("owner_user_id", donaId),
-    admin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle(),
-  ]);
-  return escolherContaDaDona((daDona ?? []) as Conta[], donaId, padrao as Conta | null);
+  const { data: daDona } = await admin
+    .from("whatsapp_accounts")
+    .select("*")
+    .eq("owner_user_id", donaId);
+  return escolherContaDaDona((daDona ?? []) as Conta[], donaId);
 }
 
 /**

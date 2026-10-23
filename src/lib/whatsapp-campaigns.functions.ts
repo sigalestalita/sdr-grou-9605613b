@@ -485,9 +485,11 @@ export async function executarCampanha(
   /*
    * Cada lead recebe do número em que a conversa dele já está; sem conversa,
    * do número da SDR dona dele, quando ela tem um conectado. Quem não tem
-   * nenhum dos dois recebe pela conta da campanha.
+   * nenhum dos dois recebe pela conta da campanha. Template de HSM só sai
+   * pelo número da SDR se já estiver aprovado no WABA dela.
    */
   const { contaParaOLead } = await import("./whatsapp/conta-da-dona.server");
+  const { templateNaConta } = await import("./whatsapp/templates-por-waba.server");
 
   for (const lead of targets) {
     const phone = normPhone(lead.phone ?? "");
@@ -507,8 +509,17 @@ export async function executarCampanha(
     };
     const templateParams = tmplVarNames.map((n) => leadCtx[n] ?? "");
 
+    const doLead = await contaParaOLead(supabaseAdmin, lead.id, lead.assigned_to ?? null);
     const remetente =
-      (await contaParaOLead(supabaseAdmin, lead.id, lead.assigned_to ?? null)) ?? account;
+      doLead &&
+      (!useHsm ||
+        (await templateNaConta(supabaseAdmin, doLead, {
+          provider_template_name: tmplFull.provider_template_name,
+          language: tmplFull.language,
+          meta_template_id: null,
+        })))
+        ? doLead
+        : account;
 
     // garante conversa
     let convId: string | null = null;

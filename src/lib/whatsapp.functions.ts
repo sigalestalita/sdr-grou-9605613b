@@ -646,6 +646,16 @@ export const sendTemplateToConversation = createServerFn({ method: "POST" })
     const { data: account } = await accountQuery;
     if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
 
+    // Conversa no número de uma SDR: o template precisa estar aprovado no WABA dela.
+    const { templateNaConta } = await import("./whatsapp/templates-por-waba.server");
+    const naConta = await templateNaConta(supabaseAdmin, account, tmpl);
+    if (!naConta) {
+      throw new Error(
+        `O template "${providerName}" ainda não está aprovado no WhatsApp de ${account.label || account.phone_number}. ` +
+          "Copie em WhatsApp → Contas e aguarde a aprovação da Meta.",
+      );
+    }
+
     const {
       headerParams,
       bodyParams,
@@ -656,7 +666,7 @@ export const sendTemplateToConversation = createServerFn({ method: "POST" })
         access_token: account.access_token ?? "",
         provider_base_url: account.provider_base_url,
       },
-      metaTemplateId: tmpl.meta_template_id,
+      metaTemplateId: naConta.metaTemplateId,
       storedVariables: tmpl.variables,
       headerMediaUrl: (tmpl as { header_media_url?: string | null }).header_media_url ?? null,
       lead: { name: lead.name, company_name: lead.company_name },

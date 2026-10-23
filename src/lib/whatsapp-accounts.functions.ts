@@ -517,18 +517,35 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
       updated_at: new Date().toISOString(),
     };
 
+    /*
+     * Templates: na coexistência o número fica no WABA que já era dele, e
+     * os templates aprovados estão no da Grou. Pede a cópia já, para a
+     * aprovação correr enquanto a SDR se acostuma — falhar não desfaz nada.
+     */
+    async function copiarTemplates(contaId: string) {
+      try {
+        const { copiarTemplatesParaConta } =
+          await import("@/lib/whatsapp/templates-por-waba.server");
+        return await copiarTemplatesParaConta(supabaseAdmin, contaId);
+      } catch (e) {
+        return [{ template: "todos", resultado: `erro: ${e instanceof Error ? e.message : e}` }];
+      }
+    }
+
     if (existente) {
       const { error } = await supabaseAdmin
         .from("whatsapp_accounts")
         .update(patch as never)
         .eq("id", existente.id);
       if (error) throw new Error(error.message);
+      const templates = await copiarTemplates(existente.id);
       return {
         ok: true,
         id: existente.id,
         criada: false,
         numero: info.displayPhoneNumber,
         sincronizacao,
+        templates,
       };
     }
 
@@ -544,12 +561,14 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
+    const templates = await copiarTemplates(criada.id);
     return {
       ok: true,
       id: criada.id,
       criada: true,
       numero: info.displayPhoneNumber,
       sincronizacao,
+      templates,
     };
   });
 
@@ -861,4 +880,27 @@ export const diagnosticarConta = createServerFn({ method: "POST" })
     });
 
     return { checks };
+  });
+
+/**
+ * Copia para o WABA desta conta os templates que os disparos usam.
+ *
+ * Para número conectado à mão (Nova conta) ou quando a cópia da conexão
+ * falhou. Template que já existe lá não é enviado de novo.
+ */
+export const copiarTemplatesDaConta = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({ id: z.string().uuid(), templateIds: z.array(z.string().uuid()).optional() })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isMgr } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!isMgr) throw new Error("Apenas gestores.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { copiarTemplatesParaConta } = await import("@/lib/whatsapp/templates-por-waba.server");
+    return copiarTemplatesParaConta(supabaseAdmin, data.id, data.templateIds);
   });

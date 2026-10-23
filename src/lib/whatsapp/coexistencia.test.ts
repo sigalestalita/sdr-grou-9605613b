@@ -106,17 +106,6 @@ describe("lerCoexistencia", () => {
 });
 
 describe("escolherContaDaDona", () => {
-  const padrao: ContaCandidata = {
-    id: "grou",
-    provider: "meta_cloud",
-    status: "active",
-    owner_user_id: "gestora",
-    espelhada: false,
-    is_default: true,
-    access_token: "t",
-    provider_instance_id: "1",
-    metadata: { waba_id: "WABA_GROU" },
-  };
   const daCamila: ContaCandidata = {
     id: "camila",
     provider: "meta_cloud",
@@ -125,23 +114,24 @@ describe("escolherContaDaDona", () => {
     espelhada: true,
     access_token: "t",
     provider_instance_id: "2",
-    metadata: { waba_id: "WABA_GROU", coexistencia: true },
+    // Na coexistência o número fica no WABA que já era dele, não no da Grou.
+    metadata: { waba_id: "WABA_DA_CAMILA", coexistencia: true },
   };
 
-  it("usa o número da dona quando está no mesmo WABA da conta padrão", () => {
-    expect(escolherContaDaDona([daCamila], "camila", padrao)?.id).toBe("camila");
+  it("usa o número da dona, mesmo em WABA próprio", () => {
+    expect(escolherContaDaDona([daCamila], "camila")?.id).toBe("camila");
   });
 
-  it("ignora número de outro WABA: o template não existiria lá", () => {
-    const outroWaba = { ...daCamila, metadata: { waba_id: "OUTRO" } };
-    expect(escolherContaDaDona([outroWaba], "camila", padrao)).toBeNull();
+  it("ignora número sem WABA: não dá para conferir o template", () => {
+    expect(escolherContaDaDona([{ ...daCamila, metadata: {} }], "camila")).toBeNull();
   });
 
-  it("ignora conta que não é espelhada, desligada ou de outra pessoa", () => {
-    expect(escolherContaDaDona([{ ...daCamila, espelhada: false }], "camila", padrao)).toBeNull();
-    expect(escolherContaDaDona([{ ...daCamila, status: "disabled" }], "camila", padrao)).toBeNull();
-    expect(escolherContaDaDona([daCamila], "lisiane", padrao)).toBeNull();
-    expect(escolherContaDaDona([daCamila], null, padrao)).toBeNull();
+  it("ignora conta que não é espelhada, desligada, padrão ou de outra pessoa", () => {
+    expect(escolherContaDaDona([{ ...daCamila, espelhada: false }], "camila")).toBeNull();
+    expect(escolherContaDaDona([{ ...daCamila, status: "disabled" }], "camila")).toBeNull();
+    expect(escolherContaDaDona([{ ...daCamila, is_default: true }], "camila")).toBeNull();
+    expect(escolherContaDaDona([daCamila], "lisiane")).toBeNull();
+    expect(escolherContaDaDona([daCamila], null)).toBeNull();
   });
 });
 
@@ -184,5 +174,56 @@ describe("avisoDePassagem", () => {
     expect(aviso).toContain("Mariana");
     expect(aviso).not.toContain("Borges");
     expect(aviso).toContain("outro número de WhatsApp");
+  });
+});
+
+describe("montarCopia", () => {
+  it("leva só o que a criação de template aceita e mantém o exemplo", async () => {
+    const { montarCopia } = await import("./templates-por-waba.server");
+    const { temMidia, pedido } = montarCopia({
+      id: "1",
+      name: "passagem_consultoria",
+      language: "pt_BR",
+      status: "APPROVED",
+      category: "MARKETING",
+      components: [
+        {
+          type: "BODY",
+          text: "Oi {{1}}, aqui é {{2}}",
+          example: { body_text: [["Ana", "Mariana"]] },
+          id: "lixo",
+        },
+        { type: "BUTTONS", buttons: [{ type: "QUICK_REPLY", text: "Sim" }] },
+      ],
+    });
+    expect(temMidia).toBe(false);
+    expect(pedido).toEqual({
+      name: "passagem_consultoria",
+      language: "pt_BR",
+      category: "MARKETING",
+      components: [
+        {
+          type: "BODY",
+          text: "Oi {{1}}, aqui é {{2}}",
+          example: { body_text: [["Ana", "Mariana"]] },
+        },
+        { type: "BUTTONS", buttons: [{ type: "QUICK_REPLY", text: "Sim" }] },
+      ],
+    });
+  });
+
+  it("avisa quando o template tem imagem no topo", async () => {
+    const { montarCopia } = await import("./templates-por-waba.server");
+    const { temMidia } = montarCopia({
+      id: "1",
+      name: "x",
+      language: "pt_BR",
+      status: "APPROVED",
+      components: [
+        { type: "HEADER", format: "IMAGE" },
+        { type: "BODY", text: "oi" },
+      ],
+    });
+    expect(temMidia).toBe(true);
   });
 });

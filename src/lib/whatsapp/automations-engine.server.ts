@@ -472,11 +472,25 @@ async function executeAiInitialOutreachForLead(
     ? settings.consultoriaAccountId
     : settings.defaultAccountId;
   // A primeira mensagem sai do número da SDR que assina, quando ela tem um.
+  const contaDoLead = await contaParaOLead(supabaseAdmin, lead.id, responsavelId);
+  /*
+   * O número da SDR só serve se o template já está aprovado no WABA dela.
+   * Logo depois da conexão ele ainda está em análise: nesse intervalo a
+   * mensagem sai pela conta de sempre, para o lead não ficar sem contato.
+   */
+  const { templateNaConta } = await import("./templates-por-waba.server");
+  const noNumeroDoLead = contaDoLead
+    ? await templateNaConta(supabaseAdmin, contaDoLead, tmpl)
+    : null;
   const account =
-    (await contaParaOLead(supabaseAdmin, lead.id, responsavelId)) ??
+    (noNumeroDoLead ? contaDoLead : null) ??
     (await getAccountById(preferredAccountId)) ??
     (await getDefaultAccount());
   if (!account) return { ok: false, error: "Sem conta WhatsApp configurada" };
+  const metaTemplateId =
+    noNumeroDoLead && account === contaDoLead
+      ? noNumeroDoLead.metaTemplateId
+      : tmpl.meta_template_id;
   if (!accountAllowsLead(account, lead.lead_type)) {
     return { ok: false, error: "Conta WhatsApp não permite este tipo de lead" };
   }
@@ -524,7 +538,7 @@ async function executeAiInitialOutreachForLead(
       access_token: account.access_token ?? "",
       provider_base_url: account.provider_base_url,
     },
-    metaTemplateId: tmpl.meta_template_id,
+    metaTemplateId,
     storedVariables: tmpl.variables,
     headerMediaUrl: (tmpl as { header_media_url?: string | null }).header_media_url ?? null,
     lead: {
