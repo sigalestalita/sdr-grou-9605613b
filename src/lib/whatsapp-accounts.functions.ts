@@ -605,15 +605,11 @@ export const sincronizarHistoricoDaConta = createServerFn({ method: "POST" })
       conta.provider_instance_id,
       conta.access_token,
     );
-    await supabaseAdmin
-      .from("whatsapp_accounts")
-      .update({
-        metadata: {
-          ...((conta.metadata as Record<string, unknown>) ?? {}),
-          sincronizacao: { ...sincronizacao, pedido_em: new Date().toISOString() },
-        },
-      } as never)
-      .eq("id", data.id);
+    const { anotarNaConta } = await import("@/lib/whatsapp/templates-por-waba.server");
+    await anotarNaConta(supabaseAdmin, data.id, "sincronizacao", {
+      ...sincronizacao,
+      pedido_em: new Date().toISOString(),
+    });
     return sincronizacao;
   });
 
