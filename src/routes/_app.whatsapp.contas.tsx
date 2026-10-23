@@ -13,6 +13,7 @@ import {
   assinarWebhookDaConta,
   diagnosticarConta,
   sincronizarHistoricoDaConta,
+  copiarTemplatesDaConta,
   getEmbeddedSignupConfig,
 } from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
   Link2,
   Stethoscope,
   History,
+  Files,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmbeddedSignupButton } from "@/components/whatsapp/embedded-signup-button";
@@ -94,6 +96,7 @@ function ContasPage() {
   const assinarFn = useServerFn(assinarWebhookDaConta);
   const diagFn = useServerFn(diagnosticarConta);
   const historicoFn = useServerFn(sincronizarHistoricoDaConta);
+  const copiarFn = useServerFn(copiarTemplatesDaConta);
   // Reaproveita a lista de pessoas que a configuração da Meta já traz.
   const pessoasFn = useServerFn(getEmbeddedSignupConfig);
   const { data: cfgSignup } = useQuery({
@@ -152,6 +155,24 @@ function ContasPage() {
       else toast.success("Pedido feito. As conversas chegam aos poucos nos próximos minutos.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao pedir o histórico"),
+  });
+
+  /*
+   * Templates no WABA da SDR. Na coexistência o número fica no WABA que já
+   * era dele, e template não passa de um WABA para outro: sem a cópia
+   * aprovada lá, os disparos desse lead saem pelo número da Grou.
+   */
+  const copiar = useMutation({
+    mutationFn: (id: string) => copiarFn({ data: { id } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["wa-accounts"] });
+      const erros = r.filter((x) => x.resultado.startsWith("erro"));
+      if (!r.length) toast.success("Esta conta usa os templates da Grou; nada a copiar.");
+      else if (erros.length) toast.error(`${erros.length} com erro: ${erros[0].resultado}`);
+      else
+        toast.success(`${r.length} templates enviados ou já existentes no WhatsApp desta conta.`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao copiar os templates"),
   });
 
   // "Credenciais ok" só diz que o token responde; o diagnóstico pergunta à
@@ -297,6 +318,12 @@ function ContasPage() {
           const sinc = a.metadata?.sincronizacao as
             | { contatos?: string; historico?: string; pedido_em?: string }
             | undefined;
+          const copiados = a.metadata?.templates_copiados as
+            | { em?: string; resultados?: Array<{ template: string; resultado: string }> }
+            | undefined;
+          const errosDeCopia = (copiados?.resultados ?? []).filter((x) =>
+            x.resultado.startsWith("erro"),
+          );
           return (
             <div key={a.id} className="border border-white/5 rounded-lg p-4 bg-card/50">
               <div className="flex items-start justify-between gap-3">
@@ -342,6 +369,19 @@ function ContasPage() {
                           Histórico pedido em {new Date(sinc.pedido_em).toLocaleString("pt-BR")}
                           {sinc.historico?.startsWith("erro") && (
                             <span className="text-red-400"> — {sinc.historico}</span>
+                          )}
+                          .
+                        </>
+                      )}
+                      {copiados?.em && (
+                        <>
+                          {" "}
+                          Templates copiados em {new Date(copiados.em).toLocaleString("pt-BR")}
+                          {errosDeCopia.length > 0 && (
+                            <span className="text-red-400">
+                              {" "}
+                              — {errosDeCopia.length} com erro: {errosDeCopia[0].resultado}
+                            </span>
                           )}
                           .
                         </>
@@ -396,6 +436,17 @@ function ContasPage() {
                       onClick={() => historico.mutate(a.id)}
                     >
                       <History className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {a.provider === "meta_cloud" && coexistencia && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Copiar os templates dos disparos para o WhatsApp desta conta"
+                      disabled={copiar.isPending}
+                      onClick={() => copiar.mutate(a.id)}
+                    >
+                      <Files className="h-4 w-4" />
                     </Button>
                   )}
                   {a.provider === "meta_cloud" && !coexistencia && (

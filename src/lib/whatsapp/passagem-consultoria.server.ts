@@ -84,6 +84,13 @@ export async function passarParaNumeroDaConsultoria(params: {
     console.warn("[passagem consultoria] template de apresentação ausente ou não aprovado");
     return "sem_template";
   }
+  // Aprovado na Grou não basta: precisa estar aprovado no WABA da dona.
+  const { templateNaConta } = await import("./templates-por-waba.server");
+  const noDestino = await templateNaConta(admin, destino, tmpl);
+  if (!noDestino) {
+    console.warn("[passagem consultoria] template ainda não aprovado no WABA da dona");
+    return "sem_template";
+  }
 
   const { data: perfil } = await admin
     .from("profiles")
@@ -130,7 +137,7 @@ export async function passarParaNumeroDaConsultoria(params: {
       access_token: destino.access_token ?? "",
       provider_base_url: destino.provider_base_url,
     },
-    metaTemplateId: tmpl.meta_template_id,
+    metaTemplateId: noDestino.metaTemplateId,
     storedVariables: tmpl.variables,
     headerMediaUrl: tmpl.header_media_url,
     lead: { name: lead?.name, company_name: lead?.company_name },

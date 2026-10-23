@@ -6,10 +6,10 @@
  * conversar sempre com a mesma pessoa e, quando responder, cair no celular de
  * quem cuida dele.
  *
- * Só vale número espelhado, do mesmo WABA da conta padrão: os templates
- * aprovados moram no WABA, e template de um WABA não sai por número de outro
- * (a Meta recusa com "template não existe"). Número de outro portfólio fica de
- * fora e o envio segue pela conta padrão.
+ * Só vale número espelhado, com WABA conhecido. Na coexistência cada número
+ * fica no WABA que já era dele no app — não no da Grou —, e template mora no
+ * WABA: quem dispara template confere, na hora, se ele está aprovado no WABA
+ * desse número (templates-por-waba.server.ts).
  */
 
 export type ContaCandidata = {
@@ -27,16 +27,14 @@ export type ContaCandidata = {
 
 const STATUS_NO_AR = new Set(["active", "connected"]);
 
-const wabaDe = (c: { metadata: unknown } | null) =>
+export const wabaDe = (c: { metadata: unknown } | null) =>
   ((c?.metadata as { waba_id?: string } | null)?.waba_id ?? "").trim() || null;
 
 export function escolherContaDaDona<C extends ContaCandidata>(
   contas: C[],
   donaId: string | null | undefined,
-  padrao: ContaCandidata | null,
 ): C | null {
   if (!donaId) return null;
-  const wabaPadrao = wabaDe(padrao);
   const candidatas = contas.filter(
     (c) =>
       c.owner_user_id === donaId &&
@@ -46,9 +44,8 @@ export function escolherContaDaDona<C extends ContaCandidata>(
       STATUS_NO_AR.has(c.status ?? "") &&
       !!c.access_token &&
       !!c.provider_instance_id &&
-      // Sem WABA conhecido dos dois lados não dá para garantir o template.
-      !!wabaPadrao &&
-      wabaDe(c) === wabaPadrao,
+      // Sem WABA não dá para conferir nem copiar template.
+      !!wabaDe(c),
   );
   candidatas.sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
   return candidatas[0] ?? null;
