@@ -149,14 +149,20 @@ async function templatesDaBase(admin: Admin): Promise<string[]> {
   const nomesDoSistema = TEMPLATES_DO_SISTEMA.map((t) => t.provider_template_name);
   const { data } = await admin
     .from("whatsapp_templates")
-    .select("id, provider_template_name, status")
+    // "*" porque valido_ate não está nos tipos gerados.
+    .select("*")
     .eq("status", "approved");
+  // Template de campanha vencida não vai: ele não sai mais nem pela Grou.
+  const hoje = new Date().toISOString().slice(0, 10);
   return (data ?? [])
-    .filter(
-      (t) =>
+    .filter((t) => {
+      const validoAte = (t as { valido_ate?: string | null }).valido_ate;
+      return (
         !!t.provider_template_name &&
-        (ids.includes(t.id) || nomesDoSistema.includes(t.provider_template_name)),
-    )
+        (!validoAte || validoAte >= hoje) &&
+        (ids.includes(t.id) || nomesDoSistema.includes(t.provider_template_name))
+      );
+    })
     .map((t) => t.id);
 }
 
@@ -229,16 +235,32 @@ export async function copiarTemplatesParaConta(
   }
   cache.delete(wabaDestino);
 
+  await anotarNaConta(admin, contaId, "templates_copiados", {
+    em: new Date().toISOString(),
+    resultados,
+  });
+  return resultados;
+}
+
+/**
+ * Grava uma chave no metadata da conta sem apagar as outras.
+ *
+ * Relê o metadata na hora de gravar: a cópia de templates leva alguns
+ * segundos, e o pedido de histórico feito nesse meio-tempo era apagado pela
+ * versão antiga que a cópia tinha lido no começo.
+ */
+export async function anotarNaConta(admin: Admin, contaId: string, chave: string, valor: unknown) {
+  const { data: atual } = await admin
+    .from("whatsapp_accounts")
+    .select("metadata")
+    .eq("id", contaId)
+    .maybeSingle();
   await admin
     .from("whatsapp_accounts")
     .update({
-      metadata: {
-        ...((destino.metadata as Record<string, unknown>) ?? {}),
-        templates_copiados: { em: new Date().toISOString(), resultados },
-      },
+      metadata: { ...((atual?.metadata as Record<string, unknown>) ?? {}), [chave]: valor },
     } as never)
     .eq("id", contaId);
-  return resultados;
 }
 
 /**
