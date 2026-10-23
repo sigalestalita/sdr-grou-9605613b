@@ -5,7 +5,7 @@ const LEAD_ROUTING_ROTATION_STATE_KEY = "whatsapp_lead_routing_rotation_state";
 
 const MANAGED_ROUND_ROBIN_LEAD_TYPES = new Set(["empresa", "pessoa_fisica"] as const);
 
-const ROUTING_TARGETS = {
+export const ROUTING_TARGETS = {
   roundRobin: [
     { fullName: "Camila Mattie", email: "camila.mattie@grougp.com.br" },
     { fullName: "Lisiane Baudini", email: "lisiane@grougp.com.br" },

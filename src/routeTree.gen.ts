@@ -43,6 +43,7 @@ import { Route as AppCsWhatsappRouteImport } from './routes/_app.cs-whatsapp'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
 import { Route as AppFaturamentoRouteImport } from './routes/_app.faturamento'
+import { Route as AppFunilSdrRouteImport } from './routes/_app.funil-sdr'
 import { Route as AppImportarRdRouteImport } from './routes/_app.importar-rd'
 import { Route as AppInicioRouteImport } from './routes/_app.inicio'
 import { Route as AppJornadaRouteImport } from './routes/_app.jornada'
@@ -260,6 +261,11 @@ const AppDiagnosticoRoute = AppDiagnosticoRouteImport.update({
 const AppFaturamentoRoute = AppFaturamentoRouteImport.update({
   id: '/faturamento',
   path: '/faturamento',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFunilSdrRoute = AppFunilSdrRouteImport.update({
+  id: '/funil-sdr',
+  path: '/funil-sdr',
   getParentRoute: () => AppRoute,
 } as any)
 const AppImportarRdRoute = AppImportarRdRouteImport.update({
@@ -554,6 +560,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
   '/faturamento': typeof AppFaturamentoRoute
+  '/funil-sdr': typeof AppFunilSdrRoute
   '/importar-rd': typeof AppImportarRdRoute
   '/inicio': typeof AppInicioRoute
   '/jornada': typeof AppJornadaRoute
@@ -638,6 +645,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
   '/faturamento': typeof AppFaturamentoRoute
+  '/funil-sdr': typeof AppFunilSdrRoute
   '/importar-rd': typeof AppImportarRdRoute
   '/inicio': typeof AppInicioRoute
   '/jornada': typeof AppJornadaRoute
@@ -723,6 +731,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/diagnostico': typeof AppDiagnosticoRoute
   '/_app/faturamento': typeof AppFaturamentoRoute
+  '/_app/funil-sdr': typeof AppFunilSdrRoute
   '/_app/importar-rd': typeof AppImportarRdRoute
   '/_app/inicio': typeof AppInicioRoute
   '/_app/jornada': typeof AppJornadaRoute
@@ -809,6 +818,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/faturamento'
+    | '/funil-sdr'
     | '/importar-rd'
     | '/inicio'
     | '/jornada'
@@ -893,6 +903,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/faturamento'
+    | '/funil-sdr'
     | '/importar-rd'
     | '/inicio'
     | '/jornada'
@@ -977,6 +988,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/diagnostico'
     | '/_app/faturamento'
+    | '/_app/funil-sdr'
     | '/_app/importar-rd'
     | '/_app/inicio'
     | '/_app/jornada'
@@ -1293,6 +1305,13 @@ declare module '@tanstack/react-router' {
       path: '/faturamento'
       fullPath: '/faturamento'
       preLoaderRoute: typeof AppFaturamentoRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/funil-sdr': {
+      id: '/_app/funil-sdr'
+      path: '/funil-sdr'
+      fullPath: '/funil-sdr'
+      preLoaderRoute: typeof AppFunilSdrRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/importar-rd': {
@@ -1725,6 +1744,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppDiagnosticoRoute: typeof AppDiagnosticoRoute
   AppFaturamentoRoute: typeof AppFaturamentoRoute
+  AppFunilSdrRoute: typeof AppFunilSdrRoute
   AppImportarRdRoute: typeof AppImportarRdRoute
   AppInicioRoute: typeof AppInicioRoute
   AppJornadaRoute: typeof AppJornadaRoute
@@ -1774,6 +1794,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppDiagnosticoRoute: AppDiagnosticoRoute,
   AppFaturamentoRoute: AppFaturamentoRoute,
+  AppFunilSdrRoute: AppFunilSdrRoute,
   AppImportarRdRoute: AppImportarRdRoute,
   AppInicioRoute: AppInicioRoute,
   AppJornadaRoute: AppJornadaRoute,
