@@ -334,8 +334,8 @@ function ContasPage() {
                   </p>
                   {coexistencia && (
                     <p className="text-[11px] text-muted-foreground mt-1">
-                      Celular da dona: o Compass registra as conversas e a IA não responde por este
-                      número.
+                      Celular da dona: o Compass registra as conversas, a IA atende só leads e sai
+                      da conversa quando a dona digita no celular.
                       {sinc?.pedido_em && (
                         <>
                           {" "}
