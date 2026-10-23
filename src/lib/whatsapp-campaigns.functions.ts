@@ -331,6 +331,300 @@ export const createCampaign = createServerFn({ method: "POST" })
     return { campaign: row };
   });
 
+/**
+ * Envia a campanha (até `limit` mensagens). Usado pelo botão "Disparar" e
+ * pela rotina que dispara as campanhas agendadas.
+ */
+export async function executarCampanha(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  campaignId: string,
+  limit: number,
+  actorUserId: string | null,
+) {
+  const { data: campaign, error: cErr } = await supabase
+    .from("whatsapp_campaigns")
+    .select("*, whatsapp_templates:template_id(*)")
+    .eq("id", campaignId)
+    .maybeSingle();
+  if (cErr) throw new Error(cErr.message);
+  if (!campaign) throw new Error("Campanha não encontrada");
+  const tmpl = (campaign as { whatsapp_templates: { body: string } | null }).whatsapp_templates;
+  if (!tmpl?.body) throw new Error("Template inválido");
+  const tmplFull = (
+    campaign as {
+      whatsapp_templates: {
+        body: string;
+        provider_template_name: string | null;
+        language: string | null;
+        variables: unknown;
+      } | null;
+    }
+  ).whatsapp_templates!;
+  const useHsm = !!tmplFull.provider_template_name;
+  const tmplVarNames = Array.isArray(tmplFull.variables)
+    ? (tmplFull.variables as unknown[]).map((v) => String(v))
+    : [];
+
+  const audience = parseAudience(campaign.audience_filters ?? {});
+
+  // imports server-only
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { getProvider } = await import("./whatsapp/provider-registry.server");
+
+  type Target = {
+    id: string;
+    name: string | null;
+    company_name: string | null;
+    phone: string | null;
+    assigned_to: string | null;
+  };
+  let targets: Target[] = [];
+
+  if (audience.source === "phones") {
+    const isExcludedEntry = makeExclusionMatcher(audience.exclusions);
+    const entries = (audience.phones ?? [])
+      .filter(
+        (e) =>
+          !isExcludedEntry({
+            name: e.name ?? null,
+            company_name: e.company ?? null,
+            phone: e.phone,
+          }),
+      )
+      .slice(0, limit);
+    for (const e of entries) {
+      const phone = normPhone(e.phone);
+      if (!phone) continue;
+      // tenta achar lead existente pelo número, em qualquer formato
+      const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
+      const match = await acharLeadPorTelefone(
+        supabaseAdmin,
+        phone,
+        "id, name, company_name, phone, assigned_to",
+      );
+      if (match) {
+        targets.push(match as Target);
+        continue;
+      }
+      const ins = await supabaseAdmin
+        .from("leads")
+        .insert({
+          name: e.name?.trim() || `+${phone}`,
+          phone,
+          company_name: e.company?.trim() || null,
+          source: "campaign_upload",
+        })
+        .select("id, name, company_name, phone, assigned_to")
+        .single();
+      if (ins.data) targets.push(ins.data as Target);
+    }
+  } else {
+    const f = audience.filters ?? {};
+    let q = supabase.from("leads").select("id, name, company_name, phone, assigned_to");
+    if (f.stageIds?.length) q = q.in("stage_id", f.stageIds);
+    if (f.priorities?.length) q = q.in("priority", f.priorities);
+    if (f.demoFree === "yes") q = q.eq("demo_free", true);
+    if (f.demoFree === "no") q = q.eq("demo_free", false);
+    if (f.assignedToMe) q = q.eq("assigned_to", actorUserId);
+    if (f.leadType?.length) q = q.in("lead_type", f.leadType);
+    if (f.companySizes?.length) q = q.in("company_size", f.companySizes);
+    if (f.emailDomains?.length) {
+      const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
+      q = q.or(ors);
+    }
+    if (f.lostReasons?.length) {
+      const ors = lostReasonOr(f.lostReasons);
+      if (ors) q = q.or(ors);
+    }
+    if (f.createdFrom) {
+      const iso = dayStartIso(f.createdFrom);
+      if (iso) q = q.gte("created_at", iso);
+    }
+    if (f.createdTo) {
+      const iso = dayEndIso(f.createdTo);
+      if (iso) q = q.lte("created_at", iso);
+    }
+    q = q.not("phone", "is", null).limit(Math.min(5000, limit + 2000));
+    const { data: leads, error: lErr } = await q;
+    if (lErr) throw new Error(lErr.message);
+    const isExcludedLead = makeExclusionMatcher(audience.exclusions);
+    targets = ((leads ?? []) as Target[]).filter((l) => !isExcludedLead(l)).slice(0, limit);
+  }
+
+  if (targets.length === 0) {
+    await supabase
+      .from("whatsapp_campaigns")
+      .update({
+        status: "completed",
+        started_at: new Date().toISOString(),
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", campaignId);
+    return { ok: true, queued: 0, sent: 0, failed: 0 };
+  }
+
+  await supabase
+    .from("whatsapp_campaigns")
+    .update({ status: "sending", started_at: new Date().toISOString() })
+    .eq("id", campaignId);
+
+  const accountQuery = campaign.account_id
+    ? supabaseAdmin
+        .from("whatsapp_accounts")
+        .select("*")
+        .eq("id", campaign.account_id)
+        .maybeSingle()
+    : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
+  const { data: account } = await accountQuery;
+  if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
+  const provider = getProvider(account.provider);
+
+  let sent = 0;
+  let failed = 0;
+
+  for (const lead of targets) {
+    const phone = normPhone(lead.phone ?? "");
+    if (!phone) {
+      failed++;
+      continue;
+    }
+    const body = renderTemplate(tmpl.body, {
+      nome: lead.name ?? "",
+      primeiro_nome: (lead.name ?? "").split(" ")[0] ?? "",
+      empresa: lead.company_name ?? "",
+    });
+    const leadCtx: Record<string, string> = {
+      nome: lead.name ?? "",
+      primeiro_nome: (lead.name ?? "").split(" ")[0] ?? "",
+      empresa: lead.company_name ?? "",
+    };
+    const templateParams = tmplVarNames.map((n) => leadCtx[n] ?? "");
+
+    // garante conversa
+    let convId: string | null = null;
+    const { data: existing } = await supabaseAdmin
+      .from("whatsapp_conversations")
+      .select("id")
+      .eq("lead_id", lead.id)
+      .maybeSingle();
+    if (existing) {
+      convId = existing.id;
+    } else {
+      const { data: created } = await supabaseAdmin
+        .from("whatsapp_conversations")
+        .insert({
+          lead_id: lead.id,
+          account_id: account.id,
+          assigned_user_id: lead.assigned_to ?? actorUserId,
+          status: "open",
+        })
+        .select("id")
+        .single();
+      convId = created?.id ?? null;
+    }
+    if (!convId) {
+      failed++;
+      continue;
+    }
+
+    const { data: msg } = await supabaseAdmin
+      .from("whatsapp_messages")
+      .insert({
+        conversation_id: convId,
+        lead_id: lead.id,
+        sender_type: "sdr",
+        sender_user_id: actorUserId,
+        message_type: "text",
+        body,
+        status: "sending",
+      })
+      .select("id")
+      .single();
+
+    try {
+      const result = await provider.sendMessage({
+        account: {
+          id: account.id,
+          phone_number: account.phone_number,
+          provider: account.provider,
+          provider_instance_id: account.provider_instance_id,
+          provider_base_url: account.provider_base_url,
+          access_token: account.access_token,
+          webhook_secret: account.webhook_secret,
+        },
+        to: phone,
+        ...(useHsm
+          ? {
+              type: "template" as const,
+              templateName: tmplFull.provider_template_name!,
+              templateLanguage: tmplFull.language ?? "pt_BR",
+              templateParams,
+              // o body renderizado é salvo no chat só para histórico
+              body,
+            }
+          : { type: "text" as const, body }),
+      });
+
+      if (msg?.id) {
+        await supabaseAdmin
+          .from("whatsapp_messages")
+          .update({
+            provider_message_id: result.providerMessageId,
+            status: result.status === "failed" ? "failed" : "sent",
+            error: result.error ?? null,
+            sent_at: new Date().toISOString(),
+          })
+          .eq("id", msg.id);
+      }
+
+      await supabaseAdmin
+        .from("whatsapp_conversations")
+        .update({
+          last_message_at: new Date().toISOString(),
+          last_preview: body.slice(0, 200),
+          status: "open",
+        })
+        .eq("id", convId);
+
+      await supabaseAdmin.from("whatsapp_campaign_messages").insert({
+        campaign_id: campaignId,
+        lead_id: lead.id,
+        message_id: msg?.id ?? null,
+        status: result.status === "failed" ? "failed" : "sent",
+        error: result.error ?? null,
+        sent_at: new Date().toISOString(),
+      });
+
+      if (result.status === "failed") failed++;
+      else sent++;
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Falha";
+      if (msg?.id) {
+        await supabaseAdmin
+          .from("whatsapp_messages")
+          .update({ status: "failed", error: message })
+          .eq("id", msg.id);
+      }
+      await supabaseAdmin.from("whatsapp_campaign_messages").insert({
+        campaign_id: campaignId,
+        lead_id: lead.id,
+        message_id: msg?.id ?? null,
+        status: "failed",
+        error: message,
+      });
+      failed++;
+    }
+  }
+
+  await supabaseAdmin
+    .from("whatsapp_campaigns")
+    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .eq("id", campaignId);
+
+  return { ok: true, queued: targets.length, sent, failed };
+}
+
 /** Dispara a campanha agora (envia até `limit` mensagens). */
 export const launchCampaign = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -346,287 +640,7 @@ export const launchCampaign = createServerFn({ method: "POST" })
     const { data: isMgr } = await supabase.rpc("is_manager", { _user_id: userId });
     if (!isMgr) throw new Error("Apenas gestão/admin podem disparar campanhas");
 
-    const { data: campaign, error: cErr } = await supabase
-      .from("whatsapp_campaigns")
-      .select("*, whatsapp_templates:template_id(*)")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (cErr) throw new Error(cErr.message);
-    if (!campaign) throw new Error("Campanha não encontrada");
-    const tmpl = (campaign as { whatsapp_templates: { body: string } | null }).whatsapp_templates;
-    if (!tmpl?.body) throw new Error("Template inválido");
-    const tmplFull = (
-      campaign as {
-        whatsapp_templates: {
-          body: string;
-          provider_template_name: string | null;
-          language: string | null;
-          variables: unknown;
-        } | null;
-      }
-    ).whatsapp_templates!;
-    const useHsm = !!tmplFull.provider_template_name;
-    const tmplVarNames = Array.isArray(tmplFull.variables)
-      ? (tmplFull.variables as unknown[]).map((v) => String(v))
-      : [];
-
-    const audience = parseAudience(campaign.audience_filters ?? {});
-
-    // imports server-only
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { getProvider } = await import("./whatsapp/provider-registry.server");
-
-    type Target = {
-      id: string;
-      name: string | null;
-      company_name: string | null;
-      phone: string | null;
-      assigned_to: string | null;
-    };
-    let targets: Target[] = [];
-
-    if (audience.source === "phones") {
-      const isExcludedEntry = makeExclusionMatcher(audience.exclusions);
-      const entries = (audience.phones ?? [])
-        .filter(
-          (e) =>
-            !isExcludedEntry({
-              name: e.name ?? null,
-              company_name: e.company ?? null,
-              phone: e.phone,
-            }),
-        )
-        .slice(0, data.limit);
-      for (const e of entries) {
-        const phone = normPhone(e.phone);
-        if (!phone) continue;
-        // tenta achar lead existente pelo número, em qualquer formato
-        const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
-        const match = await acharLeadPorTelefone(
-          supabaseAdmin,
-          phone,
-          "id, name, company_name, phone, assigned_to",
-        );
-        if (match) {
-          targets.push(match as Target);
-          continue;
-        }
-        const ins = await supabaseAdmin
-          .from("leads")
-          .insert({
-            name: e.name?.trim() || `+${phone}`,
-            phone,
-            company_name: e.company?.trim() || null,
-            source: "campaign_upload",
-          })
-          .select("id, name, company_name, phone, assigned_to")
-          .single();
-        if (ins.data) targets.push(ins.data as Target);
-      }
-    } else {
-      const f = audience.filters ?? {};
-      let q = supabase.from("leads").select("id, name, company_name, phone, assigned_to");
-      if (f.stageIds?.length) q = q.in("stage_id", f.stageIds);
-      if (f.priorities?.length) q = q.in("priority", f.priorities);
-      if (f.demoFree === "yes") q = q.eq("demo_free", true);
-      if (f.demoFree === "no") q = q.eq("demo_free", false);
-      if (f.assignedToMe) q = q.eq("assigned_to", userId);
-      if (f.leadType?.length) q = q.in("lead_type", f.leadType);
-      if (f.companySizes?.length) q = q.in("company_size", f.companySizes);
-      if (f.emailDomains?.length) {
-        const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
-        q = q.or(ors);
-      }
-      if (f.lostReasons?.length) {
-        const ors = lostReasonOr(f.lostReasons);
-        if (ors) q = q.or(ors);
-      }
-      if (f.createdFrom) {
-        const iso = dayStartIso(f.createdFrom);
-        if (iso) q = q.gte("created_at", iso);
-      }
-      if (f.createdTo) {
-        const iso = dayEndIso(f.createdTo);
-        if (iso) q = q.lte("created_at", iso);
-      }
-      q = q.not("phone", "is", null).limit(Math.min(5000, data.limit + 2000));
-      const { data: leads, error: lErr } = await q;
-      if (lErr) throw new Error(lErr.message);
-      const isExcludedLead = makeExclusionMatcher(audience.exclusions);
-      targets = ((leads ?? []) as Target[]).filter((l) => !isExcludedLead(l)).slice(0, data.limit);
-    }
-
-    if (targets.length === 0) {
-      await supabase
-        .from("whatsapp_campaigns")
-        .update({
-          status: "completed",
-          started_at: new Date().toISOString(),
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", data.id);
-      return { ok: true, queued: 0, sent: 0, failed: 0 };
-    }
-
-    await supabase
-      .from("whatsapp_campaigns")
-      .update({ status: "sending", started_at: new Date().toISOString() })
-      .eq("id", data.id);
-
-    const accountQuery = campaign.account_id
-      ? supabaseAdmin
-          .from("whatsapp_accounts")
-          .select("*")
-          .eq("id", campaign.account_id)
-          .maybeSingle()
-      : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
-    const { data: account } = await accountQuery;
-    if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
-    const provider = getProvider(account.provider);
-
-    let sent = 0;
-    let failed = 0;
-
-    for (const lead of targets) {
-      const phone = normPhone(lead.phone ?? "");
-      if (!phone) {
-        failed++;
-        continue;
-      }
-      const body = renderTemplate(tmpl.body, {
-        nome: lead.name ?? "",
-        primeiro_nome: (lead.name ?? "").split(" ")[0] ?? "",
-        empresa: lead.company_name ?? "",
-      });
-      const leadCtx: Record<string, string> = {
-        nome: lead.name ?? "",
-        primeiro_nome: (lead.name ?? "").split(" ")[0] ?? "",
-        empresa: lead.company_name ?? "",
-      };
-      const templateParams = tmplVarNames.map((n) => leadCtx[n] ?? "");
-
-      // garante conversa
-      let convId: string | null = null;
-      const { data: existing } = await supabaseAdmin
-        .from("whatsapp_conversations")
-        .select("id")
-        .eq("lead_id", lead.id)
-        .maybeSingle();
-      if (existing) {
-        convId = existing.id;
-      } else {
-        const { data: created } = await supabaseAdmin
-          .from("whatsapp_conversations")
-          .insert({
-            lead_id: lead.id,
-            account_id: account.id,
-            assigned_user_id: lead.assigned_to ?? userId,
-            status: "open",
-          })
-          .select("id")
-          .single();
-        convId = created?.id ?? null;
-      }
-      if (!convId) {
-        failed++;
-        continue;
-      }
-
-      const { data: msg } = await supabaseAdmin
-        .from("whatsapp_messages")
-        .insert({
-          conversation_id: convId,
-          lead_id: lead.id,
-          sender_type: "sdr",
-          sender_user_id: userId,
-          message_type: "text",
-          body,
-          status: "sending",
-        })
-        .select("id")
-        .single();
-
-      try {
-        const result = await provider.sendMessage({
-          account: {
-            id: account.id,
-            phone_number: account.phone_number,
-            provider: account.provider,
-            provider_instance_id: account.provider_instance_id,
-            provider_base_url: account.provider_base_url,
-            access_token: account.access_token,
-            webhook_secret: account.webhook_secret,
-          },
-          to: phone,
-          ...(useHsm
-            ? {
-                type: "template" as const,
-                templateName: tmplFull.provider_template_name!,
-                templateLanguage: tmplFull.language ?? "pt_BR",
-                templateParams,
-                // o body renderizado é salvo no chat só para histórico
-                body,
-              }
-            : { type: "text" as const, body }),
-        });
-
-        if (msg?.id) {
-          await supabaseAdmin
-            .from("whatsapp_messages")
-            .update({
-              provider_message_id: result.providerMessageId,
-              status: result.status === "failed" ? "failed" : "sent",
-              error: result.error ?? null,
-              sent_at: new Date().toISOString(),
-            })
-            .eq("id", msg.id);
-        }
-
-        await supabaseAdmin
-          .from("whatsapp_conversations")
-          .update({
-            last_message_at: new Date().toISOString(),
-            last_preview: body.slice(0, 200),
-            status: "open",
-          })
-          .eq("id", convId);
-
-        await supabaseAdmin.from("whatsapp_campaign_messages").insert({
-          campaign_id: data.id,
-          lead_id: lead.id,
-          message_id: msg?.id ?? null,
-          status: result.status === "failed" ? "failed" : "sent",
-          error: result.error ?? null,
-          sent_at: new Date().toISOString(),
-        });
-
-        if (result.status === "failed") failed++;
-        else sent++;
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "Falha";
-        if (msg?.id) {
-          await supabaseAdmin
-            .from("whatsapp_messages")
-            .update({ status: "failed", error: message })
-            .eq("id", msg.id);
-        }
-        await supabaseAdmin.from("whatsapp_campaign_messages").insert({
-          campaign_id: data.id,
-          lead_id: lead.id,
-          message_id: msg?.id ?? null,
-          status: "failed",
-          error: message,
-        });
-        failed++;
-      }
-    }
-
-    await supabaseAdmin
-      .from("whatsapp_campaigns")
-      .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", data.id);
-
-    return { ok: true, queued: targets.length, sent, failed };
+    return executarCampanha(supabase, data.id, data.limit, userId);
   });
 
 /** Lista estágios e tipos de lead (para o builder de filtros). */
