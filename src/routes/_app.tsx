@@ -235,6 +235,8 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "BI",
     items: [
       { to: "/leads-analytics", label: "Performance SDR", icon: LineChart, team: "comercial" },
+      // Números do RD do dia corrente: o relatório do RD só atualiza de madrugada.
+      { to: "/funil-sdr", label: "Funil SDR (RD)", icon: BarChart3, team: "comercial" },
       {
         to: "/comercial-analise",
         label: "Análise comercial",

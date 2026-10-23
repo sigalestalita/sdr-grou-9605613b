@@ -30,7 +30,19 @@ export const Route = createFileRoute("/api/public/hooks/sync-rd")({
         }
         try {
           const result = await runRdSync(supabaseAdmin, mode);
-          return Response.json({ ok: true, ...result });
+          /*
+           * Espelho dos funis do SDR para o painel do Compass, que mostra o dia
+           * corrente — o relatório do RD só atualiza de madrugada. Falhar aqui
+           * não desfaz a sincronização dos leads.
+           */
+          let espelho: unknown = null;
+          try {
+            const { espelharFunisSdr } = await import("@/lib/rd/espelho-funis-sdr.server");
+            espelho = await espelharFunisSdr();
+          } catch (e) {
+            espelho = { erro: e instanceof Error ? e.message : String(e) };
+          }
+          return Response.json({ ok: true, ...result, espelho });
         } catch (e) {
           return Response.json(
             { ok: false, error: e instanceof Error ? e.message : String(e) },
