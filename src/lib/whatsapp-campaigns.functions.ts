@@ -27,6 +27,7 @@ const PhoneEntry = z.object({
   phone: z.string().min(6).max(40),
   name: z.string().max(160).optional(),
   company: z.string().max(160).optional(),
+  email: z.string().max(200).optional(),
 });
 export type CampaignPhoneEntry = z.infer<typeof PhoneEntry>;
 
@@ -43,6 +44,17 @@ const Audience = z
     filters: AudienceFilters.optional(),
     phones: z.array(PhoneEntry).max(5000).optional(),
     exclusions: Exclusions,
+    /*
+     * Lista de evento: a pessoa só vira card quando responder.
+     *
+     * O lead nasce oculto (some do kanban como os do RD ainda não migrados) e
+     * marcado para ser ativado na resposta — aí entra na roleta das SDRs, a
+     * SDR é avisada e a IA fica de fora, como em toda resposta de campanha.
+     * Quem não responde não suja o pipeline.
+     */
+    leadSoAoResponder: z.boolean().optional(),
+    /** Origem gravada no lead criado pela lista (ex.: "Sales Sprint (QR code)"). */
+    origem: z.string().max(120).optional(),
   })
   .default({ source: "filters" });
 export type CampaignAudience = z.infer<typeof Audience>;
@@ -412,9 +424,19 @@ export async function executarCampanha(
         .insert({
           name: e.name?.trim() || `+${phone}`,
           phone,
+          email: e.email?.trim().toLowerCase() || null,
           company_name: e.company?.trim() || null,
-          source: "campaign_upload",
-        })
+          source: audience.origem?.trim() || "campaign_upload",
+          ...(audience.leadSoAoResponder
+            ? {
+                // Empresa: na resposta, entra na roleta entre as SDRs.
+                lead_type: "empresa",
+                campaign: (campaign as { name?: string | null }).name ?? null,
+                oculto_sdr: true,
+                form_payload: { ativar_ao_responder: true, campanha_id: campaignId },
+              }
+            : {}),
+        } as never)
         .select("id, name, company_name, phone, assigned_to")
         .single();
       if (ins.data) targets.push(ins.data as Target);

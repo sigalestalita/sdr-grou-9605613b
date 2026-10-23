@@ -288,6 +288,9 @@ async function handleInbound(
   }
 
   if (leadId) {
+    // Lead de lista de evento: só agora, que respondeu, vira card.
+    const { ativarLeadQueRespondeu } = await import("@/lib/whatsapp/ativar-na-resposta.server");
+    await ativarLeadQueRespondeu(admin, leadId);
     const { ensureLeadRouted } = await import("@/lib/lead-routing.server");
     await ensureLeadRouted({ supabase: admin, leadId, actorUserId: null });
   }
