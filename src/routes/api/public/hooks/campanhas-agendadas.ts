@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 
 /**
  * Dispara as campanhas de WhatsApp agendadas cujo horário chegou.
- * Chamado pelo agendamento no banco a cada 5 minutos.
+ * Chamado pelo agendamento no banco a cada minuto.
  */
 export const Route = createFileRoute("/api/public/hooks/campanhas-agendadas")({
   server: {
