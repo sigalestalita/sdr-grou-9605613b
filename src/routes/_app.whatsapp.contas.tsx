@@ -12,6 +12,7 @@ import {
   listarNumerosDoWaba,
   assinarWebhookDaConta,
   diagnosticarConta,
+  sincronizarHistoricoDaConta,
   getEmbeddedSignupConfig,
 } from "@/lib/whatsapp-accounts.functions";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ import {
   ShieldCheck,
   Link2,
   Stethoscope,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
 import { EmbeddedSignupButton } from "@/components/whatsapp/embedded-signup-button";
@@ -91,6 +93,7 @@ function ContasPage() {
   const numerosFn = useServerFn(listarNumerosDoWaba);
   const assinarFn = useServerFn(assinarWebhookDaConta);
   const diagFn = useServerFn(diagnosticarConta);
+  const historicoFn = useServerFn(sincronizarHistoricoDaConta);
   // Reaproveita a lista de pessoas que a configuração da Meta já traz.
   const pessoasFn = useServerFn(getEmbeddedSignupConfig);
   const { data: cfgSignup } = useQuery({
@@ -135,6 +138,20 @@ function ContasPage() {
     onSuccess: (r) =>
       toast.success(`App assinado no WABA ${r.wabaId}. As mensagens já podem chegar.`),
     onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao assinar"),
+  });
+
+  /*
+   * Agenda e histórico do celular. A conexão já pede sozinha; o botão é para
+   * quando aquele pedido falhou. A Meta só aceita nas primeiras 24 horas.
+   */
+  const historico = useMutation({
+    mutationFn: (id: string) => historicoFn({ data: { id } }),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ["wa-accounts"] });
+      if (r.historico.startsWith("erro")) toast.error(`Histórico: ${r.historico}`);
+      else toast.success("Pedido feito. As conversas chegam aos poucos nos próximos minutos.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Falha ao pedir o histórico"),
   });
 
   // "Credenciais ok" só diz que o token responde; o diagnóstico pergunta à
@@ -274,6 +291,12 @@ function ContasPage() {
       <div className="grid gap-3">
         {accounts.map((a) => {
           const url = `${origin}/api/public/whatsapp/webhook/${a.id}`;
+          // Número que continua no app do celular: /register o desconectaria.
+          const coexistencia =
+            a.metadata?.coexistencia === true || (a as { espelhada?: boolean }).espelhada === true;
+          const sinc = a.metadata?.sincronizacao as
+            | { contatos?: string; historico?: string; pedido_em?: string }
+            | undefined;
           return (
             <div key={a.id} className="border border-white/5 rounded-lg p-4 bg-card/50">
               <div className="flex items-start justify-between gap-3">
@@ -309,6 +332,22 @@ function ContasPage() {
                       </>
                     )}
                   </p>
+                  {coexistencia && (
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Celular da dona: o Compass registra as conversas e a IA não responde por este
+                      número.
+                      {sinc?.pedido_em && (
+                        <>
+                          {" "}
+                          Histórico pedido em {new Date(sinc.pedido_em).toLocaleString("pt-BR")}
+                          {sinc.historico?.startsWith("erro") && (
+                            <span className="text-red-400"> — {sinc.historico}</span>
+                          )}
+                          .
+                        </>
+                      )}
+                    </p>
+                  )}
                   <div className="mt-2 flex items-center gap-2">
                     <code className="text-[11px] bg-background border border-white/10 rounded px-2 py-1 truncate flex-1 font-mono">
                       {url}
@@ -348,7 +387,18 @@ function ContasPage() {
                       <Link2 className="h-4 w-4" />
                     </Button>
                   )}
-                  {a.provider === "meta_cloud" && (
+                  {a.provider === "meta_cloud" && coexistencia && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      title="Importar agenda e histórico do celular (até 24h depois da conexão)"
+                      disabled={historico.isPending}
+                      onClick={() => historico.mutate(a.id)}
+                    >
+                      <History className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {a.provider === "meta_cloud" && !coexistencia && (
                     <Button
                       size="icon"
                       variant="ghost"

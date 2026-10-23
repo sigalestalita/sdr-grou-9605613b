@@ -94,6 +94,172 @@ function buildPayload(input: WaSendInput): Record<string, unknown> {
   }
 }
 
+type MensagemMeta = {
+  id: string;
+  from?: string;
+  to?: string;
+  timestamp: string;
+  type: string;
+  text?: { body?: string };
+  image?: { id?: string; mime_type?: string; caption?: string; url?: string };
+  video?: { id?: string; mime_type?: string; caption?: string; url?: string };
+  audio?: { id?: string; mime_type?: string; url?: string };
+  document?: { id?: string; mime_type?: string; filename?: string; caption?: string; url?: string };
+  history_context?: { status?: string };
+};
+
+/** Tipo, texto e mídia de uma mensagem — igual para recebida, eco e histórico. */
+function lerConteudo(m: MensagemMeta): {
+  type: WaMessageType;
+  body?: string;
+  mediaId?: string;
+  mediaUrl?: string;
+  mediaMime?: string;
+} {
+  switch (m.type) {
+    case "text":
+      return { type: "text", body: m.text?.body };
+    case "image":
+      return {
+        type: "image",
+        body: m.image?.caption,
+        mediaId: m.image?.id,
+        mediaUrl: m.image?.url,
+        mediaMime: m.image?.mime_type,
+      };
+    case "video":
+      return {
+        type: "video",
+        body: m.video?.caption,
+        mediaId: m.video?.id,
+        mediaUrl: m.video?.url,
+        mediaMime: m.video?.mime_type,
+      };
+    case "audio":
+      return {
+        type: "audio",
+        mediaId: m.audio?.id,
+        mediaUrl: m.audio?.url,
+        mediaMime: m.audio?.mime_type,
+      };
+    case "document":
+      return {
+        type: "file",
+        body: m.document?.caption ?? m.document?.filename,
+        mediaId: m.document?.id,
+        mediaUrl: m.document?.url,
+        mediaMime: m.document?.mime_type,
+      };
+    default:
+      return { type: "text", body: `[${m.type} não suportado]` };
+  }
+}
+
+type ValorCoexistencia = {
+  metadata?: { display_phone_number?: string; phone_number_id?: string };
+  message_echoes?: MensagemMeta[];
+  history?: Array<{
+    threads?: Array<{ id?: string; messages?: MensagemMeta[] }>;
+  }>;
+  state_sync?: Array<{
+    type?: string;
+    action?: string;
+    contact?: { full_name?: string; first_name?: string; phone_number?: string };
+  }>;
+};
+
+const soDigitos = (v?: string) => (v ?? "").replace(/\D+/g, "");
+
+/**
+ * Os três campos que a coexistência traz no mesmo webhook.
+ *
+ *   smb_message_echoes  — o que a SDR digitou no app do celular. Sem isto o
+ *                         card do lead mostra só metade da conversa, e a IA
+ *                         e os FUPs acham que ninguém respondeu.
+ *   history             — as conversas que já estavam no celular, entregues em
+ *                         lotes logo depois da conexão (até 6 meses).
+ *   smb_app_state_sync  — a agenda de contatos do app, com o nome salvo.
+ *
+ * O formato foi conferido nos eventos reais guardados em
+ * whatsapp_webhook_events, não só na documentação.
+ */
+export function lerCoexistencia(campo: string, value: ValorCoexistencia): WaWebhookEvent[] {
+  const numeroDaEmpresa = soDigitos(value.metadata?.display_phone_number);
+  const toPhoneNumberId = value.metadata?.phone_number_id;
+  const events: WaWebhookEvent[] = [];
+
+  if (campo === "smb_message_echoes") {
+    for (const m of value.message_echoes ?? []) {
+      const contato = soDigitos(m.to);
+      if (!m.id || !contato) continue;
+      events.push({
+        kind: "mirror",
+        data: {
+          providerMessageId: m.id,
+          from: soDigitos(m.from) || numeroDaEmpresa,
+          to: contato,
+          ...lerConteudo(m),
+          timestamp: Number(m.timestamp) * 1000,
+          toPhoneNumberId,
+          contactPhone: contato,
+          fromBusiness: true,
+          origem: "echo",
+        },
+      });
+    }
+  }
+
+  if (campo === "history") {
+    for (const lote of value.history ?? []) {
+      for (const thread of lote.threads ?? []) {
+        for (const m of thread.messages ?? []) {
+          const de = soDigitos(m.from);
+          // Quem não é a empresa é o contato; sem "from", vale o id da thread.
+          const fromBusiness = !!de && de === numeroDaEmpresa;
+          const contato = fromBusiness
+            ? soDigitos(m.to) || soDigitos(thread.id)
+            : de || soDigitos(thread.id);
+          if (!m.id || !contato) continue;
+          events.push({
+            kind: "mirror",
+            data: {
+              providerMessageId: m.id,
+              from: de || contato,
+              to: fromBusiness ? contato : numeroDaEmpresa,
+              ...lerConteudo(m),
+              timestamp: Number(m.timestamp) * 1000,
+              toPhoneNumberId,
+              contactPhone: contato,
+              fromBusiness,
+              origem: "history",
+              historyStatus: m.history_context?.status,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  if (campo === "smb_app_state_sync") {
+    for (const item of value.state_sync ?? []) {
+      if (item.type !== "contact") continue;
+      const phone = soDigitos(item.contact?.phone_number);
+      if (!phone) continue;
+      events.push({
+        kind: "contact_sync",
+        data: {
+          phone,
+          name: item.contact?.full_name || item.contact?.first_name,
+          action: item.action ?? "add",
+          toPhoneNumberId,
+        },
+      });
+    }
+  }
+
+  return events;
+}
+
 export const metaCloudProvider: WhatsAppProvider = {
   id: "meta_cloud",
 
@@ -149,7 +315,10 @@ export const metaCloudProvider: WhatsAppProvider = {
     const appSecret = secret?.trim();
     if (!sigHeader || !appSecret) return false;
     const provided = sigHeader.startsWith("sha256=") ? sigHeader.slice(7) : sigHeader;
-    const expected = nodeCrypto.createHmac("sha256", appSecret).update(rawBody, "utf8").digest("hex");
+    const expected = nodeCrypto
+      .createHmac("sha256", appSecret)
+      .update(rawBody, "utf8")
+      .digest("hex");
     try {
       const a = Buffer.from(provided, "hex");
       const b = Buffer.from(expected, "hex");
@@ -214,6 +383,18 @@ export const metaCloudProvider: WhatsAppProvider = {
          * que veio e o corpo cru.
          */
         const campo = (change as { field?: string }).field ?? "";
+        if (
+          campo === "smb_message_echoes" ||
+          campo === "history" ||
+          campo === "smb_app_state_sync"
+        ) {
+          const lidos = lerCoexistencia(campo, value as ValorCoexistencia);
+          // Formato que não reconhecemos continua indo para o diagnóstico.
+          events.push(
+            ...(lidos.length ? lidos : [{ kind: "unknown" as const, field: campo, value }]),
+          );
+          continue;
+        }
         if (campo && campo !== "messages") {
           events.push({ kind: "unknown", field: campo, value });
           continue;
@@ -224,54 +405,11 @@ export const metaCloudProvider: WhatsAppProvider = {
         const contactName = value.contacts?.[0]?.profile?.name;
 
         for (const m of value.messages ?? []) {
-          let type: WaMessageType = "text";
-          let body: string | undefined;
-          let mediaId: string | undefined;
-          let mediaUrl: string | undefined;
-          let mediaMime: string | undefined;
-          switch (m.type) {
-            case "text":
-              body = m.text?.body;
-              break;
-            case "image":
-              type = "image";
-              body = m.image?.caption;
-              mediaId = m.image?.id;
-              mediaUrl = m.image?.url;
-              mediaMime = m.image?.mime_type;
-              break;
-            case "video":
-              type = "video";
-              body = m.video?.caption;
-              mediaId = m.video?.id;
-              mediaUrl = m.video?.url;
-              mediaMime = m.video?.mime_type;
-              break;
-            case "audio":
-              type = "audio";
-              mediaId = m.audio?.id;
-              mediaUrl = m.audio?.url;
-              mediaMime = m.audio?.mime_type;
-              break;
-            case "document":
-              type = "file";
-              body = m.document?.caption ?? m.document?.filename;
-              mediaId = m.document?.id;
-              mediaUrl = m.document?.url;
-              mediaMime = m.document?.mime_type;
-              break;
-            default:
-              body = `[${m.type} não suportado]`;
-          }
           const inbound: WaInboundMessage = {
             providerMessageId: m.id,
             from: m.from,
             to: toNumber,
-            type,
-            body,
-            mediaId,
-            mediaUrl,
-            mediaMime,
+            ...lerConteudo(m),
             timestamp: Number(m.timestamp) * 1000,
             toPhoneNumberId,
             senderName: contactName,

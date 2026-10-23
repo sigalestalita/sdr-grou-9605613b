@@ -478,10 +478,23 @@ export async function executarCampanha(
     : supabaseAdmin.from("whatsapp_accounts").select("*").eq("is_default", true).maybeSingle();
   const { data: account } = await accountQuery;
   if (!account) throw new Error("Nenhuma conta de WhatsApp configurada");
-  const provider = getProvider(account.provider);
 
   let sent = 0;
   let failed = 0;
+
+  /*
+   * Cada lead recebe do número da SDR dona dele, quando ela tem um conectado;
+   * quem não tem dona com número recebe pela conta da campanha. Uma consulta
+   * por dona, não por lead.
+   */
+  const { contaDaDona, moverConversaParaConta } = await import("./whatsapp/conta-da-dona.server");
+  const contaPorDona = new Map<string, Awaited<ReturnType<typeof contaDaDona>>>();
+  async function remetenteDe(donaId: string | null) {
+    if (!donaId) return null;
+    if (!contaPorDona.has(donaId))
+      contaPorDona.set(donaId, await contaDaDona(supabaseAdmin, donaId));
+    return contaPorDona.get(donaId) ?? null;
+  }
 
   for (const lead of targets) {
     const phone = normPhone(lead.phone ?? "");
@@ -501,6 +514,9 @@ export async function executarCampanha(
     };
     const templateParams = tmplVarNames.map((n) => leadCtx[n] ?? "");
 
+    const daDona = await remetenteDe(lead.assigned_to ?? null);
+    const remetente = daDona ?? account;
+
     // garante conversa
     let convId: string | null = null;
     const { data: existing } = await supabaseAdmin
@@ -510,12 +526,13 @@ export async function executarCampanha(
       .maybeSingle();
     if (existing) {
       convId = existing.id;
+      if (daDona) await moverConversaParaConta(supabaseAdmin, existing.id, daDona.id);
     } else {
       const { data: created } = await supabaseAdmin
         .from("whatsapp_conversations")
         .insert({
           lead_id: lead.id,
-          account_id: account.id,
+          account_id: remetente.id,
           assigned_user_id: lead.assigned_to ?? actorUserId,
           status: "open",
         })
@@ -543,15 +560,15 @@ export async function executarCampanha(
       .single();
 
     try {
-      const result = await provider.sendMessage({
+      const result = await getProvider(remetente.provider).sendMessage({
         account: {
-          id: account.id,
-          phone_number: account.phone_number,
-          provider: account.provider,
-          provider_instance_id: account.provider_instance_id,
-          provider_base_url: account.provider_base_url,
-          access_token: account.access_token,
-          webhook_secret: account.webhook_secret,
+          id: remetente.id,
+          phone_number: remetente.phone_number,
+          provider: remetente.provider,
+          provider_instance_id: remetente.provider_instance_id,
+          provider_base_url: remetente.provider_base_url,
+          access_token: remetente.access_token,
+          webhook_secret: remetente.webhook_secret,
         },
         to: phone,
         ...(useHsm

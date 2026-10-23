@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import type { Json } from "@/integrations/supabase/types";
 import { LISIANE_USER_ID } from "@/lib/whatsapp-ai.functions";
+import type { WaMirroredMessage } from "@/lib/whatsapp/provider-types";
 
 // Mariana Borges cuida de consultoria; é o padrão quando a configuração está vazia.
 const MARIANA_BORGES_USER_ID = "81068193-826f-42e8-8670-df87fcdfecf5";
@@ -71,6 +71,7 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
           webhook_secret: account.webhook_secret,
           // Número pessoal de trabalho: espelha a conversa, não cria lead.
           espelhada: (account as { espelhada?: boolean }).espelhada === true,
+          owner_user_id: account.owner_user_id ?? null,
         };
 
         let events;
@@ -114,10 +115,18 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
             access_token: outra.access_token,
             webhook_secret: outra.webhook_secret,
             espelhada: (outra as { espelhada?: boolean }).espelhada === true,
+            owner_user_id: outra.owner_user_id ?? null,
           };
           contaPorNumero.set(phoneNumberId, cfg);
           return cfg;
         }
+
+        /*
+         * Eco e histórico da coexistência: juntados por número e gravados de
+         * uma vez — o histórico chega em lotes de centenas de mensagens, e uma
+         * por uma estouraria o tempo que a Meta espera pela resposta.
+         */
+        const espelhos = new Map<string, WaMirroredMessage[]>();
 
         for (const ev of events) {
           if (ev.kind === "message") {
@@ -125,6 +134,14 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
             await handleInbound(supabaseAdmin, alvo.id, alvo, ev.data, alvo.espelhada === true);
           } else if (ev.kind === "status") {
             await handleStatus(supabaseAdmin, ev.data);
+          } else if (ev.kind === "mirror") {
+            const chave = ev.data.toPhoneNumberId ?? "";
+            espelhos.set(chave, [...(espelhos.get(chave) ?? []), ev.data]);
+          } else if (ev.kind === "contact_sync") {
+            const { sincronizarContato } = await import("@/lib/whatsapp/espelho.server");
+            await sincronizarContato(supabaseAdmin, ev.data).catch((e) =>
+              console.warn("[wa webhook] contato da agenda", e),
+            );
           } else {
             /*
              * Campo novo (coexistência, entre outros): registra em vez de
@@ -149,6 +166,13 @@ export const Route = createFileRoute("/api/public/whatsapp/webhook/$accountId")(
             } catch (e) {
               console.warn("[wa webhook] campo não tratado:", ev.field, e);
             }
+          }
+        }
+        if (espelhos.size) {
+          const { registrarEspelhos } = await import("@/lib/whatsapp/espelho.server");
+          for (const [phoneNumberId, msgs] of espelhos) {
+            const alvo = await contaDoEvento(phoneNumberId || undefined);
+            await registrarEspelhos(supabaseAdmin, alvo, msgs);
           }
         }
         return Response.json({ ok: true, processed: events.length });
@@ -318,64 +342,20 @@ async function handleInbound(
 
   // 3) baixa mídia recebida (áudio/imagem/vídeo/documento) para o storage privado
   const ts = new Date(msg.timestamp).toISOString();
-  let mediaUrl = msg.mediaUrl ?? null;
-  let mediaMime = msg.mediaMime ?? null;
-  let mediaMetadata: Json = {};
-
-  if ((msg.mediaId || msg.mediaUrl) && accountConfig.access_token) {
-    try {
-      const base = (accountConfig.provider_base_url || "https://graph.facebook.com/v21.0").replace(
-        /\/+$/,
-        "",
-      );
-      let mediaInfo: { url?: string; mime_type?: string } = {
-        url: msg.mediaUrl,
-        mime_type: msg.mediaMime,
-      };
-      if (msg.mediaId) {
-        const metaRes = await fetch(`${base}/${encodeURIComponent(msg.mediaId)}`, {
-          headers: { Authorization: `Bearer ${accountConfig.access_token}` },
-        });
-        if (!metaRes.ok) throw new Error(`media metadata HTTP ${metaRes.status}`);
-        mediaInfo = (await metaRes.json()) as { url?: string; mime_type?: string };
-      }
-      if (!mediaInfo.url) throw new Error("media URL ausente");
-
-      const fileRes = await fetch(mediaInfo.url, {
-        headers: { Authorization: `Bearer ${accountConfig.access_token}` },
-      });
-      if (!fileRes.ok) throw new Error(`media download HTTP ${fileRes.status}`);
-
-      mediaMime = mediaInfo.mime_type || fileRes.headers.get("content-type") || mediaMime;
-      const ext = extensionFromMime(mediaMime, msg.type);
-      const safeMessageId = msg.providerMessageId.replace(/[^a-zA-Z0-9_-]/g, "_");
-      const storagePath = `inbound/${accountId}/${phone}/${safeMessageId}${ext}`;
-      const bytes = await fileRes.arrayBuffer();
-      const { error: uploadErr } = await admin.storage
-        .from("whatsapp-media")
-        .upload(storagePath, bytes, {
-          contentType: mediaMime ?? "application/octet-stream",
-          upsert: true,
-        });
-      if (uploadErr) throw uploadErr;
-
-      const { data: signed } = await admin.storage
-        .from("whatsapp-media")
-        .createSignedUrl(storagePath, 60 * 60 * 24);
-      mediaUrl = signed?.signedUrl ?? null;
-      mediaMetadata = {
-        provider_media_id: msg.mediaId ?? null,
-        storage_bucket: "whatsapp-media",
-        storage_path: storagePath,
-      };
-    } catch (e) {
-      console.error("[wa webhook] media download error", e);
-      mediaMetadata = {
-        provider_media_id: msg.mediaId,
-        media_error: e instanceof Error ? e.message : String(e),
-      };
-    }
-  }
+  const { baixarMidia } = await import("@/lib/whatsapp/baixar-midia.server");
+  const {
+    mediaUrl,
+    mediaMime,
+    metadata: mediaMetadata,
+  } = await baixarMidia(admin, accountConfig, {
+    accountId,
+    phone,
+    providerMessageId: msg.providerMessageId,
+    type: msg.type,
+    mediaId: msg.mediaId,
+    mediaUrl: msg.mediaUrl,
+    mediaMime: msg.mediaMime,
+  });
 
   // 4) grava mensagem
   const { error: erroInsercao } = await admin.from("whatsapp_messages").insert({
@@ -412,8 +392,13 @@ async function handleInbound(
   let conversationAssignee = conv.assigned_user_id ?? null;
 
   // 4a) resposta a uma campanha de WhatsApp → avisa a SDR responsável e tira a IA da conversa
+  /*
+   * Número espelhado não gera aviso: a mensagem já tocou no celular da SDR,
+   * que é a dona do número. O aviso sairia do número da Grou para o celular
+   * dela — e voltaria aqui como mensagem recebida no número dela.
+   */
   let isCampaignReply = false;
-  if (leadId)
+  if (leadId && !espelhada)
     try {
       const { maybeAlertCampaignReply } =
         await import("@/lib/whatsapp/campaign-reply-alert.server");
@@ -433,7 +418,7 @@ async function handleInbound(
     }
 
   // 4b) qualquer outra resposta do lead → avisa a SDR responsável no WhatsApp dela
-  if (leadId && !isCampaignReply) {
+  if (leadId && !isCampaignReply && !espelhada) {
     try {
       const { maybeAlertInboundReply } = await import("@/lib/whatsapp/inbound-reply-alert.server");
       await maybeAlertInboundReply({
@@ -470,6 +455,15 @@ async function handleInbound(
    * fornecedor seria pior do que não responder nada.
    */
   if (!leadId) return;
+
+  /*
+   * No número da SDR quem responde é ela, pelo celular.
+   *
+   * Mesmo para lead: a IA falando por um número pessoal se apresentaria como
+   * a SDR, e responderia por cima do que ela já está digitando no aparelho.
+   * O Compass só registra a conversa no card.
+   */
+  if (espelhada) return;
 
   // 4) resposta automática da IA quando habilitada
   try {
@@ -910,24 +904,6 @@ async function handleStatus(
     .from("whatsapp_messages")
     .update(patch)
     .eq("provider_message_id", st.providerMessageId);
-}
-
-function extensionFromMime(mime: string | null, type: string) {
-  const normalized = (mime ?? "").toLowerCase().split(";")[0].trim();
-  if (normalized === "audio/ogg") return ".ogg";
-  if (normalized === "audio/mpeg") return ".mp3";
-  if (normalized === "audio/mp4") return ".m4a";
-  if (normalized === "audio/aac") return ".aac";
-  if (normalized === "audio/amr") return ".amr";
-  if (normalized === "image/jpeg") return ".jpg";
-  if (normalized === "image/png") return ".png";
-  if (normalized === "image/webp") return ".webp";
-  if (normalized === "video/mp4") return ".mp4";
-  if (normalized === "application/pdf") return ".pdf";
-  if (type === "audio") return ".ogg";
-  if (type === "image") return ".jpg";
-  if (type === "video") return ".mp4";
-  return "";
 }
 
 // helper só pro tipo

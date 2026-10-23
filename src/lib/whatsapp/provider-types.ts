@@ -81,9 +81,36 @@ export interface WaStatusUpdate {
   timestamp: number;
 }
 
+/**
+ * Mensagem que não passou pela API: digitada no app do celular (eco) ou
+ * trazida pelo histórico da coexistência.
+ *
+ * Diferente da inbound comum, aqui a direção varia — o eco é sempre nosso, o
+ * histórico tem dos dois lados — e quem identifica a conversa é o telefone do
+ * contato, não o `from`.
+ */
+export interface WaMirroredMessage extends WaInboundMessage {
+  /** Telefone do cliente do outro lado da conversa. */
+  contactPhone: string;
+  /** true quando quem escreveu foi o nosso número (a SDR no celular). */
+  fromBusiness: boolean;
+  origem: "echo" | "history";
+  /** Status que a Meta informa no histórico (READ, DELIVERED…). */
+  historyStatus?: string;
+}
+
+export interface WaContactSync {
+  phone: string;
+  name?: string;
+  action: string;
+  toPhoneNumberId?: string;
+}
+
 export type WaWebhookEvent =
   | { kind: "message"; data: WaInboundMessage }
   | { kind: "status"; data: WaStatusUpdate }
+  | { kind: "mirror"; data: WaMirroredMessage }
+  | { kind: "contact_sync"; data: WaContactSync }
   /**
    * Campo que o parser ainda não entende.
    *

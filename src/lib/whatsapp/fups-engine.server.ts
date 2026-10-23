@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getProvider } from "./provider-registry.server";
 import { renderTemplate } from "../whatsapp-templates.functions";
+import { contaDaDona, moverConversaParaConta } from "./conta-da-dona.server";
 
 type Sequence = {
   id: string;
@@ -141,7 +142,8 @@ async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      if (!lastMsg || lastMsg.sender_type === "contact") continue;
+      // Mensagem do lead entra como "lead"; "contact" ficou de uma versão antiga.
+      if (!lastMsg || ["lead", "contact"].includes(lastMsg.sender_type)) continue;
       out.push(lead);
     }
     return out;
@@ -220,7 +222,9 @@ async function sendStep(
     .maybeSingle();
   if (!tmpl) return { ok: false, error: "Template inexistente" };
 
-  const account = (await getAccountById(seq.account_id)) ?? (await getDefaultAccount());
+  // Lead com dona que tem número conectado recebe dali; senão, a conta do FUP.
+  const daDona = await contaDaDona(supabaseAdmin, lead.assigned_to);
+  const account = daDona ?? (await getAccountById(seq.account_id)) ?? (await getDefaultAccount());
   if (!account) return { ok: false, error: "Sem conta WhatsApp configurada" };
   if (!accountAllowsLead(account, lead.lead_type)) {
     return { ok: false, error: "Lead fora do escopo da conta WhatsApp do FUP" };
@@ -238,8 +242,10 @@ async function sendStep(
     .select("id")
     .eq("lead_id", lead.id)
     .maybeSingle();
-  if (existing) convId = existing.id;
-  else {
+  if (existing) {
+    convId = existing.id;
+    if (daDona) await moverConversaParaConta(supabaseAdmin, existing.id, daDona.id);
+  } else {
     const { data: created } = await supabaseAdmin
       .from("whatsapp_conversations")
       .insert({
@@ -369,7 +375,7 @@ async function processEnrollment(
         .from("whatsapp_messages")
         .select("id")
         .eq("conversation_id", (conv as { id: string }).id)
-        .eq("sender_type", "contact")
+        .in("sender_type", ["lead", "contact"])
         .gt("created_at", since)
         .limit(1)
         .maybeSingle();

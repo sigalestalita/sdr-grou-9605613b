@@ -3,6 +3,7 @@ import { getProvider } from "./provider-registry.server";
 import { resolveTemplateSendParams } from "./template-send.server";
 import { phoneDigits } from "./phone";
 import { renderTemplate } from "../whatsapp-templates.functions";
+import { contaDaDona, moverConversaParaConta } from "./conta-da-dona.server";
 
 type AiAgentSettings = {
   enabled: boolean;
@@ -128,7 +129,9 @@ async function executeRuleForLead(
     .maybeSingle();
   if (!tmpl) return { ok: false, error: "Template inexistente" };
 
-  const account = (await getAccountById(rule.account_id)) ?? (await getDefaultAccount());
+  // Lead com dona que tem número conectado recebe dali; senão, a conta da regra.
+  const daDona = await contaDaDona(supabaseAdmin, lead.assigned_to);
+  const account = daDona ?? (await getAccountById(rule.account_id)) ?? (await getDefaultAccount());
   if (!account) return { ok: false, error: "Sem conta WhatsApp padrão" };
   if (!accountAllowsLead(account, lead.lead_type)) {
     return { ok: false, error: "Lead fora do escopo da conta WhatsApp da regra" };
@@ -190,6 +193,7 @@ async function executeRuleForLead(
         .update({ contact_id: contactId })
         .eq("id", convId);
     }
+    if (daDona) await moverConversaParaConta(supabaseAdmin, existing.id, daDona.id);
   } else {
     const { data: created } = await supabaseAdmin
       .from("whatsapp_conversations")
@@ -466,7 +470,10 @@ async function executeAiInitialOutreachForLead(
   const preferredAccountId = isConsultoria
     ? settings.consultoriaAccountId
     : settings.defaultAccountId;
-  const account = (await getAccountById(preferredAccountId)) ?? (await getDefaultAccount());
+  // A primeira mensagem sai do número da SDR que assina, quando ela tem um.
+  const daDona = await contaDaDona(supabaseAdmin, responsavelId);
+  const account =
+    daDona ?? (await getAccountById(preferredAccountId)) ?? (await getDefaultAccount());
   if (!account) return { ok: false, error: "Sem conta WhatsApp configurada" };
   if (!accountAllowsLead(account, lead.lead_type)) {
     return { ok: false, error: "Conta WhatsApp não permite este tipo de lead" };
@@ -488,6 +495,7 @@ async function executeAiInitialOutreachForLead(
         .update({ contact_id: contactId })
         .eq("id", convId);
     }
+    if (daDona) await moverConversaParaConta(supabaseAdmin, existing.id, daDona.id);
   } else {
     const { data: created } = await supabaseAdmin
       .from("whatsapp_conversations")
@@ -743,7 +751,8 @@ async function evalNoReply(rule: RuleRow): Promise<LeadLite[]> {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!lastMsg || lastMsg.sender_type === "contact") continue;
+    // Mensagem do lead entra como "lead"; "contact" ficou de uma versão antiga.
+    if (!lastMsg || ["lead", "contact"].includes(lastMsg.sender_type)) continue;
     leads.push(lead);
   }
   return leads;
