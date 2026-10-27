@@ -565,6 +565,8 @@ export async function ingerirLeads(
     lead_type: string | null;
     score: number | null;
     priority: string | null;
+    oculto_sdr: boolean | null;
+    created_at: string;
   }> = [];
   const CHUNK = 100;
   for (let i = 0; i < batch.length; i += CHUNK) {
@@ -601,7 +603,7 @@ export async function ingerirLeads(
     const { data: insData, error } = await supabase
       .from("leads")
       .insert(chunk as never)
-      .select("id, name, email, company_name, lead_type, score, priority");
+      .select("id, name, email, company_name, lead_type, score, priority, oculto_sdr, created_at");
     if (!error) {
       inserted += chunk.length;
       for (const r of insData ?? []) {
@@ -614,7 +616,7 @@ export async function ingerirLeads(
       const { data: rowData, error: rowErr } = await supabase
         .from("leads")
         .insert(row as never)
-        .select("id, name, email, company_name, lead_type, score, priority")
+        .select("id, name, email, company_name, lead_type, score, priority, oculto_sdr, created_at")
         .maybeSingle();
       if (!rowErr) {
         inserted += 1;
@@ -740,6 +742,30 @@ export async function ingerirLeads(
       } catch {
         /* distribuir é melhor-esforço: não pode derrubar a sincronização */
       }
+    }
+  }
+
+  /*
+   * Lead novo já entra com dono.
+   *
+   * Antes a distribuição só acontecia quando a IA ia mandar a primeira
+   * mensagem de WhatsApp. Lead sem telefone (site, relacionamento) nunca
+   * chegava lá, e em outubro o template vencido da Black barrou a mensagem e,
+   * com ela, a distribuição. Sem tipo, vai para a roleta; consultoria é
+   * corrigida para a dona quando o tipo aparecer.
+   */
+  for (const l of insertedLeads) {
+    if (l.oculto_sdr) continue;
+    if (Date.now() - new Date(l.created_at).getTime() > JANELA_DE_ROTEAMENTO_MS) continue;
+    try {
+      const dono = await ensureLeadRouted({
+        supabase: supabaseAdmin,
+        leadId: l.id,
+        mesmoSemTipo: true,
+      });
+      if (dono) roteados += 1;
+    } catch {
+      /* distribuir é melhor-esforço: não pode derrubar a sincronização */
     }
   }
 
