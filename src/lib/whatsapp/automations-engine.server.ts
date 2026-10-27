@@ -376,6 +376,35 @@ async function executeAiInitialOutreachForLead(
   lead: LeadLite,
 ): Promise<{ ok: boolean; error?: string }> {
   if (!lead.phone) return { ok: false, error: "Lead sem telefone" };
+
+  /*
+   * Sem dono não dá para assinar.
+   *
+   * A mensagem diz "aqui é Fulana, da Grou" e promete que essa pessoa segue o
+   * atendimento. Saindo como "Equipe", a promessa fica vaga e quem responder
+   * cai na fila geral. Distribuir antes de escrever resolve as duas coisas —
+   * e para consultoria já existe dona definida.
+   *
+   * Distribui antes de qualquer outra checagem: com a IA desligada ou o
+   * template vencido a mensagem não sai, mas o lead não pode ficar sem dono.
+   * Foi o que aconteceu em outubro, com o template da Black vencido.
+   */
+  let responsavelId = lead.assigned_to;
+  if (!responsavelId) {
+    try {
+      const { ensureLeadRouted } = await import("../lead-routing.server");
+      responsavelId = await ensureLeadRouted({
+        supabase: supabaseAdmin,
+        leadId: lead.id,
+        // Sem dono a mensagem sai assinada como "Equipe", que não diz nada a
+        // quem recebe. Consultoria é corrigida assim que a conversa revelar.
+        mesmoSemTipo: true,
+      });
+    } catch {
+      /* distribuir é melhor-esforço: sem dono, a assinatura cai no genérico */
+    }
+  }
+
   const settings = await getAiAgentSettings();
   if (!settings.enabled || !settings.initialOutreachEnabled) {
     return { ok: false, error: "IA inicial desativada ou sem template HSM" };
@@ -424,30 +453,6 @@ async function executeAiInitialOutreachForLead(
    * de um segundo contato que nunca vem só atrapalha a conversa.
    */
   const { assinaturaDaIa } = await import("./ai-elegibilidade");
-
-  /*
-   * Sem dono não dá para assinar.
-   *
-   * A mensagem diz "aqui é Fulana, da Grou" e promete que essa pessoa segue o
-   * atendimento. Saindo como "Equipe", a promessa fica vaga e quem responder
-   * cai na fila geral. Distribuir antes de escrever resolve as duas coisas —
-   * e para consultoria já existe dona definida.
-   */
-  let responsavelId = lead.assigned_to;
-  if (!responsavelId) {
-    try {
-      const { ensureLeadRouted } = await import("../lead-routing.server");
-      responsavelId = await ensureLeadRouted({
-        supabase: supabaseAdmin,
-        leadId: lead.id,
-        // Sem dono a mensagem sai assinada como "Equipe", que não diz nada a
-        // quem recebe. Consultoria é corrigida assim que a conversa revelar.
-        mesmoSemTipo: true,
-      });
-    } catch {
-      /* distribuir é melhor-esforço: sem dono, a assinatura cai no genérico */
-    }
-  }
 
   let nomeDoSdr: string | null = null;
   if (responsavelId) {
