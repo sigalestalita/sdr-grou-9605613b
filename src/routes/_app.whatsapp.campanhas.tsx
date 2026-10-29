@@ -195,7 +195,7 @@ function CampaignsPage() {
   });
 
   const launch = useMutation({
-    mutationFn: (id: string) => launchFn({ data: { id, limit: 200 } }),
+    mutationFn: (id: string) => launchFn({ data: { id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["wa-campaigns"] }),
   });
 

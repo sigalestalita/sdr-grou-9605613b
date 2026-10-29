@@ -645,7 +645,7 @@ async function evalNewLead(rule: RuleRow): Promise<LeadLite[]> {
   const { data } = await supabaseAdmin
     .from("leads")
     .select(
-      "id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at",
+      "id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at,form_payload",
     )
     .eq("oculto_sdr", false) // leads do RD ficam fora até a migração
     .gte("created_at", since)
@@ -667,7 +667,36 @@ async function evalNewLead(rule: RuleRow): Promise<LeadLite[]> {
    * vezes, e ainda por cima depois de já ter conversado.
    */
   const jaEscreveram = await leadsComMensagemDoLead(candidatos.map((l) => l.id));
-  return candidatos.filter((l) => !jaEscreveram.has(l.id));
+  const deCampanha = await leadsDeCampanha(candidatos);
+  return candidatos.filter((l) => !jaEscreveram.has(l.id) && !deCampanha.has(l.id));
+}
+
+/*
+ * Quem veio de campanha não recebe a abertura de primeiro contato.
+ *
+ * A abertura diz "vi que você buscou nossas soluções": vale para quem
+ * converteu, não para quem estava numa lista de evento ou de remarketing.
+ * Em 29/10 uma lista de 448 telefones criou 184 leads e 142 pessoas
+ * receberam essa abertura. Fica de fora quem nasceu de uma campanha
+ * (campanha_id no form_payload, que segue no lead depois de ele responder)
+ * e quem já é destinatário de alguma campanha.
+ */
+async function leadsDeCampanha(leads: LeadLite[]): Promise<Set<string>> {
+  const fora = new Set<string>();
+  for (const l of leads) {
+    const fp = (l as { form_payload?: Record<string, unknown> | null }).form_payload;
+    if (fp?.campanha_id) fora.add(l.id);
+  }
+  const resto = leads.map((l) => l.id).filter((id) => !fora.has(id));
+  if (resto.length === 0) return fora;
+  const { data } = await supabaseAdmin
+    .from("whatsapp_campaign_messages")
+    .select("lead_id")
+    .in("lead_id", resto);
+  for (const m of (data ?? []) as Array<{ lead_id: string | null }>) {
+    if (m.lead_id) fora.add(m.lead_id);
+  }
+  return fora;
 }
 
 /** Os leads da lista cuja conversa já tem mensagem escrita pela própria pessoa. */

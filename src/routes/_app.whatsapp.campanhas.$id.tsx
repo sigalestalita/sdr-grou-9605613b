@@ -34,7 +34,7 @@ function CampaignDetail() {
   const uniqueResponders = new Set(replies.map((r) => r.lead_id)).size;
 
   const launch = useMutation({
-    mutationFn: () => launchFn({ data: { id, limit: 200 } }),
+    mutationFn: () => launchFn({ data: { id } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["wa-campaign", id] }),
   });
 

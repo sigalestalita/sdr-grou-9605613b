@@ -344,8 +344,13 @@ export const createCampaign = createServerFn({ method: "POST" })
   });
 
 /**
- * Envia a campanha (até `limit` mensagens). Usado pelo botão "Disparar" e
- * pela rotina que dispara as campanhas agendadas.
+ * Envia a campanha, até `limit` mensagens por rodada. Usado pelo botão
+ * "Disparar" e pela rotina que dispara as campanhas agendadas.
+ *
+ * Lista grande não cabe numa rodada só: a requisição cai no meio e a
+ * campanha fica presa em "enviando". Então cada rodada manda um lote, pula
+ * quem já recebeu e, se sobrou gente, devolve a campanha para "agendada" —
+ * a rotina de cada minuto continua de onde parou.
  */
 export async function executarCampanha(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -393,32 +398,58 @@ export async function executarCampanha(
   };
   let targets: Target[] = [];
 
+  /*
+   * Quem já passou por uma rodada anterior não entra de novo — nem quem
+   * falhou, senão o mesmo número inválido seria tentado a cada minuto.
+   */
+  const { data: jaEnviadas } = await supabaseAdmin
+    .from("whatsapp_campaign_messages")
+    .select("lead_id")
+    .eq("campaign_id", campaignId);
+  const jaPassou = new Set(
+    ((jaEnviadas ?? []) as Array<{ lead_id: string | null }>).flatMap((m) =>
+      m.lead_id ? [m.lead_id] : [],
+    ),
+  );
+  let sobrou = false;
+
   if (audience.source === "phones") {
     const isExcludedEntry = makeExclusionMatcher(audience.exclusions);
-    const entries = (audience.phones ?? [])
-      .filter(
-        (e) =>
-          !isExcludedEntry({
-            name: e.name ?? null,
-            company_name: e.company ?? null,
-            phone: e.phone,
-          }),
-      )
-      .slice(0, limit);
+    const entries = (audience.phones ?? []).filter(
+      (e) =>
+        !isExcludedEntry({
+          name: e.name ?? null,
+          company_name: e.company ?? null,
+          phone: e.phone,
+        }),
+    );
+    const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
     for (const e of entries) {
+      if (targets.length >= limit) {
+        sobrou = true;
+        break;
+      }
       const phone = normPhone(e.phone);
       if (!phone) continue;
       // tenta achar lead existente pelo número, em qualquer formato
-      const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
       const match = await acharLeadPorTelefone(
         supabaseAdmin,
         phone,
         "id, name, company_name, phone, assigned_to",
       );
       if (match) {
-        targets.push(match as Target);
+        if (!jaPassou.has((match as Target).id)) targets.push(match as Target);
         continue;
       }
+      /*
+       * Quem não está na base nasce oculto, sempre.
+       *
+       * Lista subida à mão é de evento ou remarketing: essas pessoas não
+       * pediram contato. Como lead visível, entravam no kanban das SDRs e a
+       * automação de primeiro contato mandava a elas a abertura da IA ("vi
+       * que você buscou nossas soluções…"). Oculto, o registro só guarda a
+       * conversa; vira card quando a pessoa responder.
+       */
       const ins = await supabaseAdmin
         .from("leads")
         .insert({
@@ -427,15 +458,11 @@ export async function executarCampanha(
           email: e.email?.trim().toLowerCase() || null,
           company_name: e.company?.trim() || null,
           source: audience.origem?.trim() || "campaign_upload",
-          ...(audience.leadSoAoResponder
-            ? {
-                // Empresa: na resposta, entra na roleta entre as SDRs.
-                lead_type: "empresa",
-                campaign: (campaign as { name?: string | null }).name ?? null,
-                oculto_sdr: true,
-                form_payload: { ativar_ao_responder: true, campanha_id: campaignId },
-              }
-            : {}),
+          // Empresa: na resposta, entra na roleta entre as SDRs.
+          lead_type: "empresa",
+          campaign: (campaign as { name?: string | null }).name ?? null,
+          oculto_sdr: true,
+          form_payload: { ativar_ao_responder: true, campanha_id: campaignId },
         } as never)
         .select("id, name, company_name, phone, assigned_to")
         .single();
@@ -471,7 +498,11 @@ export async function executarCampanha(
     const { data: leads, error: lErr } = await q;
     if (lErr) throw new Error(lErr.message);
     const isExcludedLead = makeExclusionMatcher(audience.exclusions);
-    targets = ((leads ?? []) as Target[]).filter((l) => !isExcludedLead(l)).slice(0, limit);
+    const pendentes = ((leads ?? []) as Target[]).filter(
+      (l) => !isExcludedLead(l) && !jaPassou.has(l.id),
+    );
+    sobrou = pendentes.length > limit;
+    targets = pendentes.slice(0, limit);
   }
 
   if (targets.length === 0) {
@@ -513,9 +544,19 @@ export async function executarCampanha(
   const { contaParaOLead } = await import("./whatsapp/conta-da-dona.server");
   const { templateNaConta } = await import("./whatsapp/templates-por-waba.server");
 
+  // Falha registrada conta como "já passou": a próxima rodada não tenta de novo.
+  const registrarFalha = (leadId: string, error: string) =>
+    supabaseAdmin.from("whatsapp_campaign_messages").insert({
+      campaign_id: campaignId,
+      lead_id: leadId,
+      status: "failed",
+      error,
+    });
+
   for (const lead of targets) {
     const phone = normPhone(lead.phone ?? "");
     if (!phone) {
+      await registrarFalha(lead.id, "Telefone inválido");
       failed++;
       continue;
     }
@@ -566,6 +607,7 @@ export async function executarCampanha(
       convId = created?.id ?? null;
     }
     if (!convId) {
+      await registrarFalha(lead.id, "Falha criando conversa");
       failed++;
       continue;
     }
@@ -661,10 +703,15 @@ export async function executarCampanha(
 
   await supabaseAdmin
     .from("whatsapp_campaigns")
-    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .update(
+      sobrou
+        ? // a rotina de cada minuto pega o próximo lote
+          { status: "scheduled", scheduled_at: new Date().toISOString() }
+        : { status: "completed", completed_at: new Date().toISOString() },
+    )
     .eq("id", campaignId);
 
-  return { ok: true, queued: targets.length, sent, failed };
+  return { ok: true, queued: targets.length, sent, failed, sobrou };
 }
 
 /** Dispara a campanha agora (envia até `limit` mensagens). */
@@ -672,7 +719,8 @@ export const launchCampaign = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z
-      .object({ id: z.string().uuid(), limit: z.number().int().min(1).max(500).default(200) })
+      // Um lote por clique; o resto sai pela rotina de cada minuto.
+      .object({ id: z.string().uuid(), limit: z.number().int().min(1).max(25).default(25) })
       .parse(d),
   )
   .handler(async ({ data, context }) => {

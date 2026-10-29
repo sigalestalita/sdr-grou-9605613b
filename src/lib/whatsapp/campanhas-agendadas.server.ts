@@ -8,6 +8,13 @@ import { executarCampanha } from "@/lib/whatsapp-campaigns.functions";
  * estiver "scheduled": duas rodadas seguidas não disparam a mesma campanha.
  * Template ainda não aprovado na Meta adia o disparo para a próxima rodada.
  */
+/*
+ * Quantas mensagens cada rodada manda. Cada envio leva alguns segundos, e a
+ * rodada precisa terminar antes de a requisição cair; o resto fica para o
+ * minuto seguinte.
+ */
+const LOTE_POR_RODADA = 25;
+
 export async function dispararCampanhasAgendadas(agora = new Date()) {
   const { data: devidas, error } = await supabaseAdmin
     .from("whatsapp_campaigns")
@@ -36,7 +43,7 @@ export async function dispararCampanhasAgendadas(agora = new Date()) {
       .maybeSingle();
     if (!reservada) continue;
     try {
-      const r = await executarCampanha(supabaseAdmin, c.id, 500, c.created_by);
+      const r = await executarCampanha(supabaseAdmin, c.id, LOTE_POR_RODADA, c.created_by);
       resultados.push({ id: c.id, ...r });
     } catch (e) {
       await supabaseAdmin.from("whatsapp_campaigns").update({ status: "failed" }).eq("id", c.id);
