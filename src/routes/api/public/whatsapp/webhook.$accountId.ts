@@ -452,6 +452,16 @@ async function handleInbound(
     })
     .eq("id", conv.id);
 
+  // Disparo enviado por engano: quem responde recebe o pedido de desculpas.
+  if (leadId)
+    try {
+      const { enviarRespostaAoResponder } =
+        await import("@/lib/whatsapp/resposta-ao-responder.server");
+      await enviarRespostaAoResponder(admin, leadId, conv, phone);
+    } catch (e) {
+      console.error("[wa webhook] resposta ao responder", e);
+    }
+
   /*
    * Daqui para baixo é a IA, e ela pressupõe lead.
    *
