@@ -34,6 +34,27 @@ export const Route = createFileRoute("/_app/whatsapp/campanhas")({
 type Priority = "alta" | "media" | "baixa";
 type DemoFreeF = "any" | "yes" | "no";
 type AudienceSource = "filters" | "phones";
+type CriarLead = "nao" | "ao_responder" | "sim";
+
+const OPCOES_DE_LEAD: Array<{ value: CriarLead; label: string; ajuda: string }> = [
+  {
+    value: "ao_responder",
+    label: "Só quando responder",
+    ajuda:
+      "Quem não está na base vira card em Novo, e vai para a roleta das SDRs, só se responder.",
+  },
+  {
+    value: "nao",
+    label: "Não criar",
+    ajuda:
+      "Ninguém vira card, mesmo respondendo. A conversa fica no inbox com quem criou a campanha.",
+  },
+  {
+    value: "sim",
+    label: "Criar no disparo",
+    ajuda: "Quem não está na base vira card em Novo já no disparo e entra na roleta das SDRs.",
+  },
+];
 type PhoneEntry = { phone: string; name?: string; company?: string };
 
 function parseCsv(text: string): PhoneEntry[] {
@@ -107,6 +128,7 @@ function CampaignsPage() {
   const [csvText, setCsvText] = useState("");
   const [manualText, setManualText] = useState("");
   const [exclusionText, setExclusionText] = useState("");
+  const [criarLead, setCriarLead] = useState<CriarLead>("ao_responder");
 
   const { data: tmpls } = useQuery({
     queryKey: ["wa-templates-mini"],
@@ -142,7 +164,7 @@ function CampaignsPage() {
 
   const audience = useMemo(() => {
     if (source === "phones") {
-      return { source: "phones" as const, phones: phoneEntries, exclusions };
+      return { source: "phones" as const, phones: phoneEntries, exclusions, criarLead };
     }
     return {
       source: "filters" as const,
@@ -162,6 +184,7 @@ function CampaignsPage() {
   }, [
     source,
     phoneEntries,
+    criarLead,
     stageIds,
     priorities,
     demoFree,
@@ -429,6 +452,30 @@ function CampaignsPage() {
 
                 {source === "phones" && (
                   <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Criar lead no Compass?</p>
+                      <div className="flex gap-1">
+                        {OPCOES_DE_LEAD.map((o) => (
+                          <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => setCriarLead(o.value)}
+                            className={`text-[11px] px-2 py-1 rounded border ${
+                              criarLead === o.value
+                                ? "bg-primary/15 border-primary/40 text-primary"
+                                : "border-white/10 text-muted-foreground hover:bg-white/5"
+                            }`}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {OPCOES_DE_LEAD.find((o) => o.value === criarLead)?.ajuda} Quem já está na
+                        base não muda. A IA não manda a mensagem de primeiro contato para ninguém da
+                        lista.
+                      </p>
+                    </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <p className="text-xs text-muted-foreground">Upload CSV</p>
