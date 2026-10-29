@@ -53,6 +53,15 @@ const Audience = z
      * Quem não responde não suja o pipeline.
      */
     leadSoAoResponder: z.boolean().optional(),
+    /*
+     * O que fazer com quem está na lista e não está na base:
+     *   - "nao": não vira lead. Fica um registro oculto só para guardar a
+     *     conversa, que segue com quem criou a campanha, mesmo se responder;
+     *   - "ao_responder": vira card na etapa Novo quando responder (padrão);
+     *   - "sim": vira card já no disparo e entra na roleta das SDRs.
+     * Em nenhum caso a automação de primeiro contato manda a abertura da IA.
+     */
+    criarLead: z.enum(["nao", "ao_responder", "sim"]).optional(),
     /** Origem gravada no lead criado pela lista (ex.: "Sales Sprint (QR code)"). */
     origem: z.string().max(120).optional(),
   })
@@ -424,6 +433,27 @@ export async function executarCampanha(
         }),
     );
     const { acharLeadPorTelefone } = await import("@/lib/whatsapp/lead-match.server");
+    const criarLead = audience.criarLead ?? "ao_responder";
+    const camposDoLeadNovo =
+      criarLead === "sim"
+        ? // Empresa: entra na roleta entre as SDRs.
+          { lead_type: "empresa", form_payload: { campanha_id: campaignId } }
+        : criarLead === "ao_responder"
+          ? {
+              // Empresa: na resposta, entra na roleta entre as SDRs.
+              lead_type: "empresa",
+              oculto_sdr: true,
+              form_payload: { ativar_ao_responder: true, campanha_id: campaignId },
+            }
+          : {
+              /*
+               * Sem tipo e com dono, a resposta não aciona a roleta: a conversa
+               * fica com quem criou a campanha.
+               */
+              assigned_to: actorUserId,
+              oculto_sdr: true,
+              form_payload: { campanha_id: campaignId },
+            };
     for (const e of entries) {
       if (targets.length >= limit) {
         sobrou = true;
@@ -442,13 +472,13 @@ export async function executarCampanha(
         continue;
       }
       /*
-       * Quem não está na base nasce oculto, sempre.
+       * Quem não está na base nasce conforme a escolha da campanha.
        *
-       * Lista subida à mão é de evento ou remarketing: essas pessoas não
-       * pediram contato. Como lead visível, entravam no kanban das SDRs e a
-       * automação de primeiro contato mandava a elas a abertura da IA ("vi
-       * que você buscou nossas soluções…"). Oculto, o registro só guarda a
-       * conversa; vira card quando a pessoa responder.
+       * Lista subida à mão costuma ser de evento ou remarketing: essas pessoas
+       * não pediram contato. Em 29/10, como leads visíveis, 184 delas entraram
+       * no kanban das SDRs e receberam a abertura da IA ("vi que você buscou
+       * nossas soluções…"). Por isso o padrão é o lead oculto, que vira card
+       * só se a pessoa responder.
        */
       const ins = await supabaseAdmin
         .from("leads")
@@ -458,15 +488,23 @@ export async function executarCampanha(
           email: e.email?.trim().toLowerCase() || null,
           company_name: e.company?.trim() || null,
           source: audience.origem?.trim() || "campaign_upload",
-          // Empresa: na resposta, entra na roleta entre as SDRs.
-          lead_type: "empresa",
           campaign: (campaign as { name?: string | null }).name ?? null,
-          oculto_sdr: true,
-          form_payload: { ativar_ao_responder: true, campanha_id: campaignId },
+          ...camposDoLeadNovo,
         } as never)
         .select("id, name, company_name, phone, assigned_to")
         .single();
-      if (ins.data) targets.push(ins.data as Target);
+      if (!ins.data) continue;
+      const novo = ins.data as Target;
+      if (criarLead === "sim") {
+        try {
+          const { ensureLeadRouted } = await import("@/lib/lead-routing.server");
+          novo.assigned_to =
+            (await ensureLeadRouted({ supabase: supabaseAdmin, leadId: novo.id })) ?? null;
+        } catch {
+          /* distribuir é melhor-esforço: sem dona, a conversa fica com quem disparou */
+        }
+      }
+      targets.push(novo);
     }
   } else {
     const f = audience.filters ?? {};
