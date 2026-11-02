@@ -202,9 +202,9 @@ export const listKanbanData = createServerFn({ method: "GET" })
       cardsOmitidos += Math.max(c.total - c.linhas.length, 0);
     }
 
-    const [profilesRes, rolesRes, conversasRes] = await Promise.all([
+    const [profilesRes, executivoIds, conversasRes] = await Promise.all([
       supabase.from("profiles").select("id, full_name, email"),
-      supabase.from("user_roles").select("user_id").eq("role", "executivo"),
+      import("@/lib/sdr/executivos-da-agenda").then((m) => m.executivosDaAgenda(supabase)),
       /*
        * Só o estado da conversa, para o card dizer de quem é a bola: com a IA
        * ou com uma pessoa. Nada de mensagem aqui — o kanban carrega milhares de
@@ -260,8 +260,8 @@ export const listKanbanData = createServerFn({ method: "GET" })
       cardsOmitidos,
       conversas: Object.fromEntries(conversaPorLead),
       profiles: profilesRes.data ?? [],
-      /** Quem pode ser o executivo da agenda (papel executivo). */
-      executivoIds: (rolesRes.data ?? []).map((r) => r.user_id as string),
+      /** Quem pode receber a reunião marcada pela SDR. */
+      executivoIds,
     };
   });
 
