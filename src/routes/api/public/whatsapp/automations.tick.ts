@@ -15,7 +15,12 @@ export const Route = createFileRoute("/api/public/whatsapp/automations/tick")({
         const { runAutomationsTick } = await import("@/lib/whatsapp/automations-engine.server");
         try {
           const result = await runAutomationsTick();
-          return Response.json({ ok: true, ...result });
+          // Jornada da agenda: lembretes entre o agendamento e a reunião.
+          const { processarJornadaDaAgenda } = await import("@/lib/sdr/jornada-agenda.server");
+          const jornada = await processarJornadaDaAgenda().catch((e: unknown) => ({
+            erro: e instanceof Error ? e.message : String(e),
+          }));
+          return Response.json({ ok: true, ...result, jornada });
         } catch (e) {
           const message = e instanceof Error ? e.message : "Falha";
           return new Response(JSON.stringify({ ok: false, error: message }), {

@@ -295,7 +295,9 @@ async function executeRuleForLead(
  * resposta chega órfã e vira um lead novo — foi o que aconteceu com o lead da
  * ELOS DH.
  */
-async function garantirContato(lead: LeadLite): Promise<string | null> {
+export async function garantirContato(
+  lead: Pick<LeadLite, "id" | "name" | "phone">,
+): Promise<string | null> {
   const telefone = phoneDigits(lead.phone);
   if (!telefone) return null;
 

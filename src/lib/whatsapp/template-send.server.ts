@@ -23,6 +23,8 @@ type ResolveTemplateParamsInput = {
    * o lead escrever de volta é esse mesmo SDR, pelo mesmo número.
    */
   responsavel?: string | null;
+  /** Outras variáveis pelo nome (ex.: data e horário da reunião). */
+  extras?: Record<string, string>;
 };
 
 export type HeaderMedia = {
@@ -91,7 +93,7 @@ function normalizeParamValues(values: string[], expectedCount: number, fallbacks
 export async function resolveTemplateSendParams(
   input: ResolveTemplateParamsInput,
 ): Promise<ResolvedTemplateParams> {
-  const namedValues = leadValueMap(input.lead, input.responsavel);
+  const namedValues = { ...leadValueMap(input.lead, input.responsavel), ...(input.extras ?? {}) };
   const storedVariables = Array.isArray(input.storedVariables)
     ? input.storedVariables.map(String)
     : [];
