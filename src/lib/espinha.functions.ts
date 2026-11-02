@@ -17,8 +17,8 @@ export const listarExecutivos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const db = solto(context.supabase);
-    const { data: roles } = await db.from("user_roles").select("user_id").eq("role", "executivo");
-    const ids = ((roles ?? []) as Array<{ user_id: string }>).map((r) => r.user_id);
+    const { executivosDaAgenda } = await import("@/lib/sdr/executivos-da-agenda");
+    const ids = await executivosDaAgenda(db);
     if (!ids.length) return [];
     const { data } = await db.from("profiles").select("id, full_name, email").in("id", ids);
     return ((data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>)
