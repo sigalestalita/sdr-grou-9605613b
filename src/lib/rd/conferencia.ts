@@ -167,3 +167,57 @@ export function tipoDaAtividadeRd(kind: string | null | undefined): string {
   if (/propos/.test(k)) return "proposta";
   return "nota";
 }
+
+type AnotacaoRd = { _id?: string; id?: string; text?: string; date?: string; created_at?: string };
+type TarefaRd = {
+  _id?: string;
+  id?: string;
+  subject?: string;
+  type?: string;
+  notes?: string | null;
+  done?: boolean;
+  done_date?: string | null;
+  date?: string | null;
+  created_at?: string;
+};
+
+const dataBr = (iso: string) =>
+  new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+
+/** Anotação do RD → linha do histórico do negócio (sem negócio e autor, que vêm de fora). */
+export function linhaDaAnotacaoRd(a: AnotacaoRd) {
+  const id = a._id ?? a.id;
+  const texto = (a.text ?? "").trim();
+  if (!id || !texto) return null;
+  return {
+    tipo: "nota",
+    descricao: texto.slice(0, 10_000),
+    occurred_at: a.date ?? a.created_at ?? null,
+    rd_activity_id: id,
+  };
+}
+
+/*
+ * Tarefa do RD → linha do histórico. A tarefa diz o que foi (ou vai ser)
+ * feito e quando; a observação dela vai junto. O id leva o prefixo "tarefa:"
+ * para não colidir com o das anotações, que dividem a mesma coluna.
+ */
+export function linhaDaTarefaRd(t: TarefaRd) {
+  const id = t._id ?? t.id;
+  const assunto = (t.subject ?? "").trim();
+  const notas = (t.notes ?? "").trim();
+  if (!id || (!assunto && !notas)) return null;
+  const quando = (t.done ? t.done_date : null) ?? t.date ?? t.created_at ?? null;
+  const situacao = t.done
+    ? `concluída${t.done_date ? ` em ${dataBr(t.done_date)}` : ""}`
+    : `pendente${t.date ? ` para ${dataBr(t.date)}` : ""}`;
+  return {
+    tipo: tipoDaAtividadeRd(t.type),
+    descricao: [`Tarefa ${situacao}: ${assunto || "(sem assunto)"}`, notas]
+      .filter(Boolean)
+      .join("\n")
+      .slice(0, 10_000),
+    occurred_at: quando,
+    rd_activity_id: `tarefa:${id}`,
+  };
+}

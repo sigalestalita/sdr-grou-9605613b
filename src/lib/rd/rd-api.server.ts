@@ -264,38 +264,64 @@ export interface RdAtividade {
   _id?: string;
   id?: string;
   text?: string;
-  subject?: string;
-  type?: string;
-  activity_kind?: string;
   date?: string;
   created_at?: string;
-  user?: { name?: string; email?: string };
+  deal_id?: string;
+  user_id?: string;
 }
 
-/**
- * Anotações e atividades de um negócio (o RD expõe as duas por rotas
- * diferentes; a mesma atividade pode vir nas duas, por isso o id dedupe).
- * Erro de rede ou 404 vira lista vazia; 429 (limite) sobe, para a fatia parar.
+export interface RdTarefa {
+  _id?: string;
+  id?: string;
+  subject?: string;
+  type?: string;
+  notes?: string | null;
+  done?: boolean;
+  done_date?: string | null;
+  date?: string | null;
+  created_at?: string;
+  deal_id?: string | null;
+  user_ids?: string[];
+}
+
+/*
+ * Anotações (`/activities`) e tarefas (`/tasks`) do CRM, em páginas de 200.
+ *
+ * As duas ficam presas à negociação (deal_id); contato e empresa não têm
+ * anotação própria na API. A rota antiga, /deals/{id}/activities, responde
+ * 404 — por isso nenhum histórico tinha vindo. Ler a coleção inteira por
+ * página também sai muito mais barato do que duas consultas por negócio.
  */
-export async function fetchDealHistorico(token: string, dealId: string): Promise<RdAtividade[]> {
-  const out = new Map<string, RdAtividade>();
-  for (const [rota, chave] of [
-    ["activities", "activities"],
-    ["notes", "notes"],
-  ] as const) {
-    const qs = new URLSearchParams({ token }).toString();
-    const res = await fetch(`${RD_BASE}/deals/${encodeURIComponent(dealId)}/${rota}?${qs}`, {
-      headers: { Accept: "application/json" },
-    });
-    if (res.status === 429) throw new Error("RD 429: limite de requisições, tente em 1 minuto");
-    if (!res.ok) continue;
-    const json = (await res.json()) as Record<string, RdAtividade[] | undefined>;
-    for (const a of json[chave] ?? []) {
-      const id = rdId(a);
-      if (id) out.set(id, a);
-    }
+export async function fetchPaginaDoHistorico(
+  token: string,
+  colecao: "activities" | "tasks",
+  pagina: number,
+): Promise<{ itens: Array<RdAtividade & RdTarefa>; total: number | null; temMais: boolean }> {
+  const qs = new URLSearchParams({ token, page: String(pagina), limit: "200" }).toString();
+  const res = await fetch(`${RD_BASE}/${colecao}?${qs}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (res.status === 429) throw new Error("RD 429: limite de requisições, tente em 1 minuto");
+  if (!res.ok) throw new Error(`RD ${res.status} em /${colecao}`);
+  const json = (await res.json()) as Json;
+  const itens = (json[colecao] ?? []) as Array<RdAtividade & RdTarefa>;
+  return {
+    itens,
+    total: typeof json.total === "number" ? json.total : null,
+    temMais: json.has_more === true && itens.length > 0,
+  };
+}
+
+/** id do usuário do RD → nome, para dar autor às anotações. */
+export async function fetchUsuariosRd(token: string): Promise<Map<string, string>> {
+  const json = (await rdGet("/users", {}, token)) as Json;
+  const out = new Map<string, string>();
+  for (const u of (json.users ?? []) as Array<{ _id?: string; id?: string; name?: string }>) {
+    const id = rdId(u);
+    const nome = (u.name ?? "").replace(/\s+/g, " ").trim();
+    if (id && nome) out.set(id, nome);
   }
-  return [...out.values()];
+  return out;
 }
 
 export type MapaDeFunis = {

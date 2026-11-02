@@ -145,71 +145,93 @@ export const getConferenciaRd = createServerFn({ method: "GET" })
   });
 
 /**
- * Uma fatia do histórico: busca anotações e atividades no RD de `lote`
- * negócios que ainda não têm, grava em deal_activities e marca o negócio.
- * A tela chama em laço até `restantes` zerar; pode parar e continuar.
+ * Uma fatia do histórico: lê `paginas` páginas (200 cada) das anotações ou das
+ * tarefas do RD, grava em deal_activities o que for de negócio que já está no
+ * CRM e devolve onde continuar. A tela chama em laço até acabar as duas fases;
+ * pode parar e continuar, e rodar de novo depois que mais negócios chegarem:
+ * o que já veio não duplica (rd_activity_id é único).
  */
 export const importarHistoricoRd = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ lote: z.number().int().min(1).max(40).default(20) }).parse(d ?? {}),
+    z
+      .object({
+        fase: z.enum(["activities", "tasks"]).default("activities"),
+        pagina: z.number().int().min(1).max(1000).default(1),
+        paginas: z.number().int().min(1).max(10).default(5),
+      })
+      .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
     await exigirGestao(context.supabase, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { getRdTokenInfo } = await import("@/lib/rd-token.server");
-    const { fetchDealHistorico, rdId } = await import("@/lib/rd/rd-api.server");
-    const { tipoDaAtividadeRd } = await import("@/lib/rd/conferencia");
+    const { todasAsPaginas } = await import("@/lib/paginar.server");
+    const { fetchPaginaDoHistorico, fetchUsuariosRd } = await import("@/lib/rd/rd-api.server");
+    const { linhaDaAnotacaoRd, linhaDaTarefaRd } = await import("@/lib/rd/conferencia");
     const { userMatcher, carregarRegrasDeDono } = await import("@/lib/rd/rd-transform.server");
     const db = supabaseAdmin as unknown as SupabaseClient;
 
     const { token } = await getRdTokenInfo();
     if (!token) throw new Error("RD Station não conectado. Conecte em Configurações.");
 
-    const { data: pendentes, error } = await db
-      .from("deals")
-      .select("id, rd_deal_id")
-      .not("rd_deal_id", "is", null)
-      .is("rd_historico_em", null)
-      .order("created_at", { ascending: false })
-      .limit(data.lote);
-    if (error) throw new Error(error.message);
-    const lista = (pendentes ?? []) as Array<{ id: string; rd_deal_id: string }>;
-
-    const { data: profiles } = await db.from("profiles").select("id, full_name, email");
+    const [negocios, nomesRd, { data: profiles }, regras] = await Promise.all([
+      todasAsPaginas<{ id: string; rd_deal_id: string }>(
+        (de, ate) =>
+          db
+            .from("deals")
+            .select("id, rd_deal_id")
+            .not("rd_deal_id", "is", null)
+            .order("id")
+            .range(de, ate),
+        400_000,
+      ),
+      fetchUsuariosRd(token),
+      db.from("profiles").select("id, full_name, email"),
+      carregarRegrasDeDono(),
+    ]);
+    const negocioDoRd = new Map(negocios.map((n) => [n.rd_deal_id, n.id]));
     const userOf = userMatcher(
       (profiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>,
-      await carregarRegrasDeDono(),
+      regras,
     );
 
-    let atividades = 0;
-    let negocios = 0;
+    let gravadas = 0;
+    let semNegocio = 0;
+    let total: number | null = null;
+    let pagina = data.pagina;
+    let acabou = false;
     let erro: string | null = null;
-    for (const d of lista) {
-      let historico;
+    for (let i = 0; i < data.paginas; i++) {
+      let lote;
       try {
-        historico = await fetchDealHistorico(token, d.rd_deal_id);
+        lote = await fetchPaginaDoHistorico(token, data.fase, pagina);
       } catch (e) {
-        // limite do RD: para a fatia aqui; os que faltam ficam pendentes
+        // limite do RD: para a fatia aqui; a tela espera e continua desta página
         erro = e instanceof Error ? e.message : String(e);
         break;
       }
-      const linhas = historico
-        .map((a) => {
-          const texto = [a.subject, a.text].filter(Boolean).join(" — ").trim();
-          const id = rdId(a);
-          if (!id || !texto) return null;
-          return {
-            deal_id: d.id,
-            tipo: tipoDaAtividadeRd(a.activity_kind ?? a.type),
-            descricao: texto.slice(0, 10_000),
-            occurred_at: a.date ?? a.created_at ?? new Date().toISOString(),
-            author_id: a.user?.name ? userOf(a.user.name) : null,
-            rd_autor: a.user?.name?.trim() || null,
-            rd_activity_id: id,
-          };
-        })
-        .filter((x): x is NonNullable<typeof x> => !!x);
+      total = lote.total ?? total;
+      const linhas = lote.itens.flatMap((item) => {
+        const linha = data.fase === "activities" ? linhaDaAnotacaoRd(item) : linhaDaTarefaRd(item);
+        if (!linha) return [];
+        const dealId = item.deal_id ? negocioDoRd.get(item.deal_id) : undefined;
+        if (!dealId) {
+          semNegocio++;
+          return [];
+        }
+        const rdAutor = (data.fase === "activities" ? item.user_id : item.user_ids?.[0]) ?? null;
+        const nomeAutor = rdAutor ? (nomesRd.get(rdAutor) ?? null) : null;
+        return [
+          {
+            ...linha,
+            deal_id: dealId,
+            occurred_at: linha.occurred_at ?? new Date().toISOString(),
+            author_id: nomeAutor ? userOf(nomeAutor) : null,
+            rd_autor: nomeAutor,
+          },
+        ];
+      });
       if (linhas.length) {
         const { error: e1 } = await db
           .from("deal_activities")
@@ -218,18 +240,34 @@ export const importarHistoricoRd = createServerFn({ method: "POST" })
           erro = e1.message;
           break;
         }
-        atividades += linhas.length;
+        gravadas += linhas.length;
       }
-      await db.from("deals").update({ rd_historico_em: new Date().toISOString() }).eq("id", d.id);
-      negocios++;
+      pagina++;
+      if (!lote.temMais) {
+        acabou = true;
+        break;
+      }
     }
 
-    const { count } = await db
-      .from("deals")
-      .select("id", { count: "exact", head: true })
-      .not("rd_deal_id", "is", null)
-      .is("rd_historico_em", null);
-    return { negocios, atividades, restantes: count ?? 0, erro };
+    // Varredura completa das duas coleções: todo negócio do RD que está aqui
+    // já tem o histórico que existia no RD.
+    if (acabou && data.fase === "tasks") {
+      await db
+        .from("deals")
+        .update({ rd_historico_em: new Date().toISOString() })
+        .not("rd_deal_id", "is", null)
+        .is("rd_historico_em", null);
+    }
+
+    return {
+      fase: data.fase,
+      proximaPagina: pagina,
+      acabou,
+      gravadas,
+      semNegocio,
+      total,
+      erro,
+    };
   });
 
 /**

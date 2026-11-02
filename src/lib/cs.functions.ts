@@ -227,11 +227,53 @@ export const getCsClient = createServerFn({ method: "GET" })
             return {
               ...m,
               phone: info?.phone ?? null,
-              contact_name: (info?.phone ? nameByPhone.get(info.phone) : null) ?? info?.name ?? null,
+              contact_name:
+                (info?.phone ? nameByPhone.get(info.phone) : null) ?? info?.name ?? null,
             };
           });
       }
     }
+
+    /*
+     * Anotações e tarefas dos negócios da empresa, inclusive as que vieram do
+     * RD, entram na mesma linha do tempo: no RD elas só existiam dentro de cada
+     * negociação, e a empresa é onde se procura "o que já aconteceu aqui".
+     */
+    const notasDosNegocios = await (async () => {
+      const { data: empresa } = await supabase
+        .from("companies")
+        .select("id")
+        .eq("uid", data.clientUid)
+        .maybeSingle();
+      if (!empresa) return [];
+      const { data: negocios } = await supabase
+        .from("deals")
+        .select("id, nome")
+        .eq("company_id", empresa.id)
+        .limit(500);
+      const nomeDoNegocio = new Map((negocios ?? []).map((n) => [n.id, n.nome]));
+      if (nomeDoNegocio.size === 0) return [];
+      const { data: atividades } = await supabase
+        .from("deal_activities")
+        .select("id, deal_id, tipo, descricao, occurred_at, author_id, rd_autor, created_at")
+        .in("deal_id", [...nomeDoNegocio.keys()])
+        .neq("tipo", "etapa")
+        .order("occurred_at", { ascending: false })
+        .limit(200);
+      return (atividades ?? []).map((a) => ({
+        id: a.id,
+        client_uid: data.clientUid,
+        author_id: a.author_id,
+        event_type: "negocio_atividade",
+        channel: a.tipo,
+        title: `Negócio: ${nomeDoNegocio.get(a.deal_id) ?? "—"}`,
+        description:
+          a.author_id || !a.rd_autor ? a.descricao : `${a.descricao ?? ""}\n— ${a.rd_autor} (RD)`,
+        metadata: { deal_id: a.deal_id },
+        occurred_at: a.occurred_at,
+        created_at: a.created_at,
+      }));
+    })();
 
     const { getEvidenceConfig: getEvidence } = await import("@/lib/cs/cs-core.server");
     const [{ data: isManager }, evidenceCfg] = await Promise.all([
@@ -248,17 +290,19 @@ export const getCsClient = createServerFn({ method: "GET" })
       snapshots: snaps.data ?? [],
       records: records.data ?? [],
       // Bloco 7: "se houve mudança de cor na semana seguinte" ao contato
-      timeline: (timeline.data ?? []).map((ev) => {
-        const meta = (ev.metadata ?? {}) as Record<string, unknown>;
-        const st = meta["sinaleira"] as Record<string, unknown> | undefined;
-        if (!st) return ev;
-        const evWeek = mondayOfDate(new Date(ev.occurred_at));
-        const next = (snaps.data ?? []).find((s) => s.week_start > evWeek);
-        return {
-          ...ev,
-          metadata: { ...meta, sinaleira: { ...st, semana_seguinte: next?.signal ?? null } },
-        };
-      }),
+      timeline: [...(timeline.data ?? []), ...notasDosNegocios]
+        .sort((x, y) => y.occurred_at.localeCompare(x.occurred_at))
+        .map((ev) => {
+          const meta = (ev.metadata ?? {}) as Record<string, unknown>;
+          const st = meta["sinaleira"] as Record<string, unknown> | undefined;
+          if (!st) return ev;
+          const evWeek = mondayOfDate(new Date(ev.occurred_at));
+          const next = (snaps.data ?? []).find((s) => s.week_start > evWeek);
+          return {
+            ...ev,
+            metadata: { ...meta, sinaleira: { ...st, semana_seguinte: next?.signal ?? null } },
+          };
+        }),
       alerts: alerts.data ?? [],
       children: children.data ?? [],
       profiles: profiles.data ?? [],
