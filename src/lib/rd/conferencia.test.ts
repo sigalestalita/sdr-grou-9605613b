@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { conferir, statusEfetivo, tipoDaAtividadeRd, type CardRd, type NoCrm } from "./conferencia";
+import {
+  conferir,
+  linhaDaAnotacaoRd,
+  linhaDaTarefaRd,
+  statusEfetivo,
+  tipoDaAtividadeRd,
+  type CardRd,
+  type NoCrm,
+} from "./conferencia";
 
 const card = (p: Partial<CardRd>): CardRd => ({
   rd_id: "x",
@@ -90,5 +98,53 @@ describe("statusEfetivo / tipoDaAtividadeRd", () => {
     expect(tipoDaAtividadeRd("Call")).toBe("ligacao");
     expect(tipoDaAtividadeRd("meeting")).toBe("reuniao");
     expect(tipoDaAtividadeRd(undefined)).toBe("nota");
+  });
+});
+
+describe("linhaDaAnotacaoRd / linhaDaTarefaRd", () => {
+  it("anotação vira nota com o id do RD", () => {
+    expect(
+      linhaDaAnotacaoRd({
+        _id: "a1",
+        text: " Campanha do Linkedin ",
+        date: "2025-12-11T17:32:12-03:00",
+      }),
+    ).toEqual({
+      tipo: "nota",
+      descricao: "Campanha do Linkedin",
+      occurred_at: "2025-12-11T17:32:12-03:00",
+      rd_activity_id: "a1",
+    });
+    expect(linhaDaAnotacaoRd({ _id: "a2", text: "  " })).toBeNull();
+  });
+
+  it("tarefa leva tipo, situação e observação, com id próprio", () => {
+    const l = linhaDaTarefaRd({
+      _id: "t1",
+      subject: "Ligar para o RH",
+      type: "call",
+      notes: "Pediu retorno na sexta",
+      done: true,
+      done_date: "2026-10-30T15:00:00.000Z",
+      date: "2026-10-29T15:00:00.000Z",
+    });
+    expect(l?.tipo).toBe("ligacao");
+    expect(l?.rd_activity_id).toBe("tarefa:t1");
+    expect(l?.occurred_at).toBe("2026-10-30T15:00:00.000Z");
+    expect(l?.descricao).toBe(
+      "Tarefa concluída em 30/10/2026: Ligar para o RH\nPediu retorno na sexta",
+    );
+  });
+
+  it("tarefa pendente usa a data marcada", () => {
+    const l = linhaDaTarefaRd({
+      _id: "t2",
+      subject: "Proposta foi aceita",
+      type: "task",
+      done: false,
+      date: "2026-10-30T20:25:00.000Z",
+    });
+    expect(l?.tipo).toBe("nota");
+    expect(l?.descricao).toBe("Tarefa pendente para 30/10/2026: Proposta foi aceita");
   });
 });

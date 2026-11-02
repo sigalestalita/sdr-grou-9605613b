@@ -70,30 +70,57 @@ function MigracaoRdPage() {
     retry: false,
   });
   const [aberto, setAberto] = useState<string | null>(null);
+  type Fase = "activities" | "tasks";
   const [hist, setHist] = useState<{
     rodando: boolean;
-    negocios: number;
-    atividades: number;
-    restantes: number | null;
+    fase: Fase;
+    pagina: number;
+    gravadas: number;
+    semNegocio: number;
+    totais: Record<Fase, number | null>;
+    concluido: boolean;
     aviso: string | null;
-  }>({ rodando: false, negocios: 0, atividades: 0, restantes: null, aviso: null });
+  }>({
+    rodando: false,
+    fase: "activities",
+    pagina: 1,
+    gravadas: 0,
+    semNegocio: 0,
+    totais: { activities: null, tasks: null },
+    concluido: false,
+    aviso: null,
+  });
   const parar = useRef(false);
 
   async function rodarHistorico() {
     parar.current = false;
-    setHist((h) => ({ ...h, rodando: true, aviso: null }));
+    // Recomeça do zero quando já tinha terminado: o que já veio não duplica.
+    let { fase, pagina } = hist.concluido ? { fase: "activities" as Fase, pagina: 1 } : hist;
+    setHist((h) => ({
+      ...h,
+      rodando: true,
+      aviso: null,
+      ...(h.concluido ? { gravadas: 0, semNegocio: 0, concluido: false } : {}),
+    }));
     try {
       for (;;) {
         if (parar.current) break;
-        const r = await histFn({ data: { lote: 20 } });
+        const r = await histFn({ data: { fase, pagina } });
+        const proxima: { fase: Fase; pagina: number } = r.acabou
+          ? { fase: "tasks", pagina: 1 }
+          : { fase, pagina: r.proximaPagina };
+        const terminou = r.acabou && fase === "tasks";
         setHist((h) => ({
           ...h,
-          negocios: h.negocios + r.negocios,
-          atividades: h.atividades + r.atividades,
-          restantes: r.restantes,
+          ...proxima,
+          gravadas: h.gravadas + r.gravadas,
+          semNegocio: h.semNegocio + r.semNegocio,
+          totais: { ...h.totais, [fase]: r.total },
+          concluido: terminou,
           aviso: r.erro,
         }));
-        if (r.restantes === 0) break;
+        if (terminou) break;
+        ({ fase, pagina } = proxima);
         // Limite do RD: espera um minuto e segue de onde parou.
         await espera(r.erro?.includes("429") ? 60_000 : 1_000);
       }
@@ -313,9 +340,10 @@ function MigracaoRdPage() {
           <History className="h-4 w-4" /> Histórico dos negócios
         </h2>
         <p className="text-[12px] text-muted-foreground">
-          Anotações e atividades de cada negócio no RD viram a linha do tempo do negócio aqui. São
-          duas consultas ao RD por negócio; com o limite da API, conte algumas horas para a base
-          inteira. Pode parar e continuar: o que já veio não duplica.
+          Anotações e tarefas dos negócios no RD viram a linha do tempo do negócio aqui. Lê as duas
+          listas do RD inteiras, 200 por página; leva alguns minutos. Entra só o que é de negócio
+          que já está no CRM: depois de trazer mais negócios, rode de novo. Pode parar e continuar:
+          o que já veio não duplica.
         </p>
         <div className="flex flex-wrap items-center gap-3 text-[12px]">
           {hist.rodando ? (
@@ -324,7 +352,7 @@ function MigracaoRdPage() {
             </Button>
           ) : (
             <Button size="sm" onClick={rodarHistorico}>
-              {hist.negocios ? "Continuar" : "Importar histórico"}
+              {hist.gravadas && !hist.concluido ? "Continuar" : "Importar histórico"}
             </Button>
           )}
           <Button
@@ -336,10 +364,17 @@ function MigracaoRdPage() {
           >
             {reaplicar.isPending ? "Reaplicando…" : "Reaplicar donos no histórico"}
           </Button>
-          {(hist.negocios > 0 || hist.restantes !== null) && (
+          {(hist.gravadas > 0 || hist.rodando) && (
             <span>
-              {hist.negocios} negócios · {hist.atividades} anotações/atividades
-              {hist.restantes !== null && ` · faltam ${hist.restantes}`}
+              {hist.concluido
+                ? "Concluído"
+                : hist.fase === "activities"
+                  ? `Anotações: página ${hist.pagina}${hist.totais.activities ? ` de ${Math.ceil(hist.totais.activities / 200)}` : ""}`
+                  : `Tarefas: página ${hist.pagina}${hist.totais.tasks ? ` de ${Math.ceil(hist.totais.tasks / 200)}` : ""}`}
+              {" · "}
+              {hist.gravadas.toLocaleString("pt-BR")} gravadas
+              {hist.semNegocio > 0 &&
+                ` · ${hist.semNegocio.toLocaleString("pt-BR")} de negócios que ainda não estão no CRM`}
             </span>
           )}
           {hist.aviso && <span className="text-amber-600">{hist.aviso}</span>}
