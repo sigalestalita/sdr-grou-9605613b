@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -15,8 +15,14 @@ import {
 import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EspelhoTransformacaoRd } from "@/components/migracao/espelho-transformacao-rd";
+import { BaseDeMarketingRd } from "@/components/migracao/base-marketing-rd";
+
+type Aba = "crm" | "marketing";
 
 export const Route = createFileRoute("/_app/migracao-rd")({
+  validateSearch: (s: Record<string, unknown>): { aba?: Aba } =>
+    s.aba === "marketing" || s.aba === "crm" ? { aba: s.aba } : {},
   component: MigracaoRdPage,
   head: () => ({ meta: [{ title: "Migração do RD | Grou Compass" }] }),
 });
@@ -30,6 +36,33 @@ const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * e trazer o histórico de anotações e atividades dos negócios.
  */
 function MigracaoRdPage() {
+  const { aba = "crm" } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  return (
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 lg:p-6">
+      <div className="flex w-fit rounded-full bg-muted p-1 text-[13px]">
+        {(
+          [
+            ["crm", "CRM: empresas, contatos e negócios"],
+            ["marketing", "Base de marketing (CSV)"],
+          ] as const
+        ).map(([a, rotulo]) => (
+          <button
+            key={a}
+            type="button"
+            onClick={() => navigate({ search: { aba: a } })}
+            className={`rounded-full px-4 py-1.5 ${aba === a ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}
+          >
+            {rotulo}
+          </button>
+        ))}
+      </div>
+      {aba === "crm" ? <MigracaoCrm /> : <BaseDeMarketingRd />}
+    </div>
+  );
+}
+
+function MigracaoCrm() {
   const qc = useQueryClient();
   const confFn = useServerFn(getConferenciaRd);
   const histFn = useServerFn(importarHistoricoRd);
@@ -139,17 +172,13 @@ function MigracaoRdPage() {
   const semFunil = data?.funis.find((f) => f.funil === "(sem funil)")?.total ?? 0;
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4 p-4 lg:p-6">
+    <div className="flex flex-col gap-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold">Migração do RD · fase 1</h1>
+          <h1 className="text-lg font-semibold">Migração do RD</h1>
           <p className="text-[12px] text-muted-foreground">
-            1. Espelhar e transformar em{" "}
-            <Link to="/cs-integracoes" className="underline">
-              Integrações
-            </Link>{" "}
-            (rode a prévia antes) · 2. Conferir aqui · 3. Acertar os donos sem usuário e rodar de
-            novo · 4. Importar o histórico
+            1. Espelhar e transformar (rode a prévia antes) · 2. Conferir · 3. Acertar os donos sem
+            usuário e transformar de novo · 4. Importar o histórico
           </p>
         </div>
         <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
@@ -157,6 +186,8 @@ function MigracaoRdPage() {
           {isFetching ? "Conferindo…" : "Atualizar conferência"}
         </Button>
       </header>
+
+      <EspelhoTransformacaoRd onTerminou={() => refetch()} />
 
       {semFunil > 0 && (
         <Card className="flex flex-wrap items-center justify-between gap-3 border-amber-500/50 p-4 text-[13px]">
