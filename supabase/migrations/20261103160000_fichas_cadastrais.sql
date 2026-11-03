@@ -1,6 +1,6 @@
 -- Ficha cadastral do cliente no Compass.
 --
--- A ficha continua sendo o app "cadastro-grou" (cadastro-grou.lovable.app):
+-- A ficha continua sendo o app "cadastro-grou" (fichacadastral.grougp.com.br):
 -- a cada envio ele manda a ficha inteira para /api/public/fichas/webhook
 -- (com o segredo de app_settings.ficha_cadastral_webhook). Aqui ela é ligada
 -- à empresa pelo CNPJ (ou ao contato pelo e-mail) e aparece no negócio para o
