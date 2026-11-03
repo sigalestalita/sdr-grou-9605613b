@@ -5,7 +5,15 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { podeFaturar } from "@/lib/faturamento/politica.server";
 import { carregarPolitica } from "@/lib/faturamento/politica.server";
 import { totalRetencaoPct } from "@/lib/faturamento/politica";
-import { proposta, somarDivisoes, totalItens, type TipoItem } from "@/lib/catalogo/itens";
+import {
+  proposta,
+  somarDivisoes,
+  totalItem,
+  totalItens,
+  type DescontoTipo,
+  type Recorrencia,
+  type TipoItem,
+} from "@/lib/catalogo/itens";
 import { limitesDoMes, negociosGanhosNoPeriodo } from "@/lib/catalogo/realizado.server";
 
 /*
@@ -106,7 +114,7 @@ export const getItensNegocio = createServerFn({ method: "GET" })
       db
         .from("deal_products")
         .select(
-          "id, product_id, nome, quantidade, valor_unitario, total, ordem, products:product_id(tipo, marca)",
+          "id, product_id, nome, quantidade, valor_unitario, total, ordem, desconto_tipo, desconto, recorrencia, products:product_id(tipo, marca)",
         )
         .eq("deal_id", data.dealId)
         .order("ordem"),
@@ -127,6 +135,11 @@ export const getItensNegocio = createServerFn({ method: "GET" })
         valor_unitario: Number(i.valor_unitario ?? 0),
         tipo: ((i.products as { tipo?: TipoItem | null } | null)?.tipo ?? null) as TipoItem | null,
         marca: (i.products as { marca?: string | null } | null)?.marca ?? null,
+        desconto_tipo: (i.desconto_tipo === "valor" ? "valor" : "pct") as DescontoTipo,
+        desconto: Number(i.desconto ?? 0),
+        recorrencia: (["mensal", "anual"].includes(String(i.recorrencia))
+          ? i.recorrencia
+          : "unico") as Recorrencia,
       })),
     };
   });
@@ -148,6 +161,9 @@ export const salvarItensNegocio = createServerFn({ method: "POST" })
               nome: z.string().trim().min(1).max(160),
               quantidade: z.number().min(0.01).max(1_000_000),
               valor_unitario: z.number().min(0).max(100_000_000),
+              desconto_tipo: z.enum(["pct", "valor"]).default("pct"),
+              desconto: z.number().min(0).max(100_000_000).default(0),
+              recorrencia: z.enum(["unico", "mensal", "anual"]).default("unico"),
             }),
           )
           .max(60),
@@ -174,7 +190,10 @@ export const salvarItensNegocio = createServerFn({ method: "POST" })
           nome: i.nome,
           quantidade: i.quantidade,
           valor_unitario: i.valor_unitario,
-          total: Math.round(i.quantidade * i.valor_unitario * 100) / 100,
+          desconto_tipo: i.desconto_tipo,
+          desconto: i.desconto_tipo === "pct" ? Math.min(i.desconto, 100) : i.desconto,
+          recorrencia: i.recorrencia,
+          total: totalItem(i),
           ordem: idx,
         })),
       );

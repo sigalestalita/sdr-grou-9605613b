@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { PUBLIC_SITE_URL } from "@/lib/propostas/site";
 
 // Só considerar leads criados a partir desta data (início da operação na planilha)
 const MIN_LEAD_DATE = "2025-05-15";
@@ -271,7 +272,6 @@ export const generateWeeklyDigest = createServerFn({ method: "POST" })
   .inputValidator((input: { weekStart?: string; force?: boolean }) => input ?? {})
   .handler(async ({ data }) => generateWeeklyDigestInternal(data));
 
-const PUBLIC_SITE_URL = "https://sdr-grou.lovable.app";
 const LOGO_URL = "https://vlfohgirjbgpqhqbnuks.supabase.co/storage/v1/object/public/email-assets/lidi-logo-white.png";
 
 export function wrapHtml(inner: string): string {

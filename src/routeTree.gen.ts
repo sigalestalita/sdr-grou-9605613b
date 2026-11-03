@@ -52,10 +52,12 @@ import { Route as AppLeadsAnalyticsRouteImport } from './routes/_app.leads-analy
 import { Route as AppMigracaoRdRouteImport } from './routes/_app.migracao-rd'
 import { Route as AppNovidadesRouteImport } from './routes/_app.novidades'
 import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
+import { Route as AppPropostasRouteImport } from './routes/_app.propostas'
 import { Route as AppRequerimentosRouteImport } from './routes/_app.requerimentos'
 import { Route as AppTurmasRouteImport } from './routes/_app.turmas'
 import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
+import { Route as PropostaTokenRouteImport } from './routes/proposta.$token'
 import { Route as AppAnalyticsChatThreadIdRouteImport } from './routes/_app.analytics-chat.$threadId'
 import { Route as AppEmpresasUidRouteImport } from './routes/_app.empresas.$uid'
 import { Route as AppLeadIdRouteImport } from './routes/_app.lead.$id'
@@ -308,6 +310,11 @@ const AppPlaybookRoute = AppPlaybookRouteImport.update({
   path: '/playbook',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPropostasRoute = AppPropostasRouteImport.update({
+  id: '/propostas',
+  path: '/propostas',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRequerimentosRoute = AppRequerimentosRouteImport.update({
   id: '/requerimentos',
   path: '/requerimentos',
@@ -327,6 +334,11 @@ const AppWhatsappRoute = AppWhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
   getParentRoute: () => AppRoute,
+} as any)
+const PropostaTokenRoute = PropostaTokenRouteImport.update({
+  id: '/proposta/$token',
+  path: '/proposta/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppAnalyticsChatThreadIdRoute =
   AppAnalyticsChatThreadIdRouteImport.update({
@@ -569,10 +581,12 @@ export interface FileRoutesByFullPath {
   '/migracao-rd': typeof AppMigracaoRdRoute
   '/novidades': typeof AppNovidadesRoute
   '/playbook': typeof AppPlaybookRoute
+  '/propostas': typeof AppPropostasRoute
   '/requerimentos': typeof AppRequerimentosRoute
   '/turmas': typeof AppTurmasRoute
   '/usuarios': typeof AppUsuariosRoute
   '/whatsapp': typeof AppWhatsappRouteWithChildren
+  '/proposta/$token': typeof PropostaTokenRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
@@ -654,9 +668,11 @@ export interface FileRoutesByTo {
   '/migracao-rd': typeof AppMigracaoRdRoute
   '/novidades': typeof AppNovidadesRoute
   '/playbook': typeof AppPlaybookRoute
+  '/propostas': typeof AppPropostasRoute
   '/requerimentos': typeof AppRequerimentosRoute
   '/turmas': typeof AppTurmasRoute
   '/usuarios': typeof AppUsuariosRoute
+  '/proposta/$token': typeof PropostaTokenRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
@@ -740,10 +756,12 @@ export interface FileRoutesById {
   '/_app/migracao-rd': typeof AppMigracaoRdRoute
   '/_app/novidades': typeof AppNovidadesRoute
   '/_app/playbook': typeof AppPlaybookRoute
+  '/_app/propostas': typeof AppPropostasRoute
   '/_app/requerimentos': typeof AppRequerimentosRoute
   '/_app/turmas': typeof AppTurmasRoute
   '/_app/usuarios': typeof AppUsuariosRoute
   '/_app/whatsapp': typeof AppWhatsappRouteWithChildren
+  '/proposta/$token': typeof PropostaTokenRoute
   '/_app/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/_app/empresas/$uid': typeof AppEmpresasUidRoute
   '/_app/lead/$id': typeof AppLeadIdRoute
@@ -827,10 +845,12 @@ export interface FileRouteTypes {
     | '/migracao-rd'
     | '/novidades'
     | '/playbook'
+    | '/propostas'
     | '/requerimentos'
     | '/turmas'
     | '/usuarios'
     | '/whatsapp'
+    | '/proposta/$token'
     | '/analytics-chat/$threadId'
     | '/empresas/$uid'
     | '/lead/$id'
@@ -912,9 +932,11 @@ export interface FileRouteTypes {
     | '/migracao-rd'
     | '/novidades'
     | '/playbook'
+    | '/propostas'
     | '/requerimentos'
     | '/turmas'
     | '/usuarios'
+    | '/proposta/$token'
     | '/analytics-chat/$threadId'
     | '/empresas/$uid'
     | '/lead/$id'
@@ -997,10 +1019,12 @@ export interface FileRouteTypes {
     | '/_app/migracao-rd'
     | '/_app/novidades'
     | '/_app/playbook'
+    | '/_app/propostas'
     | '/_app/requerimentos'
     | '/_app/turmas'
     | '/_app/usuarios'
     | '/_app/whatsapp'
+    | '/proposta/$token'
     | '/_app/analytics-chat/$threadId'
     | '/_app/empresas/$uid'
     | '/_app/lead/$id'
@@ -1046,6 +1070,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  PropostaTokenRoute: typeof PropostaTokenRoute
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicHooksCampanhasAgendadasRoute: typeof ApiPublicHooksCampanhasAgendadasRoute
   ApiPublicHooksMetaAdsRoute: typeof ApiPublicHooksMetaAdsRoute
@@ -1370,6 +1395,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPlaybookRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/propostas': {
+      id: '/_app/propostas'
+      path: '/propostas'
+      fullPath: '/propostas'
+      preLoaderRoute: typeof AppPropostasRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/requerimentos': {
       id: '/_app/requerimentos'
       path: '/requerimentos'
@@ -1397,6 +1429,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/whatsapp'
       preLoaderRoute: typeof AppWhatsappRouteImport
       parentRoute: typeof AppRoute
+    }
+    '/proposta/$token': {
+      id: '/proposta/$token'
+      path: '/proposta/$token'
+      fullPath: '/proposta/$token'
+      preLoaderRoute: typeof PropostaTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/analytics-chat/$threadId': {
       id: '/_app/analytics-chat/$threadId'
@@ -1753,6 +1792,7 @@ interface AppRouteChildren {
   AppMigracaoRdRoute: typeof AppMigracaoRdRoute
   AppNovidadesRoute: typeof AppNovidadesRoute
   AppPlaybookRoute: typeof AppPlaybookRoute
+  AppPropostasRoute: typeof AppPropostasRoute
   AppRequerimentosRoute: typeof AppRequerimentosRoute
   AppTurmasRoute: typeof AppTurmasRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
@@ -1803,6 +1843,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMigracaoRdRoute: AppMigracaoRdRoute,
   AppNovidadesRoute: AppNovidadesRoute,
   AppPlaybookRoute: AppPlaybookRoute,
+  AppPropostasRoute: AppPropostasRoute,
   AppRequerimentosRoute: AppRequerimentosRoute,
   AppTurmasRoute: AppTurmasRoute,
   AppUsuariosRoute: AppUsuariosRoute,
@@ -1822,6 +1863,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  PropostaTokenRoute: PropostaTokenRoute,
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicHooksCampanhasAgendadasRoute: ApiPublicHooksCampanhasAgendadasRoute,
   ApiPublicHooksMetaAdsRoute: ApiPublicHooksMetaAdsRoute,

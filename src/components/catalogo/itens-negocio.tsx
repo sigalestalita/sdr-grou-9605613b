@@ -5,10 +5,14 @@ import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { getItensNegocio, listarCatalogo, salvarItensNegocio } from "@/lib/catalogo.functions";
 import {
+  descontoItem,
   dividirNegocio,
   proposta,
+  RECORRENCIA_LABEL,
   TIPO_LABEL,
   totalItem,
+  type DescontoTipo,
+  type Recorrencia,
   type TipoItem,
 } from "@/lib/catalogo/itens";
 import { moeda } from "@/lib/comercial/metas";
@@ -21,7 +25,20 @@ type Linha = {
   quantidade: number;
   valor_unitario: number;
   tipo: TipoItem | null;
+  desconto_tipo: DescontoTipo;
+  desconto: number;
+  recorrencia: Recorrencia;
 };
+
+const chave = (l: Linha) => [
+  l.product_id,
+  l.nome,
+  l.quantidade,
+  l.valor_unitario,
+  l.desconto_tipo,
+  l.desconto,
+  l.recorrencia,
+];
 
 /**
  * Itens da proposta. Escolher do catálogo traz o preço de tabela e o tipo
@@ -62,22 +79,7 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
   const divisao = dividirNegocio(data?.valor ?? 0, atual);
   const sujo =
     !!data &&
-    (JSON.stringify(
-      atual.map(({ product_id, nome, quantidade, valor_unitario }) => [
-        product_id,
-        nome,
-        quantidade,
-        valor_unitario,
-      ]),
-    ) !==
-      JSON.stringify(
-        data.itens.map(({ product_id, nome, quantidade, valor_unitario }) => [
-          product_id,
-          nome,
-          quantidade,
-          valor_unitario,
-        ]),
-      ) ||
+    (JSON.stringify(atual.map(chave)) !== JSON.stringify(data.itens.map(chave)) ||
       (impostos === "" ? null : Number(impostos.replace(",", "."))) !== data.valorImpostos);
 
   const ativos = useMemo(() => (catalogo?.produtos ?? []).filter((p) => p.ativo), [catalogo]);
@@ -95,12 +97,25 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
       salvarFn({
         data: {
           dealId,
-          itens: atual.map(({ product_id, nome, quantidade, valor_unitario }) => ({
-            product_id,
-            nome,
-            quantidade,
-            valor_unitario,
-          })),
+          itens: atual.map(
+            ({
+              product_id,
+              nome,
+              quantidade,
+              valor_unitario,
+              desconto_tipo,
+              desconto,
+              recorrencia,
+            }) => ({
+              product_id,
+              nome,
+              quantidade,
+              valor_unitario,
+              desconto_tipo,
+              desconto,
+              recorrencia,
+            }),
+          ),
           valorImpostos: impostos === "" ? null : conta.impostos,
         },
       }),
@@ -194,9 +209,45 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
                 <span />
               )}
             </div>
-            <p className="text-[11px] text-muted-foreground">
-              {l.tipo ? TIPO_LABEL[l.tipo] : "Sem tipo — o ADM classifica no catálogo"}
-            </p>
+            <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+              <span>Desconto</span>
+              <Input
+                type="number"
+                min={0}
+                className="h-7 w-20"
+                value={l.desconto}
+                disabled={!editavel}
+                onChange={(e) => muda(idx, { desconto: Number(e.target.value) || 0 })}
+                title="Desconto"
+              />
+              <select
+                className="h-7 rounded-md border bg-background px-1"
+                value={l.desconto_tipo}
+                disabled={!editavel}
+                onChange={(e) => muda(idx, { desconto_tipo: e.target.value as DescontoTipo })}
+                aria-label="Tipo de desconto"
+              >
+                <option value="pct">%</option>
+                <option value="valor">R$</option>
+              </select>
+              <select
+                className="h-7 rounded-md border bg-background px-1"
+                value={l.recorrencia}
+                disabled={!editavel}
+                onChange={(e) => muda(idx, { recorrencia: e.target.value as Recorrencia })}
+                aria-label="Recorrência"
+              >
+                {(Object.keys(RECORRENCIA_LABEL) as Recorrencia[]).map((r) => (
+                  <option key={r} value={r}>
+                    {RECORRENCIA_LABEL[r]}
+                  </option>
+                ))}
+              </select>
+              {descontoItem(l) > 0 && <span>−{moeda(descontoItem(l))}</span>}
+              <span className="ml-auto">
+                {l.tipo ? TIPO_LABEL[l.tipo] : "Sem tipo — o ADM classifica no catálogo"}
+              </span>
+            </div>
           </li>
         ))}
       </ul>
@@ -207,7 +258,16 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
           onClick={() =>
             setLinhas([
               ...atual,
-              { product_id: null, nome: "", quantidade: 1, valor_unitario: 0, tipo: null },
+              {
+                product_id: null,
+                nome: "",
+                quantidade: 1,
+                valor_unitario: 0,
+                tipo: null,
+                desconto_tipo: "pct",
+                desconto: 0,
+                recorrencia: "unico",
+              },
             ])
           }
         >

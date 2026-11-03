@@ -50,6 +50,7 @@ import {
   ClipboardList,
   BadgeDollarSign,
   GraduationCap,
+  FileText,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
 import grouLogo from "@/assets/grou-logo.png";
@@ -159,6 +160,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         to: "/comercial-agenda",
         label: "Agenda",
         icon: CalendarDays,
+        team: "comercial",
+        roles: ["executivo"],
+      },
+      {
+        to: "/propostas",
+        label: "Propostas",
+        icon: FileText,
         team: "comercial",
         roles: ["executivo"],
       },
