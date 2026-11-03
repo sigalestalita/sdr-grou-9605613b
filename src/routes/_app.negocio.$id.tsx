@@ -41,6 +41,7 @@ import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card"
 import { FaturamentoDoNegocio } from "@/components/faturamento/faturamento-do-negocio";
 import { ItensNegocio } from "@/components/catalogo/itens-negocio";
 import { ContratoDoNegocio } from "@/components/faturamento/contrato-e-turma";
+import { PropostasDoNegocio } from "@/components/propostas/propostas-do-negocio";
 import { MencionarPessoas } from "@/components/app-shell/mencionar-pessoas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -447,6 +448,8 @@ function NegocioPage() {
 
           {/* depois de faturado, o valor é o da nota: itens só para consulta */}
           <ItensNegocio dealId={id} editavel={!n.faturado_em} />
+
+          <PropostasDoNegocio dealId={id} />
 
           {n.status === "won" && <FaturamentoDoNegocio dealId={id} />}
 

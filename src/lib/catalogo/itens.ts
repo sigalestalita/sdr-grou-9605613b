@@ -18,15 +18,43 @@ export type ItemNegocio = {
   valor_unitario: number;
   /** Tipo do produto no catálogo; null = item sem classificação. */
   tipo: TipoItem | null;
+  /** Desconto do item, em % do bruto ou em R$ (como no RD). */
+  desconto_tipo?: DescontoTipo;
+  desconto?: number;
+  recorrencia?: Recorrencia;
 };
+
+export type DescontoTipo = "pct" | "valor";
+export type Recorrencia = "unico" | "mensal" | "anual";
+export const RECORRENCIA_LABEL: Record<Recorrencia, string> = {
+  unico: "Único",
+  mensal: "Mensal",
+  anual: "Anual",
+};
+
+type ContaItem = Pick<ItemNegocio, "quantidade" | "valor_unitario" | "desconto_tipo" | "desconto">;
 
 const centavos = (v: number) => Math.round(v * 100) / 100;
 
-export function totalItem(i: Pick<ItemNegocio, "quantidade" | "valor_unitario">): number {
+/** Valor unitário × quantidade, antes do desconto. */
+export function brutoItem(i: Pick<ItemNegocio, "quantidade" | "valor_unitario">): number {
   return centavos((Number(i.quantidade) || 0) * (Number(i.valor_unitario) || 0));
 }
 
-export function totalItens(itens: Array<Pick<ItemNegocio, "quantidade" | "valor_unitario">>) {
+/** Quanto o desconto tira do item (nunca mais que o bruto). */
+export function descontoItem(i: ContaItem): number {
+  const bruto = brutoItem(i);
+  const d = Math.max(Number(i.desconto) || 0, 0);
+  const v = i.desconto_tipo === "valor" ? d : (bruto * Math.min(d, 100)) / 100;
+  return centavos(Math.min(v, bruto));
+}
+
+/** Valor do item no negócio: bruto menos o desconto. */
+export function totalItem(i: ContaItem): number {
+  return centavos(brutoItem(i) - descontoItem(i));
+}
+
+export function totalItens(itens: ContaItem[]) {
   return centavos(itens.reduce((s, i) => s + totalItem(i), 0));
 }
 
