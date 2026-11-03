@@ -1,4 +1,11 @@
-import { createFileRoute, Outlet, Link, useNavigate, useRouter } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Outlet,
+  Link,
+  useNavigate,
+  useRouter,
+  useRouterState,
+} from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
@@ -286,6 +293,11 @@ function AppShell() {
   const router = useRouter();
   const [redirecting, setRedirecting] = useState(false);
   const palette = useCommandPalette();
+  /*
+   * A rota atual por assinatura: router.state não avisa quando muda, e o
+   * menu continuava marcando a página anterior até outro motivo redesenhar.
+   */
+  const currentPath = useRouterState({ select: (s) => s.location.pathname });
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -342,7 +354,7 @@ function AppShell() {
   // continuar aberto sobre a página recém-aberta não faz sentido.
   useEffect(() => {
     setDrawer(false);
-  }, [router.state.location.pathname]);
+  }, [currentPath]);
 
   useEffect(() => {
     if (!loading && !user && !redirecting) {
@@ -359,7 +371,6 @@ function AppShell() {
     navigate({ to: "/login" });
   }
 
-  const currentPath = router.state.location.pathname;
   const initials = (user.email ?? "?").slice(0, 2).toUpperCase();
 
   const canSee = (item: NavItem) => role.canSee(item);
