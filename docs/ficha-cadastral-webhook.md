@@ -4,7 +4,7 @@ A ficha continua no app **cadastro-grou** (fichacadastral.grougp.com.br). A cada
 envio ele manda a ficha para o Compass, que liga à empresa pelo CNPJ (ou ao
 contato pelo e-mail), completa os campos vazios da empresa e avisa o vendedor.
 
-- Endpoint: `POST https://sdr-grou.lovable.app/api/public/fichas/webhook`
+- Endpoint: `POST https://compass.grougp.com/api/public/fichas/webhook`
 - Header: `x-compass-secret: <segredo>` — o segredo está em
   `app_settings.ficha_cadastral_webhook.secret` no banco do Compass.
 - Corpo: a linha de `client_registrations` em JSON (todas as colunas, com `id`).
@@ -21,7 +21,7 @@ Quero que toda ficha enviada seja também enviada ao nosso CRM (Compass). Faça 
 
 1. Na edge function send-registration-notification (que já roda a cada envio), depois de
    enviar o e-mail, busque a ficha completa em client_registrations pelo id recebido e
-   faça um POST para https://sdr-grou.lovable.app/api/public/fichas/webhook com:
+   faça um POST para https://compass.grougp.com/api/public/fichas/webhook com:
    - header "Content-Type: application/json"
    - header "x-compass-secret" com o valor do secret COMPASS_WEBHOOK_SECRET
    - corpo: a linha inteira de client_registrations em JSON (todas as colunas, incluindo id,
