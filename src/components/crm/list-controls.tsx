@@ -142,7 +142,10 @@ export function FilterChip({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
-        className="h-full cursor-pointer appearance-none bg-transparent pl-2.5 pr-7 outline-none"
+        // O texto do próprio select fica invisível: quem aparece é o rótulo
+        // com o valor, logo abaixo. Com os dois visíveis, um escrevia por
+        // cima do outro. As opções da lista continuam legíveis.
+        className="h-full cursor-pointer appearance-none bg-transparent pl-2.5 pr-7 text-transparent outline-none [&>option]:bg-popover [&>option]:text-popover-foreground"
       >
         <option value="">{label}</option>
         {options.map((o) => (
