@@ -77,6 +77,7 @@ import { Route as AppWhatsappPlaygroundRouteImport } from './routes/_app.whatsap
 import { Route as AppWhatsappTemplatesRouteImport } from './routes/_app.whatsapp.templates'
 import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
 import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
+import { Route as ApiPublicFichasWebhookRouteImport } from './routes/api/public/fichas/webhook'
 import { Route as ApiPublicHooksCampanhasAgendadasRouteImport } from './routes/api/public/hooks/campanhas-agendadas'
 import { Route as ApiPublicHooksMetaAdsRouteImport } from './routes/api/public/hooks/meta-ads'
 import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
@@ -436,6 +437,11 @@ const ApiPublicCsEmailInboundRoute = ApiPublicCsEmailInboundRouteImport.update({
   path: '/api/public/cs/email-inbound',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFichasWebhookRoute = ApiPublicFichasWebhookRouteImport.update({
+  id: '/api/public/fichas/webhook',
+  path: '/api/public/fichas/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksCampanhasAgendadasRoute =
   ApiPublicHooksCampanhasAgendadasRouteImport.update({
     id: '/api/public/hooks/campanhas-agendadas',
@@ -606,6 +612,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp/': typeof AppWhatsappIndexRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
@@ -692,6 +699,7 @@ export interface FileRoutesByTo {
   '/whatsapp': typeof AppWhatsappIndexRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
@@ -781,6 +789,7 @@ export interface FileRoutesById {
   '/_app/whatsapp/': typeof AppWhatsappIndexRoute
   '/_app/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
@@ -870,6 +879,7 @@ export interface FileRouteTypes {
     | '/whatsapp/'
     | '/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
@@ -956,6 +966,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
@@ -1044,6 +1055,7 @@ export interface FileRouteTypes {
     | '/_app/whatsapp/'
     | '/_app/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
@@ -1072,6 +1084,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   PropostaTokenRoute: typeof PropostaTokenRoute
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
+  ApiPublicFichasWebhookRoute: typeof ApiPublicFichasWebhookRoute
   ApiPublicHooksCampanhasAgendadasRoute: typeof ApiPublicHooksCampanhasAgendadasRoute
   ApiPublicHooksMetaAdsRoute: typeof ApiPublicHooksMetaAdsRoute
   ApiPublicHooksMirrorRdRoute: typeof ApiPublicHooksMirrorRdRoute
@@ -1570,6 +1583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCsEmailInboundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/fichas/webhook': {
+      id: '/api/public/fichas/webhook'
+      path: '/api/public/fichas/webhook'
+      fullPath: '/api/public/fichas/webhook'
+      preLoaderRoute: typeof ApiPublicFichasWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/campanhas-agendadas': {
       id: '/api/public/hooks/campanhas-agendadas'
       path: '/api/public/hooks/campanhas-agendadas'
@@ -1865,6 +1885,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   PropostaTokenRoute: PropostaTokenRoute,
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
+  ApiPublicFichasWebhookRoute: ApiPublicFichasWebhookRoute,
   ApiPublicHooksCampanhasAgendadasRoute: ApiPublicHooksCampanhasAgendadasRoute,
   ApiPublicHooksMetaAdsRoute: ApiPublicHooksMetaAdsRoute,
   ApiPublicHooksMirrorRdRoute: ApiPublicHooksMirrorRdRoute,
