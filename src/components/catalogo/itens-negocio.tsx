@@ -16,6 +16,7 @@ import {
   type TipoItem,
 } from "@/lib/catalogo/itens";
 import { moeda } from "@/lib/comercial/metas";
+import { CalculadoraImpostos } from "@/components/impostos/calculadora-impostos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -65,6 +66,7 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
 
   const [linhas, setLinhas] = useState<Linha[] | null>(null);
   const [impostos, setImpostos] = useState<string>("");
+  const [calculando, setCalculando] = useState(false);
   // Recomeça do servidor a cada dado novo (inclusive depois de salvar), e não
   // do cache antigo — senão um segundo "salvar" regravaria a lista anterior.
   useEffect(() => {
@@ -284,6 +286,19 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
           <div className="flex items-center justify-between gap-2">
             <dt className="text-muted-foreground">Impostos retidos</dt>
             <dd className="flex items-center gap-1">
+              {editavel && (
+                <button
+                  type="button"
+                  className="text-[11px] text-primary hover:underline disabled:text-muted-foreground disabled:no-underline"
+                  disabled={sujo}
+                  title={
+                    sujo ? "Salve os itens antes de calcular" : "Calcular pelas regras de retenção"
+                  }
+                  onClick={() => setCalculando(true)}
+                >
+                  Calcular
+                </button>
+              )}
               {editavel && data.retencaoPct > 0 && (
                 <button
                   type="button"
@@ -324,6 +339,7 @@ export function ItensNegocio({ dealId, editavel }: { dealId: string; editavel: b
           {salvar.isPending ? "Salvando…" : "Salvar itens"}
         </Button>
       )}
+      {calculando && <CalculadoraImpostos dealId={dealId} onClose={() => setCalculando(false)} />}
     </section>
   );
 }
