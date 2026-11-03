@@ -38,7 +38,7 @@ export function FichaCadastralCard({ companyId }: { companyId: string }) {
       </div>
       {!f ? (
         <p className="text-[12px] text-muted-foreground">
-          O cliente ainda não preencheu a ficha (cadastro-grou.lovable.app).
+          O cliente ainda não preencheu a ficha (fichacadastral.grougp.com.br).
         </p>
       ) : (
         <>

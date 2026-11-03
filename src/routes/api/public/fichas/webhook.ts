@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 /**
- * Recebe cada ficha enviada no app de cadastro (cadastro-grou.lovable.app).
+ * Recebe cada ficha enviada no app de cadastro (fichacadastral.grougp.com.br).
  * O app manda a linha de client_registrations em JSON, com o segredo no
  * header x-compass-secret (app_settings.ficha_cadastral_webhook).
  */

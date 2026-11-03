@@ -1,6 +1,6 @@
 # Ficha cadastral → Compass (webhook)
 
-A ficha continua no app **cadastro-grou** (cadastro-grou.lovable.app). A cada
+A ficha continua no app **cadastro-grou** (fichacadastral.grougp.com.br). A cada
 envio ele manda a ficha para o Compass, que liga à empresa pelo CNPJ (ou ao
 contato pelo e-mail), completa os campos vazios da empresa e avisa o vendedor.
 
@@ -37,5 +37,9 @@ Quero que toda ficha enviada seja também enviada ao nosso CRM (Compass). Faça 
    função na página /ficha/:id, e deixe o SELECT direto da tabela só para usuários logados.
    Também deixe o UPDATE só para usuários logados com papel admin.
 
-3. Não mude nada no formulário, nos campos, no e-mail nem no visual.
+3. O domínio oficial da ficha é https://fichacadastral.grougp.com.br. Use esse domínio em
+   todos os links gerados (botão "Visualizar Ficha Cadastral Completa" do e-mail e o link
+   mostrado ao cliente depois do envio), no lugar de cadastro-grou.lovable.app.
+
+4. Não mude mais nada no formulário, nos campos, no e-mail nem no visual.
 ```

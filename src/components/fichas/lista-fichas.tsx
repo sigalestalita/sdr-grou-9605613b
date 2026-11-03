@@ -39,7 +39,7 @@ export function ListaFichas() {
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-muted-foreground">
-        Vêm do app de cadastro (cadastro-grou.lovable.app) a cada envio, e ficam na empresa e no
+        Vêm do app de cadastro (fichacadastral.grougp.com.br) a cada envio, e ficam na empresa e no
         negócio. {data ? `${data.total} fichas · ${data.soltas} sem empresa no Compass.` : ""}
       </p>
       <div className="flex flex-wrap items-center gap-3">
