@@ -21,6 +21,7 @@ import { getWelcome, type GestaoComercialMetrics } from "@/lib/welcome.functions
 import { accessLabel, TEAM_COLORS } from "@/lib/teams";
 import { moeda } from "@/lib/comercial/metas";
 import { CsHomeSections, Empty, Section } from "@/components/cs/cs-home";
+import { InicioAcoes } from "@/components/inicio/inicio-acoes";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -110,16 +111,16 @@ function WelcomePage() {
   const firstName = (d?.me.name ?? "").split(" ")[0];
 
   return (
-    <div className="mx-auto max-w-[1100px] space-y-6 p-4 lg:p-8">
+    <div className="mx-auto max-w-[1240px] space-y-6 p-4 lg:p-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[12px] font-medium capitalize text-muted-foreground">
-            {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR })}
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold">
+          <h1 className="text-[34px] leading-tight font-bold tracking-tight text-primary">
             {greeting(new Date())}
             {firstName ? `, ${firstName}` : ""}
           </h1>
+          <p className="mt-1 text-[15px] text-muted-foreground first-letter:uppercase">
+            {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR })}
+          </p>
           {d && (
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               {viewingSelf ? null : (
@@ -196,6 +197,16 @@ function WelcomePage() {
             </Empty>
           </Section>
         )}
+
+      {/* ---------------- SDR: o que fazer agora ---------------- */}
+      {d?.sdr && (
+        <InicioAcoes
+          userId={viewingSelf ? undefined : d.viewing.id}
+          agendasNoPeriodo={d.sdr.marcadas}
+          periodo={PERIOD_LABEL[period].toLowerCase()}
+          slaDentroPct={d.sdr.slaDentroPct}
+        />
+      )}
 
       {/* ---------------- SDR ---------------- */}
       {d?.sdr && (
