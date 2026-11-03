@@ -13,6 +13,7 @@ import {
 } from "@/lib/propostas.functions";
 import { dataBr, moedaBr, STATUS_PROPOSTA } from "@/lib/propostas/render";
 import { EditorModelo, MODELO_VAZIO } from "@/components/propostas/editor-modelo";
+import { ListaFichas } from "@/components/fichas/lista-fichas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -25,6 +26,8 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_app/propostas")({
+  validateSearch: (s: Record<string, unknown>): { aba?: "propostas" | "modelos" | "fichas" } =>
+    s.aba === "modelos" || s.aba === "fichas" || s.aba === "propostas" ? { aba: s.aba } : {},
   component: PropostasPage,
   head: () => ({ meta: [{ title: "Propostas | Grou Compass" }] }),
 });
@@ -34,7 +37,8 @@ export const Route = createFileRoute("/_app/propostas")({
  * A proposta em si nasce no negócio; aqui é acompanhamento e modelos.
  */
 function PropostasPage() {
-  const [aba, setAba] = useState<"propostas" | "modelos">("propostas");
+  const { aba: abaUrl } = Route.useSearch();
+  const [aba, setAba] = useState<"propostas" | "modelos" | "fichas">(abaUrl ?? "propostas");
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 p-4 lg:p-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -48,19 +52,19 @@ function PropostasPage() {
           </p>
         </div>
         <div className="flex rounded-full bg-muted p-1 text-[13px]">
-          {(["propostas", "modelos"] as const).map((a) => (
+          {(["propostas", "modelos", "fichas"] as const).map((a) => (
             <button
               key={a}
               type="button"
               onClick={() => setAba(a)}
               className={`rounded-full px-4 py-1.5 ${aba === a ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}
             >
-              {a === "propostas" ? "Propostas" : "Modelos"}
+              {a === "propostas" ? "Propostas" : a === "modelos" ? "Modelos" : "Fichas cadastrais"}
             </button>
           ))}
         </div>
       </header>
-      {aba === "propostas" ? <ListaPropostas /> : <Modelos />}
+      {aba === "propostas" ? <ListaPropostas /> : aba === "modelos" ? <Modelos /> : <ListaFichas />}
     </div>
   );
 }
