@@ -45,6 +45,8 @@ import {
   GraduationCap,
 } from "lucide-react";
 import lidiLogo from "@/assets/lidi-logo-white.png";
+import grouLogo from "@/assets/grou-logo.png";
+import { Splash } from "@/components/brand/splash";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
@@ -349,13 +351,7 @@ function AppShell() {
     }
   }, [loading, user, navigate, redirecting]);
 
-  if (loading || !user) {
-    return (
-      <div className="grid place-items-center min-h-screen text-sm text-muted-foreground">
-        Carregando…
-      </div>
-    );
-  }
+  if (loading || !user) return <Splash />;
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -410,12 +406,14 @@ function AppShell() {
         to={n.to}
         title={menuRecolhido ? n.label : undefined}
         data-active={active || undefined}
-        className={`group flex h-8 items-center gap-2.5 rounded-md text-[13px] transition-colors ${
-          menuRecolhido ? "justify-center px-0" : "px-2.5"
+        className={`group flex h-9 items-center gap-3 rounded-xl text-[14px] transition-colors ${
+          menuRecolhido ? "justify-center px-0" : "px-3"
         } ${
           active
-            ? `font-medium text-sidebar-foreground ${glass ? "glass-item-active rounded-lg" : "bg-sidebar-accent"}`
-            : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
+            ? glass
+              ? "glass-item-active font-semibold"
+              : "bg-sidebar-accent font-semibold text-sidebar-foreground"
+            : "text-sidebar-foreground/75 hover:bg-sidebar-accent hover:text-sidebar-foreground"
         }`}
       >
         <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
@@ -439,27 +437,32 @@ function AppShell() {
         />
       )}
       <aside
-        className={`${collapsed ? "w-[228px] md:w-[52px]" : "w-[228px]"} shrink-0 text-sidebar-foreground flex flex-col fixed inset-y-0 left-0 z-50 border-r border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:pt-0 md:pb-0 md:shadow-none md:transition-[width] md:duration-150 ${
+        className={`${collapsed ? "w-[248px] md:w-[60px]" : "w-[248px]"} shrink-0 text-sidebar-foreground flex flex-col fixed inset-y-0 left-0 z-50 border-r border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:pt-0 md:pb-0 md:shadow-none md:transition-[width] md:duration-150 ${
           drawer ? "translate-x-0" : "-translate-x-full"
-        } ${
-          glass
-            ? "md:glass-nav md:m-3 md:mr-0 md:h-[calc(100dvh-1.5rem)] md:rounded-2xl md:border-0"
-            : ""
-        }`}
+        } ${glass ? "md:glass-nav md:m-4 md:mr-0 md:h-[calc(100dvh-2rem)] md:rounded-[24px]" : ""}`}
       >
         <div
-          className={`h-12 shrink-0 flex items-center justify-between gap-2 border-b border-sidebar-border ${menuRecolhido ? "px-2" : "px-3"}`}
+          className={`h-16 shrink-0 flex items-center justify-between gap-2 ${menuRecolhido ? "px-2" : "px-4"}`}
         >
-          <div className="flex min-w-0 items-center gap-2">
+          <div className="flex min-w-0 items-center gap-3">
+            <img
+              src={grouLogo}
+              alt="Grou"
+              className={`${menuRecolhido ? "h-5" : "h-7"} w-auto dark:hidden`}
+            />
             <img
               src={lidiLogo}
               alt="Grou"
-              className={menuRecolhido ? "h-5 w-auto" : "h-6 w-auto"}
+              className={`${menuRecolhido ? "h-5" : "h-7"} hidden w-auto dark:block`}
             />
             {!menuRecolhido && (
-              <span className="truncate text-sm font-semibold tracking-tight text-sidebar-foreground">
-                compass
-              </span>
+              <>
+                <span aria-hidden className="h-[22px] w-px shrink-0 bg-sidebar-border" />
+                <span className="flex flex-col whitespace-nowrap text-[11px] leading-[1.15] font-bold tracking-[0.22em]">
+                  <span className="text-primary">COMPASS</span>
+                  <span className="text-[#4fa79d] dark:text-[#88d5ce]/80">CRM</span>
+                </span>
+              </>
             )}
           </div>
           <button
@@ -579,7 +582,7 @@ function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <header
           className={`flex h-12 shrink-0 items-center gap-3 border-b border-border bg-background px-4 pt-[env(safe-area-inset-top)] [height:calc(3rem+env(safe-area-inset-top))] md:pt-0 md:[height:3rem] ${
-            glass ? "md:glass-bar md:z-10 md:mx-3 md:mt-3 md:rounded-full md:border-0" : ""
+            glass ? "md:glass-bar md:z-10 md:mx-4 md:mt-4 md:rounded-full" : ""
           }`}
         >
           <button
@@ -608,7 +611,7 @@ function AppShell() {
         </header>
         <main
           className={`min-h-0 flex-1 overflow-auto pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0 ${
-            glass ? "md:px-3 md:pb-3 md:pt-3" : ""
+            glass ? "md:px-4 md:pb-4 md:pt-4" : ""
           }`}
         >
           {blocked ? (
