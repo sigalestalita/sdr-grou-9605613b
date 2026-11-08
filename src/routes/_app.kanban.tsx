@@ -1141,6 +1141,7 @@ function LeadCard({
         <Link
           to="/lead/$id"
           params={{ id: lead.id }}
+          search={{ aba: "qualificacao" }}
           onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
           className="flex flex-1 items-center gap-1 truncate text-[13px] font-semibold hover:underline"

@@ -43,6 +43,7 @@ import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card"
 import {
   ClientEditor,
   ContactsPanel,
+  OutrasPessoasPanel,
   PropertyRow,
   RecordsPanel,
   TagsPanel,
@@ -578,6 +579,12 @@ function CompanyPage() {
               onDelete={(id) => delContact.mutate(id)}
             />
           </Panel>
+
+          {(data?.outrasPessoas ?? []).length > 0 && (
+            <Panel title={`Outras pessoas da empresa (${(data?.outrasPessoas ?? []).length})`}>
+              <OutrasPessoasPanel pessoas={data?.outrasPessoas ?? []} />
+            </Panel>
+          )}
 
           <Panel title={`Tags (${(data?.tags ?? []).length})`}>
             <TagsPanel

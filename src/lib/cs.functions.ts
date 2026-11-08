@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -114,6 +115,75 @@ const mondayOfDate = (d: Date) => {
   x.setUTCDate(x.getUTCDate() + (dow === 0 ? -6 : 1 - dow));
   return x.toISOString().slice(0, 10);
 };
+
+/**
+ * Pessoas da empresa e o lead de cada uma (pelo contato ou pelo e-mail).
+ * Lê com a chave do servidor: muitos leads estão fora do kanban (base do RD)
+ * e a regra de acesso os esconde, mas o link para o histórico tem que existir.
+ */
+async function pessoasDaEmpresa(
+  companyId: string | null,
+  contatosCs: Array<{ contact_id?: string | null; email?: string | null }>,
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as unknown as SupabaseClient;
+  type Pessoa = { id: string; nome: string; cargo: string | null; email: string | null };
+  const { data: daEmpresa } = companyId
+    ? await db
+        .from("contacts")
+        .select("id, nome, cargo, email")
+        .eq("company_id", companyId)
+        .order("nome")
+        .limit(300)
+    : { data: [] };
+  const pessoas = (daEmpresa ?? []) as Pessoa[];
+  const contatoIds = [
+    ...new Set(
+      [...contatosCs.map((c) => c.contact_id), ...pessoas.map((p) => p.id)].filter(
+        (x): x is string => !!x,
+      ),
+    ),
+  ];
+  const emails = [
+    ...new Set(
+      [...contatosCs.map((c) => c.email), ...pessoas.map((p) => p.email)]
+        .filter((x): x is string => !!x)
+        .flatMap((e) => [e.trim(), e.trim().toLowerCase()]),
+    ),
+  ];
+  const leadPorContato = new Map<string, string>();
+  const leadPorEmail = new Map<string, string>();
+  for (let i = 0; i < contatoIds.length; i += 150) {
+    const { data } = await db
+      .from("leads")
+      .select("id, contact_id")
+      .in("contact_id", contatoIds.slice(i, i + 150));
+    for (const l of (data ?? []) as Array<{ id: string; contact_id: string }>)
+      if (!leadPorContato.has(l.contact_id)) leadPorContato.set(l.contact_id, l.id);
+  }
+  for (let i = 0; i < emails.length; i += 150) {
+    const { data } = await db
+      .from("leads")
+      .select("id, email")
+      .in("email", emails.slice(i, i + 150));
+    for (const l of (data ?? []) as Array<{ id: string; email: string }>) {
+      const k = l.email.toLowerCase().trim();
+      if (!leadPorEmail.has(k)) leadPorEmail.set(k, l.id);
+    }
+  }
+  const jaNoCs = new Set(contatosCs.map((c) => c.contact_id).filter(Boolean));
+  const emailsNoCs = new Set(contatosCs.map((c) => c.email?.toLowerCase().trim()).filter(Boolean));
+  const outras = pessoas
+    .filter((p) => !jaNoCs.has(p.id) && !(p.email && emailsNoCs.has(p.email.toLowerCase().trim())))
+    .map((p) => ({
+      ...p,
+      leadId:
+        leadPorContato.get(p.id) ??
+        (p.email ? leadPorEmail.get(p.email.toLowerCase().trim()) : undefined) ??
+        null,
+    }));
+  return { leadPorContato, leadPorEmail, outras };
+}
 
 /** Detalhe completo do cliente para o card (abas). */
 export const getCsClient = createServerFn({ method: "GET" })
@@ -313,16 +383,29 @@ export const getCsClient = createServerFn({ method: "GET" })
     })();
 
     const { getEvidenceConfig: getEvidence } = await import("@/lib/cs/cs-core.server");
-    const [{ data: isManager }, evidenceCfg] = await Promise.all([
+    const [{ data: isManager }, evidenceCfg, pessoas] = await Promise.all([
       supabase.rpc("is_manager", { _user_id: context.userId }),
       getEvidence(supabase),
+      pessoasDaEmpresa(
+        (client.data as { company_id?: string | null } | null)?.company_id ?? null,
+        (contacts.data ?? []) as Array<{ contact_id?: string | null; email?: string | null }>,
+      ),
     ]);
 
     return {
       isManager: Boolean(isManager),
       evidenceChannels: evidenceCfg.exigir_evidencia ? evidenceCfg.canais : [],
       client: client.data,
-      contacts: contacts.data ?? [],
+      // Cada contato com o lead dele, para abrir o histórico da pessoa.
+      contacts: (contacts.data ?? []).map((c) => ({
+        ...c,
+        leadId:
+          (c.contact_id ? pessoas.leadPorContato.get(c.contact_id) : null) ??
+          (c.email ? pessoas.leadPorEmail.get(c.email.toLowerCase().trim()) : null) ??
+          null,
+      })),
+      /** Pessoas da empresa (vindas do RD/negócios) que não estão nos contatos de CS. */
+      outrasPessoas: pessoas.outras,
       tags: tags.data ?? [],
       snapshots: snaps.data ?? [],
       records: records.data ?? [],

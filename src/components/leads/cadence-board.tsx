@@ -6,9 +6,21 @@ import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { completeCadenceStep, getSdrCadenceBoard, type CadenceBoardItem } from "@/lib/sdr-cadence.functions";
+import {
+  completeCadenceStep,
+  getSdrCadenceBoard,
+  type CadenceBoardItem,
+} from "@/lib/sdr-cadence.functions";
 import { TRACK_LABEL, SLA_FIRST_TOUCH_MINUTES } from "@/lib/sdr-playbook";
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Clock, Flag, Route as RouteIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Flag,
+  Route as RouteIcon,
+} from "lucide-react";
 
 const DAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
@@ -57,14 +69,18 @@ export function CadenceBoard() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
-  const assignedTo = owner === "all" ? null : owner === "me" ? (data?.currentUserId ?? null) : owner;
+  const assignedTo =
+    owner === "all" ? null : owner === "me" ? (data?.currentUserId ?? null) : owner;
   const filter = (rows: CadenceBoardItem[]) =>
     assignedTo ? rows.filter((r) => r.assignedTo === assignedTo) : rows;
 
   const overdue = filter(data?.overdue ?? []);
   const scheduled = filter(data?.scheduled ?? []);
 
-  const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
+  const days = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
+    [weekStart],
+  );
   const byDay = useMemo(() => {
     const map = new Map<string, CadenceBoardItem[]>();
     for (const it of scheduled) {
@@ -97,7 +113,9 @@ export function CadenceBoard() {
             <option value="me">Minha cadência</option>
             <option value="all">Todos os SDRs</option>
             {(data?.profiles ?? []).map((p) => (
-              <option key={p.id} value={p.id}>{p.full_name || p.email}</option>
+              <option key={p.id} value={p.id}>
+                {p.full_name || p.email}
+              </option>
             ))}
           </select>
           <Button variant="outline" size="sm" onClick={() => setWeekStart((w) => addDays(w, -7))}>
@@ -117,17 +135,22 @@ export function CadenceBoard() {
       ) : (
         <>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <Mini label="Passos atrasados" value={String(overdue.length)} alert={overdue.length > 0} />
             <Mini
-              label="Hoje"
-              value={String((byDay.get(todayKey) ?? []).length)}
+              label="Passos atrasados"
+              value={String(overdue.length)}
+              alert={overdue.length > 0}
             />
+            <Mini label="Hoje" value={String((byDay.get(todayKey) ?? []).length)} />
             <Mini
               label={`SLA > ${SLA_FIRST_TOUCH_MINUTES}min`}
               value={String(data.summary.slaBreached)}
               alert={data.summary.slaBreached > 0}
             />
-            <Mini label="Leads sem nenhum touch" value={String(data.summary.noTouch)} alert={data.summary.noTouch > 0} />
+            <Mini
+              label="Leads sem nenhum touch"
+              value={String(data.summary.noTouch)}
+              alert={data.summary.noTouch > 0}
+            />
           </div>
 
           {overdue.length > 0 && (
@@ -137,7 +160,13 @@ export function CadenceBoard() {
               </p>
               <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {overdue.slice(0, 60).map((it) => (
-                  <StepCard key={it.key} item={it} late onDone={() => complete.mutate(it)} doing={complete.isPending} />
+                  <StepCard
+                    key={it.key}
+                    item={it}
+                    late
+                    onDone={() => complete.mutate(it)}
+                    doing={complete.isPending}
+                  />
                 ))}
               </div>
             </div>
@@ -154,16 +183,28 @@ export function CadenceBoard() {
                   className={`rounded-lg border p-3 min-h-[160px] space-y-2 ${isToday ? "border-primary/50 bg-primary/5" : ""}`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-semibold ${isToday ? "text-primary" : "text-muted-foreground"}`}>
+                    <span
+                      className={`text-xs font-semibold ${isToday ? "text-primary" : "text-muted-foreground"}`}
+                    >
                       {DAY_LABELS[d.getDay()]} {d.getDate()}/{d.getMonth() + 1}
                     </span>
-                    {list.length > 0 && <Badge variant="secondary" className="text-[10px]">{list.length}</Badge>}
+                    {list.length > 0 && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {list.length}
+                      </Badge>
+                    )}
                   </div>
                   {list.length === 0 ? (
                     <p className="text-[11px] text-muted-foreground">Sem touchpoints</p>
                   ) : (
                     list.map((it) => (
-                      <StepCard key={it.key} item={it} compact onDone={() => complete.mutate(it)} doing={complete.isPending} />
+                      <StepCard
+                        key={it.key}
+                        item={it}
+                        compact
+                        onDone={() => complete.mutate(it)}
+                        doing={complete.isPending}
+                      />
                     ))
                   )}
                 </div>
@@ -199,11 +240,14 @@ function StepCard({
         <span className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
           <Clock className="h-3 w-3" /> {hhmm(item.dueAt)}
         </span>
-        <Badge variant="outline" className="text-[10px]">{item.channelTag}</Badge>
+        <Badge variant="outline" className="text-[10px]">
+          {item.channelTag}
+        </Badge>
       </div>
       <Link
         to="/lead/$id"
         params={{ id: item.leadId }}
+        search={{ aba: "qualificacao" }}
         className="block text-sm font-medium hover:underline truncate"
       >
         {item.leadName}
@@ -220,7 +264,10 @@ function StepCard({
       )}
       <div className="flex items-center gap-2 pt-1">
         {item.breakup && (
-          <Badge variant="outline" className="text-[10px] gap-1 border-destructive/40 text-destructive">
+          <Badge
+            variant="outline"
+            className="text-[10px] gap-1 border-destructive/40 text-destructive"
+          >
             <Flag className="h-3 w-3" /> Break-up
           </Badge>
         )}
@@ -240,7 +287,9 @@ function StepCard({
 
 function Mini({ label, value, alert }: { label: string; value: string; alert?: boolean }) {
   return (
-    <div className={`rounded-lg border p-2 ${alert ? "border-amber-500/50 bg-amber-500/10" : "bg-muted/30"}`}>
+    <div
+      className={`rounded-lg border p-2 ${alert ? "border-amber-500/50 bg-amber-500/10" : "bg-muted/30"}`}
+    >
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className="text-lg font-semibold">{value}</p>
     </div>
