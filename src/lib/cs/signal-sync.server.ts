@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { mondayOf, type CsSignal } from "@/lib/cs-types";
 import { recomputeHealth } from "./cs-core.server";
+import { acharEmpresaPorNome } from "./empresa-por-nome";
 
 const SPREADSHEET_ID = "191ZmqoIwCPrmtL2KxDMMSBpZ3_bSBuCp6_H6b8iRNmY";
 const GATEWAY = "https://connector-gateway.lovable.dev/google_sheets/v4";
@@ -248,6 +249,9 @@ export async function syncSignalFromSheet(opts?: {
 
     // Cria os clientes que ainda não existem no CS a partir da planilha.
     let created = 0;
+    let ligadasAEmpresa = 0;
+    /** Nome da planilha → ficha existente achada pela empresa. */
+    const apelidos = new Map<string, string>();
     if (opts?.createMissing !== false) {
       const seen = new Set<string>();
       const toCreate: Array<Record<string, unknown>> = [];
@@ -265,13 +269,59 @@ export async function syncSignalFromSheet(opts?: {
           origem: "marketing",
         });
       }
-      for (let i = 0; i < toCreate.length; i += 200) {
-        const chunk = toCreate.slice(i, i + 200);
+      // Antes de criar uma ficha solta, procura a empresa pelo nome: se ela já
+      // tem ficha de CS, a linha passa a apontar para essa ficha; se não tem,
+      // a ficha nasce ligada à empresa (mesmo código).
+      if (toCreate.length > 0) {
+        const empresas: Array<{ id: string; uid: string; nome: string }> = [];
+        for (let from = 0; ; from += 1000) {
+          const { data: page, error } = await supabaseAdmin
+            .from("companies")
+            .select("id, uid, nome")
+            .order("id")
+            .range(from, from + 999);
+          if (error) throw new Error(error.message);
+          empresas.push(...((page ?? []) as typeof empresas));
+          if (!page || page.length < 1000) break;
+        }
+        const fichaPorEmpresa = new Map<string, string>();
+        for (let from = 0; ; from += 1000) {
+          const { data: page, error } = await supabaseAdmin
+            .from("cs_clients")
+            .select("client_uid, company_id")
+            .not("company_id", "is", null)
+            .order("client_uid")
+            .range(from, from + 999);
+          if (error) throw new Error(error.message);
+          for (const c of (page ?? []) as Array<{ client_uid: string; company_id: string }>)
+            fichaPorEmpresa.set(c.company_id, c.client_uid);
+          if (!page || page.length < 1000) break;
+        }
+        for (const item of toCreate) {
+          const emp = acharEmpresaPorNome(String(item.nome_empresa), empresas);
+          if (!emp) continue;
+          const ficha = fichaPorEmpresa.get(emp.id);
+          if (ficha) {
+            apelidos.set(norm(item.nome_empresa), ficha);
+            item.__pular = true;
+          } else {
+            item.client_uid = emp.uid;
+            item.company_id = emp.id;
+            item.nome_empresa = emp.nome;
+            fichaPorEmpresa.set(emp.id, emp.uid);
+            ligadasAEmpresa++;
+          }
+        }
+      }
+      const novas = toCreate.filter((t) => !t.__pular).map(({ __pular: _p, ...t }) => t);
+      for (let i = 0; i < novas.length; i += 200) {
+        const chunk = novas.slice(i, i + 200);
         const { error } = await supabaseAdmin.from("cs_clients").insert(chunk as never);
         if (error) throw new Error(`Falha ao criar clientes: ${error.message}`);
         created += chunk.length;
       }
       if (created > 0) ({ byName, byUid, byLogin } = await loadClients());
+      for (const [nome, uid] of apelidos) byName.set(nome, uid);
     }
 
     // A leitura vale para a semana da data da aba, não para a semana em que foi lida.
@@ -406,6 +456,8 @@ export async function syncSignalFromSheet(opts?: {
         weekStart,
         ehAMaisRecente,
         fatia: opts?.fatia ?? null,
+        ligadasAEmpresa,
+        apelidos: apelidos.size,
         atualizadas: ehAMaisRecente ? paraAtualizar.length : 0,
         created,
         matched: rows.length,
