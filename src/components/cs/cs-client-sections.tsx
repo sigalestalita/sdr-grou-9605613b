@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
   DIAG_CAUSES,
   DIAG_CAUSE_LABEL,
@@ -322,7 +323,18 @@ export function ContactsPanel({
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-[13px] font-medium">
                 <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{c.nome}</span>
+                {typeof c.leadId === "string" ? (
+                  <Link
+                    to="/lead/$id"
+                    params={{ id: c.leadId }}
+                    className="truncate text-primary hover:underline"
+                    title="Abrir o histórico desta pessoa"
+                  >
+                    {c.nome}
+                  </Link>
+                ) : (
+                  <span className="truncate">{c.nome}</span>
+                )}
                 {c.analista_pda === true && <Badge className="text-[10px]">Analista PDA</Badge>}
                 {c.ativo_no_cliente === false && (
                   <Badge variant="outline" className="text-[10px]">
@@ -1287,6 +1299,56 @@ function EmailThreadView({
           </Card>
         );
       })}
+    </div>
+  );
+}
+
+/** Pessoas da empresa (vindas do RD e dos negócios) fora dos contatos de CS. */
+export function OutrasPessoasPanel({
+  pessoas,
+}: {
+  pessoas: Array<{
+    id: string;
+    nome: string;
+    cargo: string | null;
+    email: string | null;
+    leadId: string | null;
+  }>;
+}) {
+  const [todas, setTodas] = useState(false);
+  if (!pessoas.length)
+    return <p className="text-xs text-muted-foreground">Nenhuma outra pessoa vinculada.</p>;
+  const lista = todas ? pessoas : pessoas.slice(0, 8);
+  return (
+    <div className="space-y-1.5">
+      {lista.map((p) => (
+        <div key={p.id} className="rounded-md border px-2 py-1.5">
+          {p.leadId ? (
+            <Link
+              to="/lead/$id"
+              params={{ id: p.leadId }}
+              className="text-[13px] font-medium text-primary hover:underline"
+              title="Abrir o histórico desta pessoa"
+            >
+              {p.nome}
+            </Link>
+          ) : (
+            <p className="text-[13px] font-medium">{p.nome}</p>
+          )}
+          <p className="truncate text-[11px] text-muted-foreground">
+            {[p.cargo, p.email].filter(Boolean).join(" · ") || "—"}
+          </p>
+        </div>
+      ))}
+      {pessoas.length > 8 && (
+        <button
+          type="button"
+          className="text-[11px] text-primary hover:underline"
+          onClick={() => setTodas((v) => !v)}
+        >
+          {todas ? "Mostrar menos" : `Ver todas (${pessoas.length})`}
+        </button>
+      )}
     </div>
   );
 }
