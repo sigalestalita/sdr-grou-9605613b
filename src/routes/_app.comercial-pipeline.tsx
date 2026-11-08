@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EtapasVisiveis, useEtapasOcultas } from "@/components/kanban/etapas-ocultas";
 
 export const Route = createFileRoute("/_app/comercial-pipeline")({
   component: PipelinePage,
@@ -91,9 +92,12 @@ function PipelinePage() {
     staleTime: 30_000,
   });
 
-  const stages = ((data?.stages ?? []) as Stage[])
+  const todasAsEtapas = ((data?.stages ?? []) as Stage[])
     .filter((s) => mostrarFechados || s.kind === "open")
     .sort((a, b) => a.ordem - b.ordem);
+  const quadro = `comercial:${(data?.stages?.[0] as Stage | undefined)?.pipeline_id ?? pipelineId ?? "padrao"}`;
+  const { ocultas: etapasOcultas } = useEtapasOcultas(quadro);
+  const stages = todasAsEtapas.filter((s) => !etapasOcultas.has(s.id));
   const deals = (data?.deals ?? []) as Deal[];
   const nomeDe = new Map(
     (data?.profiles ?? []).map(
@@ -156,6 +160,11 @@ function PipelinePage() {
             <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
             {mostrarFechados ? "Ocultar fechados" : "Mostrar fechados"}
           </Button>
+          <EtapasVisiveis
+            quadro={quadro}
+            etapas={todasAsEtapas.map((s) => ({ id: s.id, nome: s.nome }))}
+            contagem={(id) => deals.filter((d) => d.stage_id === id).length}
+          />
         </div>
       </header>
 
