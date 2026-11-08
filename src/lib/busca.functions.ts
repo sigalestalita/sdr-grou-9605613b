@@ -58,13 +58,47 @@ export const buscaGlobal = createServerFn({ method: "GET" })
 
     const resultados: ResultadoBusca[] = [];
 
-    for (const l of leads.data ?? []) {
+    /*
+     * Leads fora do kanban (base de marketing do RD, cards antigos) não
+     * aparecem na consulta normal: a regra de acesso esconde para o kanban
+     * não pesar. A busca procura neles também, com a chave do servidor.
+     */
+    const visiveis = leads.data ?? [];
+    let foraDoKanban: typeof visiveis = [];
+    if (visiveis.length < 6) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: ocultos } = await supabaseAdmin
+        .from("leads")
+        .select("id, name, company_name, email, position")
+        .eq("oculto_sdr", true)
+        .or(`name.ilike.${alvo},company_name.ilike.${alvo},email.ilike.${alvo}`)
+        .limit(6 - visiveis.length);
+      foraDoKanban = (ocultos ?? []) as typeof visiveis;
+    }
+
+    for (const l of visiveis) {
       resultados.push({
         tipo: "lead",
         id: l.id as string,
         titulo: (l.name as string) || "Lead sem nome",
         subtitulo:
           [l.company_name, l.position].filter(Boolean).join(" · ") || (l.email as string) || null,
+        to: `/lead/${l.id}`,
+      });
+    }
+
+    for (const l of foraDoKanban) {
+      resultados.push({
+        tipo: "lead",
+        id: l.id as string,
+        titulo: (l.name as string) || "Lead sem nome",
+        subtitulo:
+          [
+            [l.company_name, l.position].filter(Boolean).join(" · ") || (l.email as string),
+            "fora do kanban",
+          ]
+            .filter(Boolean)
+            .join(" · ") || null,
         to: `/lead/${l.id}`,
       });
     }

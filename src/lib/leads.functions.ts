@@ -265,6 +265,23 @@ export const listKanbanData = createServerFn({ method: "GET" })
     };
   });
 
+async function trazerLeadParaOKanban(id: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin
+    .from("leads")
+    .update({ oculto_sdr: false } as never)
+    .eq("id", id)
+    .eq("oculto_sdr", true)
+    .select("id");
+  return (data ?? []).length > 0;
+}
+
+/** Botão "Trazer para o kanban" na página de um lead fora do kanban. */
+export const trazerParaOKanban = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data }) => ({ ok: await trazerLeadParaOKanban(data.id) }));
+
 export const getLeadDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
@@ -288,7 +305,22 @@ export const getLeadDetail = createServerFn({ method: "GET" })
         supabase.from("user_roles").select("user_id, role"),
       ]);
     if (leadRes.error) throw new Error(leadRes.error.message);
-    if (!leadRes.data) throw new Error("Lead não encontrado");
+    /*
+     * Lead fora do kanban (base de marketing, cards do RD): a regra de acesso
+     * esconde da listagem para o kanban não pesar, mas abrir pelo link ou pela
+     * busca tem que funcionar. Lê com a chave do servidor.
+     */
+    let lead = leadRes.data as Record<string, unknown> | null;
+    if (!lead) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: oculto } = await supabaseAdmin
+        .from("leads")
+        .select("*")
+        .eq("id", data.id)
+        .maybeSingle();
+      lead = (oculto as Record<string, unknown> | null) ?? null;
+    }
+    if (!lead) throw new Error("Lead não encontrado");
     if (rolesRes.error) throw new Error(rolesRes.error.message);
     const sdrUserIds = Array.from(
       new Set(
@@ -299,7 +331,7 @@ export const getLeadDetail = createServerFn({ method: "GET" })
     );
 
     return {
-      lead: leadRes.data,
+      lead: lead as NonNullable<typeof leadRes.data>,
       notes: notesRes.data ?? [],
       interactions: interactionsRes.data ?? [],
       stages: stagesRes.data ?? [],
@@ -396,6 +428,9 @@ export const updateLead = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // Quem edita um lead fora do kanban está trabalhando nele: ele volta ao
+    // kanban (senão a regra de acesso ignora a edição em silêncio).
+    await trazerLeadParaOKanban(data.id);
     const allowed: Record<string, unknown> = {};
     const allowedKeys = [
       "name",
