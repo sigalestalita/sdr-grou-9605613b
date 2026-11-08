@@ -1,5 +1,6 @@
 import {
   acharContato,
+  chaveDoNovo,
   chavesDoCard,
   indexarContatos,
   lembrarContato,
@@ -746,7 +747,7 @@ export async function transformRdToObjects(opts?: {
     const empresaDoContato = new Map<string, string>();
     const conhecidos = await fetchAll(
       "contacts",
-      "id, company_id, rd_contact_id, email, emails, telefone, phones",
+      "id, nome, company_id, rd_contact_id, email, emails, telefone, phones",
     );
     for (const c of conhecidos)
       if (c.company_id) empresaDoContato.set(String(c.id), String(c.company_id));
@@ -756,8 +757,9 @@ export async function transformRdToObjects(opts?: {
     const contatosDoCard = (d: Row) =>
       ((d.raw as Json | undefined)?.contacts as ContatoDoCard[] | undefined) ?? [];
     const empresaDoCard = (d: Row): string | undefined => {
+      const daOrg = d.rd_org_id ? orgToCompany.get(String(d.rd_org_id)) : undefined;
       for (const c of contatosDoCard(d)) {
-        const id = acharContato(indice, c);
+        const id = acharContato(indice, c, daOrg);
         const empresa = id ? empresaDoContato.get(id) : undefined;
         if (empresa) return empresa;
       }
@@ -959,9 +961,9 @@ export async function transformRdToObjects(opts?: {
         if (destinoDe.get(String(d.rd_id))?.tipo !== "negocio") continue;
         const empresa = d.rd_org_id ? orgToCompany.get(String(d.rd_org_id)) : undefined;
         for (const c of contatosDoCard(d)) {
-          if (acharContato(indice, c)) continue;
+          if (acharContato(indice, c, empresa)) continue;
           const k = chavesDoCard(c);
-          const chave = k.emails[0] ?? k.fones[0];
+          const chave = chaveDoNovo(c, empresa);
           const nome = clean(c.name);
           if (!chave || !nome || vistos.has(chave)) continue;
           vistos.add(chave);
@@ -993,7 +995,7 @@ export async function transformRdToObjects(opts?: {
             continue;
           }
           ((criados ?? []) as Array<{ id: string }>).forEach((r, i) => {
-            lembrarContato(indice, r.id, part[i].card);
+            lembrarContato(indice, r.id, part[i].card, part[i].row.company_id as string | null);
             const emp = part[i].row.company_id;
             if (emp) empresaDoContato.set(r.id, String(emp));
           });
@@ -1057,7 +1059,7 @@ export async function transformRdToObjects(opts?: {
       const contactIds = [
         ...new Set(
           contatosDoCard(d)
-            .map((c) => acharContato(indice, c))
+            .map((c) => acharContato(indice, c, companyId))
             .filter((x): x is string => !!x),
         ),
       ];

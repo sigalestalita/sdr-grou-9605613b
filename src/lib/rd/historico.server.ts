@@ -8,6 +8,8 @@ export async function importarPaginasDoHistoricoRd(data: {
   fase: "activities" | "tasks";
   pagina: number;
   paginas: number;
+  /** Tarefas: "true" ou "false" (concluídas ou pendentes), para caber no teto de 10 mil. */
+  concluidas?: "true" | "false";
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { getRdTokenInfo } = await import("@/lib/rd-token.server");
@@ -63,7 +65,12 @@ export async function importarPaginasDoHistoricoRd(data: {
   for (let i = 0; i < data.paginas; i++) {
     let lote;
     try {
-      lote = await fetchPaginaDoHistorico(token, data.fase, pagina);
+      lote = await fetchPaginaDoHistorico(
+        token,
+        data.fase,
+        pagina,
+        data.concluidas ? { done: data.concluidas } : undefined,
+      );
     } catch (e) {
       // limite do RD: para a fatia aqui; a tela espera e continua desta página
       erro = e instanceof Error ? e.message : String(e);
