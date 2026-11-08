@@ -22,34 +22,55 @@ export async function importarPaginasDoHistoricoRd(data: {
   const { token } = await getRdTokenInfo();
   if (!token) throw new Error("RD Station não conectado. Conecte em Configurações.");
 
-  const [negocios, leads, nomesRd, { data: profiles }, regras] = await Promise.all([
-    todasAsPaginas<{ id: string; rd_deal_id: string }>(
-      (de, ate) =>
-        db
-          .from("deals")
-          .select("id, rd_deal_id")
-          .not("rd_deal_id", "is", null)
-          .order("id")
-          .range(de, ate),
-      400_000,
-    ),
-    // Cards dos funis de SDR viraram leads: as anotações deles vão para o lead.
-    todasAsPaginas<{ id: string; rd_deal_id: string }>(
-      (de, ate) =>
-        db
-          .from("leads")
-          .select("id, rd_deal_id")
-          .not("rd_deal_id", "is", null)
-          .order("id")
-          .range(de, ate),
-      400_000,
-    ),
-    fetchUsuariosRd(token),
-    db.from("profiles").select("id, full_name, email"),
-    carregarRegrasDeDono(),
-  ]);
+  const [negocios, leads, cards, empresas, nomesRd, { data: profiles }, regras] = await Promise.all(
+    [
+      todasAsPaginas<{ id: string; rd_deal_id: string }>(
+        (de, ate) =>
+          db
+            .from("deals")
+            .select("id, rd_deal_id")
+            .not("rd_deal_id", "is", null)
+            .order("id")
+            .range(de, ate),
+        400_000,
+      ),
+      // Cards dos funis de SDR viraram leads: as anotações deles vão para o lead.
+      todasAsPaginas<{ id: string; rd_deal_id: string }>(
+        (de, ate) =>
+          db
+            .from("leads")
+            .select("id, rd_deal_id")
+            .not("rd_deal_id", "is", null)
+            .order("id")
+            .range(de, ate),
+        400_000,
+      ),
+      // Card que não virou negócio nem lead (CS, parceiros, repescagem,
+      // carteira): a anotação vai para a empresa do card.
+      todasAsPaginas<{ rd_id: string; rd_org_id: string | null; pipeline: string | null }>(
+        (de, ate) =>
+          db.from("rd_deals").select("rd_id, rd_org_id, pipeline").order("rd_id").range(de, ate),
+        400_000,
+      ),
+      todasAsPaginas<{ id: string; rd_org_id: string }>(
+        (de, ate) =>
+          db
+            .from("companies")
+            .select("id, rd_org_id")
+            .not("rd_org_id", "is", null)
+            .order("id")
+            .range(de, ate),
+        400_000,
+      ),
+      fetchUsuariosRd(token),
+      db.from("profiles").select("id, full_name, email"),
+      carregarRegrasDeDono(),
+    ],
+  );
   const negocioDoRd = new Map(negocios.map((n) => [n.rd_deal_id, n.id]));
   const leadDoRd = new Map(leads.map((l) => [l.rd_deal_id, l.id]));
+  const cardDoRd = new Map(cards.map((c) => [c.rd_id, c]));
+  const empresaDoOrg = new Map(empresas.map((e) => [e.rd_org_id, e.id]));
   const userOf = userMatcher(
     (profiles ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>,
     regras,
@@ -58,6 +79,7 @@ export async function importarPaginasDoHistoricoRd(data: {
   let gravadas = 0;
   let semNegocio = 0;
   let nosLeads = 0;
+  let nasEmpresas = 0;
   let total: number | null = null;
   let pagina = data.pagina;
   let acabou = false;
@@ -78,6 +100,7 @@ export async function importarPaginasDoHistoricoRd(data: {
     }
     total = lote.total ?? total;
     const notasDeLead: Array<Record<string, unknown>> = [];
+    const notasDeEmpresa: Array<Record<string, unknown>> = [];
     const linhas = lote.itens.flatMap((item) => {
       const linha = data.fase === "activities" ? linhaDaAnotacaoRd(item) : linhaDaTarefaRd(item);
       if (!linha) return [];
@@ -96,7 +119,22 @@ export async function importarPaginasDoHistoricoRd(data: {
             created_at: quando,
             rd_activity_id: linha.rd_activity_id,
           });
-        } else semNegocio++;
+        } else {
+          const card = item.deal_id ? cardDoRd.get(item.deal_id) : undefined;
+          const empresaId = card?.rd_org_id ? empresaDoOrg.get(card.rd_org_id) : undefined;
+          if (empresaId) {
+            notasDeEmpresa.push({
+              company_id: empresaId,
+              tipo: linha.tipo,
+              descricao: linha.descricao,
+              occurred_at: quando,
+              author_id: autor,
+              rd_autor: nomeAutor,
+              rd_funil: card?.pipeline ?? null,
+              rd_activity_id: linha.rd_activity_id,
+            });
+          } else semNegocio++;
+        }
         return [];
       }
       return [
@@ -118,6 +156,16 @@ export async function importarPaginasDoHistoricoRd(data: {
         break;
       }
       gravadas += linhas.length;
+    }
+    if (notasDeEmpresa.length) {
+      const { error: e3 } = await db
+        .from("company_activities")
+        .upsert(notasDeEmpresa as never, { onConflict: "rd_activity_id", ignoreDuplicates: true });
+      if (e3) {
+        erro = e3.message;
+        break;
+      }
+      nasEmpresas += notasDeEmpresa.length;
     }
     if (notasDeLead.length) {
       const { error: e2 } = await db
@@ -153,6 +201,7 @@ export async function importarPaginasDoHistoricoRd(data: {
     gravadas,
     semNegocio,
     nosLeads,
+    nasEmpresas,
     total,
     erro,
   };
