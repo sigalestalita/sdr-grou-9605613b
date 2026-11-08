@@ -46,9 +46,11 @@ export const perguntarAoAssistente = createServerFn({ method: "POST" })
     ]);
     const hoje = new Date().toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
 
-    const sistema = `Você é o assistente do Grou Compass, o CRM da Grou (comercial/SDR, Customer Success e administrativo).
-Hoje é ${hoje}. Quem pergunta: ${(perfil as { full_name?: string } | null)?.full_name ?? "usuário"} · papéis: ${((papeis ?? []) as Array<{ role: string }>).map((p) => p.role).join(", ") || "—"} · times: ${((times ?? []) as Array<{ team: string }>).map((t) => t.team).join(", ") || "—"}.
-Tela aberta agora: ${data.tela ?? "desconhecida"}.
+    // Parte que muda a cada pergunta: fica fora do cache do prompt.
+    const sistemaVariavel = `Hoje é ${hoje}. Quem pergunta: ${(perfil as { full_name?: string } | null)?.full_name ?? "usuário"} · papéis: ${((papeis ?? []) as Array<{ role: string }>).map((p) => p.role).join(", ") || "—"} · times: ${((times ?? []) as Array<{ team: string }>).map((t) => t.team).join(", ") || "—"}.
+Tela aberta agora: ${data.tela ?? "desconhecida"}.`;
+    // Parte fixa (regras + guia): igual em todas as perguntas.
+    const sistemaFixo = `Você é o assistente do Grou Compass, o CRM da Grou (comercial/SDR, Customer Success e administrativo).
 
 Você faz duas coisas:
 1. Responde perguntas sobre os DADOS do CRM usando as ferramentas. Nunca invente números, nomes ou datas: consulte antes. Se a ferramenta não cobre a pergunta, diga o que dá para ver e em qual tela.
@@ -66,6 +68,23 @@ ferramentas: buscar_registros, consultar_negocios, consultar_carteira_cs, detalh
 # GUIA DO COMPASS
 ${guiaComoTexto()}`;
 
+    const ferramentas = [...FERRAMENTAS_CRM, ...TOOLS];
+    const nomesCrm = new Set(FERRAMENTAS_CRM.map((f) => f.function.name));
+    const executar = (nome: string, args: Record<string, unknown>) =>
+      nomesCrm.has(nome) ? executarFerramentaCrm(db, nome, args) : execTool(db, nome, args);
+
+    // Com a chave da Anthropic configurada, responde com o Claude.
+    const { temClaude, conversarComClaude } = await import("@/lib/assistente/claude.server");
+    if (temClaude())
+      return conversarComClaude({
+        sistemaFixo,
+        sistemaVariavel,
+        mensagens: data.mensagens,
+        ferramentas: ferramentas as never,
+        executar,
+      });
+    const sistema = `${sistemaFixo}\n\n${sistemaVariavel}`;
+
     type Msg = {
       role: "system" | "user" | "assistant" | "tool";
       content: string | null;
@@ -81,8 +100,6 @@ ${guiaComoTexto()}`;
       { role: "system", content: sistema },
       ...data.mensagens.map((m) => ({ role: m.role, content: m.content })),
     ];
-    const ferramentas = [...FERRAMENTAS_CRM, ...TOOLS];
-    const nomesCrm = new Set(FERRAMENTAS_CRM.map((f) => f.function.name));
     const usadas: string[] = [];
 
     for (let rodada = 0; rodada < 6; rodada++) {
