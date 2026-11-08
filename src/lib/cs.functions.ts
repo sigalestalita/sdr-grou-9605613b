@@ -252,7 +252,41 @@ export const getCsClient = createServerFn({ method: "GET" })
         .eq("company_id", empresa.id)
         .limit(500);
       const nomeDoNegocio = new Map((negocios ?? []).map((n) => [n.id, n.nome]));
-      if (nomeDoNegocio.size === 0) return [];
+      // Anotações e tarefas de cards do RD que não viraram negócio (CS,
+      // parceiros, carteira): ficam na própria empresa.
+      const { data: daEmpresa } = await (
+        supabase as unknown as import("@supabase/supabase-js").SupabaseClient
+      )
+        .from("company_activities")
+        .select("id, tipo, descricao, occurred_at, author_id, rd_autor, rd_funil, created_at")
+        .eq("company_id", empresa.id)
+        .order("occurred_at", { ascending: false })
+        .limit(200);
+      const daPropriaEmpresa = (
+        (daEmpresa ?? []) as Array<{
+          id: string;
+          tipo: string;
+          descricao: string | null;
+          occurred_at: string;
+          author_id: string | null;
+          rd_autor: string | null;
+          rd_funil: string | null;
+          created_at: string;
+        }>
+      ).map((a) => ({
+        id: a.id,
+        client_uid: data.clientUid,
+        author_id: a.author_id,
+        event_type: "empresa_atividade",
+        channel: a.tipo,
+        title: a.rd_funil ? `RD · ${a.rd_funil}` : "RD",
+        description:
+          a.author_id || !a.rd_autor ? a.descricao : `${a.descricao ?? ""}\n— ${a.rd_autor} (RD)`,
+        metadata: {},
+        occurred_at: a.occurred_at,
+        created_at: a.created_at,
+      }));
+      if (nomeDoNegocio.size === 0) return daPropriaEmpresa;
       const { data: atividades } = await supabase
         .from("deal_activities")
         .select("id, deal_id, tipo, descricao, occurred_at, author_id, rd_autor, created_at")
@@ -260,19 +294,22 @@ export const getCsClient = createServerFn({ method: "GET" })
         .neq("tipo", "etapa")
         .order("occurred_at", { ascending: false })
         .limit(200);
-      return (atividades ?? []).map((a) => ({
-        id: a.id,
-        client_uid: data.clientUid,
-        author_id: a.author_id,
-        event_type: "negocio_atividade",
-        channel: a.tipo,
-        title: `Negócio: ${nomeDoNegocio.get(a.deal_id) ?? "—"}`,
-        description:
-          a.author_id || !a.rd_autor ? a.descricao : `${a.descricao ?? ""}\n— ${a.rd_autor} (RD)`,
-        metadata: { deal_id: a.deal_id },
-        occurred_at: a.occurred_at,
-        created_at: a.created_at,
-      }));
+      return [
+        ...daPropriaEmpresa,
+        ...(atividades ?? []).map((a) => ({
+          id: a.id,
+          client_uid: data.clientUid,
+          author_id: a.author_id,
+          event_type: "negocio_atividade",
+          channel: a.tipo,
+          title: `Negócio: ${nomeDoNegocio.get(a.deal_id) ?? "—"}`,
+          description:
+            a.author_id || !a.rd_autor ? a.descricao : `${a.descricao ?? ""}\n— ${a.rd_autor} (RD)`,
+          metadata: { deal_id: a.deal_id },
+          occurred_at: a.occurred_at,
+          created_at: a.created_at,
+        })),
+      ];
     })();
 
     const { getEvidenceConfig: getEvidence } = await import("@/lib/cs/cs-core.server");
