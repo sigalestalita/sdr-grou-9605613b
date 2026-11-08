@@ -5,15 +5,19 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 const MODEL = "google/gemini-2.5-flash";
 
-type ChatMsg = {
+export type ChatMsg = {
   role: "system" | "user" | "assistant" | "tool";
   content: string | null;
-  tool_calls?: Array<{ id: string; type: "function"; function: { name: string; arguments: string } }>;
+  tool_calls?: Array<{
+    id: string;
+    type: "function";
+    function: { name: string; arguments: string };
+  }>;
   tool_call_id?: string;
   name?: string;
 };
 
-async function callAI(messages: ChatMsg[], tools: unknown[]) {
+export async function callAI(messages: ChatMsg[], tools: unknown[]) {
   const key = process.env.LOVABLE_API_KEY;
   if (!key) throw new Error("LOVABLE_API_KEY ausente");
   const res = await fetch(GATEWAY, {
@@ -21,15 +25,21 @@ async function callAI(messages: ChatMsg[], tools: unknown[]) {
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: MODEL, messages, tools, tool_choice: "auto" }),
   });
-  if (res.status === 429) throw new Error("Rate limit atingido. Tente novamente em alguns segundos.");
-  if (res.status === 402) throw new Error("Créditos de IA esgotados. Adicione mais créditos para continuar.");
+  if (res.status === 429)
+    throw new Error("Rate limit atingido. Tente novamente em alguns segundos.");
+  if (res.status === 402)
+    throw new Error("Créditos de IA esgotados. Adicione mais créditos para continuar.");
   if (!res.ok) throw new Error(`AI gateway ${res.status}: ${(await res.text()).slice(0, 300)}`);
   return res.json() as Promise<{
     choices: Array<{
       message: {
         role: "assistant";
         content: string | null;
-        tool_calls?: Array<{ id: string; type: "function"; function: { name: string; arguments: string } }>;
+        tool_calls?: Array<{
+          id: string;
+          type: "function";
+          function: { name: string; arguments: string };
+        }>;
       };
       finish_reason: string;
     }>;
@@ -48,7 +58,7 @@ Regras:
 - Datas: se o usuário não disser, use os últimos 30 dias.`;
 
 // ---------------- Tool definitions ----------------
-const TOOLS = [
+export const TOOLS = [
   {
     type: "function",
     function: {
@@ -79,7 +89,10 @@ const TOOLS = [
         type: "object",
         properties: {
           days: { type: "number", description: "Filtra created_at nos últimos N dias" },
-          stage_slug: { type: "string", description: "Filtra por slug do estágio (ex: 'reuniao', 'ganho')" },
+          stage_slug: {
+            type: "string",
+            description: "Filtra por slug do estágio (ex: 'reuniao', 'ganho')",
+          },
           priority: { type: "string", enum: ["frio", "morno", "quente"] },
           lead_type: { type: "string" },
           source: { type: "string" },
@@ -126,7 +139,7 @@ const TOOLS = [
 
 // ---------------- Tool executors ----------------
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function execTool(supabase: any, name: string, args: Record<string, unknown>) {
+export async function execTool(supabase: any, name: string, args: Record<string, unknown>) {
   if (name === "list_stages") {
     const { data } = await supabase
       .from("stages")
@@ -146,7 +159,10 @@ async function execTool(supabase: any, name: string, args: Record<string, unknow
       .order("position");
     const stages = stagesData ?? [];
     const stageMap = new Map<string, { name: string; slug: string; is_terminal: boolean }>(
-      stages.map((s: { id: string; name: string; slug: string; is_terminal: boolean }) => [s.id, s]),
+      stages.map((s: { id: string; name: string; slug: string; is_terminal: boolean }) => [
+        s.id,
+        s,
+      ]),
     );
 
     const { data: leads } = await supabase
@@ -159,7 +175,9 @@ async function execTool(supabase: any, name: string, args: Record<string, unknow
     const L = leads ?? [];
     const isWon = (sid: string | null) => {
       const s = sid ? stageMap.get(sid) : null;
-      return !!s?.is_terminal && /ganho|cliente|fechad|won|venda/i.test(s.name + " " + (s.slug || ""));
+      return (
+        !!s?.is_terminal && /ganho|cliente|fechad|won|venda/i.test(s.name + " " + (s.slug || ""))
+      );
     };
     const isLost = (sid: string | null) => {
       const s = sid ? stageMap.get(sid) : null;
@@ -199,8 +217,18 @@ async function execTool(supabase: any, name: string, args: Record<string, unknow
     };
     const dm = new Map<string, Row>();
     for (const l of L) {
-      const k = (((l as Record<string, unknown>)[dimension] as string) || "—").toString().trim() || "—";
-      const r = dm.get(k) ?? { key: k, total: 0, contacted: 0, meeting: 0, won: 0, lost: 0, hot: 0, score: 0 };
+      const k =
+        (((l as Record<string, unknown>)[dimension] as string) || "—").toString().trim() || "—";
+      const r = dm.get(k) ?? {
+        key: k,
+        total: 0,
+        contacted: 0,
+        meeting: 0,
+        won: 0,
+        lost: 0,
+        hot: 0,
+        score: 0,
+      };
       r.total += 1;
       if ((l as { first_approach_at: string | null }).first_approach_at) r.contacted += 1;
       if ((l as { meeting_at: string | null }).meeting_at) r.meeting += 1;
@@ -224,12 +252,14 @@ async function execTool(supabase: any, name: string, args: Record<string, unknow
       return { dimension, days, byDimension };
     }
 
-    const funnel = stages.map((s: { id: string; name: string; position: number; is_terminal: boolean }) => ({
-      name: s.name,
-      position: s.position,
-      is_terminal: s.is_terminal,
-      count: L.filter((l: { stage_id: string | null }) => l.stage_id === s.id).length,
-    }));
+    const funnel = stages.map(
+      (s: { id: string; name: string; position: number; is_terminal: boolean }) => ({
+        name: s.name,
+        position: s.position,
+        is_terminal: s.is_terminal,
+        count: L.filter((l: { stage_id: string | null }) => l.stage_id === s.id).length,
+      }),
+    );
 
     return {
       period_days: days,
@@ -259,7 +289,11 @@ async function execTool(supabase: any, name: string, args: Record<string, unknow
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (args.days) q = q.gte("created_at", new Date(Date.now() - (args.days as number) * 86400000).toISOString());
+    if (args.days)
+      q = q.gte(
+        "created_at",
+        new Date(Date.now() - (args.days as number) * 86400000).toISOString(),
+      );
     if (args.priority) q = q.eq("priority", args.priority);
     if (args.lead_type) q = q.eq("lead_type", args.lead_type);
     if (args.source) q = q.eq("source", args.source);
@@ -274,7 +308,11 @@ async function execTool(supabase: any, name: string, args: Record<string, unknow
     if (typeof args.min_score === "number") q = q.gte("score", args.min_score);
 
     if (args.stage_slug) {
-      const { data: st } = await supabase.from("stages").select("id").eq("slug", args.stage_slug).maybeSingle();
+      const { data: st } = await supabase
+        .from("stages")
+        .select("id")
+        .eq("slug", args.stage_slug)
+        .maybeSingle();
       if (st?.id) q = q.eq("stage_id", st.id);
     }
 
@@ -316,7 +354,10 @@ export const deleteThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("analytics_chat_threads").delete().eq("id", data.id);
+    const { error } = await context.supabase
+      .from("analytics_chat_threads")
+      .delete()
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -378,7 +419,8 @@ export const sendMessage = createServerFn({ method: "POST" })
       if (m.role === "assistant" && m.tool_calls) {
         const tc = m.tool_calls as unknown as ChatMsg["tool_calls"];
         messages.push({ role: "assistant", content: m.content || null, tool_calls: tc });
-        const results = (m.tool_results as unknown as Array<{ id: string; name: string; result: unknown }>) ?? [];
+        const results =
+          (m.tool_results as unknown as Array<{ id: string; name: string; result: unknown }>) ?? [];
         for (const r of results) {
           messages.push({
             role: "tool",
@@ -403,7 +445,11 @@ export const sendMessage = createServerFn({ method: "POST" })
       if (!msg) throw new Error("Resposta vazia da IA");
 
       if (msg.tool_calls && msg.tool_calls.length > 0) {
-        messages.push({ role: "assistant", content: msg.content ?? null, tool_calls: msg.tool_calls });
+        messages.push({
+          role: "assistant",
+          content: msg.content ?? null,
+          tool_calls: msg.tool_calls,
+        });
         if (!pendingToolCalls) pendingToolCalls = [];
         pendingToolCalls.push(...msg.tool_calls);
         for (const tc of msg.tool_calls) {
@@ -460,7 +506,9 @@ export const sendMessage = createServerFn({ method: "POST" })
 
 export const renameThread = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid(), title: z.string().min(1).max(120) }).parse(d))
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), title: z.string().min(1).max(120) }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("analytics_chat_threads")

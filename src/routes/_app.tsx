@@ -57,6 +57,7 @@ import { Splash } from "@/components/brand/splash";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { CommandPalette, useCommandPalette } from "@/components/app-shell/command-palette";
 import { InboxNotifier } from "@/components/app-shell/inbox-notifier";
+import { AssistenteFlutuante } from "@/components/app-shell/assistente-flutuante";
 import { NotificacoesBell } from "@/components/app-shell/notificacoes-bell";
 import { CsFollowUpNotifier } from "@/components/app-shell/cs-followup-notifier";
 import { useCurrentRole } from "@/lib/use-role";
@@ -668,6 +669,8 @@ function AppShell() {
             <Outlet />
           )}
         </main>
+
+        <AssistenteFlutuante />
 
         {/* Barra inferior: o que a pessoa mais usa fica a um toque, e o quinto
             botão abre o menu inteiro — nada fica inalcançável. */}
