@@ -520,6 +520,53 @@ export type Database = {
           },
         ]
       }
+      company_activities: {
+        Row: {
+          author_id: string | null
+          company_id: string
+          created_at: string
+          descricao: string | null
+          id: string
+          occurred_at: string
+          rd_activity_id: string | null
+          rd_autor: string | null
+          rd_funil: string | null
+          tipo: string
+        }
+        Insert: {
+          author_id?: string | null
+          company_id: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          occurred_at: string
+          rd_activity_id?: string | null
+          rd_autor?: string | null
+          rd_funil?: string | null
+          tipo: string
+        }
+        Update: {
+          author_id?: string | null
+          company_id?: string
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          occurred_at?: string
+          rd_activity_id?: string | null
+          rd_autor?: string | null
+          rd_funil?: string | null
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_activities_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       company_contacts: {
         Row: {
           company_id: string
@@ -3043,6 +3090,71 @@ export type Database = {
         }
         Relationships: []
       }
+      kanban_etapas_ocultas: {
+        Row: {
+          etapas: string[]
+          id: string
+          quadro: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          etapas?: string[]
+          id?: string
+          quadro: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          etapas?: string[]
+          id?: string
+          quadro?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      lead_conversoes: {
+        Row: {
+          canal: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          nome: string
+          ocorrida_em: string | null
+          origem: string | null
+          payload: Json
+        }
+        Insert: {
+          canal?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          nome: string
+          ocorrida_em?: string | null
+          origem?: string | null
+          payload?: Json
+        }
+        Update: {
+          canal?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          nome?: string
+          ocorrida_em?: string | null
+          origem?: string | null
+          payload?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_conversoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lead_interactions: {
         Row: {
           author_id: string | null
@@ -3156,6 +3268,7 @@ export type Database = {
           created_at: string
           id: string
           lead_id: string
+          rd_activity_id: string | null
         }
         Insert: {
           author_id?: string | null
@@ -3163,6 +3276,7 @@ export type Database = {
           created_at?: string
           id?: string
           lead_id: string
+          rd_activity_id?: string | null
         }
         Update: {
           author_id?: string | null
@@ -3170,6 +3284,7 @@ export type Database = {
           created_at?: string
           id?: string
           lead_id?: string
+          rd_activity_id?: string | null
         }
         Relationships: [
           {
@@ -3305,6 +3420,7 @@ export type Database = {
           probable_pain: string | null
           rd_contact_id: string | null
           rd_deal_id: string | null
+          rd_marketing_id: string | null
           rd_org_id: string | null
           rd_owner: string | null
           rd_pipeline: string | null
@@ -3377,6 +3493,7 @@ export type Database = {
           probable_pain?: string | null
           rd_contact_id?: string | null
           rd_deal_id?: string | null
+          rd_marketing_id?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
           rd_pipeline?: string | null
@@ -3449,6 +3566,7 @@ export type Database = {
           probable_pain?: string | null
           rd_contact_id?: string | null
           rd_deal_id?: string | null
+          rd_marketing_id?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
           rd_pipeline?: string | null
