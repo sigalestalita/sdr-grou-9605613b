@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
   getLeadDetail,
+  trazerParaOKanban,
   updateLead,
   addLeadNote,
   recalcLeadScore,
@@ -63,6 +64,7 @@ function LeadDetailPage() {
   const { id } = useParams({ from: "/_app/lead/$id" });
   const fetchFn = useServerFn(getLeadDetail);
   const updateFn = useServerFn(updateLead);
+  const trazerFn = useServerFn(trazerParaOKanban);
   const addNoteFn = useServerFn(addLeadNote);
   const recalcFn = useServerFn(recalcLeadScore);
   const enrichFn = useServerFn(enrichLead);
@@ -299,6 +301,26 @@ function LeadDetailPage() {
       </header>
 
       <div className="space-y-4 p-4">
+        {lead.oculto_sdr && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed px-4 py-3 text-[13px]">
+            <span className="text-muted-foreground">
+              Este lead está <strong className="text-foreground">fora do kanban</strong>
+              {lead.source === "rd_marketing" ? " (base de marketing do RD)" : " (importado do RD)"}
+              . Editar qualquer campo traz ele de volta.
+            </span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                await trazerFn({ data: { id: lead.id } });
+                toast.success("Lead no kanban");
+                qc.invalidateQueries({ queryKey: ["lead", lead.id] });
+              }}
+            >
+              Trazer para o kanban
+            </Button>
+          </div>
+        )}
         {lead.original_company_name && lead.original_company_name !== lead.company_name && (
           <p className="text-[12px] text-warning">
             Convertido no formulário como{" "}
