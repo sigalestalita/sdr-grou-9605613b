@@ -128,7 +128,7 @@ export const TELAS: TelaDoGuia[] = [
     rota: "/comercial-pipeline",
     nome: "Pipeline de negócios",
     area: "Comercial",
-    texto: `Kanban dos negócios do comercial, por funil e etapa. Escolha o funil e o executivo ("Todos os executivos"); arraste o card entre etapas e clique para abrir a página do negócio. "Ver funil e metas" leva à visão geral do comercial. Usado por executivos e gestão.`,
+    texto: `Kanban dos negócios do comercial, por funil e etapa. Escolha o funil e o executivo ("Todos os executivos"), use "Mostrar fechados"/"Ocultar fechados" e escolha quais etapas ficam visíveis. Clique no card para abrir a página do negócio, onde se muda a etapa e se registra venda ou perda. "Ver funil e metas" leva à visão geral do comercial. Usado por executivos e gestão.`,
   },
   {
     rota: "/negocio/$id",
@@ -140,7 +140,7 @@ export const TELAS: TelaDoGuia[] = [
     rota: "/carteira-comercial",
     nome: "Carteira comercial",
     area: "Comercial",
-    texto: `Lista das contas e de quem é o dono comercial de cada uma. Filtre por dono ("Todos os donos", "Sem dono") e use "Mover para…" para definir ou trocar o dono da conta. Usado por executivos e gestão.`,
+    texto: `Quadro das empresas clientes do comercial: a conta entra na primeira venda ganha, sem dono, e a gestão distribui. Filtre por dono ("Todos os donos", "Sem dono"), defina o dono de cada card e mova o card entre etapas ("Mover para…"). Venda nova para a conta nasce como negócio no funil de recompra/cross sell. Usado por executivos e gestão.`,
   },
   {
     rota: "/comercial-agenda",
