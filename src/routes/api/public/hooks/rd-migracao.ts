@@ -6,7 +6,8 @@ import { createFileRoute } from "@tanstack/react-router";
  *   { acao: "contagens" }                                   → staging rd_*
  *   { acao: "espelho", resource, order?, direction?, q?, from?, to? }
  *   { acao: "espelho", resource: "deals", next?, pages? }
- *   { acao: "historico", fase: "activities" | "tasks", pagina, paginas? }
+ *   { acao: "historico", fase: "activities" | "tasks", pagina, paginas?, concluidas? }
+ *   { acao: "marketing", linhas: [...] }   → base de marketing (até 500 por vez)
  * A transformação já tem o hook transform-rd (offset/limit).
  */
 export const Route = createFileRoute("/api/public/hooks/rd-migracao")({
@@ -48,6 +49,13 @@ export const Route = createFileRoute("/api/public/hooks/rd-migracao")({
               ok: true,
               ...(await importarPaginasDoHistoricoRd({ fase, pagina, paginas, concluidas })),
             });
+          }
+          if (body.acao === "marketing") {
+            const { z } = await import("zod");
+            const { LinhaSchema } = await import("@/lib/rd-marketing.functions");
+            const linhas = z.array(LinhaSchema).min(1).max(500).parse(body.linhas);
+            const { importarLeadsDeMarketing } = await import("@/lib/rd/marketing.server");
+            return Response.json({ ok: true, ...(await importarLeadsDeMarketing(linhas)) });
           }
           return Response.json({ ok: false, error: "acao desconhecida" }, { status: 400 });
         } catch (e) {

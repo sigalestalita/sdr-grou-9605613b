@@ -74,6 +74,8 @@ describe("criarLeitorCsv", () => {
 describe("descobrirSeparador", () => {
   it("escolhe pelo que aparece mais no cabeçalho", () => {
     expect(descobrirSeparador("nome;email;telefone")).toBe(";");
+    expect(descobrirSeparador("Email\tNome\tTelefone, Celular")).toBe("\t");
+    expect(descobrirSeparador("nome")).toBe(",");
     expect(descobrirSeparador("nome,email,telefone")).toBe(",");
   });
 });

@@ -9,6 +9,17 @@ import { Button } from "@/components/ui/button";
 
 const LOTE = 200;
 
+/**
+ * O export do RD Marketing vem em UTF-16 (com BOM) e separado por tabulação;
+ * outros exports vêm em UTF-8. A marca no começo do arquivo diz qual é.
+ */
+async function codificacao(f: File): Promise<string> {
+  const b = new Uint8Array(await f.slice(0, 2).arrayBuffer());
+  if (b[0] === 0xff && b[1] === 0xfe) return "utf-16le";
+  if (b[0] === 0xfe && b[1] === 0xff) return "utf-16be";
+  return "utf-8";
+}
+
 /*
  * Só o começo do arquivo, para mostrar o que foi entendido.
  *
@@ -17,7 +28,9 @@ const LOTE = 200;
  * que o cabeçalho e meia dúzia de linhas já respondem.
  */
 async function lerAmostra(f: File): Promise<LinhaDoExport[]> {
-  const inicio = await f.slice(0, 256 * 1024).text();
+  const inicio = new TextDecoder(await codificacao(f)).decode(
+    await f.slice(0, 256 * 1024).arrayBuffer(),
+  );
   const sep = descobrirSeparador(inicio.split("\n")[0] ?? "");
   const leitor = criarLeitorCsv(sep);
   const linhas = leitor.alimentar(inicio);
@@ -98,7 +111,10 @@ export function BaseDeMarketingRd() {
       semEmpresa: 0,
     });
 
-    const leitor = f.stream().pipeThrough(new TextDecoderStream()).getReader();
+    const leitor = f
+      .stream()
+      .pipeThrough(new TextDecoderStream(await codificacao(f)))
+      .getReader();
     let cabecalho: string[] | null = null;
     let sep: string | null = null;
     let csv: ReturnType<typeof criarLeitorCsv> | null = null;

@@ -81,9 +81,17 @@ export function criarLeitorCsv(separador: string): LeitorCsv {
   };
 }
 
-/** Descobre o separador olhando o cabeçalho: o RD alterna entre vírgula e ponto e vírgula. */
+/**
+ * Descobre o separador olhando o cabeçalho: o RD alterna entre vírgula, ponto
+ * e vírgula e (no export do RD Marketing) tabulação.
+ */
 export function descobrirSeparador(primeiraLinha: string): string {
-  const pv = (primeiraLinha.match(/;/g) ?? []).length;
-  const v = (primeiraLinha.match(/,/g) ?? []).length;
-  return pv > v ? ";" : ",";
+  const conta = (re: RegExp) => (primeiraLinha.match(re) ?? []).length;
+  const op: Array<[string, number]> = [
+    ["\t", conta(/\t/g)],
+    [";", conta(/;/g)],
+    [",", conta(/,/g)],
+  ];
+  const [sep, n] = op.sort((a, b) => b[1] - a[1])[0];
+  return n > 0 ? sep : ",";
 }
