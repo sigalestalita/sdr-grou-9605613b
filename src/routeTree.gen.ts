@@ -92,6 +92,7 @@ import { Route as ApiPublicHooksSyncPlanilhaRouteImport } from './routes/api/pub
 import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
 import { Route as ApiPublicHooksSyncRdAllRouteImport } from './routes/api/public/hooks/sync-rd-all'
 import { Route as ApiPublicHooksSyncRdCsClientsRouteImport } from './routes/api/public/hooks/sync-rd-cs-clients'
+import { Route as ApiPublicHooksSyncSinaleiraRouteImport } from './routes/api/public/hooks/sync-sinaleira'
 import { Route as ApiPublicHooksTransformRdRouteImport } from './routes/api/public/hooks/transform-rd'
 import { Route as ApiPublicMetaLeadsRouteImport } from './routes/api/public/meta/leads'
 import { Route as ApiPublicRdCallbackRouteImport } from './routes/api/public/rd/callback'
@@ -522,6 +523,12 @@ const ApiPublicHooksSyncRdCsClientsRoute =
     path: '/api/public/hooks/sync-rd-cs-clients',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksSyncSinaleiraRoute =
+  ApiPublicHooksSyncSinaleiraRouteImport.update({
+    id: '/api/public/hooks/sync-sinaleira',
+    path: '/api/public/hooks/sync-sinaleira',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksTransformRdRoute =
   ApiPublicHooksTransformRdRouteImport.update({
     id: '/api/public/hooks/transform-rd',
@@ -634,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
+  '/api/public/hooks/sync-sinaleira': typeof ApiPublicHooksSyncSinaleiraRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
@@ -722,6 +730,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
+  '/api/public/hooks/sync-sinaleira': typeof ApiPublicHooksSyncSinaleiraRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
@@ -813,6 +822,7 @@ export interface FileRoutesById {
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
+  '/api/public/hooks/sync-sinaleira': typeof ApiPublicHooksSyncSinaleiraRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
@@ -904,6 +914,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
+    | '/api/public/hooks/sync-sinaleira'
     | '/api/public/hooks/transform-rd'
     | '/api/public/meta/leads'
     | '/api/public/rd/callback'
@@ -992,6 +1003,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
+    | '/api/public/hooks/sync-sinaleira'
     | '/api/public/hooks/transform-rd'
     | '/api/public/meta/leads'
     | '/api/public/rd/callback'
@@ -1082,6 +1094,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
+    | '/api/public/hooks/sync-sinaleira'
     | '/api/public/hooks/transform-rd'
     | '/api/public/meta/leads'
     | '/api/public/rd/callback'
@@ -1112,6 +1125,7 @@ export interface RootRouteChildren {
   ApiPublicHooksSyncRdRoute: typeof ApiPublicHooksSyncRdRoute
   ApiPublicHooksSyncRdAllRoute: typeof ApiPublicHooksSyncRdAllRoute
   ApiPublicHooksSyncRdCsClientsRoute: typeof ApiPublicHooksSyncRdCsClientsRoute
+  ApiPublicHooksSyncSinaleiraRoute: typeof ApiPublicHooksSyncSinaleiraRoute
   ApiPublicHooksTransformRdRoute: typeof ApiPublicHooksTransformRdRoute
   ApiPublicMetaLeadsRoute: typeof ApiPublicMetaLeadsRoute
   ApiPublicRdCallbackRoute: typeof ApiPublicRdCallbackRoute
@@ -1702,6 +1716,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSyncRdCsClientsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-sinaleira': {
+      id: '/api/public/hooks/sync-sinaleira'
+      path: '/api/public/hooks/sync-sinaleira'
+      fullPath: '/api/public/hooks/sync-sinaleira'
+      preLoaderRoute: typeof ApiPublicHooksSyncSinaleiraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/transform-rd': {
       id: '/api/public/hooks/transform-rd'
       path: '/api/public/hooks/transform-rd'
@@ -1921,6 +1942,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSyncRdRoute: ApiPublicHooksSyncRdRoute,
   ApiPublicHooksSyncRdAllRoute: ApiPublicHooksSyncRdAllRoute,
   ApiPublicHooksSyncRdCsClientsRoute: ApiPublicHooksSyncRdCsClientsRoute,
+  ApiPublicHooksSyncSinaleiraRoute: ApiPublicHooksSyncSinaleiraRoute,
   ApiPublicHooksTransformRdRoute: ApiPublicHooksTransformRdRoute,
   ApiPublicMetaLeadsRoute: ApiPublicMetaLeadsRoute,
   ApiPublicRdCallbackRoute: ApiPublicRdCallbackRoute,
