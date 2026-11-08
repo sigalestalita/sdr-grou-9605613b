@@ -8,6 +8,9 @@ import { createFileRoute } from "@tanstack/react-router";
  *   { acao: "espelho", resource: "deals", next?, pages? }
  *   { acao: "historico", fase: "activities" | "tasks", pagina, paginas?, concluidas? }
  *   { acao: "marketing", linhas: [...] }   → base de marketing (até 500 por vez)
+ *   { acao: "rdm_segmentacoes" }                             → segmentações da API do RD Marketing
+ *   { acao: "rdm_uuids", segmentacaoId, pagina, paginas? }   → liga uuid do RD aos leads
+ *   { acao: "rdm_eventos", limite? }                         → conversões e oportunidades
  * A transformação já tem o hook transform-rd (offset/limit).
  */
 export const Route = createFileRoute("/api/public/hooks/rd-migracao")({
@@ -56,6 +59,30 @@ export const Route = createFileRoute("/api/public/hooks/rd-migracao")({
             const linhas = z.array(LinhaSchema).min(1).max(500).parse(body.linhas);
             const { importarLeadsDeMarketing } = await import("@/lib/rd/marketing.server");
             return Response.json({ ok: true, ...(await importarLeadsDeMarketing(linhas)) });
+          }
+          if (body.acao === "rdm_segmentacoes") {
+            const { listarSegmentacoes } = await import("@/lib/rd/marketing-historico.server");
+            return Response.json({ ok: true, segmentacoes: await listarSegmentacoes() });
+          }
+          if (body.acao === "rdm_uuids") {
+            const { ligarUuids } = await import("@/lib/rd/marketing-historico.server");
+            return Response.json({
+              ok: true,
+              ...(await ligarUuids({
+                segmentacaoId: String(body.segmentacaoId ?? ""),
+                pagina: Math.max(1, Number(body.pagina) || 1),
+                paginas: Math.max(1, Math.min(20, Number(body.paginas) || 8)),
+              })),
+            });
+          }
+          if (body.acao === "rdm_eventos") {
+            const { importarEventos } = await import("@/lib/rd/marketing-historico.server");
+            return Response.json({
+              ok: true,
+              ...(await importarEventos({
+                limite: Math.max(1, Math.min(200, Number(body.limite) || 60)),
+              })),
+            });
           }
           return Response.json({ ok: false, error: "acao desconhecida" }, { status: 400 });
         } catch (e) {
