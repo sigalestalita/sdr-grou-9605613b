@@ -36,9 +36,21 @@ const COLUNAS: Record<keyof LeadDeMarketing, string[]> = {
   cargo: ["cargo", "job title", "função", "funcao"],
   website: ["website", "site", "url da empresa"],
   criadoEm: ["data de criação", "data de criacao", "created at", "criado em"],
-  conversoes: ["conversões", "conversoes", "conversions", "número de conversões"],
-  ultimaConversao: ["última conversão", "ultima conversao", "last conversion"],
+  conversoes: [
+    "conversões",
+    "conversoes",
+    "conversions",
+    "número de conversões",
+    "total de conversões",
+  ],
+  ultimaConversao: [
+    "última conversão",
+    "ultima conversao",
+    "last conversion",
+    "data da última conversão",
+  ],
   nomeUltimaConversao: [
+    "origem da última conversão",
     "nome da última conversão",
     "nome da ultima conversao",
     "last conversion name",
