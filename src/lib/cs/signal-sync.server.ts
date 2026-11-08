@@ -41,6 +41,16 @@ export function pickLatestTab(tabs: string[]): string | null {
   return pool[pool.length - 1];
 }
 
+/** Segunda-feira da semana da data no título da aba (ex.: "Sinaleira 2026-10-27"). */
+export function weekOfTab(tab: string): string | null {
+  const score = tabDateScore(tab);
+  if (score === null) return null;
+  const y = Math.floor(score / 10000);
+  const m = Math.floor((score % 10000) / 100);
+  const d = score % 100;
+  return mondayOf(new Date(Date.UTC(y, m - 1, d)));
+}
+
 function tabDateScore(tab: string): number | null {
   const iso = tab.match(/(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
   if (iso) {
@@ -258,7 +268,10 @@ export async function syncSignalFromSheet(opts?: {
       if (created > 0) ({ byName, byUid, byLogin } = await loadClients());
     }
 
-    const weekStart = opts?.weekStart ?? mondayOf();
+    // A leitura vale para a semana da data da aba, não para a semana em que foi lida.
+    const weekStart = opts?.weekStart ?? weekOfTab(tab) ?? mondayOf();
+    // Aba antiga (reprocessar histórico) só grava o snapshot: não troca a cor atual.
+    const ehAMaisRecente = tab === pickLatestTab(tabs);
     const rows: Array<{
       client_uid: string;
       week_start: string;
@@ -354,7 +367,9 @@ export async function syncSignalFromSheet(opts?: {
         .from("cs_signal_snapshots")
         .upsert(rows as never, { onConflict: "client_uid,week_start" });
       if (error) throw new Error(error.message);
+    }
 
+    if (rows.length > 0 && ehAMaisRecente) {
       // Atualiza em lotes paralelos para não estourar o tempo da requisição.
       const CONCURRENCY = 12;
       for (let i = 0; i < rows.length; i += CONCURRENCY) {
@@ -381,6 +396,7 @@ export async function syncSignalFromSheet(opts?: {
       detail: {
         tab,
         weekStart,
+        ehAMaisRecente,
         created,
         matched: rows.length,
         unmatched: unmatched.slice(0, 50),
