@@ -272,12 +272,15 @@ export const historicoDoLead = createServerFn({ method: "GET" })
       });
     }
     for (const c of (conversoes.data ?? []) as Row[]) {
+      const oportunidade = c.canal === "oportunidade";
       push({
         id: `conv-${c.id}`,
-        tipo: "conversao",
-        titulo: "Converteu no evento",
-        detalhe:
-          [s(c.nome), s(c.canal) ? `Canal: ${c.canal}` : null].filter(Boolean).join(" · ") || null,
+        tipo: oportunidade ? "negocio" : "conversao",
+        titulo: oportunidade ? "Marcado como oportunidade" : "Converteu no evento",
+        detalhe: oportunidade
+          ? null
+          : [s(c.nome), s(c.canal) ? `Canal: ${c.canal}` : null].filter(Boolean).join(" · ") ||
+            null,
         quando: String(c.ocorrida_em),
         autor: null,
         dealId: null,

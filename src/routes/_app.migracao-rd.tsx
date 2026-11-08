@@ -16,13 +16,18 @@ import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EspelhoTransformacaoRd } from "@/components/migracao/espelho-transformacao-rd";
+import { ConexaoRdMarketing } from "@/components/migracao/conexao-rd-marketing";
 import { BaseDeMarketingRd } from "@/components/migracao/base-marketing-rd";
 
 type Aba = "crm" | "marketing";
 
 export const Route = createFileRoute("/_app/migracao-rd")({
-  validateSearch: (s: Record<string, unknown>): { aba?: Aba } =>
-    s.aba === "marketing" || s.aba === "crm" ? { aba: s.aba } : {},
+  validateSearch: (s: Record<string, unknown>): { aba?: Aba; rdm?: string; msg?: string } => ({
+    ...(s.aba === "marketing" || s.aba === "crm" ? { aba: s.aba } : {}),
+    // Volta da conexão com o RD Marketing.
+    ...(typeof s.rdm === "string" ? { rdm: s.rdm } : {}),
+    ...(typeof s.msg === "string" ? { msg: s.msg.slice(0, 200) } : {}),
+  }),
   component: MigracaoRdPage,
   head: () => ({ meta: [{ title: "Migração do RD | Grou Compass" }] }),
 });
@@ -57,7 +62,14 @@ function MigracaoRdPage() {
           </button>
         ))}
       </div>
-      {aba === "crm" ? <MigracaoCrm /> : <BaseDeMarketingRd />}
+      {aba === "crm" ? (
+        <MigracaoCrm />
+      ) : (
+        <div className="space-y-4">
+          <ConexaoRdMarketing />
+          <BaseDeMarketingRd />
+        </div>
+      )}
     </div>
   );
 }
