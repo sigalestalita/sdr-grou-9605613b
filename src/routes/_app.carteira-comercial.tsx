@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EtapasVisiveis, useEtapasOcultas } from "@/components/kanban/etapas-ocultas";
 
 export const Route = createFileRoute("/_app/carteira-comercial")({
   component: CarteiraPage,
@@ -55,6 +56,7 @@ function CarteiraPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
+  const { ocultas: etapasOcultas } = useEtapasOcultas("carteira-comercial");
   const nomeDe = new Map((data?.executivos ?? []).map((p) => [p.id, p.nome]));
   const hoje = new Date().toISOString().slice(0, 10);
   const cards = (data?.cards ?? []).filter((c) =>
@@ -63,7 +65,10 @@ function CarteiraPage() {
   const semDono = (data?.cards ?? []).filter((c) => !c.ownerId).length;
   const stages = (data?.stages ?? []).filter((s) => s.kind === "open");
   const semEtapa = cards.filter((c) => !stages.some((s) => s.id === c.stageId));
-  const colunas = [...(semEtapa.length ? [{ id: "", nome: "Sem etapa" }] : []), ...stages];
+  const colunas = [
+    ...(semEtapa.length ? [{ id: "", nome: "Sem etapa" }] : []),
+    ...stages.filter((s) => !etapasOcultas.has(s.id)),
+  ];
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -90,6 +95,11 @@ function CarteiraPage() {
             ))}
           </SelectContent>
         </Select>
+        <EtapasVisiveis
+          quadro="carteira-comercial"
+          etapas={stages.map((s) => ({ id: s.id, nome: s.nome }))}
+          contagem={(id) => cards.filter((c) => c.stageId === id).length}
+        />
       </header>
 
       {isLoading ? (

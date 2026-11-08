@@ -60,6 +60,7 @@ import {
   Settings2,
   X,
 } from "lucide-react";
+import { EtapasVisiveis, useEtapasOcultas } from "@/components/kanban/etapas-ocultas";
 
 export const Route = createFileRoute("/_app/cs")({
   component: CsPage,
@@ -173,6 +174,7 @@ function CsPage() {
   const columns = useVisibleColumns(`${storageNs}:cols`, COLUMNS);
 
   const [viewId, setViewId] = useState<string>("carteira");
+  const { ocultas: etapasCsOcultas } = useEtapasOcultas("cs-jornada");
   const [filters, setFilters] = useState<Filters>({ ...EMPTY, ...BUILTIN_VIEWS[0].filters });
   const activeView = savedViews.views.find((v) => v.id === viewId) ?? null;
   const dirty = activeView ? !sameFilters(filters, { ...EMPTY, ...activeView.filters }) : true;
@@ -586,6 +588,13 @@ function CsPage() {
             {mode === "lista" && (
               <ColumnPicker columns={COLUMNS} hidden={columns.hidden} onToggle={columns.toggle} />
             )}
+            {mode === "board" && (
+              <EtapasVisiveis
+                quadro="cs-jornada"
+                etapas={CS_STAGES.map((st) => ({ id: st, nome: CS_STAGE_LABEL[st] }))}
+                contagem={(id) => clients.filter((c) => c.journey_stage === id).length}
+              />
+            )}
             <Button
               size="sm"
               variant="outline"
@@ -757,7 +766,7 @@ function CsPage() {
           </div>
         ) : (
           <div className="grid gap-3 p-3 lg:grid-cols-3">
-            {CS_STAGES.map((stage) => {
+            {CS_STAGES.filter((stage) => !etapasCsOcultas.has(stage)).map((stage) => {
               const col = clients.filter((c) => c.journey_stage === stage);
               return (
                 <div key={stage} className="space-y-2 rounded-lg border bg-muted/20 p-3">

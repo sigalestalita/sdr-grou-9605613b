@@ -90,6 +90,7 @@ import {
 } from "@dnd-kit/core";
 import { formatDistanceToNow, format, differenceInDays } from "date-fns";
 import { FiltroPeriodo } from "@/components/filtro-periodo";
+import { EtapasVisiveis, useEtapasOcultas } from "@/components/kanban/etapas-ocultas";
 import { ptBR } from "date-fns/locale";
 import { rotuloDaOrigem, VINDO_DO_WHATSAPP } from "@/lib/leads/origem";
 
@@ -323,6 +324,7 @@ function KanbanPage() {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [activeId, setActiveId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
+  const { ocultas: etapasOcultas } = useEtapasOcultas("sdr");
   const [focusedCol, setFocusedCol] = useState(0);
 
   useEffect(() => {
@@ -670,6 +672,11 @@ function KanbanPage() {
             <SlidersHorizontal className="mr-1 h-3.5 w-3.5" />
             Filtros{activeFilterCount ? ` (${activeFilterCount})` : ""}
           </Button>
+          <EtapasVisiveis
+            quadro="sdr"
+            etapas={data.stages.map((s) => ({ id: s.id, nome: s.name }))}
+            contagem={(id) => filtered.filter((l) => l.stage_id === id).length}
+          />
           <Button
             variant="outline"
             size="sm"
@@ -859,58 +866,60 @@ function KanbanPage() {
         onDragCancel={() => setActiveId(null)}
       >
         <div ref={scrollerRef} className="flex gap-2.5 overflow-x-auto px-4 pb-4">
-          {data.stages.map((s, idx) => {
-            // Quantos cards o servidor chegou a mandar desta etapa — comparado
-            // com o total do banco, é o que diz se o teto cortou alguém.
-            const carregados = data.leads.filter((l) => l.stage_id === s.id).length;
-            let stageLeads = filtered.filter((l) => l.stage_id === s.id);
-            if (s.slug === "novo") {
-              stageLeads = [...stageLeads].sort((a, b) => {
-                const fa = evaluateIcpFit(a).score;
-                const fb = evaluateIcpFit(b).score;
-                if (fb !== fa) return fb - fa;
-                const ra = (a as { form_submitted_at?: string | null }).form_submitted_at;
-                const rb = (b as { form_submitted_at?: string | null }).form_submitted_at;
-                const ta = ra ? new Date(ra).getTime() : new Date(a.created_at).getTime();
-                const tb = rb ? new Date(rb).getTime() : new Date(b.created_at).getTime();
-                return tb - ta;
-              });
-            }
-            return (
-              <Column
-                key={s.id}
-                stageId={s.id}
-                name={s.slug === "novo" ? "Novo lead · Priorização" : s.name}
-                color={s.color}
-                /*
-                 * A contagem é a dos cards que estão na tela — era o total do
-                 * banco, e com qualquer filtro ligado ela mentia: filtrar um
-                 * dia e continuar lendo "1.162" na coluna. O total do banco
-                 * agora só aparece ao lado, e só quando o teto da coluna de
-                 * fato cortou alguém.
-                 */
-                count={stageLeads.length}
-                total={carregados}
-                totalNoBanco={data.totalPorEtapa?.[s.id] ?? 0}
-                index={idx}
-                focused={idx === focusedCol}
-              >
-                {stageLeads.map((l) => (
-                  <LeadCard
-                    key={l.id}
-                    lead={l}
-                    conversa={data.conversas?.[l.id] ?? null}
-                    stageSlug={s.slug}
-                    stages={data.stages}
-                    profiles={data.profiles}
-                    executivoIds={data.executivoIds}
-                    onMoveTo={handleMoveTo}
-                    onUpdate={handleUpdateLead}
-                  />
-                ))}
-              </Column>
-            );
-          })}
+          {data.stages
+            .filter((s) => !etapasOcultas.has(s.id))
+            .map((s, idx) => {
+              // Quantos cards o servidor chegou a mandar desta etapa — comparado
+              // com o total do banco, é o que diz se o teto cortou alguém.
+              const carregados = data.leads.filter((l) => l.stage_id === s.id).length;
+              let stageLeads = filtered.filter((l) => l.stage_id === s.id);
+              if (s.slug === "novo") {
+                stageLeads = [...stageLeads].sort((a, b) => {
+                  const fa = evaluateIcpFit(a).score;
+                  const fb = evaluateIcpFit(b).score;
+                  if (fb !== fa) return fb - fa;
+                  const ra = (a as { form_submitted_at?: string | null }).form_submitted_at;
+                  const rb = (b as { form_submitted_at?: string | null }).form_submitted_at;
+                  const ta = ra ? new Date(ra).getTime() : new Date(a.created_at).getTime();
+                  const tb = rb ? new Date(rb).getTime() : new Date(b.created_at).getTime();
+                  return tb - ta;
+                });
+              }
+              return (
+                <Column
+                  key={s.id}
+                  stageId={s.id}
+                  name={s.slug === "novo" ? "Novo lead · Priorização" : s.name}
+                  color={s.color}
+                  /*
+                   * A contagem é a dos cards que estão na tela — era o total do
+                   * banco, e com qualquer filtro ligado ela mentia: filtrar um
+                   * dia e continuar lendo "1.162" na coluna. O total do banco
+                   * agora só aparece ao lado, e só quando o teto da coluna de
+                   * fato cortou alguém.
+                   */
+                  count={stageLeads.length}
+                  total={carregados}
+                  totalNoBanco={data.totalPorEtapa?.[s.id] ?? 0}
+                  index={idx}
+                  focused={idx === focusedCol}
+                >
+                  {stageLeads.map((l) => (
+                    <LeadCard
+                      key={l.id}
+                      lead={l}
+                      conversa={data.conversas?.[l.id] ?? null}
+                      stageSlug={s.slug}
+                      stages={data.stages}
+                      profiles={data.profiles}
+                      executivoIds={data.executivoIds}
+                      onMoveTo={handleMoveTo}
+                      onUpdate={handleUpdateLead}
+                    />
+                  ))}
+                </Column>
+              );
+            })}
         </div>
         <DragOverlay>
           {activeLead ? (
