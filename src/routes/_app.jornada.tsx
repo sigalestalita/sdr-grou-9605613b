@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/jornada")({
-  validateSearch: z.object({ empresa: z.string().uuid().optional() }),
+  // Link com empresa inválida abre a jornada sem empresa, em vez de erro 500.
+  validateSearch: (s: Record<string, unknown>): { empresa?: string } => {
+    const r = z.string().uuid().safeParse(s.empresa);
+    return r.success ? { empresa: r.data } : {};
+  },
   component: JornadaPage,
   head: () => ({
     meta: [

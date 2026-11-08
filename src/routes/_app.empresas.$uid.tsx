@@ -101,6 +101,8 @@ function CompanyPage() {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["cs-client", clientUid],
     queryFn: () => getFn({ data: { clientUid } }),
+    // "não encontrado" não melhora tentando de novo: mostra o aviso na hora.
+    retry: (n, e) => !/não encontrad/i.test(e instanceof Error ? e.message : "") && n < 2,
   });
 
   const invalidate = () => {
@@ -211,7 +213,9 @@ function CompanyPage() {
           <ArrowLeft className="h-3.5 w-3.5" /> Empresas
         </Link>
         <p className="mt-4 text-sm text-destructive">
-          {error instanceof Error ? error.message : "Empresa não encontrada."}
+          {error instanceof Error && !/não encontrad/i.test(error.message)
+            ? error.message
+            : "Esta empresa ainda não tem ficha de CS (só empresas clientes aparecem aqui)."}
         </p>
       </div>
     );

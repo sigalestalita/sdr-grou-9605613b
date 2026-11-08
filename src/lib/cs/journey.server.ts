@@ -91,19 +91,33 @@ export async function scheduleJourneyEmails(clientUid?: string) {
     if (error) throw new Error(error.message);
     created += Math.min(300, rows.length - i);
   }
-  // agendado que chegou no dia vira pendente (ou expirado se passou da janela)
+  // agendado que chegou no dia vira pendente (ou expirado se passou da janela);
+  // só desta empresa quando a chamada é de uma empresa, e em duas atualizações
+  // em lote em vez de uma por marco.
   const today = now.toISOString().slice(0, 10);
-  const { data: due } = await supabaseAdmin
+  let dueQ = supabaseAdmin
     .from("cs_journey_emails")
     .select("id, due_at")
     .eq("status", "agendado")
     .lte("due_at", today);
+  if (clientUid) dueQ = dueQ.eq("client_uid", clientUid);
+  const { data: due } = await dueQ;
+  const pendentes: string[] = [];
+  const expirados: string[] = [];
   for (const d of due ?? []) {
     const late = Math.floor((now.getTime() - new Date(d.due_at).getTime()) / 86400000);
-    await supabaseAdmin
-      .from("cs_journey_emails")
-      .update({ status: late <= cfg.janela_dias ? "pendente" : "expirado" })
-      .eq("id", d.id);
+    (late <= cfg.janela_dias ? pendentes : expirados).push(d.id);
+  }
+  for (const [status, ids] of [
+    ["pendente", pendentes],
+    ["expirado", expirados],
+  ] as const) {
+    for (let i = 0; i < ids.length; i += 300) {
+      await supabaseAdmin
+        .from("cs_journey_emails")
+        .update({ status })
+        .in("id", ids.slice(i, i + 300));
+    }
   }
   return { created, becamePending: (due ?? []).length };
 }
