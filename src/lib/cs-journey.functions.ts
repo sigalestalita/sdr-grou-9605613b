@@ -25,7 +25,15 @@ export const getCsJourney = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const { scheduleJourneyEmails, getJourneyConfig } = await import("@/lib/cs/journey.server");
-    await scheduleJourneyEmails(data.clientUid);
+    /*
+     * A rotina send-journey-emails já agenda os marcos de todas as empresas.
+     * Aqui só completa os desta empresa, com limite de tempo: a página da
+     * empresa ficava presa 30 s neste bloco e caía em 502.
+     */
+    await Promise.race([
+      scheduleJourneyEmails(data.clientUid).catch(() => undefined),
+      new Promise((r) => setTimeout(r, 4000)),
+    ]);
     const cfg = await getJourneyConfig();
     const { data: rows, error } = await supabase
       .from("cs_journey_emails")
@@ -58,7 +66,11 @@ export const sendCsJourneyEmail = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     // RLS garante que o usuário vê a empresa; o envio usa o serviço.
-    const { data: row } = await context.supabase.from("cs_journey_emails").select("id").eq("id", data.id).maybeSingle();
+    const { data: row } = await context.supabase
+      .from("cs_journey_emails")
+      .select("id")
+      .eq("id", data.id)
+      .maybeSingle();
     if (!row) throw new Error("Marco não encontrado");
     const { sendJourneyEmail } = await import("@/lib/cs/journey.server");
     return sendJourneyEmail(data.id, context.userId);
@@ -67,7 +79,13 @@ export const sendCsJourneyEmail = createServerFn({ method: "POST" })
 export const setCsJourneyStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
-    z.object({ id: z.string().uuid(), status: z.enum(["pulado", "pendente"]), note: z.string().max(500).nullable().optional() }).parse(d),
+    z
+      .object({
+        id: z.string().uuid(),
+        status: z.enum(["pulado", "pendente"]),
+        note: z.string().max(500).nullable().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
