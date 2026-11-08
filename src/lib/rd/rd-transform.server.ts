@@ -1245,7 +1245,7 @@ async function levarParaCarteiraCs(
   for (const part of chunk(ids, 150)) {
     const { data, error } = await supabaseAdmin
       .from("cs_clients")
-      .select("id, company_id, cs_responsavel_id, journey_stage, ativo")
+      .select("id, company_id, cs_responsavel_id, comercial_responsavel_id, journey_stage, ativo")
       .in("company_id", part);
     if (error) errors.push(`carteira CS: ${error.message}`);
     else existentes.push(...((data ?? []) as Row[]));
@@ -1286,6 +1286,20 @@ async function levarParaCarteiraCs(
     else result.deals.fichasCsCriadas += (criadas ?? []).length;
   }
 
+  // Ficha que já existia sem responsável comercial herda o dono da empresa no RD.
+  const donoDaEmpresa = new Map<string, string>();
+  const semComercial = existentes
+    .filter((c) => !c.comercial_responsavel_id)
+    .map((c) => String(c.company_id));
+  for (const part of chunk(semComercial, 150)) {
+    const { data } = await supabaseAdmin
+      .from("companies")
+      .select("id, owner_user_id")
+      .in("id", part)
+      .not("owner_user_id", "is", null);
+    for (const e of (data ?? []) as Row[]) donoDaEmpresa.set(String(e.id), String(e.owner_user_id));
+  }
+
   for (const part of chunk(existentes, 100)) {
     await Promise.all(
       part.map(async (c) => {
@@ -1294,6 +1308,8 @@ async function levarParaCarteiraCs(
         const patch: Row = {};
         if (!c.ativo) patch.ativo = true;
         if (!c.cs_responsavel_id && cs.owner) patch.cs_responsavel_id = cs.owner;
+        const dono = donoDaEmpresa.get(String(c.company_id));
+        if (!c.comercial_responsavel_id && dono) patch.comercial_responsavel_id = dono;
         if (cs.stage && c.journey_stage !== cs.stage) patch.journey_stage = cs.stage;
         if (!Object.keys(patch).length) return;
         const { error } = await supabaseAdmin
