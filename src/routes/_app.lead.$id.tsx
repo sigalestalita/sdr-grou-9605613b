@@ -35,6 +35,7 @@ import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type";
 import { MOTIVOS_DE_DESCARTE } from "@/lib/leads/motivos-descarte";
 import { LeadNaEspinha } from "@/components/leads/lead-na-espinha";
+import { AnotacoesDoContato } from "@/components/leads/anotacoes-do-contato";
 import {
   ArrowLeft,
   MessageSquare,
@@ -691,7 +692,7 @@ function LeadDetailPage() {
             <div className="space-y-2 max-h-64 overflow-auto">
               {data.notes.map((n) => (
                 <div key={n.id} className="border-l-2 border-primary/40 pl-3 py-1">
-                  <p className="text-sm">{n.content}</p>
+                  <p className="text-sm whitespace-pre-wrap">{n.content}</p>
                   <p className="text-[10px] text-muted-foreground">
                     {new Date(n.created_at).toLocaleString("pt-BR")}
                   </p>
@@ -730,6 +731,8 @@ function LeadDetailPage() {
             </div>
           </Card>
         </div>
+
+        {lead.contact_id ? <AnotacoesDoContato contactId={String(lead.contact_id)} /> : null}
 
         <Card className="p-5">
           <h2 className="font-semibold mb-2">Resultado da abordagem</h2>
