@@ -1,3 +1,11 @@
+import {
+  acharContato,
+  chavesDoCard,
+  indexarContatos,
+  lembrarContato,
+  type ContatoConhecido,
+  type ContatoDoCard,
+} from "./contato-do-card";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import fieldMap from "../../../docs/rd-field-map.json";
 import { rdId, type Json, type RdCustomField } from "./rd-api.server";
@@ -736,15 +744,20 @@ export async function transformRdToObjects(opts?: {
   // ------------------------------------------------------------ negócios
   if (only.has("deals")) {
     const empresaDoContato = new Map<string, string>();
-    for (const c of await fetchAll("contacts", "id, company_id"))
+    const conhecidos = await fetchAll(
+      "contacts",
+      "id, company_id, rd_contact_id, email, emails, telefone, phones",
+    );
+    for (const c of conhecidos)
       if (c.company_id) empresaDoContato.set(String(c.id), String(c.company_id));
+    // O card do RD traz os contatos sem id: casa por id, e-mail ou telefone.
+    const indice = indexarContatos(conhecidos as unknown as ContatoConhecido[]);
+    for (const [rd, id] of contactByRd) indice.porRd.set(rd, id);
+    const contatosDoCard = (d: Row) =>
+      ((d.raw as Json | undefined)?.contacts as ContatoDoCard[] | undefined) ?? [];
     const empresaDoCard = (d: Row): string | undefined => {
-      const contatos =
-        ((d.raw as Json | undefined)?.contacts as
-          | Array<{ _id?: string; id?: string }>
-          | undefined) ?? [];
-      for (const c of contatos) {
-        const id = contactByRd.get(String(rdId(c)));
+      for (const c of contatosDoCard(d)) {
+        const id = acharContato(indice, c);
         const empresa = id ? empresaDoContato.get(id) : undefined;
         if (empresa) return empresa;
       }
@@ -937,6 +950,57 @@ export async function transformRdToObjects(opts?: {
     }
     result.products = productByName.size;
 
+    // Contato do card que ainda não existe no Compass (sem cadastro próprio no
+    // RD, ou fora do espelho): cria a partir do card, na empresa do negócio.
+    {
+      const novos: Array<{ row: Row; card: ContatoDoCard }> = [];
+      const vistos = new Set<string>();
+      for (const d of rdDeals) {
+        if (destinoDe.get(String(d.rd_id))?.tipo !== "negocio") continue;
+        const empresa = d.rd_org_id ? orgToCompany.get(String(d.rd_org_id)) : undefined;
+        for (const c of contatosDoCard(d)) {
+          if (acharContato(indice, c)) continue;
+          const k = chavesDoCard(c);
+          const chave = k.emails[0] ?? k.fones[0];
+          const nome = clean(c.name);
+          if (!chave || !nome || vistos.has(chave)) continue;
+          vistos.add(chave);
+          novos.push({
+            card: c,
+            row: {
+              nome,
+              email: k.emails[0] ?? null,
+              emails: k.emails,
+              telefone: k.fones[0] ?? null,
+              phones: k.fones,
+              cargo: clean(c.title) || null,
+              company_id: empresa ?? null,
+              fonte_original: "RD Station CRM (contato do negócio)",
+              provenance: { origem: "rd_card", rd_deal_id: String(d.rd_id) },
+            },
+          });
+        }
+      }
+      result.contacts.created += novos.length;
+      if (!dryRun) {
+        for (const part of chunk(novos, 500)) {
+          const { data: criados, error } = await supabaseAdmin
+            .from("contacts")
+            .insert(part.map((n) => n.row) as never)
+            .select("id");
+          if (error) {
+            errors.push(`contatos do card: ${error.message}`);
+            continue;
+          }
+          ((criados ?? []) as Array<{ id: string }>).forEach((r, i) => {
+            lembrarContato(indice, r.id, part[i].card);
+            const emp = part[i].row.company_id;
+            if (emp) empresaDoContato.set(r.id, String(emp));
+          });
+        }
+      }
+    }
+
     const inserts: Row[] = [];
     const updates: Array<{ id: string; patch: Row }> = [];
     const productLines = new Map<string, Row[]>(); // rd_deal_id -> linhas
@@ -990,13 +1054,13 @@ export async function transformRdToObjects(opts?: {
         fields.company_id = companyId;
         companyOfDeal.set(String(d.rd_id), companyId);
       }
-      const contactIds = (
-        ((raw.contacts as Array<{ _id?: string; id?: string }> | undefined) ?? [])
-          .map((c) => rdId(c))
-          .filter(Boolean) as string[]
-      )
-        .map((id) => contactByRd.get(id))
-        .filter(Boolean) as string[];
+      const contactIds = [
+        ...new Set(
+          contatosDoCard(d)
+            .map((c) => acharContato(indice, c))
+            .filter((x): x is string => !!x),
+        ),
+      ];
       if (contactIds[0]) fields.contact_id = contactIds[0];
       if (contactIds.length) contactLinks.set(String(d.rd_id), contactIds);
 

@@ -83,6 +83,7 @@ import { Route as ApiPublicHooksMetaAdsRouteImport } from './routes/api/public/h
 import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
 import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
 import { Route as ApiPublicHooksNotifyRedListRouteImport } from './routes/api/public/hooks/notify-red-list'
+import { Route as ApiPublicHooksRdMigracaoRouteImport } from './routes/api/public/hooks/rd-migracao'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
 import { Route as ApiPublicHooksSendJourneyEmailsRouteImport } from './routes/api/public/hooks/send-journey-emails'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
@@ -470,6 +471,12 @@ const ApiPublicHooksNotifyRedListRoute =
     path: '/api/public/hooks/notify-red-list',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksRdMigracaoRoute =
+  ApiPublicHooksRdMigracaoRouteImport.update({
+    id: '/api/public/hooks/rd-migracao',
+    path: '/api/public/hooks/rd-migracao',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
   id: '/api/public/hooks/run-fups',
   path: '/api/public/hooks/run-fups',
@@ -618,6 +625,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
+  '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
@@ -705,6 +713,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
+  '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
@@ -795,6 +804,7 @@ export interface FileRoutesById {
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
+  '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
@@ -885,6 +895,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
+    | '/api/public/hooks/rd-migracao'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
@@ -972,6 +983,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
+    | '/api/public/hooks/rd-migracao'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
@@ -1061,6 +1073,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
+    | '/api/public/hooks/rd-migracao'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
@@ -1090,6 +1103,7 @@ export interface RootRouteChildren {
   ApiPublicHooksMirrorRdRoute: typeof ApiPublicHooksMirrorRdRoute
   ApiPublicHooksNotifyEscalationsRoute: typeof ApiPublicHooksNotifyEscalationsRoute
   ApiPublicHooksNotifyRedListRoute: typeof ApiPublicHooksNotifyRedListRoute
+  ApiPublicHooksRdMigracaoRoute: typeof ApiPublicHooksRdMigracaoRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
   ApiPublicHooksSendJourneyEmailsRoute: typeof ApiPublicHooksSendJourneyEmailsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
@@ -1625,6 +1639,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksNotifyRedListRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/rd-migracao': {
+      id: '/api/public/hooks/rd-migracao'
+      path: '/api/public/hooks/rd-migracao'
+      fullPath: '/api/public/hooks/rd-migracao'
+      preLoaderRoute: typeof ApiPublicHooksRdMigracaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/run-fups': {
       id: '/api/public/hooks/run-fups'
       path: '/api/public/hooks/run-fups'
@@ -1891,6 +1912,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksMirrorRdRoute: ApiPublicHooksMirrorRdRoute,
   ApiPublicHooksNotifyEscalationsRoute: ApiPublicHooksNotifyEscalationsRoute,
   ApiPublicHooksNotifyRedListRoute: ApiPublicHooksNotifyRedListRoute,
+  ApiPublicHooksRdMigracaoRoute: ApiPublicHooksRdMigracaoRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
   ApiPublicHooksSendJourneyEmailsRoute: ApiPublicHooksSendJourneyEmailsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
