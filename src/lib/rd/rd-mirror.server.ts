@@ -108,6 +108,11 @@ export function dealRow(d: RdDealRaw, mapa?: MapaDeFunis | null) {
 }
 
 async function upsert(table: "rd_organizations" | "rd_contacts" | "rd_deals", rows: Json[]) {
+  // O RD repete registros entre páginas quando a ordenação empata (por nome,
+  // por exemplo); o mesmo rd_id duas vezes no lote derruba o upsert inteiro.
+  const porId = new Map<string, Json>();
+  for (const r of rows) porId.set(String((r as { rd_id?: unknown }).rd_id), r);
+  rows = [...porId.values()];
   let saved = 0;
   for (let i = 0; i < rows.length; i += 300) {
     const part = rows.slice(i, i + 300);
