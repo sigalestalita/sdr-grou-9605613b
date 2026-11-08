@@ -23,4 +23,14 @@ describe("contato do card do RD", () => {
     lembrarContato(idx, "c9", { emails: [{ email: "novo@y.com" }] });
     expect(acharContato(idx, { emails: [{ email: "NOVO@y.com" }] })).toBe("c9");
   });
+
+  it("só com o nome: casa dentro da empresa do negócio", async () => {
+    const { indexarContatos, acharContato, chaveDoNovo } = await import("./contato-do-card");
+    const i = indexarContatos([{ id: "n1", nome: "João  Silva", company_id: "e1" }]);
+    expect(acharContato(i, { name: "joão silva" }, "e1")).toBe("n1");
+    expect(acharContato(i, { name: "João Silva" }, "e2")).toBeNull();
+    expect(acharContato(i, { name: "João Silva" })).toBeNull();
+    expect(chaveDoNovo({ name: "Ana" }, "e1")).toBe("e1|ana");
+    expect(chaveDoNovo({ name: "Ana" })).toBeNull();
+  });
 });

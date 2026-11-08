@@ -40,9 +40,13 @@ export const Route = createFileRoute("/api/public/hooks/rd-migracao")({
             const fase = body.fase === "tasks" ? "tasks" : "activities";
             const pagina = Math.max(1, Math.min(1000, Number(body.pagina) || 1));
             const paginas = Math.max(1, Math.min(10, Number(body.paginas) || 5));
+            const concluidas =
+              body.concluidas === "true" || body.concluidas === "false"
+                ? body.concluidas
+                : undefined;
             return Response.json({
               ok: true,
-              ...(await importarPaginasDoHistoricoRd({ fase, pagina, paginas })),
+              ...(await importarPaginasDoHistoricoRd({ fase, pagina, paginas, concluidas })),
             });
           }
           return Response.json({ ok: false, error: "acao desconhecida" }, { status: 400 });

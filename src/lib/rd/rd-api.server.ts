@@ -296,8 +296,16 @@ export async function fetchPaginaDoHistorico(
   token: string,
   colecao: "activities" | "tasks",
   pagina: number,
+  filtro?: Record<string, string>,
 ): Promise<{ itens: Array<RdAtividade & RdTarefa>; total: number | null; temMais: boolean }> {
-  const qs = new URLSearchParams({ token, page: String(pagina), limit: "200" }).toString();
+  // A API não passa de 10 mil registros por consulta: o filtro (ex.: done)
+  // divide a coleção em partes menores que esse teto.
+  const qs = new URLSearchParams({
+    ...(filtro ?? {}),
+    token,
+    page: String(pagina),
+    limit: "200",
+  }).toString();
   const res = await fetch(`${RD_BASE}/${colecao}?${qs}`, {
     headers: { Accept: "application/json" },
   });
