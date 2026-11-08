@@ -17,7 +17,7 @@ export const statusRdMarketing = createServerFn({ method: "GET" })
     await exigirGestao(context.supabase, context.userId);
     const { statusDaConexao } = await import("@/lib/rd/marketing-api.server");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [status, comUuid, buscados] = await Promise.all([
+    const [status, comUuid, buscados, daBase, conversoes, oportunidades] = await Promise.all([
       statusDaConexao(),
       supabaseAdmin
         .from("leads")
@@ -27,8 +27,30 @@ export const statusRdMarketing = createServerFn({ method: "GET" })
         .from("leads")
         .select("id", { count: "exact", head: true })
         .not("rd_mkt_historico_em" as never, "is", null),
+      supabaseAdmin
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .eq("source", "rd_marketing"),
+      supabaseAdmin
+        .from("lead_conversoes")
+        .select("id", { count: "exact", head: true })
+        .eq("origem", "rd_marketing_api")
+        .is("canal", null),
+      supabaseAdmin
+        .from("lead_conversoes")
+        .select("id", { count: "exact", head: true })
+        .eq("origem", "rd_marketing_api")
+        .eq("canal", "oportunidade"),
     ]);
-    return { ...status, leadsLigados: comUuid.count ?? 0, historicosBuscados: buscados.count ?? 0 };
+    return {
+      ...status,
+      leadsLigados: comUuid.count ?? 0,
+      historicosBuscados: buscados.count ?? 0,
+      /** Leads que entraram pelo export da base do RD Marketing. */
+      leadsDaBase: daBase.count ?? 0,
+      conversoesImportadas: conversoes.count ?? 0,
+      oportunidadesImportadas: oportunidades.count ?? 0,
+    };
   });
 
 /** Endereço de autorização no RD Marketing (abre em seguida no navegador). */

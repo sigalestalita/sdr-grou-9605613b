@@ -16,7 +16,10 @@ import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EspelhoTransformacaoRd } from "@/components/migracao/espelho-transformacao-rd";
-import { ConexaoRdMarketing } from "@/components/migracao/conexao-rd-marketing";
+import {
+  ConexaoRdMarketing,
+  QuadroBaseMarketing,
+} from "@/components/migracao/conexao-rd-marketing";
 import { BaseDeMarketingRd } from "@/components/migracao/base-marketing-rd";
 
 type Aba = "crm" | "marketing";
@@ -227,6 +230,8 @@ function MigracaoCrm() {
           <Total titulo="Negócios com histórico" rd={t.negociosImportados} crm={t.comHistorico} />
         </div>
       )}
+
+      <QuadroBaseMarketing />
 
       {data && (
         <Card className="overflow-x-auto p-0">
