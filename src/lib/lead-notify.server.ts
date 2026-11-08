@@ -2,7 +2,9 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { LEAD_TYPE_LABEL, type LeadType } from "./lead-type";
 
 const GATEWAY = "https://connector-gateway.lovable.dev/resend/emails";
-const FROM = "Grou SDR <onboarding@resend.dev>";
+// Mesmo remetente dos alertas de lead quente: o domínio grougp.com.br é o
+// verificado no Resend (onboarding@resend.dev só envia para a própria conta).
+const FROM = "Grou SDR <sdr@grougp.com.br>";
 const APP_URL = process.env.APP_PUBLIC_URL || "https://sdr-grou.lovable.app";
 
 const RECIPIENTS: Record<LeadType, string> = {
@@ -67,15 +69,22 @@ export async function notifyNewLead(lead: NewLeadNotification): Promise<void> {
       </div>
     `;
 
-    const res = await fetch(GATEWAY, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "X-Connection-Api-Key": RESEND_API_KEY,
-      },
-      body: JSON.stringify({ from: FROM, to: [to], subject, html }),
-    });
+    const enviar = () =>
+      fetch(GATEWAY, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "X-Connection-Api-Key": RESEND_API_KEY,
+        },
+        body: JSON.stringify({ from: FROM, to: [to], subject, html }),
+      });
+    let res = await enviar();
+    // Lote de leads de uma vez estoura o limite de 10 envios/s do Resend.
+    for (let t = 1; res.status === 429 && t <= 3; t++) {
+      await new Promise((r) => setTimeout(r, 1000 * t + Math.random() * 500));
+      res = await enviar();
+    }
 
     if (!res.ok) {
       const body = await res.text();
