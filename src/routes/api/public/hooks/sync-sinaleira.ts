@@ -4,7 +4,8 @@ import { createFileRoute } from "@tanstack/react-router";
  * Lê a planilha da sinaleira (aba mais recente, ou a aba pedida) e grava o
  * snapshot nas fichas de CS. Chamado todo dia pelo agendamento no banco, para
  * a sinaleira não depender de alguém clicar em "Sincronizar".
- * Corpo opcional: { tab?: string, weekStart?: "aaaa-mm-dd", createMissing?: boolean }.
+ * Corpo opcional: { tab?: string, weekStart?: "aaaa-mm-dd", createMissing?: boolean,
+ *   inicio?: number, fim?: number } — inicio/fim limitam quais fichas são atualizadas.
  */
 export const Route = createFileRoute("/api/public/hooks/sync-sinaleira")({
   server: {
@@ -16,7 +17,13 @@ export const Route = createFileRoute("/api/public/hooks/sync-sinaleira")({
         const { getInboundToken } = await import("@/lib/cs/integrations.server");
         const expected = await getInboundToken(false);
         if (!expected || token !== expected) return new Response("Unauthorized", { status: 401 });
-        let body: { tab?: unknown; weekStart?: unknown; createMissing?: unknown } = {};
+        let body: {
+          tab?: unknown;
+          weekStart?: unknown;
+          createMissing?: unknown;
+          inicio?: unknown;
+          fim?: unknown;
+        } = {};
         try {
           body = (await request.json()) as typeof body;
         } catch {
@@ -32,6 +39,10 @@ export const Route = createFileRoute("/api/public/hooks/sync-sinaleira")({
           tab,
           weekStart,
           createMissing: body.createMissing !== false,
+          fatia:
+            typeof body.inicio === "number" && typeof body.fim === "number"
+              ? { inicio: body.inicio, fim: body.fim }
+              : undefined,
         });
         return Response.json(r, { status: r.ok ? 200 : 500 });
       },

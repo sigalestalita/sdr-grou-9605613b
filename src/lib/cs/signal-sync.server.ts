@@ -134,6 +134,12 @@ export async function syncSignalFromSheet(opts?: {
   weekStart?: string;
   /** Cria no CS os clientes da planilha que ainda não existem (padrão: sim). */
   createMissing?: boolean;
+  /**
+   * Parte das fichas a atualizar (posições na aba, ex.: 0–400). Atualizar
+   * ~1.500 fichas numa chamada passa do limite de tempo do servidor; o
+   * agendamento chama em partes. Sem isso, atualiza todas.
+   */
+  fatia?: { inicio: number; fim: number };
 }): Promise<SyncResult> {
   try {
     const tabs = await listSheetTabs();
@@ -369,13 +375,14 @@ export async function syncSignalFromSheet(opts?: {
       if (error) throw new Error(error.message);
     }
 
-    if (rows.length > 0 && ehAMaisRecente) {
+    const paraAtualizar = opts?.fatia ? rows.slice(opts.fatia.inicio, opts.fatia.fim) : rows;
+    if (paraAtualizar.length > 0 && ehAMaisRecente) {
       // Atualiza em lotes paralelos para não estourar o tempo da requisição.
       // 40 por vez: com ~1.500 fichas, 12 por vez passava de 5 minutos.
       const CONCURRENCY = 40;
-      for (let i = 0; i < rows.length; i += CONCURRENCY) {
+      for (let i = 0; i < paraAtualizar.length; i += CONCURRENCY) {
         await Promise.all(
-          rows.slice(i, i + CONCURRENCY).map(async (r) => {
+          paraAtualizar.slice(i, i + CONCURRENCY).map(async (r) => {
             await supabaseAdmin
               .from("cs_clients")
               .update({
@@ -398,6 +405,8 @@ export async function syncSignalFromSheet(opts?: {
         tab,
         weekStart,
         ehAMaisRecente,
+        fatia: opts?.fatia ?? null,
+        atualizadas: ehAMaisRecente ? paraAtualizar.length : 0,
         created,
         matched: rows.length,
         unmatched: unmatched.slice(0, 50),
