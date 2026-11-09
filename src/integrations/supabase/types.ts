@@ -3421,6 +3421,7 @@ export type Database = {
           rd_contact_id: string | null
           rd_deal_id: string | null
           rd_marketing_id: string | null
+          rd_mkt_historico_em: string | null
           rd_org_id: string | null
           rd_owner: string | null
           rd_pipeline: string | null
@@ -3494,6 +3495,7 @@ export type Database = {
           rd_contact_id?: string | null
           rd_deal_id?: string | null
           rd_marketing_id?: string | null
+          rd_mkt_historico_em?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
           rd_pipeline?: string | null
@@ -3567,6 +3569,7 @@ export type Database = {
           rd_contact_id?: string | null
           rd_deal_id?: string | null
           rd_marketing_id?: string | null
+          rd_mkt_historico_em?: string | null
           rd_org_id?: string | null
           rd_owner?: string | null
           rd_pipeline?: string | null
@@ -4306,6 +4309,45 @@ export type Database = {
         }
         Relationships: []
       }
+      rd_marketing_conexao: {
+        Row: {
+          access_token: string | null
+          conectado_em: string | null
+          conectado_por: string | null
+          expira_em: string | null
+          id: number
+          refresh_token: string | null
+          state: string | null
+          state_em: string | null
+          ultimo_erro: string | null
+          updated_at: string
+        }
+        Insert: {
+          access_token?: string | null
+          conectado_em?: string | null
+          conectado_por?: string | null
+          expira_em?: string | null
+          id?: number
+          refresh_token?: string | null
+          state?: string | null
+          state_em?: string | null
+          ultimo_erro?: string | null
+          updated_at?: string
+        }
+        Update: {
+          access_token?: string | null
+          conectado_em?: string | null
+          conectado_por?: string | null
+          expira_em?: string | null
+          id?: number
+          refresh_token?: string | null
+          state?: string | null
+          state_em?: string | null
+          ultimo_erro?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rd_oauth_tokens: {
         Row: {
           access_token: string
@@ -4399,6 +4441,39 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      relatorios_salvos: {
+        Row: {
+          compartilhado: boolean
+          created_at: string
+          criado_por: string
+          id: string
+          nome: string
+          pergunta: string | null
+          spec: Json
+          updated_at: string
+        }
+        Insert: {
+          compartilhado?: boolean
+          created_at?: string
+          criado_por?: string
+          id?: string
+          nome: string
+          pergunta?: string | null
+          spec: Json
+          updated_at?: string
+        }
+        Update: {
+          compartilhado?: boolean
+          created_at?: string
+          criado_por?: string
+          id?: string
+          nome?: string
+          pergunta?: string | null
+          spec?: Json
+          updated_at?: string
         }
         Relationships: []
       }
