@@ -78,7 +78,12 @@ async function fetchAllDeals(
       // Só o id filtra: a API ignora deal_pipeline_name e devolve todos os funis.
       deal_pipeline_id: pipelineId,
     });
-    if (startDate) params.set("start_date", startDate);
+    // Sem created_at_period a API ignora start/end e devolve o funil inteiro
+    // (milhares de cards a cada 15 min). Não existe filtro por alteração.
+    if (startDate) {
+      params.set("created_at_period", "true");
+      params.set("start_date", startDate);
+    }
     if (endDate) params.set("end_date", endDate);
     params.set("token", token);
     const url = `${RD_BASE}/deals?${params.toString()}`;
