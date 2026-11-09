@@ -36,6 +36,7 @@ import { PRIORITY_LABEL, PRIORITY_COLOR } from "@/lib/lead-types";
 import { LEAD_TYPE_LABEL, LEAD_TYPE_COLOR, type LeadType } from "@/lib/lead-type";
 import { MOTIVOS_DE_DESCARTE } from "@/lib/leads/motivos-descarte";
 import { LeadNaEspinha } from "@/components/leads/lead-na-espinha";
+import { ReuniaoDoLead } from "@/components/leads/reuniao-do-lead";
 import { AnotacoesDoContato } from "@/components/leads/anotacoes-do-contato";
 import { HistoricoDoLead } from "@/components/leads/historico-do-lead";
 import {
@@ -364,6 +365,16 @@ function LeadDetailPage() {
             )}
 
             <LeadNaEspinha leadId={lead.id} />
+
+            <ReuniaoDoLead
+              lead={lead}
+              salvando={update.isPending}
+              onUpdate={(patch) => update.mutate(patch)}
+              executivos={data.executivoIds.map((uid) => ({
+                id: uid,
+                nome: profilesById.get(uid) ?? uid,
+              }))}
+            />
 
             <Card className="p-4">
               <div className="mb-3 flex flex-wrap items-center justify-between gap-2">

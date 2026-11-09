@@ -330,6 +330,11 @@ export const getLeadDetail = createServerFn({ method: "GET" })
       ),
     );
 
+    // Quem pode receber a reunião marcada pela SDR (mesma lista do card do kanban).
+    const executivoIds = await import("@/lib/sdr/executivos-da-agenda").then((m) =>
+      m.executivosDaAgenda(supabase),
+    );
+
     return {
       lead: lead as NonNullable<typeof leadRes.data>,
       notes: notesRes.data ?? [],
@@ -337,6 +342,7 @@ export const getLeadDetail = createServerFn({ method: "GET" })
       stages: stagesRes.data ?? [],
       profiles: profilesRes.data ?? [],
       sdrUserIds,
+      executivoIds,
     };
   });
 
