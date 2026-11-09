@@ -80,6 +80,7 @@ import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsa
 import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
 import { Route as ApiPublicFichasWebhookRouteImport } from './routes/api/public/fichas/webhook'
 import { Route as ApiPublicHooksCampanhasAgendadasRouteImport } from './routes/api/public/hooks/campanhas-agendadas'
+import { Route as ApiPublicHooksEspelhoSdrRouteImport } from './routes/api/public/hooks/espelho-sdr'
 import { Route as ApiPublicHooksMetaAdsRouteImport } from './routes/api/public/hooks/meta-ads'
 import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
 import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
@@ -457,6 +458,12 @@ const ApiPublicHooksCampanhasAgendadasRoute =
     path: '/api/public/hooks/campanhas-agendadas',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksEspelhoSdrRoute =
+  ApiPublicHooksEspelhoSdrRouteImport.update({
+    id: '/api/public/hooks/espelho-sdr',
+    path: '/api/public/hooks/espelho-sdr',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksMetaAdsRoute = ApiPublicHooksMetaAdsRouteImport.update({
   id: '/api/public/hooks/meta-ads',
   path: '/api/public/hooks/meta-ads',
@@ -642,6 +649,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
+  '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
@@ -733,6 +741,7 @@ export interface FileRoutesByTo {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
+  '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
@@ -827,6 +836,7 @@ export interface FileRoutesById {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
+  '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
@@ -921,6 +931,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
+    | '/api/public/hooks/espelho-sdr'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
@@ -1012,6 +1023,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
+    | '/api/public/hooks/espelho-sdr'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
@@ -1105,6 +1117,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
+    | '/api/public/hooks/espelho-sdr'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
     | '/api/public/hooks/notify-escalations'
@@ -1137,6 +1150,7 @@ export interface RootRouteChildren {
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicFichasWebhookRoute: typeof ApiPublicFichasWebhookRoute
   ApiPublicHooksCampanhasAgendadasRoute: typeof ApiPublicHooksCampanhasAgendadasRoute
+  ApiPublicHooksEspelhoSdrRoute: typeof ApiPublicHooksEspelhoSdrRoute
   ApiPublicHooksMetaAdsRoute: typeof ApiPublicHooksMetaAdsRoute
   ApiPublicHooksMirrorRdRoute: typeof ApiPublicHooksMirrorRdRoute
   ApiPublicHooksNotifyEscalationsRoute: typeof ApiPublicHooksNotifyEscalationsRoute
@@ -1658,6 +1672,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksCampanhasAgendadasRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/espelho-sdr': {
+      id: '/api/public/hooks/espelho-sdr'
+      path: '/api/public/hooks/espelho-sdr'
+      fullPath: '/api/public/hooks/espelho-sdr'
+      preLoaderRoute: typeof ApiPublicHooksEspelhoSdrRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/meta-ads': {
       id: '/api/public/hooks/meta-ads'
       path: '/api/public/hooks/meta-ads'
@@ -1971,6 +1992,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicFichasWebhookRoute: ApiPublicFichasWebhookRoute,
   ApiPublicHooksCampanhasAgendadasRoute: ApiPublicHooksCampanhasAgendadasRoute,
+  ApiPublicHooksEspelhoSdrRoute: ApiPublicHooksEspelhoSdrRoute,
   ApiPublicHooksMetaAdsRoute: ApiPublicHooksMetaAdsRoute,
   ApiPublicHooksMirrorRdRoute: ApiPublicHooksMirrorRdRoute,
   ApiPublicHooksNotifyEscalationsRoute: ApiPublicHooksNotifyEscalationsRoute,

@@ -18,7 +18,14 @@ import { dealRow } from "./rd-mirror.server";
 const DIAS = 120;
 const TETO_DE_PAGINAS = 15;
 
-export async function espelharFunisSdr(): Promise<{ funis: number; negocios: number }> {
+/**
+ * `funil`: posição do funil na lista configurada (0, 1…) para espelhar um só
+ * por chamada — cada funil cabe no limite de processamento do servidor.
+ */
+export async function espelharFunisSdr(opts?: {
+  funil?: number;
+  dias?: number;
+}): Promise<{ funis: number; negocios: number }> {
   const { token } = await getRdTokenInfo();
   if (!token) throw new Error("RD Station não conectado.");
 
@@ -33,10 +40,11 @@ export async function espelharFunisSdr(): Promise<{ funis: number; negocios: num
   )
     .split(";")
     .map((n) => n.trim())
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((_, i) => opts?.funil === undefined || i === opts.funil);
 
   const ate = new Date();
-  const de = new Date(ate.getTime() - DIAS * 24 * 3600 * 1000);
+  const de = new Date(ate.getTime() - (opts?.dias ?? DIAS) * 24 * 3600 * 1000);
   let negocios = 0;
   const ids = await idsDosFunis(nomes, token);
   for (const nome of nomes) {
