@@ -24,6 +24,7 @@ export type TipoEvento =
   | "whatsapp"
   | "reuniao"
   | "proposta"
+  | "email"
   | "sistema";
 
 export type EventoHistorico = {
@@ -431,6 +432,59 @@ export const historicoDoLead = createServerFn({ method: "GET" })
           dealId: String(p.deal_id),
         });
     }
+    // E-mails de campanha: recebeu, abriu, clicou, descadastrou.
+    const { data: envios } = await db
+      .from("email_envios")
+      .select(
+        "id, enviado_em, aberto_em, clicado_em, descadastrou_em, aberturas, cliques, campanha:email_campanhas(nome, assunto)",
+      )
+      .in("lead_id", leadIds)
+      .not("enviado_em", "is", null)
+      .limit(500);
+    for (const e of (envios ?? []) as Row[]) {
+      const camp = (e.campanha ?? {}) as Row;
+      const assunto = s(camp.assunto) ?? s(camp.nome) ?? "campanha";
+      push({
+        id: `email-${e.id}`,
+        tipo: "email",
+        titulo: "Recebeu o e-mail",
+        detalhe: assunto,
+        quando: String(e.enviado_em),
+        autor: null,
+        dealId: null,
+      });
+      if (e.aberto_em)
+        push({
+          id: `email-abriu-${e.id}`,
+          tipo: "email",
+          titulo: "Abriu o e-mail",
+          detalhe: `${assunto}${Number(e.aberturas) > 1 ? ` · ${e.aberturas} aberturas` : ""}`,
+          quando: String(e.aberto_em),
+          autor: null,
+          dealId: null,
+        });
+      if (e.clicado_em)
+        push({
+          id: `email-clicou-${e.id}`,
+          tipo: "email",
+          titulo: "Clicou no e-mail",
+          detalhe: `${assunto}${Number(e.cliques) > 1 ? ` · ${e.cliques} cliques` : ""}`,
+          quando: String(e.clicado_em),
+          autor: null,
+          dealId: null,
+        });
+      if (e.descadastrou_em)
+        push({
+          id: `email-desc-${e.id}`,
+          tipo: "email",
+          titulo: "Descadastrou-se dos e-mails",
+          detalhe: assunto,
+          quando: String(e.descadastrou_em),
+          autor: null,
+          dealId: null,
+        });
+    }
+
     // WhatsApp: um evento por dia de conversa, com quantas mensagens foram e vieram.
     const porDia = new Map<string, { enviadas: number; recebidas: number; ultima: string }>();
     for (const m of (mensagens.data ?? []) as Row[]) {

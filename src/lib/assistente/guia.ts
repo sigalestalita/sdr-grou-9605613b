@@ -281,6 +281,12 @@ export const TELAS: TelaDoGuia[] = [
 
   // ───────────── BI ─────────────
   {
+    rota: "/email-marketing",
+    nome: "E-mail marketing",
+    area: "Marketing",
+    texto: `Campanhas de e-mail para a base (leads do kanban e a base de marketing vinda do RD). Aba "Segmentações": monte quem recebe com regras (base, origem, tipo de lead, etapa, prioridade, responsável, cliente ou não, sinaleira, evento de conversão, datas, domínio do e-mail); a contagem e uma amostra aparecem na hora; "Salvar". Aba "Campanhas": "Nova campanha", escolha a segmentação, o remetente (@grougp.com.br), escreva assunto e corpo (texto simples: # título, - lista, **negrito**, [texto](link), [[Texto do botão|link]], {{primeiro_nome|tudo bem}}, {{empresa}}) ou peça "Escrever com IA"; a prévia mostra o e-mail. "Enviar teste" manda para você; "Enviar agora" ou "Agendar" disparam. O envio sai em lotes e respeita o limite diário (no plano gratuito do Resend, 100 por dia; o resto segue nos dias seguintes); "Pausar"/"Retomar"/"Cancelar". Depois do envio, a campanha mostra enviados, aberturas, cliques e descadastros, e o histórico de cada lead registra "Recebeu/Abriu/Clicou no e-mail". Todo e-mail tem link de descadastro; quem sai fica na aba "Descadastros" (dá para incluir e-mails à mão) e não recebe mais nenhuma campanha.`,
+  },
+  {
     rota: "/relatorios",
     nome: "Relatórios",
     area: "BI",
