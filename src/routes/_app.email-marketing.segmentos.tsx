@@ -3,15 +3,18 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Filter, Loader2, Plus, Save, Trash2, Users } from "lucide-react";
+import { Filter, Loader2, Plus, Save, Search, Trash2, Users, X } from "lucide-react";
 import {
   apagarSegmento,
+  buscarEmpresasSegmento,
   listarSegmentos,
   opcoesDeSegmentacao,
   previaSegmento,
   salvarSegmento,
+  valoresDoCampo,
   type Regras,
 } from "@/lib/email-marketing.functions";
+import { CAMPOS_SEGMENTO, OPERADORES } from "@/lib/email-marketing/campos";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +40,8 @@ const REGRAS_VAZIAS: Regras = {
   converteu_desde: "",
   criado_desde: "",
   criado_ate: "",
+  empresas: [],
+  condicoes: [],
 };
 const TIPOS = [
   { valor: "empresa", rotulo: "Empresa" },
@@ -360,12 +365,233 @@ function SegmentosPage() {
               </Button>
             </div>
           </Card>
+
+          <Card className="space-y-3 p-4">
+            <div>
+              <p className="section-label">Empresas específicas</p>
+              <p className="text-[12px] text-muted-foreground">
+                Só os contatos destas empresas. Deixe vazio para não filtrar por empresa.
+              </p>
+            </div>
+            <EmpresasEscolhidas
+              valor={ed.regras.empresas}
+              onChange={(v) => setRegra("empresas", v)}
+            />
+          </Card>
+
+          <Card className="space-y-3 p-4">
+            <div>
+              <p className="section-label">Campos do lead, do contato e da empresa</p>
+              <p className="text-[12px] text-muted-foreground">
+                Ex.: Cargo contém “RH”, Segmento da empresa é “Indústria”, Estado da empresa é “RS”.
+                Todas as condições precisam valer.
+              </p>
+            </div>
+            <CondicoesPorCampo
+              valor={ed.regras.condicoes}
+              onChange={(v) => setRegra("condicoes", v)}
+            />
+          </Card>
         </div>
 
         <div className="min-w-0 xl:sticky xl:top-4 xl:self-start">
           <PreviaSegmento regras={ed.regras} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function EmpresasEscolhidas({
+  valor,
+  onChange,
+}: {
+  valor: Regras["empresas"];
+  onChange: (v: Regras["empresas"]) => void;
+}) {
+  const buscarFn = useServerFn(buscarEmpresasSegmento);
+  const [termo, setTermo] = useState("");
+  const [atrasado, setAtrasado] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setAtrasado(termo.trim()), 350);
+    return () => clearTimeout(t);
+  }, [termo]);
+  const { data: achadas, isFetching } = useQuery({
+    queryKey: ["email-mkt", "empresas", atrasado],
+    queryFn: () => buscarFn({ data: { termo: atrasado } }),
+    enabled: atrasado.length >= 2,
+  });
+  const escolhidas = new Set(valor.map((e) => e.id));
+  return (
+    <div className="space-y-2">
+      {valor.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {valor.map((e) => (
+            <span
+              key={e.id}
+              className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-[12px]"
+            >
+              {e.nome}
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-destructive"
+                onClick={() => onChange(valor.filter((x) => x.id !== e.id))}
+                title="Tirar"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          value={termo}
+          onChange={(e) => setTermo(e.target.value)}
+          placeholder="Buscar empresa pelo nome…"
+          className="pl-8 text-[13px]"
+        />
+      </div>
+      {atrasado.length >= 2 && (
+        <div className="max-h-56 overflow-y-auto rounded-md border">
+          {isFetching && !achadas ? (
+            <p className="p-2 text-[12px] text-muted-foreground">Buscando…</p>
+          ) : !achadas?.length ? (
+            <p className="p-2 text-[12px] text-muted-foreground">Nenhuma empresa com esse nome.</p>
+          ) : (
+            achadas.map((e) => (
+              <label
+                key={e.id}
+                className="flex cursor-pointer items-center gap-2 border-b px-2 py-1.5 text-[13px] last:border-0 hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={escolhidas.has(e.id)}
+                  onCheckedChange={(v) =>
+                    onChange(
+                      v
+                        ? [...valor, { id: e.id, nome: e.nome }]
+                        : valor.filter((x) => x.id !== e.id),
+                    )
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate">{e.nome}</span>
+                {e.local && <span className="text-[11px] text-muted-foreground">{e.local}</span>}
+              </label>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CondicoesPorCampo({
+  valor,
+  onChange,
+}: {
+  valor: Regras["condicoes"];
+  onChange: (v: Regras["condicoes"]) => void;
+}) {
+  const muda = (i: number, patch: Partial<Regras["condicoes"][number]>) =>
+    onChange(valor.map((c, j) => (j === i ? { ...c, ...patch } : c)));
+  return (
+    <div className="space-y-2">
+      {valor.map((c, i) => (
+        <LinhaCondicao
+          key={i}
+          c={c}
+          muda={(p) => muda(i, p)}
+          tirar={() => onChange(valor.filter((_, j) => j !== i))}
+        />
+      ))}
+      {valor.length < 20 && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onChange([...valor, { campo: "cargo", operador: "contem", valor: "" }])}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" /> Adicionar condição
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function LinhaCondicao({
+  c,
+  muda,
+  tirar,
+}: {
+  c: Regras["condicoes"][number];
+  muda: (p: Partial<Regras["condicoes"][number]>) => void;
+  tirar: () => void;
+}) {
+  const valoresFn = useServerFn(valoresDoCampo);
+  const def = CAMPOS_SEGMENTO.find((x) => x.id === c.campo);
+  const op = OPERADORES.find((o) => o.id === c.operador);
+  const { data: sugestoes } = useQuery({
+    queryKey: ["email-mkt", "valores", c.campo],
+    queryFn: () => valoresFn({ data: { campo: c.campo as never } }),
+    staleTime: 10 * 60_000,
+    enabled: !!op?.valor,
+  });
+  const lista = `valores-${c.campo}`;
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-md border p-2">
+      <select
+        className="h-9 min-w-[180px] flex-1 rounded-md border bg-background px-2 text-[13px]"
+        value={c.campo}
+        onChange={(e) => muda({ campo: e.target.value as never, valor: "" })}
+      >
+        {(["Lead", "Contato", "Empresa"] as const).map((g) => (
+          <optgroup key={g} label={g}>
+            {CAMPOS_SEGMENTO.filter((x) => x.grupo === g).map((x) => (
+              <option key={x.id} value={x.id}>
+                {x.rotulo}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <select
+        className="h-9 rounded-md border bg-background px-2 text-[13px]"
+        value={c.operador}
+        onChange={(e) => muda({ operador: e.target.value as never })}
+      >
+        {OPERADORES.filter((o) => !("numero" in o) || def?.numero).map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.rotulo}
+          </option>
+        ))}
+      </select>
+      {op?.valor && (
+        <>
+          <Input
+            list={lista}
+            value={c.valor}
+            onChange={(e) => muda({ valor: e.target.value })}
+            placeholder={def?.numero ? "número" : "valor"}
+            className="h-9 min-w-[160px] flex-1 text-[13px]"
+            maxLength={200}
+          />
+          <datalist id={lista}>
+            {(sugestoes ?? []).map((v) => (
+              <option key={v.valor} value={v.valor}>
+                {`${v.total.toLocaleString("pt-BR")} contatos`}
+              </option>
+            ))}
+          </datalist>
+        </>
+      )}
+      <button
+        type="button"
+        onClick={tirar}
+        className="text-muted-foreground hover:text-destructive"
+        title="Tirar condição"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }
