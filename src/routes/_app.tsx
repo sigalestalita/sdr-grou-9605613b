@@ -15,6 +15,7 @@ import {
   Briefcase,
   BarChart3,
   FileBarChart,
+  MailPlus,
   Target,
   Route as RouteIcon,
   Settings as SettingsIcon,
@@ -249,6 +250,19 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
+    // Marketing: campanhas de e-mail (segmentações, disparos, descadastros) e Meta
+    label: "Marketing",
+    items: [
+      {
+        to: "/email-marketing",
+        label: "E-mail marketing",
+        icon: MailPlus,
+        team: "comercial",
+      },
+      { to: "/campanhas", label: "Campanhas Meta", icon: Megaphone, managerOnly: true },
+    ],
+  },
+  {
     // BI: leitura analítica de todos os módulos
     label: "BI",
     items: [
@@ -270,7 +284,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         team: "cs",
         managerOnly: true,
       },
-      { to: "/campanhas", label: "Campanhas Meta", icon: Megaphone, managerOnly: true },
       { to: "/analytics-chat", label: "Chat Analytics", icon: Bot, team: "comercial" },
     ],
   },
