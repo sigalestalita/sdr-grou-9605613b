@@ -37,6 +37,7 @@ const TIPOS: Record<TipoEvento, { rotulo: string; icone: typeof Mail; cor: strin
   reuniao: { rotulo: "Reuniões", icone: CalendarClock, cor: "text-primary" },
   proposta: { rotulo: "Propostas", icone: FileText, cor: "text-violet-600" },
   etapa: { rotulo: "Mudanças de etapa", icone: Workflow, cor: "text-muted-foreground" },
+  email: { rotulo: "E-mails", icone: Mail, cor: "text-sky-600" },
   sistema: { rotulo: "Sistema", icone: Settings2, cor: "text-muted-foreground" },
 };
 const ORDEM = Object.keys(TIPOS) as TipoEvento[];

@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as DescadastroRouteImport } from './routes/descadastro'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -42,6 +43,7 @@ import { Route as AppCsTicketsRouteImport } from './routes/_app.cs-tickets'
 import { Route as AppCsWhatsappRouteImport } from './routes/_app.cs-whatsapp'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
+import { Route as AppEmailMarketingRouteImport } from './routes/_app.email-marketing'
 import { Route as AppFaturamentoRouteImport } from './routes/_app.faturamento'
 import { Route as AppFunilSdrRouteImport } from './routes/_app.funil-sdr'
 import { Route as AppImportarRdRouteImport } from './routes/_app.importar-rd'
@@ -60,6 +62,9 @@ import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
 import { Route as PropostaTokenRouteImport } from './routes/proposta.$token'
 import { Route as AppAnalyticsChatThreadIdRouteImport } from './routes/_app.analytics-chat.$threadId'
+import { Route as AppEmailMarketingIndexRouteImport } from './routes/_app.email-marketing.index'
+import { Route as AppEmailMarketingDescadastrosRouteImport } from './routes/_app.email-marketing.descadastros'
+import { Route as AppEmailMarketingSegmentosRouteImport } from './routes/_app.email-marketing.segmentos'
 import { Route as AppEmpresasUidRouteImport } from './routes/_app.empresas.$uid'
 import { Route as AppLeadIdRouteImport } from './routes/_app.lead.$id'
 import { Route as AppNegocioIdRouteImport } from './routes/_app.negocio.$id'
@@ -76,10 +81,13 @@ import { Route as AppWhatsappIaRouteImport } from './routes/_app.whatsapp.ia'
 import { Route as AppWhatsappMetricasRouteImport } from './routes/_app.whatsapp.metricas'
 import { Route as AppWhatsappPlaygroundRouteImport } from './routes/_app.whatsapp.playground'
 import { Route as AppWhatsappTemplatesRouteImport } from './routes/_app.whatsapp.templates'
+import { Route as AppEmailMarketingCampanhaIdRouteImport } from './routes/_app.email-marketing.campanha.$id'
 import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
 import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
+import { Route as ApiPublicEmailDescadastroRouteImport } from './routes/api/public/email/descadastro'
 import { Route as ApiPublicFichasWebhookRouteImport } from './routes/api/public/fichas/webhook'
 import { Route as ApiPublicHooksCampanhasAgendadasRouteImport } from './routes/api/public/hooks/campanhas-agendadas'
+import { Route as ApiPublicHooksEmailCampanhasRouteImport } from './routes/api/public/hooks/email-campanhas'
 import { Route as ApiPublicHooksEspelhoSdrRouteImport } from './routes/api/public/hooks/espelho-sdr'
 import { Route as ApiPublicHooksMetaAdsRouteImport } from './routes/api/public/hooks/meta-ads'
 import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/hooks/mirror-rd'
@@ -99,6 +107,8 @@ import { Route as ApiPublicHooksTransformRdRouteImport } from './routes/api/publ
 import { Route as ApiPublicMetaLeadsRouteImport } from './routes/api/public/meta/leads'
 import { Route as ApiPublicRdMarketingCallbackRouteImport } from './routes/api/public/rd-marketing/callback'
 import { Route as ApiPublicRdCallbackRouteImport } from './routes/api/public/rd/callback'
+import { Route as ApiPublicEmailAbrirTokenRouteImport } from './routes/api/public/email/abrir.$token'
+import { Route as ApiPublicEmailCliqueTokenRouteImport } from './routes/api/public/email/clique.$token'
 import { Route as ApiPublicWhatsappAutomationsTickRouteImport } from './routes/api/public/whatsapp/automations.tick'
 import { Route as ApiPublicWhatsappWebhookAccountIdRouteImport } from './routes/api/public/whatsapp/webhook.$accountId'
 
@@ -109,6 +119,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DescadastroRoute = DescadastroRouteImport.update({
+  id: '/descadastro',
+  path: '/descadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -266,6 +281,11 @@ const AppDiagnosticoRoute = AppDiagnosticoRouteImport.update({
   path: '/diagnostico',
   getParentRoute: () => AppRoute,
 } as any)
+const AppEmailMarketingRoute = AppEmailMarketingRouteImport.update({
+  id: '/email-marketing',
+  path: '/email-marketing',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFaturamentoRoute = AppFaturamentoRouteImport.update({
   id: '/faturamento',
   path: '/faturamento',
@@ -357,6 +377,23 @@ const AppAnalyticsChatThreadIdRoute =
     path: '/$threadId',
     getParentRoute: () => AppAnalyticsChatRoute,
   } as any)
+const AppEmailMarketingIndexRoute = AppEmailMarketingIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppEmailMarketingRoute,
+} as any)
+const AppEmailMarketingDescadastrosRoute =
+  AppEmailMarketingDescadastrosRouteImport.update({
+    id: '/descadastros',
+    path: '/descadastros',
+    getParentRoute: () => AppEmailMarketingRoute,
+  } as any)
+const AppEmailMarketingSegmentosRoute =
+  AppEmailMarketingSegmentosRouteImport.update({
+    id: '/segmentos',
+    path: '/segmentos',
+    getParentRoute: () => AppEmailMarketingRoute,
+  } as any)
 const AppEmpresasUidRoute = AppEmpresasUidRouteImport.update({
   id: '/empresas/$uid',
   path: '/empresas/$uid',
@@ -437,6 +474,12 @@ const AppWhatsappTemplatesRoute = AppWhatsappTemplatesRouteImport.update({
   path: '/templates',
   getParentRoute: () => AppWhatsappRoute,
 } as any)
+const AppEmailMarketingCampanhaIdRoute =
+  AppEmailMarketingCampanhaIdRouteImport.update({
+    id: '/campanha/$id',
+    path: '/campanha/$id',
+    getParentRoute: () => AppEmailMarketingRoute,
+  } as any)
 const AppWhatsappCampanhasIdRoute = AppWhatsappCampanhasIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -447,6 +490,12 @@ const ApiPublicCsEmailInboundRoute = ApiPublicCsEmailInboundRouteImport.update({
   path: '/api/public/cs/email-inbound',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEmailDescadastroRoute =
+  ApiPublicEmailDescadastroRouteImport.update({
+    id: '/api/public/email/descadastro',
+    path: '/api/public/email/descadastro',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicFichasWebhookRoute = ApiPublicFichasWebhookRouteImport.update({
   id: '/api/public/fichas/webhook',
   path: '/api/public/fichas/webhook',
@@ -456,6 +505,12 @@ const ApiPublicHooksCampanhasAgendadasRoute =
   ApiPublicHooksCampanhasAgendadasRouteImport.update({
     id: '/api/public/hooks/campanhas-agendadas',
     path: '/api/public/hooks/campanhas-agendadas',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksEmailCampanhasRoute =
+  ApiPublicHooksEmailCampanhasRouteImport.update({
+    id: '/api/public/hooks/email-campanhas',
+    path: '/api/public/hooks/email-campanhas',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksEspelhoSdrRoute =
@@ -565,6 +620,18 @@ const ApiPublicRdCallbackRoute = ApiPublicRdCallbackRouteImport.update({
   path: '/api/public/rd/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicEmailAbrirTokenRoute =
+  ApiPublicEmailAbrirTokenRouteImport.update({
+    id: '/api/public/email/abrir/$token',
+    path: '/api/public/email/abrir/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicEmailCliqueTokenRoute =
+  ApiPublicEmailCliqueTokenRouteImport.update({
+    id: '/api/public/email/clique/$token',
+    path: '/api/public/email/clique/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWhatsappAutomationsTickRoute =
   ApiPublicWhatsappAutomationsTickRouteImport.update({
     id: '/api/public/whatsapp/automations/tick',
@@ -580,6 +647,7 @@ const ApiPublicWhatsappWebhookAccountIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -611,6 +679,7 @@ export interface FileRoutesByFullPath {
   '/cs-whatsapp': typeof AppCsWhatsappRoute
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
+  '/email-marketing': typeof AppEmailMarketingRouteWithChildren
   '/faturamento': typeof AppFaturamentoRoute
   '/funil-sdr': typeof AppFunilSdrRoute
   '/importar-rd': typeof AppImportarRdRoute
@@ -629,6 +698,8 @@ export interface FileRoutesByFullPath {
   '/whatsapp': typeof AppWhatsappRouteWithChildren
   '/proposta/$token': typeof PropostaTokenRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
+  '/email-marketing/descadastros': typeof AppEmailMarketingDescadastrosRoute
+  '/email-marketing/segmentos': typeof AppEmailMarketingSegmentosRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
   '/negocio/$id': typeof AppNegocioIdRoute
@@ -644,11 +715,15 @@ export interface FileRoutesByFullPath {
   '/whatsapp/metricas': typeof AppWhatsappMetricasRoute
   '/whatsapp/playground': typeof AppWhatsappPlaygroundRoute
   '/whatsapp/templates': typeof AppWhatsappTemplatesRoute
+  '/email-marketing/': typeof AppEmailMarketingIndexRoute
   '/whatsapp/': typeof AppWhatsappIndexRoute
+  '/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
+  '/api/public/hooks/email-campanhas': typeof ApiPublicHooksEmailCampanhasRoute
   '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
@@ -668,11 +743,14 @@ export interface FileRoutesByFullPath {
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd-marketing/callback': typeof ApiPublicRdMarketingCallbackRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
+  '/api/public/email/abrir/$token': typeof ApiPublicEmailAbrirTokenRoute
+  '/api/public/email/clique/$token': typeof ApiPublicEmailCliqueTokenRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -721,6 +799,8 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AppUsuariosRoute
   '/proposta/$token': typeof PropostaTokenRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
+  '/email-marketing/descadastros': typeof AppEmailMarketingDescadastrosRoute
+  '/email-marketing/segmentos': typeof AppEmailMarketingSegmentosRoute
   '/empresas/$uid': typeof AppEmpresasUidRoute
   '/lead/$id': typeof AppLeadIdRoute
   '/negocio/$id': typeof AppNegocioIdRoute
@@ -736,11 +816,15 @@ export interface FileRoutesByTo {
   '/whatsapp/metricas': typeof AppWhatsappMetricasRoute
   '/whatsapp/playground': typeof AppWhatsappPlaygroundRoute
   '/whatsapp/templates': typeof AppWhatsappTemplatesRoute
+  '/email-marketing': typeof AppEmailMarketingIndexRoute
   '/whatsapp': typeof AppWhatsappIndexRoute
+  '/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
+  '/api/public/hooks/email-campanhas': typeof ApiPublicHooksEmailCampanhasRoute
   '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
@@ -760,6 +844,8 @@ export interface FileRoutesByTo {
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd-marketing/callback': typeof ApiPublicRdMarketingCallbackRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
+  '/api/public/email/abrir/$token': typeof ApiPublicEmailAbrirTokenRoute
+  '/api/public/email/clique/$token': typeof ApiPublicEmailCliqueTokenRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
 }
@@ -767,6 +853,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
+  '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -798,6 +885,7 @@ export interface FileRoutesById {
   '/_app/cs-whatsapp': typeof AppCsWhatsappRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/diagnostico': typeof AppDiagnosticoRoute
+  '/_app/email-marketing': typeof AppEmailMarketingRouteWithChildren
   '/_app/faturamento': typeof AppFaturamentoRoute
   '/_app/funil-sdr': typeof AppFunilSdrRoute
   '/_app/importar-rd': typeof AppImportarRdRoute
@@ -816,6 +904,8 @@ export interface FileRoutesById {
   '/_app/whatsapp': typeof AppWhatsappRouteWithChildren
   '/proposta/$token': typeof PropostaTokenRoute
   '/_app/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
+  '/_app/email-marketing/descadastros': typeof AppEmailMarketingDescadastrosRoute
+  '/_app/email-marketing/segmentos': typeof AppEmailMarketingSegmentosRoute
   '/_app/empresas/$uid': typeof AppEmpresasUidRoute
   '/_app/lead/$id': typeof AppLeadIdRoute
   '/_app/negocio/$id': typeof AppNegocioIdRoute
@@ -831,11 +921,15 @@ export interface FileRoutesById {
   '/_app/whatsapp/metricas': typeof AppWhatsappMetricasRoute
   '/_app/whatsapp/playground': typeof AppWhatsappPlaygroundRoute
   '/_app/whatsapp/templates': typeof AppWhatsappTemplatesRoute
+  '/_app/email-marketing/': typeof AppEmailMarketingIndexRoute
   '/_app/whatsapp/': typeof AppWhatsappIndexRoute
+  '/_app/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
   '/_app/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
+  '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
+  '/api/public/hooks/email-campanhas': typeof ApiPublicHooksEmailCampanhasRoute
   '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
   '/api/public/hooks/meta-ads': typeof ApiPublicHooksMetaAdsRoute
   '/api/public/hooks/mirror-rd': typeof ApiPublicHooksMirrorRdRoute
@@ -855,6 +949,8 @@ export interface FileRoutesById {
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
   '/api/public/rd-marketing/callback': typeof ApiPublicRdMarketingCallbackRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
+  '/api/public/email/abrir/$token': typeof ApiPublicEmailAbrirTokenRoute
+  '/api/public/email/clique/$token': typeof ApiPublicEmailCliqueTokenRoute
   '/api/public/whatsapp/automations/tick': typeof ApiPublicWhatsappAutomationsTickRoute
   '/api/public/whatsapp/webhook/$accountId': typeof ApiPublicWhatsappWebhookAccountIdRoute
 }
@@ -862,6 +958,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/descadastro'
     | '/login'
     | '/privacidade'
     | '/reset-password'
@@ -893,6 +990,7 @@ export interface FileRouteTypes {
     | '/cs-whatsapp'
     | '/dashboard'
     | '/diagnostico'
+    | '/email-marketing'
     | '/faturamento'
     | '/funil-sdr'
     | '/importar-rd'
@@ -911,6 +1009,8 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/proposta/$token'
     | '/analytics-chat/$threadId'
+    | '/email-marketing/descadastros'
+    | '/email-marketing/segmentos'
     | '/empresas/$uid'
     | '/lead/$id'
     | '/negocio/$id'
@@ -926,11 +1026,15 @@ export interface FileRouteTypes {
     | '/whatsapp/metricas'
     | '/whatsapp/playground'
     | '/whatsapp/templates'
+    | '/email-marketing/'
     | '/whatsapp/'
+    | '/email-marketing/campanha/$id'
     | '/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
+    | '/api/public/hooks/email-campanhas'
     | '/api/public/hooks/espelho-sdr'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
@@ -950,11 +1054,14 @@ export interface FileRouteTypes {
     | '/api/public/meta/leads'
     | '/api/public/rd-marketing/callback'
     | '/api/public/rd/callback'
+    | '/api/public/email/abrir/$token'
+    | '/api/public/email/clique/$token'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/descadastro'
     | '/login'
     | '/privacidade'
     | '/reset-password'
@@ -1003,6 +1110,8 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/proposta/$token'
     | '/analytics-chat/$threadId'
+    | '/email-marketing/descadastros'
+    | '/email-marketing/segmentos'
     | '/empresas/$uid'
     | '/lead/$id'
     | '/negocio/$id'
@@ -1018,11 +1127,15 @@ export interface FileRouteTypes {
     | '/whatsapp/metricas'
     | '/whatsapp/playground'
     | '/whatsapp/templates'
+    | '/email-marketing'
     | '/whatsapp'
+    | '/email-marketing/campanha/$id'
     | '/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
+    | '/api/public/hooks/email-campanhas'
     | '/api/public/hooks/espelho-sdr'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
@@ -1042,12 +1155,15 @@ export interface FileRouteTypes {
     | '/api/public/meta/leads'
     | '/api/public/rd-marketing/callback'
     | '/api/public/rd/callback'
+    | '/api/public/email/abrir/$token'
+    | '/api/public/email/clique/$token'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
   id:
     | '__root__'
     | '/'
     | '/_app'
+    | '/descadastro'
     | '/login'
     | '/privacidade'
     | '/reset-password'
@@ -1079,6 +1195,7 @@ export interface FileRouteTypes {
     | '/_app/cs-whatsapp'
     | '/_app/dashboard'
     | '/_app/diagnostico'
+    | '/_app/email-marketing'
     | '/_app/faturamento'
     | '/_app/funil-sdr'
     | '/_app/importar-rd'
@@ -1097,6 +1214,8 @@ export interface FileRouteTypes {
     | '/_app/whatsapp'
     | '/proposta/$token'
     | '/_app/analytics-chat/$threadId'
+    | '/_app/email-marketing/descadastros'
+    | '/_app/email-marketing/segmentos'
     | '/_app/empresas/$uid'
     | '/_app/lead/$id'
     | '/_app/negocio/$id'
@@ -1112,11 +1231,15 @@ export interface FileRouteTypes {
     | '/_app/whatsapp/metricas'
     | '/_app/whatsapp/playground'
     | '/_app/whatsapp/templates'
+    | '/_app/email-marketing/'
     | '/_app/whatsapp/'
+    | '/_app/email-marketing/campanha/$id'
     | '/_app/whatsapp/campanhas/$id'
     | '/api/public/cs/email-inbound'
+    | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
     | '/api/public/hooks/campanhas-agendadas'
+    | '/api/public/hooks/email-campanhas'
     | '/api/public/hooks/espelho-sdr'
     | '/api/public/hooks/meta-ads'
     | '/api/public/hooks/mirror-rd'
@@ -1136,6 +1259,8 @@ export interface FileRouteTypes {
     | '/api/public/meta/leads'
     | '/api/public/rd-marketing/callback'
     | '/api/public/rd/callback'
+    | '/api/public/email/abrir/$token'
+    | '/api/public/email/clique/$token'
     | '/api/public/whatsapp/automations/tick'
     | '/api/public/whatsapp/webhook/$accountId'
   fileRoutesById: FileRoutesById
@@ -1143,13 +1268,16 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  DescadastroRoute: typeof DescadastroRoute
   LoginRoute: typeof LoginRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   PropostaTokenRoute: typeof PropostaTokenRoute
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
+  ApiPublicEmailDescadastroRoute: typeof ApiPublicEmailDescadastroRoute
   ApiPublicFichasWebhookRoute: typeof ApiPublicFichasWebhookRoute
   ApiPublicHooksCampanhasAgendadasRoute: typeof ApiPublicHooksCampanhasAgendadasRoute
+  ApiPublicHooksEmailCampanhasRoute: typeof ApiPublicHooksEmailCampanhasRoute
   ApiPublicHooksEspelhoSdrRoute: typeof ApiPublicHooksEspelhoSdrRoute
   ApiPublicHooksMetaAdsRoute: typeof ApiPublicHooksMetaAdsRoute
   ApiPublicHooksMirrorRdRoute: typeof ApiPublicHooksMirrorRdRoute
@@ -1169,6 +1297,8 @@ export interface RootRouteChildren {
   ApiPublicMetaLeadsRoute: typeof ApiPublicMetaLeadsRoute
   ApiPublicRdMarketingCallbackRoute: typeof ApiPublicRdMarketingCallbackRoute
   ApiPublicRdCallbackRoute: typeof ApiPublicRdCallbackRoute
+  ApiPublicEmailAbrirTokenRoute: typeof ApiPublicEmailAbrirTokenRoute
+  ApiPublicEmailCliqueTokenRoute: typeof ApiPublicEmailCliqueTokenRoute
   ApiPublicWhatsappAutomationsTickRoute: typeof ApiPublicWhatsappAutomationsTickRoute
   ApiPublicWhatsappWebhookAccountIdRoute: typeof ApiPublicWhatsappWebhookAccountIdRoute
 }
@@ -1187,6 +1317,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/descadastro': {
+      id: '/descadastro'
+      path: '/descadastro'
+      fullPath: '/descadastro'
+      preLoaderRoute: typeof DescadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1406,6 +1543,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDiagnosticoRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/email-marketing': {
+      id: '/_app/email-marketing'
+      path: '/email-marketing'
+      fullPath: '/email-marketing'
+      preLoaderRoute: typeof AppEmailMarketingRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/faturamento': {
       id: '/_app/faturamento'
       path: '/faturamento'
@@ -1532,6 +1676,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAnalyticsChatThreadIdRouteImport
       parentRoute: typeof AppAnalyticsChatRoute
     }
+    '/_app/email-marketing/': {
+      id: '/_app/email-marketing/'
+      path: '/'
+      fullPath: '/email-marketing/'
+      preLoaderRoute: typeof AppEmailMarketingIndexRouteImport
+      parentRoute: typeof AppEmailMarketingRoute
+    }
+    '/_app/email-marketing/descadastros': {
+      id: '/_app/email-marketing/descadastros'
+      path: '/descadastros'
+      fullPath: '/email-marketing/descadastros'
+      preLoaderRoute: typeof AppEmailMarketingDescadastrosRouteImport
+      parentRoute: typeof AppEmailMarketingRoute
+    }
+    '/_app/email-marketing/segmentos': {
+      id: '/_app/email-marketing/segmentos'
+      path: '/segmentos'
+      fullPath: '/email-marketing/segmentos'
+      preLoaderRoute: typeof AppEmailMarketingSegmentosRouteImport
+      parentRoute: typeof AppEmailMarketingRoute
+    }
     '/_app/empresas/$uid': {
       id: '/_app/empresas/$uid'
       path: '/empresas/$uid'
@@ -1644,6 +1809,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWhatsappTemplatesRouteImport
       parentRoute: typeof AppWhatsappRoute
     }
+    '/_app/email-marketing/campanha/$id': {
+      id: '/_app/email-marketing/campanha/$id'
+      path: '/campanha/$id'
+      fullPath: '/email-marketing/campanha/$id'
+      preLoaderRoute: typeof AppEmailMarketingCampanhaIdRouteImport
+      parentRoute: typeof AppEmailMarketingRoute
+    }
     '/_app/whatsapp/campanhas/$id': {
       id: '/_app/whatsapp/campanhas/$id'
       path: '/$id'
@@ -1658,6 +1830,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCsEmailInboundRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/email/descadastro': {
+      id: '/api/public/email/descadastro'
+      path: '/api/public/email/descadastro'
+      fullPath: '/api/public/email/descadastro'
+      preLoaderRoute: typeof ApiPublicEmailDescadastroRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/fichas/webhook': {
       id: '/api/public/fichas/webhook'
       path: '/api/public/fichas/webhook'
@@ -1670,6 +1849,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/campanhas-agendadas'
       fullPath: '/api/public/hooks/campanhas-agendadas'
       preLoaderRoute: typeof ApiPublicHooksCampanhasAgendadasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/email-campanhas': {
+      id: '/api/public/hooks/email-campanhas'
+      path: '/api/public/hooks/email-campanhas'
+      fullPath: '/api/public/hooks/email-campanhas'
+      preLoaderRoute: typeof ApiPublicHooksEmailCampanhasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/espelho-sdr': {
@@ -1805,6 +1991,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicRdCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/email/abrir/$token': {
+      id: '/api/public/email/abrir/$token'
+      path: '/api/public/email/abrir/$token'
+      fullPath: '/api/public/email/abrir/$token'
+      preLoaderRoute: typeof ApiPublicEmailAbrirTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/email/clique/$token': {
+      id: '/api/public/email/clique/$token'
+      path: '/api/public/email/clique/$token'
+      fullPath: '/api/public/email/clique/$token'
+      preLoaderRoute: typeof ApiPublicEmailCliqueTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/whatsapp/automations/tick': {
       id: '/api/public/whatsapp/automations/tick'
       path: '/api/public/whatsapp/automations/tick'
@@ -1832,6 +2032,23 @@ const AppAnalyticsChatRouteChildren: AppAnalyticsChatRouteChildren = {
 
 const AppAnalyticsChatRouteWithChildren =
   AppAnalyticsChatRoute._addFileChildren(AppAnalyticsChatRouteChildren)
+
+interface AppEmailMarketingRouteChildren {
+  AppEmailMarketingDescadastrosRoute: typeof AppEmailMarketingDescadastrosRoute
+  AppEmailMarketingSegmentosRoute: typeof AppEmailMarketingSegmentosRoute
+  AppEmailMarketingIndexRoute: typeof AppEmailMarketingIndexRoute
+  AppEmailMarketingCampanhaIdRoute: typeof AppEmailMarketingCampanhaIdRoute
+}
+
+const AppEmailMarketingRouteChildren: AppEmailMarketingRouteChildren = {
+  AppEmailMarketingDescadastrosRoute: AppEmailMarketingDescadastrosRoute,
+  AppEmailMarketingSegmentosRoute: AppEmailMarketingSegmentosRoute,
+  AppEmailMarketingIndexRoute: AppEmailMarketingIndexRoute,
+  AppEmailMarketingCampanhaIdRoute: AppEmailMarketingCampanhaIdRoute,
+}
+
+const AppEmailMarketingRouteWithChildren =
+  AppEmailMarketingRoute._addFileChildren(AppEmailMarketingRouteChildren)
 
 interface AppWhatsappCampanhasRouteChildren {
   AppWhatsappCampanhasIdRoute: typeof AppWhatsappCampanhasIdRoute
@@ -1905,6 +2122,7 @@ interface AppRouteChildren {
   AppCsWhatsappRoute: typeof AppCsWhatsappRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppDiagnosticoRoute: typeof AppDiagnosticoRoute
+  AppEmailMarketingRoute: typeof AppEmailMarketingRouteWithChildren
   AppFaturamentoRoute: typeof AppFaturamentoRoute
   AppFunilSdrRoute: typeof AppFunilSdrRoute
   AppImportarRdRoute: typeof AppImportarRdRoute
@@ -1957,6 +2175,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCsWhatsappRoute: AppCsWhatsappRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppDiagnosticoRoute: AppDiagnosticoRoute,
+  AppEmailMarketingRoute: AppEmailMarketingRouteWithChildren,
   AppFaturamentoRoute: AppFaturamentoRoute,
   AppFunilSdrRoute: AppFunilSdrRoute,
   AppImportarRdRoute: AppImportarRdRoute,
@@ -1985,13 +2204,16 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  DescadastroRoute: DescadastroRoute,
   LoginRoute: LoginRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   PropostaTokenRoute: PropostaTokenRoute,
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
+  ApiPublicEmailDescadastroRoute: ApiPublicEmailDescadastroRoute,
   ApiPublicFichasWebhookRoute: ApiPublicFichasWebhookRoute,
   ApiPublicHooksCampanhasAgendadasRoute: ApiPublicHooksCampanhasAgendadasRoute,
+  ApiPublicHooksEmailCampanhasRoute: ApiPublicHooksEmailCampanhasRoute,
   ApiPublicHooksEspelhoSdrRoute: ApiPublicHooksEspelhoSdrRoute,
   ApiPublicHooksMetaAdsRoute: ApiPublicHooksMetaAdsRoute,
   ApiPublicHooksMirrorRdRoute: ApiPublicHooksMirrorRdRoute,
@@ -2011,6 +2233,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicMetaLeadsRoute: ApiPublicMetaLeadsRoute,
   ApiPublicRdMarketingCallbackRoute: ApiPublicRdMarketingCallbackRoute,
   ApiPublicRdCallbackRoute: ApiPublicRdCallbackRoute,
+  ApiPublicEmailAbrirTokenRoute: ApiPublicEmailAbrirTokenRoute,
+  ApiPublicEmailCliqueTokenRoute: ApiPublicEmailCliqueTokenRoute,
   ApiPublicWhatsappAutomationsTickRoute: ApiPublicWhatsappAutomationsTickRoute,
   ApiPublicWhatsappWebhookAccountIdRoute:
     ApiPublicWhatsappWebhookAccountIdRoute,
