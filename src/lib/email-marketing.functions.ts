@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { IDS_CAMPOS, IDS_OPERADORES } from "@/lib/email-marketing/campos";
 
 /*
  * E-mail marketing: segmentações, campanhas, envio, métricas e descadastros.
@@ -27,6 +28,22 @@ export const RegrasSchema = z.object({
   converteu_desde: z.string().max(10).default(""),
   criado_desde: z.string().max(10).default(""),
   criado_ate: z.string().max(10).default(""),
+  /** Empresas escolhidas: só leads dessas empresas. */
+  empresas: z
+    .array(z.object({ id: z.string().uuid(), nome: z.string().max(200) }))
+    .max(500)
+    .default([]),
+  /** Condições sobre campos do lead, do contato e da empresa (todas valem). */
+  condicoes: z
+    .array(
+      z.object({
+        campo: z.enum(IDS_CAMPOS),
+        operador: z.enum(IDS_OPERADORES),
+        valor: z.string().max(200).default(""),
+      }),
+    )
+    .max(20)
+    .default([]),
 });
 export type Regras = z.infer<typeof RegrasSchema>;
 
@@ -60,6 +77,39 @@ export const opcoesDeSegmentacao = createServerFn({ method: "GET" })
         nome: String(p.full_name ?? "—"),
       })),
     };
+  });
+
+/** Valores mais comuns de um campo, para sugerir no editor. */
+export const valoresDoCampo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ campo: z.enum(IDS_CAMPOS) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: r, error } = await context.supabase.rpc(
+      "email_valores_campo" as never,
+      { campo: data.campo } as never,
+    );
+    if (error) throw new Error(error.message);
+    return ((r ?? []) as Row[]).map((v) => ({ valor: String(v.valor), total: Number(v.total) }));
+  });
+
+/** Empresas pelo nome (para escolher na segmentação). */
+export const buscarEmpresasSegmento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ termo: z.string().min(2).max(120) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const termo = data.termo.replace(/[%_,()]/g, " ").trim();
+    const { data: r, error } = await context.supabase
+      .from("companies")
+      .select("id, nome, cidade, estado")
+      .ilike("nome", `%${termo}%`)
+      .order("nome")
+      .limit(25);
+    if (error) throw new Error(error.message);
+    return ((r ?? []) as Row[]).map((e) => ({
+      id: String(e.id),
+      nome: String(e.nome),
+      local: [e.cidade, e.estado].filter(Boolean).join(" / ") || null,
+    }));
   });
 
 // ---------------------------------------------------------- segmentações
