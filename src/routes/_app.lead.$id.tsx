@@ -210,6 +210,7 @@ function LeadDetailPage() {
 
   const stageIndex = data.stages.findIndex((s) => s.id === lead.stage_id);
   const nextStage = stageIndex >= 0 ? data.stages[stageIndex + 1] : undefined;
+  const agendadoStage = data.stages.find((s) => s.slug === "agendado") ?? null;
 
   return (
     <div className="pb-8">
@@ -369,7 +370,25 @@ function LeadDetailPage() {
             <ReuniaoDoLead
               lead={lead}
               salvando={update.isPending}
-              onUpdate={(patch) => update.mutate(patch)}
+              avisoEtapa={
+                currentStage?.slug !== "agendado" && agendadoStage
+                  ? `Ao salvar a data, o lead vai para "${agendadoStage.name}".`
+                  : undefined
+              }
+              onUpdate={(patch) => {
+                // Marcar a reunião leva o lead para a etapa Agendado, como no kanban.
+                if (patch.meeting_at && agendadoStage && agendadoStage.id !== lead.stage_id) {
+                  const agora = new Date().toISOString();
+                  update.mutate({
+                    ...patch,
+                    stage_id: agendadoStage.id,
+                    stage_entered_at: agora,
+                    last_action_at: agora,
+                  });
+                  return;
+                }
+                update.mutate(patch);
+              }}
               executivos={data.executivoIds.map((uid) => ({
                 id: uid,
                 nome: profilesById.get(uid) ?? uid,

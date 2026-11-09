@@ -40,11 +40,14 @@ export function ReuniaoDoLead({
   lead,
   executivos,
   salvando,
+  avisoEtapa,
   onUpdate,
 }: {
   lead: LeadDaReuniao;
   executivos: { id: string; nome: string }[];
   salvando: boolean;
+  /** Aviso mostrado sob a data quando salvar a reunião também muda a etapa. */
+  avisoEtapa?: string;
   onUpdate: (patch: Record<string, unknown>) => void;
 }) {
   const meetingAt = lead.meeting_at ? new Date(lead.meeting_at) : null;
@@ -119,6 +122,7 @@ export function ReuniaoDoLead({
               {format(meetingAt, "EEEE, dd 'de' MMMM 'às' HH:mm", { locale: ptBR })}
             </p>
           )}
+          {avisoEtapa && <p className="text-[12px] text-muted-foreground">{avisoEtapa}</p>}
         </div>
 
         <div className="space-y-1">
