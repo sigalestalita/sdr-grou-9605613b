@@ -1,6 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { getRdTokenInfo } from "@/lib/rd-token.server";
-import { rdGet, type Json, type RdDealRaw } from "./rd-api.server";
+import { idsDosFunis, rdGet, type Json, type RdDealRaw } from "./rd-api.server";
 import { dealRow } from "./rd-mirror.server";
 
 /*
@@ -38,13 +38,16 @@ export async function espelharFunisSdr(): Promise<{ funis: number; negocios: num
   const ate = new Date();
   const de = new Date(ate.getTime() - DIAS * 24 * 3600 * 1000);
   let negocios = 0;
+  const ids = await idsDosFunis(nomes, token);
   for (const nome of nomes) {
+    const funilId = ids.get(nome);
+    if (!funilId) throw new Error(`Funil "${nome}" não encontrado no RD`);
     const linhas: Json[] = [];
     for (let page = 1; page <= TETO_DE_PAGINAS; page++) {
       const json = await rdGet(
         "/deals",
         {
-          deal_pipeline_name: nome,
+          deal_pipeline_id: funilId,
           created_at_period: "true",
           start_date: de.toISOString(),
           end_date: ate.toISOString(),

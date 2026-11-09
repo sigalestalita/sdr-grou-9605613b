@@ -383,3 +383,27 @@ export function funilDoNegocio(d: RdDealRaw, mapa?: MapaDeFunis | null): string 
   const idEtapa = rdId(d.deal_stage ?? undefined);
   return (idEtapa && mapa.porEtapa.get(idEtapa)) || null;
 }
+
+/**
+ * Ids dos funis pelo nome. A listagem de negócios do RD ignora o parâmetro
+ * deal_pipeline_name (devolve todos os funis); só deal_pipeline_id filtra.
+ */
+export async function idsDosFunis(nomes: string[], token: string): Promise<Map<string, string>> {
+  const json = (await rdGet("/deal_pipelines", {}, token)) as unknown;
+  const funis = (Array.isArray(json) ? json : ((json as Json).deal_pipelines ?? [])) as Array<
+    Json & { _id?: string; id?: string; name?: string }
+  >;
+  const norm = (s: string) =>
+    s
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  const porNome = new Map(funis.map((f) => [norm(String(f.name ?? "")), rdId(f)]));
+  const out = new Map<string, string>();
+  for (const n of nomes) {
+    const id = porNome.get(norm(n));
+    if (id) out.set(n, id);
+  }
+  return out;
+}

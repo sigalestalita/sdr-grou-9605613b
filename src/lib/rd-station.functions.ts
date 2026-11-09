@@ -65,7 +65,7 @@ function pickCompanyName(d: RdDeal): string | null {
 async function fetchAllDeals(
   token: string,
   tokenSource: RdTokenSource,
-  pipelineName: string,
+  pipelineId: string,
   startDate?: string,
   endDate?: string,
 ) {
@@ -75,7 +75,8 @@ async function fetchAllDeals(
     const params = new URLSearchParams({
       page: String(page),
       limit: "200",
-      deal_pipeline_name: pipelineName,
+      // Só o id filtra: a API ignora deal_pipeline_name e devolve todos os funis.
+      deal_pipeline_id: pipelineId,
     });
     if (startDate) params.set("start_date", startDate);
     if (endDate) params.set("end_date", endDate);
@@ -194,8 +195,12 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
   let deals: RdDeal[] = [];
   try {
     deals = [];
+    const { idsDosFunis } = await import("@/lib/rd/rd-api.server");
+    const ids = await idsDosFunis(pipelineNames, token);
     for (const nome of pipelineNames) {
-      const doFunil = await fetchAllDeals(token, tokenSource, nome, startDate, endDate);
+      const funilId = ids.get(nome);
+      if (!funilId) throw new Error(`Funil "${nome}" não encontrado no RD`);
+      const doFunil = await fetchAllDeals(token, tokenSource, funilId, startDate, endDate);
       const destino = destinoDoFunilRd(nome);
       const leadType = destino.tipo === "lead" ? destino.leadType : "empresa";
       for (const d of doFunil) deals.push(Object.assign(d, { __leadType: leadType }));
