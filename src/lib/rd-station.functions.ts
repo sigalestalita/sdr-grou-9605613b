@@ -33,6 +33,10 @@ interface RdDeal {
   user?: { name?: string; email?: string };
   campaign?: { name?: string };
   source?: { name?: string } | string;
+  /** Onde o RD guarda a origem de verdade (source vem vazio). */
+  deal_source?: { name?: string } | null;
+  win?: boolean | null;
+  closed_at?: string | null;
   created_at?: string;
   deal_custom_fields?: Array<{ label?: string; value?: unknown }>;
 }
@@ -230,7 +234,8 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
     const contact = d.contacts?.[0];
     const email = pickEmail(d);
     const phone = pickPhone(d);
-    const sourceName = typeof d.source === "string" ? d.source : (d.source?.name ?? null);
+    const sourceName =
+      d.deal_source?.name ?? (typeof d.source === "string" ? d.source : (d.source?.name ?? null));
 
     const candidate = {
       rd_deal_id: dealId,
@@ -253,6 +258,9 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
     };
 
     const { score, priority, signals } = calculateScore(candidate, rules, thresholds);
+    // A origem só é gravada na criação: no lead que já existe (vindo da
+    // planilha, do Meta ou manual) ela não é trocada pela do RD.
+    const { source: _origem, ...semOrigem } = candidate;
 
     let leadId: string | null = null;
     const { data: existing } = await supabase
@@ -264,7 +272,7 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
     if (existing) {
       await supabase
         .from("leads")
-        .update({ ...candidate, score, priority, icp_signals: signals as never })
+        .update({ ...semOrigem, score, priority, icp_signals: signals as never })
         .eq("id", existing.id);
       leadId = existing.id;
       updated++;
@@ -277,7 +285,7 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
       if (existingByEmail) {
         await supabase
           .from("leads")
-          .update({ ...candidate, score, priority, icp_signals: signals as never })
+          .update({ ...semOrigem, score, priority, icp_signals: signals as never })
           .eq("id", existingByEmail.id);
         leadId = existingByEmail.id;
         updated++;
@@ -296,6 +304,18 @@ export async function runRdSync(supabase: any, mode: SyncMode) {
           .single();
         leadId = ins?.id ?? null;
         created++;
+        /*
+         * Lead que chega do RD entra escondido (regra do banco), porque os do
+         * Facebook/Instagram vêm também pela planilha, que os traz para o
+         * kanban com os dados do formulário. Card novo e aberto de outra
+         * origem (site, tráfego direto, indicação…) só existe no RD: entra
+         * visível, senão ninguém o vê.
+         */
+        const aberto = d.win == null && !d.closed_at;
+        const viaPlanilha = /facebook|instagram|meta|social pago/i.test(sourceName ?? "");
+        if (leadId && aberto && !viaPlanilha) {
+          await supabase.from("leads").update({ oculto_sdr: false }).eq("id", leadId);
+        }
       }
     }
 
