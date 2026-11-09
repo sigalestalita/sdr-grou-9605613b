@@ -14,6 +14,7 @@ import {
   History,
   Briefcase,
   BarChart3,
+  FileBarChart,
   Target,
   Route as RouteIcon,
   Settings as SettingsIcon,
@@ -251,6 +252,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     // BI: leitura analítica de todos os módulos
     label: "BI",
     items: [
+      { to: "/relatorios", label: "Relatórios", icon: FileBarChart },
       { to: "/leads-analytics", label: "Performance SDR", icon: LineChart, team: "comercial" },
       // Números do RD do dia corrente: o relatório do RD só atualiza de madrugada.
       { to: "/funil-sdr", label: "Funil SDR (RD)", icon: BarChart3, team: "comercial" },

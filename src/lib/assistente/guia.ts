@@ -281,6 +281,12 @@ export const TELAS: TelaDoGuia[] = [
 
   // ───────────── BI ─────────────
   {
+    rota: "/relatorios",
+    nome: "Relatórios",
+    area: "BI",
+    texto: `Construtor de relatórios personalizados, para todos os times. Escreva o que quer no campo de texto (ex.: "vendas ganhas por executivo por mês em 2026") e clique em "Montar": a IA escolhe a base (Negócios, Leads, Carteira do CS ou Propostas), os agrupamentos, as métricas, o período e o gráfico. Depois dá para pedir ajustes no mesmo campo ("Ajustar") ou mudar à mão: "Base", "Agrupar por", "E depois por", "Métricas (até 3)", "Período por" com "De"/"Até", "Gráfico" e "+ Adicionar filtro"; clique em "Atualizar" para recalcular. "Salvar relatório" guarda a definição com um nome; marque "Compartilhar com todos" para os outros verem (os números sempre respeitam o acesso de quem abre). "Exportar CSV" baixa a tabela. Os salvos ficam na coluna da esquerda; "Novo relatório" começa do zero.`,
+  },
+  {
     rota: "/leads-analytics",
     nome: "Performance SDR",
     area: "BI",
