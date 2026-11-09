@@ -13,21 +13,22 @@ const COLUNAS: Record<string, { tabela: string; campos: string }> = {
   negocios: {
     tabela: "deals",
     campos:
-      "status, amount, closed_at, created_at, created_at_original, owner_user_id, owner_original, pipeline_id, stage_id, company_id, tipo_venda, fonte, temperatura",
+      "id, nome, status, amount, closed_at, created_at, created_at_original, owner_user_id, owner_original, pipeline_id, stage_id, company_id, tipo_venda, fonte, temperatura",
   },
   leads: {
     tabela: "leads",
     campos:
-      "stage_id, source, channel, campaign, ad_name, form_name, lead_type, priority, assigned_to, created_at, company_segment, company_size, meeting_at, first_approach_at, score",
+      "id, name, company_name, stage_id, source, channel, campaign, ad_name, form_name, lead_type, priority, assigned_to, created_at, company_segment, company_size, meeting_at, first_approach_at, score",
   },
   carteira_cs: {
     tabela: "cs_clients",
     campos:
-      "current_signal, journey_stage, cs_responsavel_id, comercial_responsavel_id, tipo_lead, tipo_servico, data_renovacao, health_score, aporte_valor",
+      "client_uid, nome_empresa, current_signal, journey_stage, cs_responsavel_id, comercial_responsavel_id, tipo_lead, tipo_servico, data_renovacao, health_score, aporte_valor",
   },
   propostas: {
     tabela: "propostas",
-    campos: "status, valor_final, created_at, enviada_em, aceita_em, created_by",
+    campos:
+      "id, numero, deal_id, status, valor_final, created_at, enviada_em, aceita_em, created_by",
   },
 };
 
@@ -45,6 +46,19 @@ export type ResultadoRelatorio = {
   truncado: boolean;
 };
 
+/** Um registro por trás de um ponto do gráfico ou linha da tabela. */
+export type ItemDoDetalhe = {
+  titulo: string;
+  link: string | null;
+  empresa: string | null;
+  empresaLink: string | null;
+  valor: number | null;
+  data: string | null;
+  situacao: string | null;
+  pessoa: string | null;
+};
+export type DetalheRelatorio = { itens: ItemDoDetalhe[]; total: number };
+
 async function nomesPorId(db: SupabaseClient, tabela: string, campo: string, ids: string[]) {
   const m = new Map<string, string>();
   for (let i = 0; i < ids.length; i += 200) {
@@ -61,6 +75,27 @@ export async function executarRelatorio(
   db: SupabaseClient,
   specBruta: Spec,
 ): Promise<ResultadoRelatorio> {
+  return (await rodar(db, specBruta, null)) as ResultadoRelatorio;
+}
+
+/**
+ * Os registros de um grupo do relatório (ex.: dono = "Mariana", fonte =
+ * "Carteira ativa"): os negócios, leads, clientes ou propostas que formam
+ * aquele número, com link para cada um.
+ */
+export async function detalharRelatorio(
+  db: SupabaseClient,
+  specBruta: Spec,
+  grupo: Record<string, string>,
+): Promise<DetalheRelatorio> {
+  return (await rodar(db, specBruta, grupo)) as DetalheRelatorio;
+}
+
+async function rodar(
+  db: SupabaseClient,
+  specBruta: Spec,
+  grupo: Record<string, string> | null,
+): Promise<ResultadoRelatorio | DetalheRelatorio> {
   const spec = normalizarSpec(specBruta);
   const base = baseDe(spec.base)!;
   const fonte = COLUNAS[spec.base];
@@ -96,6 +131,11 @@ export async function executarRelatorio(
         .map(String),
     ),
   ];
+  // No detalhe sempre mostra dono e empresa de cada registro.
+  if (grupo)
+    ["dono", "responsavel", "responsavel_cs", "criado_por", "empresa", "etapa"].forEach((d) =>
+      usados.add(d),
+    );
   const precisa = (...d: string[]) => d.some((x) => usados.has(x));
   const [pessoas, funis, etapasNeg, etapasLead, empresas] = await Promise.all([
     precisa("dono", "responsavel", "responsavel_cs", "responsavel_comercial", "criado_por")
@@ -207,6 +247,64 @@ export async function executarRelatorio(
       return v.includes(alvo);
     }),
   );
+
+  if (grupo) {
+    const doGrupo = filtradas.filter((l) =>
+      Object.entries(grupo).every(([d, v]) => valorDim(l, d) === v),
+    );
+    const num = (v: unknown) => (v == null || v === "" ? null : Number(v));
+    const dia = (v: unknown) => (v ? String(v).slice(0, 10) : null);
+    const itens: ItemDoDetalhe[] = doGrupo.map((l) => {
+      switch (spec.base) {
+        case "negocios":
+          return {
+            titulo: txt(l.nome),
+            link: `/negocio/${l.id}`,
+            empresa: l.company_id ? (empresas.get(String(l.company_id)) ?? null) : null,
+            empresaLink: l.company_id ? `/jornada?empresa=${l.company_id}` : null,
+            valor: num(l.amount),
+            data: dia(l.status === "open" ? (l.created_at_original ?? l.created_at) : l.closed_at),
+            situacao: STATUS_NEGOCIO[String(l.status)] ?? txt(l.status),
+            pessoa: pessoa(l.owner_user_id, l.owner_original),
+          };
+        case "leads":
+          return {
+            titulo: txt(l.name),
+            link: `/lead/${l.id}`,
+            empresa: (l.company_name as string) ?? null,
+            empresaLink: null,
+            valor: num(l.score),
+            data: dia(l.created_at),
+            situacao: etapasLead.get(String(l.stage_id)) ?? null,
+            pessoa: pessoa(l.assigned_to),
+          };
+        case "carteira_cs":
+          return {
+            titulo: txt(l.nome_empresa),
+            link: `/empresas/${l.client_uid}`,
+            empresa: null,
+            empresaLink: null,
+            valor: num(l.aporte_valor),
+            data: dia(l.data_renovacao),
+            situacao: txt(l.current_signal),
+            pessoa: pessoa(l.cs_responsavel_id),
+          };
+        default:
+          return {
+            titulo: `Proposta ${txt(l.numero)}`,
+            link: l.deal_id ? `/negocio/${l.deal_id}` : "/propostas",
+            empresa: null,
+            empresaLink: null,
+            valor: num(l.valor_final),
+            data: dia(l.enviada_em ?? l.created_at),
+            situacao: txt(l.status),
+            pessoa: pessoa(l.created_by),
+          };
+      }
+    });
+    itens.sort((a, b) => (b.valor ?? -Infinity) - (a.valor ?? -Infinity));
+    return { itens: itens.slice(0, 500), total: itens.length };
+  }
 
   // 4. Agrupamento e métricas.
   type Acc = { n: number; soma: number; nSoma: number; contatados: number; reuniao: number };

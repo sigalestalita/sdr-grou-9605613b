@@ -182,6 +182,17 @@ export const rodarRelatorio = createServerFn({ method: "POST" })
     return executarRelatorio(context.supabase as unknown as SupabaseClient, data.spec);
   });
 
+/** Os registros por trás de um grupo do relatório (clique no gráfico ou na tabela). */
+export const detalharGrupo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ spec: SpecSchema, grupo: z.record(z.string(), z.string().max(300)) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { detalharRelatorio } = await import("@/lib/relatorios/executar.server");
+    return detalharRelatorio(context.supabase as unknown as SupabaseClient, data.spec, data.grupo);
+  });
+
 export type RelatorioSalvo = {
   id: string;
   nome: string;

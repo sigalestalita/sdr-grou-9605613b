@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -33,12 +33,14 @@ import {
 } from "@/lib/relatorios/catalogo";
 import {
   apagarRelatorio,
+  detalharGrupo,
   listarRelatorios,
   montarRelatorio,
   rodarRelatorio,
   salvarRelatorio,
   type RelatorioSalvo,
 } from "@/lib/construtor-relatorios.functions";
+import type { DetalheRelatorio } from "@/lib/relatorios/executar.server";
 
 export const Route = createFileRoute("/_app/relatorios")({
   component: RelatoriosPage,
@@ -516,21 +518,67 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
 }
 
 type Res = NonNullable<Awaited<ReturnType<typeof rodarRelatorio>>>;
+type Linha = Res["linhas"][number];
+
+const compacto = (v: unknown) =>
+  typeof v === "number"
+    ? v.toLocaleString("pt-BR", { notation: "compact", maximumFractionDigits: 1 })
+    : String(v ?? "");
+const encurtar = (t: unknown, n = 34) => {
+  const s = String(t ?? "");
+  return s.length > n ? `${s.slice(0, n - 1)}…` : s;
+};
 
 function Resultado({ res }: { res: Res }) {
   const dims = res.colunas.filter((c) => c.tipo === "dimensao");
   const mets = res.colunas.filter((c) => c.tipo === "metrica");
   const g = res.spec.grafico;
+  const [metId, setMetId] = useState(mets[0]?.id);
+  useEffect(() => setMetId(mets[0]?.id), [res]); // eslint-disable-line react-hooks/exhaustive-deps
+  const met = mets.find((m) => m.id === metId) ?? mets[0];
   const dados = useMemo(
     () =>
       res.linhas.map((l) => ({
         ...l,
+        __linha: l,
         __rotulo: dims.map((d) => String(l[d.id] ?? "—")).join(" · ") || "Total",
       })),
     [res, dims],
   );
-  const [aviso, setAviso] = useState(false);
-  useEffect(() => setAviso(res.truncado), [res.truncado]);
+
+  // Detalhe: os registros por trás do ponto clicado.
+  const detalharFn = useServerFn(detalharGrupo);
+  const [grupo, setGrupo] = useState<{ rotulo: string; chaves: Record<string, string> } | null>(
+    null,
+  );
+  const detalhe = useMutation({
+    mutationFn: (chaves: Record<string, string>) =>
+      detalharFn({ data: { spec: res.spec, grupo: chaves } }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao detalhar"),
+  });
+  const caixaDetalhe = useRef<HTMLDivElement>(null);
+  const abrir = (l: Linha | undefined) => {
+    if (!l) return;
+    const chaves: Record<string, string> = {};
+    for (const d of dims) chaves[d.id] = String(l[d.id] ?? "—");
+    setGrupo({
+      rotulo: dims.map((d) => `${d.nome}: ${chaves[d.id]}`).join(" · ") || "Todos os registros",
+      chaves,
+    });
+    detalhe.mutate(chaves);
+    setTimeout(
+      () => caixaDetalhe.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      50,
+    );
+  };
+  useEffect(() => {
+    setGrupo(null);
+    detalhe.reset();
+  }, [res]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const barras = dados.slice(0, 40);
+  const alturaBarras = Math.max(260, barras.length * 30 + 40);
+  const fmtMet = (v: unknown) => formatar(v, met?.formato);
 
   return (
     <Card className="space-y-4 p-4">
@@ -540,72 +588,122 @@ function Resultado({ res }: { res: Res }) {
           {res.registros.toLocaleString("pt-BR")} registros · {res.linhas.length} linhas
         </span>
       </div>
-      {aviso && (
+      {res.truncado && (
         <p className="text-[12px] text-warning">
           Base muito grande: o relatório considerou os primeiros 40 mil registros. Use período ou
           filtros para refinar.
         </p>
       )}
 
-      {g !== "tabela" && dados.length > 0 && (
-        <div className="h-72 w-full">
-          <ResponsiveContainer>
-            {g === "pizza" ? (
-              <PieChart>
-                <Pie
-                  data={dados.slice(0, 8)}
-                  dataKey={mets[0].id}
-                  nameKey="__rotulo"
-                  outerRadius={100}
-                  label={(e) => String(e.name ?? "")}
-                >
-                  {dados.slice(0, 8).map((_, i) => (
-                    <Cell key={i} fill={CORES[i % CORES.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(v) => formatar(v, mets[0].formato)} />
-              </PieChart>
-            ) : g === "linhas" ? (
-              <LineChart data={dados}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis dataKey="__rotulo" tick={{ fontSize: 11 }} />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(v, n) => formatar(v, mets.find((m) => m.nome === n)?.formato)}
-                />
-                <Legend />
-                {mets.map((m, i) => (
-                  <Line key={m.id} dataKey={m.id} name={m.nome} stroke={CORES[i]} strokeWidth={2} />
+      {g !== "tabela" && dados.length > 0 && met && (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[12px] text-muted-foreground">
+              Clique numa barra, fatia ou linha da tabela para ver os registros.
+            </p>
+            {mets.length > 1 && (
+              <select
+                className="h-8 rounded-md border bg-background px-2 text-[12px]"
+                value={met.id}
+                onChange={(e) => setMetId(e.target.value)}
+                title="Métrica do gráfico"
+              >
+                {mets.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    Gráfico: {m.nome}
+                  </option>
                 ))}
-              </LineChart>
-            ) : (
-              <BarChart data={dados.slice(0, 40)}>
-                <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
-                <XAxis
-                  dataKey="__rotulo"
-                  tick={{ fontSize: 11 }}
-                  interval={0}
-                  angle={-20}
-                  height={60}
-                  textAnchor="end"
-                />
-                <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip
-                  formatter={(v, n) => formatar(v, mets.find((m) => m.nome === n)?.formato)}
-                />
-                <Legend />
-                {mets.map((m, i) => (
-                  <Bar
-                    key={m.id}
-                    dataKey={m.id}
-                    name={m.nome}
-                    fill={CORES[i]}
-                    radius={[4, 4, 0, 0]}
-                  />
-                ))}
-              </BarChart>
+              </select>
             )}
-          </ResponsiveContainer>
+          </div>
+          <div className="w-full" style={{ height: g === "barras" ? alturaBarras : 300 }}>
+            <ResponsiveContainer>
+              {g === "pizza" ? (
+                <PieChart>
+                  <Pie
+                    data={dados.slice(0, 8)}
+                    dataKey={met.id}
+                    nameKey="__rotulo"
+                    outerRadius={110}
+                    innerRadius={55}
+                    className="cursor-pointer"
+                    onClick={(e) =>
+                      abrir((e as { payload?: { __linha?: Linha } }).payload?.__linha)
+                    }
+                  >
+                    {dados.slice(0, 8).map((_, i) => (
+                      <Cell key={i} fill={CORES[i % CORES.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => fmtMet(v)} />
+                  <Legend
+                    layout="vertical"
+                    align="right"
+                    verticalAlign="middle"
+                    formatter={(v) => encurtar(v, 40)}
+                    wrapperStyle={{ fontSize: 12 }}
+                  />
+                </PieChart>
+              ) : g === "linhas" ? (
+                <LineChart data={dados} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} />
+                  <XAxis
+                    dataKey="__rotulo"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(t) => encurtar(t, 16)}
+                    minTickGap={12}
+                  />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={compacto} width={56} />
+                  <Tooltip formatter={(v) => fmtMet(v)} />
+                  <Line
+                    dataKey={met.id}
+                    name={met.nome}
+                    stroke={CORES[0]}
+                    strokeWidth={2}
+                    activeDot={{
+                      r: 6,
+                      className: "cursor-pointer",
+                      onClick: (_: unknown, e: unknown) =>
+                        abrir((e as { payload?: { __linha?: Linha } }).payload?.__linha),
+                    }}
+                  />
+                </LineChart>
+              ) : (
+                <BarChart
+                  data={barras}
+                  layout="vertical"
+                  margin={{ top: 4, right: 24, left: 8, bottom: 4 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" opacity={0.3} horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={compacto} />
+                  <YAxis
+                    type="category"
+                    dataKey="__rotulo"
+                    width={230}
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(t) => encurtar(t)}
+                    interval={0}
+                  />
+                  <Tooltip formatter={(v) => fmtMet(v)} />
+                  <Bar
+                    dataKey={met.id}
+                    name={met.nome}
+                    fill={CORES[0]}
+                    radius={[0, 4, 4, 0]}
+                    className="cursor-pointer"
+                    onClick={(e) =>
+                      abrir((e as { payload?: { __linha?: Linha } }).payload?.__linha)
+                    }
+                  />
+                </BarChart>
+              )}
+            </ResponsiveContainer>
+          </div>
+          {g === "barras" && dados.length > barras.length && (
+            <p className="text-[11px] text-muted-foreground">
+              O gráfico mostra as 40 primeiras linhas; a tabela tem todas.
+            </p>
+          )}
         </div>
       )}
 
@@ -625,7 +723,12 @@ function Resultado({ res }: { res: Res }) {
           </thead>
           <tbody>
             {res.linhas.map((l, i) => (
-              <tr key={i} className="border-b last:border-0">
+              <tr
+                key={i}
+                onClick={() => abrir(l)}
+                className="cursor-pointer border-b last:border-0 hover:bg-muted/50"
+                title="Ver os registros desta linha"
+              >
                 {res.colunas.map((c) => (
                   <td
                     key={c.id}
@@ -660,6 +763,147 @@ function Resultado({ res }: { res: Res }) {
           )}
         </table>
       </div>
+
+      <div ref={caixaDetalhe}>
+        {grupo && (
+          <Detalhe
+            base={res.spec.base}
+            rotulo={grupo.rotulo}
+            carregando={detalhe.isPending}
+            dados={detalhe.data ?? null}
+            fechar={() => setGrupo(null)}
+          />
+        )}
+      </div>
     </Card>
+  );
+}
+
+function Detalhe({
+  base,
+  rotulo,
+  carregando,
+  dados,
+  fechar,
+}: {
+  base: BaseId;
+  rotulo: string;
+  carregando: boolean;
+  dados: DetalheRelatorio | null;
+  fechar: () => void;
+}) {
+  const navigate = useNavigate();
+  const ir = (href: string | null) => (e: React.MouseEvent) => {
+    if (!href) return;
+    e.preventDefault();
+    void navigate({ to: href as never });
+  };
+  const nomeValor = base === "leads" ? "Score" : base === "carteira_cs" ? "Aporte" : "Valor";
+  const nomeData =
+    base === "negocios"
+      ? "Data"
+      : base === "carteira_cs"
+        ? "Renovação"
+        : base === "propostas"
+          ? "Envio"
+          : "Entrada";
+  const nomePessoa = base === "negocios" ? "Dono" : base === "carteira_cs" ? "CS" : "Responsável";
+  return (
+    <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[13px] font-semibold">{rotulo}</p>
+          {dados && (
+            <p className="text-[11px] text-muted-foreground">
+              {dados.total.toLocaleString("pt-BR")} registro(s)
+              {dados.total > dados.itens.length ? ` · mostrando ${dados.itens.length}` : ""}
+            </p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={fechar}
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      {carregando && <p className="text-[12px] text-muted-foreground">Carregando…</p>}
+      {dados && (
+        <div className="max-h-[420px] overflow-auto">
+          <table className="w-full text-[12.5px]">
+            <thead className="sticky top-0 bg-muted/80 text-left text-muted-foreground">
+              <tr>
+                <th className="px-2 py-1 font-medium">
+                  {base === "carteira_cs"
+                    ? "Cliente"
+                    : base === "propostas"
+                      ? "Proposta"
+                      : base === "leads"
+                        ? "Lead"
+                        : "Negócio"}
+                </th>
+                {(base === "negocios" || base === "leads") && (
+                  <th className="px-2 py-1 font-medium">Empresa</th>
+                )}
+                <th className="px-2 py-1 font-medium">Situação</th>
+                <th className="px-2 py-1 font-medium">{nomePessoa}</th>
+                <th className="px-2 py-1 font-medium">{nomeData}</th>
+                <th className="px-2 py-1 text-right font-medium">{nomeValor}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {dados.itens.map((it, i) => (
+                <tr key={i} className="border-b last:border-0">
+                  <td className="px-2 py-1">
+                    {it.link ? (
+                      <a
+                        href={it.link}
+                        onClick={ir(it.link)}
+                        className="text-primary hover:underline"
+                      >
+                        {it.titulo}
+                      </a>
+                    ) : (
+                      it.titulo
+                    )}
+                  </td>
+                  {(base === "negocios" || base === "leads") && (
+                    <td className="px-2 py-1">
+                      {it.empresaLink ? (
+                        <a
+                          href={it.empresaLink}
+                          onClick={ir(it.empresaLink)}
+                          className="text-primary hover:underline"
+                        >
+                          {it.empresa ?? "—"}
+                        </a>
+                      ) : (
+                        (it.empresa ?? "—")
+                      )}
+                    </td>
+                  )}
+                  <td className="px-2 py-1">{it.situacao ?? "—"}</td>
+                  <td className="px-2 py-1">{it.pessoa ?? "—"}</td>
+                  <td className="px-2 py-1 tabular-nums">
+                    {it.data ? it.data.split("-").reverse().join("/") : "—"}
+                  </td>
+                  <td className="px-2 py-1 text-right tabular-nums">
+                    {formatar(it.valor, base === "leads" ? "numero" : "moeda")}
+                  </td>
+                </tr>
+              ))}
+              {dados.itens.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-2 py-3 text-muted-foreground">
+                    Nenhum registro.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
