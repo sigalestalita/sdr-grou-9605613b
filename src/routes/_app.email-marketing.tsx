@@ -74,7 +74,7 @@ function SituacaoEnvio() {
     refetchInterval: 60_000,
   });
   const salvar = useMutation({
-    mutationFn: (valor: number) => salvarFn({ data: { valor } }),
+    mutationFn: (valor: number | null) => salvarFn({ data: { valor } }),
     onSuccess: () => {
       toast.success("Limite diário atualizado");
       qc.invalidateQueries({ queryKey: ["email-mkt", "situacao"] });
@@ -84,8 +84,12 @@ function SituacaoEnvio() {
   if (!data) return null;
 
   const mudarLimite = () => {
-    const v = window.prompt("Limite de e-mails por dia", String(data.limite));
+    const v = window.prompt(
+      "Limite de e-mails por dia (deixe em branco para enviar sem limite)",
+      data.limite ? String(data.limite) : "",
+    );
     if (v == null) return;
+    if (!v.trim()) return salvar.mutate(null);
     const n = Number(v.replace(/\D/g, ""));
     if (!Number.isInteger(n) || n < 1) return toast.error("Informe um número inteiro maior que 0");
     salvar.mutate(n);
@@ -98,7 +102,9 @@ function SituacaoEnvio() {
         <strong className="font-semibold text-foreground tabular-nums">
           {data.hoje.toLocaleString("pt-BR")}
         </strong>{" "}
-        de {data.limite.toLocaleString("pt-BR")} envios
+        {data.limite
+          ? `de ${data.limite.toLocaleString("pt-BR")} envios`
+          : "envios · sem limite diário"}
       </span>
       {canAccessAll && (
         <button
@@ -109,12 +115,6 @@ function SituacaoEnvio() {
         >
           alterar
         </button>
-      )}
-      {data.limite <= 100 && (
-        <span className="block text-[11px]">
-          Plano gratuito do Resend: até 100 e-mails por dia; campanhas maiores seguem nos dias
-          seguintes.
-        </span>
       )}
     </div>
   );

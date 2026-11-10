@@ -336,7 +336,7 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
     const verbo = status === "pausada" ? "Retomar o envio" : "Enviar agora";
     if (
       !window.confirm(
-        `${verbo} para ${n} destinatário(s) da segmentação “${segmento?.nome ?? ""}”?\n\nDescadastrados ficam de fora. O envio respeita o limite diário.`,
+        `${verbo} para ${n} destinatário(s) da segmentação “${segmento?.nome ?? ""}”?\n\nDescadastrados ficam de fora. O envio sai em lotes, a cada minuto.`,
       )
     )
       return;
@@ -1046,7 +1046,8 @@ function Painel({
         </div>
         {m.pendentes > 0 && c.status === "enviando" && (
           <p className="mt-1 text-[11px] text-muted-foreground">
-            A fila respeita o limite diário; o que sobrar sai nos próximos dias.
+            A fila sai em lotes a cada minuto; se o provedor de e-mail barrar por cota, o restante
+            continua na fila e sai em seguida.
           </p>
         )}
       </div>

@@ -507,7 +507,8 @@ export const situacaoDoEnvio = createServerFn({ method: "GET" })
       .select("value")
       .eq("key", "email_limite_diario")
       .maybeSingle();
-    const limite = Number((data as { value?: { valor?: number } } | null)?.value?.valor) || 80;
+    const v = Number((data as { value?: { valor?: number | null } } | null)?.value?.valor);
+    const limite = Number.isFinite(v) && v > 0 ? v : null;
     const inicio = new Date();
     inicio.setUTCHours(3, 0, 0, 0);
     if (inicio.getTime() > Date.now()) inicio.setUTCDate(inicio.getUTCDate() - 1);
@@ -519,7 +520,9 @@ export const situacaoDoEnvio = createServerFn({ method: "GET" })
 
 export const salvarLimiteDiario = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ valor: z.number().int().min(1).max(100_000) }).parse(d))
+  .inputValidator((d) =>
+    z.object({ valor: z.number().int().min(1).max(1_000_000).nullable() }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { data: gestor } = await context.supabase.rpc("is_manager", {
       _user_id: context.userId,

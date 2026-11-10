@@ -165,14 +165,15 @@ export async function iniciarCampanha(campanhaId: string) {
   return { destinatarios: null };
 }
 
-async function limiteDiario(): Promise<number> {
+/** Limite diário configurado pela gestão; null = sem limite no Compass. */
+async function limiteDiario(): Promise<number | null> {
   const { data } = await db()
     .from("app_settings")
     .select("value")
     .eq("key", "email_limite_diario")
     .maybeSingle();
-  const v = Number((data as { value?: { valor?: number } } | null)?.value?.valor);
-  return Number.isFinite(v) && v > 0 ? v : 80;
+  const v = Number((data as { value?: { valor?: number | null } } | null)?.value?.valor);
+  return Number.isFinite(v) && v > 0 ? v : null;
 }
 
 async function enviadosHoje(): Promise<number> {
@@ -208,7 +209,9 @@ export async function processarFila(opts?: { tempoMaxMs?: number }) {
   }
 
   const [limite, hoje] = await Promise.all([limiteDiario(), enviadosHoje()]);
-  let saldo = Math.max(0, limite - hoje);
+  let saldo = limite == null ? Number.MAX_SAFE_INTEGER : Math.max(0, limite - hoje);
+  // O provedor recusou por cota (429): para nesta rodada e tenta na próxima.
+  let barrado = false;
   const resumo = { enviados: 0, falhas: 0, suprimidos: 0, concluidas: 0, saldo, limite };
 
   const { data: campanhas } = await db()
@@ -248,7 +251,7 @@ export async function processarFila(opts?: { tempoMaxMs?: number }) {
         lista.map((l) => String(l.email)),
       );
     const bloqueados = new Set(((desc ?? []) as Row[]).map((d) => String(d.email)));
-    for (let i = 0; i < lista.length && saldo > 0; i += 8) {
+    for (let i = 0; i < lista.length && saldo > 0 && !barrado; i += 8) {
       if (Date.now() - inicio > tempoMax) break;
       const lote = lista.slice(i, i + 8);
       await Promise.all(
@@ -258,7 +261,7 @@ export async function processarFila(opts?: { tempoMaxMs?: number }) {
             resumo.suprimidos++;
             return;
           }
-          if (saldo <= 0) return;
+          if (saldo <= 0 || barrado) return;
           saldo--;
           const r = await enviarUm(
             c,
@@ -272,7 +275,8 @@ export async function processarFila(opts?: { tempoMaxMs?: number }) {
               .update({ status: "enviado", enviado_em: new Date().toISOString(), resend_id: r.id })
               .eq("id", String(l.id));
           } else if (r.status === 429) {
-            saldo++; // tenta de novo no próximo minuto
+            saldo++; // continua pendente e sai na próxima rodada
+            barrado = true;
           } else {
             resumo.falhas++;
             await db()
@@ -284,7 +288,7 @@ export async function processarFila(opts?: { tempoMaxMs?: number }) {
       );
       await espera(1000);
     }
-    if (saldo <= 0 || Date.now() - inicio > tempoMax) break;
+    if (saldo <= 0 || barrado || Date.now() - inicio > tempoMax) break;
   }
   return { ...resumo, saldo };
 }
