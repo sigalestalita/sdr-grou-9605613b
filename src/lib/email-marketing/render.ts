@@ -27,7 +27,20 @@ export type OpcoesRender = {
   urlClique?: ((destino: string) => string) | null;
   urlAbertura?: string | null;
   urlDescadastro: string;
+  /** Imagem do topo da campanha (URL https). Sem ela, vai o logo da Grou. */
+  imagemTopo?: string | null;
 };
+
+/** Logo da Grou no topo de todo e-mail que não tem imagem própria. */
+export const LOGO_EMAIL_URL = "https://compass.grougp.com/grou-logo-email.png";
+
+/** Topo do e-mail: a imagem da campanha em largura cheia, ou o logo da Grou. */
+export function topoDoEmail(imagemTopo?: string | null): string {
+  const img = imagemTopo?.trim();
+  if (img && /^https:\/\//i.test(img))
+    return `<tr><td style="padding:0;line-height:0;font-size:0;"><img src="${esc(img)}" width="600" alt="Grou" style="display:block;width:100%;max-width:600px;height:auto;border:0;"></td></tr>`;
+  return `<tr><td style="background:#ffffff;padding:22px 28px 18px;border-bottom:3px solid ${COR};"><img src="${LOGO_EMAIL_URL}" width="96" height="42" alt="grou" style="display:block;width:96px;height:auto;border:0;"></td></tr>`;
+}
 
 const ESC: Record<string, string> = {
   "&": "&amp;",
@@ -161,7 +174,7 @@ ${pre ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;">${esc
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f3f5f9;padding:24px 12px;">
 <tr><td align="center">
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border-radius:12px;overflow:hidden;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;">
-<tr><td style="background:${COR};padding:18px 28px;color:#ffffff;font-size:20px;font-weight:700;letter-spacing:-0.5px;">grou</td></tr>
+${topoDoEmail(o.imagemTopo)}
 <tr><td style="padding:28px;">
 ${miolo}
 </td></tr>

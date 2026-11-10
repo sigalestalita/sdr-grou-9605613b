@@ -39,6 +39,7 @@ type Campanha = {
   nome: string;
   assunto: string;
   preheader: string | null;
+  imagem_topo?: string | null;
   corpo: string;
   formato: "texto" | "html";
   remetente_nome: string;
@@ -58,6 +59,7 @@ async function enviarUm(
   const r = renderEmail({
     assunto: c.assunto,
     preheader: c.preheader,
+    imagemTopo: c.imagem_topo ?? null,
     corpo: c.corpo,
     formato: c.formato,
     contato,

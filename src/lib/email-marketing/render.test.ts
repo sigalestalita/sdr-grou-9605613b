@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { primeiroNome, renderEmail, textoParaHtml, trocar, variaveisDesconhecidas } from "./render";
+import {
+  LOGO_EMAIL_URL,
+  primeiroNome,
+  renderEmail,
+  textoParaHtml,
+  topoDoEmail,
+  trocar,
+  variaveisDesconhecidas,
+} from "./render";
 
 describe("render de e-mail", () => {
   it("troca variáveis, com padrão quando vazio", () => {
@@ -40,5 +48,17 @@ describe("render de e-mail", () => {
 
   it("aponta variáveis desconhecidas", () => {
     expect(variaveisDesconhecidas("{{nome}} {{cargo}} {{empresa}}")).toEqual(["cargo"]);
+  });
+});
+
+describe("topo do e-mail", () => {
+  it("usa o logo da Grou quando a campanha não tem imagem", () => {
+    expect(topoDoEmail(null)).toContain(LOGO_EMAIL_URL);
+    expect(topoDoEmail("http://inseguro.com/x.png")).toContain(LOGO_EMAIL_URL);
+  });
+  it("usa a imagem da campanha quando ela é https", () => {
+    const html = topoDoEmail("https://exemplo.com/banner.png");
+    expect(html).toContain('src="https://exemplo.com/banner.png"');
+    expect(html).not.toContain(LOGO_EMAIL_URL);
   });
 });

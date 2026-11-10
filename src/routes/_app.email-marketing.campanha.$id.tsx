@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   CalendarClock,
   Copy,
+  ImageIcon,
   Loader2,
   Pause,
   Play,
@@ -25,6 +26,7 @@ import {
   escreverComIa,
   listarSegmentos,
   salvarCampanha,
+  subirImagemTopo,
   verCampanha,
   type CampanhaCompleta,
   type CampanhaEditavel,
@@ -121,6 +123,7 @@ function formDe(c: CampanhaCompleta): Form {
     remetente_nome: c.remetente_nome || "Grou",
     remetente_email: c.remetente_email || "marketing@grougp.com.br",
     responder_para: c.responder_para ?? null,
+    imagem_topo: c.imagem_topo ?? null,
   };
 }
 
@@ -239,6 +242,7 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
       remetente_email: form.remetente_email.trim(),
       preheader: form.preheader?.trim() ? form.preheader : null,
       responder_para: form.responder_para?.trim() ? form.responder_para.trim() : null,
+      imagem_topo: form.imagem_topo?.trim() ? form.imagem_topo.trim() : null,
     };
     await salvarFn({ data: dados });
     setSalvo(JSON.stringify(form));
@@ -615,6 +619,84 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
   );
 }
 
+/**
+ * Imagem do topo do e-mail: sem nada, vai o logo da Grou. Dá para subir uma
+ * imagem (banner de 600 px de largura fica melhor) ou colar o endereço dela.
+ */
+function ImagemDoTopo({
+  valor,
+  onChange,
+}: {
+  valor: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  const subirFn = useServerFn(subirImagemTopo);
+  const subir = useMutation({
+    mutationFn: async (arquivo: File) => {
+      if (arquivo.size > 2 * 1024 * 1024) throw new Error("Imagem acima de 2 MB");
+      const base64 = await new Promise<string>((ok, falha) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result).split(",")[1] ?? "");
+        r.onerror = () => falha(new Error("Não deu para ler o arquivo"));
+        r.readAsDataURL(arquivo);
+      });
+      return subirFn({ data: { tipo: arquivo.type, base64 } });
+    },
+    onSuccess: (r) => {
+      onChange(r.url);
+      toast.success("Imagem do topo atualizada");
+    },
+    onError: erro,
+  });
+  return (
+    <Campo rotulo="Imagem do topo">
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-input bg-background px-3 py-1.5 text-[12px] font-medium hover:bg-muted">
+            {subir.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <ImageIcon className="h-3.5 w-3.5" />
+            )}
+            {valor ? "Trocar imagem" : "Subir imagem"}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              className="sr-only"
+              disabled={subir.isPending}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) subir.mutate(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          {valor && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 text-[12px]"
+              onClick={() => onChange(null)}
+            >
+              <X className="mr-1 h-3.5 w-3.5" /> Voltar ao logo da Grou
+            </Button>
+          )}
+        </div>
+        <Input
+          value={valor ?? ""}
+          onChange={(e) => onChange(e.target.value.trim() || null)}
+          placeholder="ou cole o endereço https da imagem"
+          className="text-[13px]"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Sem imagem, o e-mail sai com o logo da Grou no topo. Para um banner, use 600 px de largura
+          (PNG ou JPG, até 2 MB).
+        </p>
+      </div>
+    </Campo>
+  );
+}
+
 function Conteudo({
   form,
   set,
@@ -669,6 +751,7 @@ function Conteudo({
           className="text-[13px]"
         />
       </Campo>
+      <ImagemDoTopo valor={form.imagem_topo ?? null} onChange={(v) => set("imagem_topo", v)} />
       <Campo rotulo="Pré-cabeçalho (aparece ao lado do assunto na caixa de entrada)">
         <Input
           value={form.preheader ?? ""}
@@ -787,7 +870,13 @@ function Previa({
 }: {
   form: Pick<
     Form,
-    "assunto" | "preheader" | "corpo" | "formato" | "remetente_nome" | "remetente_email"
+    | "assunto"
+    | "preheader"
+    | "corpo"
+    | "formato"
+    | "remetente_nome"
+    | "remetente_email"
+    | "imagem_topo"
   >;
   titulo?: string;
 }) {
@@ -802,8 +891,9 @@ function Previa({
         urlClique: null,
         urlAbertura: null,
         urlDescadastro: "#",
+        imagemTopo: form.imagem_topo ?? null,
       }),
-    [form.assunto, form.preheader, form.corpo, form.formato],
+    [form.assunto, form.preheader, form.corpo, form.formato, form.imagem_topo],
   );
   return (
     <Card className="overflow-hidden">
