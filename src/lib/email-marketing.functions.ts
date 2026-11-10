@@ -215,6 +215,12 @@ const CampanhaSchema = z.object({
     .string()
     .regex(/^[^@\s]+@grougp\.com\.br$/i, "O remetente precisa ser um e-mail @grougp.com.br"),
   responder_para: z.string().email().nullable(),
+  imagem_topo: z
+    .string()
+    .url()
+    .regex(/^https:\/\//i, "A imagem precisa de um endereço https")
+    .nullable()
+    .optional(),
 });
 export type CampanhaEditavel = z.infer<typeof CampanhaSchema>;
 
@@ -399,7 +405,7 @@ export const duplicarCampanha = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: c } = await t(context.supabase, "email_campanhas")
       .select(
-        "nome, segmento_id, assunto, preheader, corpo, formato, remetente_nome, remetente_email, responder_para",
+        "nome, segmento_id, assunto, preheader, corpo, formato, remetente_nome, remetente_email, responder_para, imagem_topo",
       )
       .eq("id", data.id)
       .single();
@@ -644,4 +650,39 @@ Responda SOMENTE com JSON: {"assunto": "...", "preheader": "...", "corpo": "..."
     } catch {
       throw new Error("A IA não devolveu o e-mail no formato esperado. Tente de novo.");
     }
+  });
+
+// ------------------------------------------------------- imagem do topo
+const TIPOS_IMAGEM: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
+
+/**
+ * Sobe a imagem do topo de uma campanha para o bucket público email-assets e
+ * devolve a URL. O arquivo vem em base64 (até 2 MB).
+ */
+export const subirImagemTopo = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        tipo: z.string().refine((x) => x in TIPOS_IMAGEM, "Use PNG, JPG, GIF ou WebP"),
+        base64: z.string().min(1).max(2_800_000, "Imagem acima de 2 MB"),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const bytes = Buffer.from(data.base64, "base64");
+    if (bytes.length > 2 * 1024 * 1024) throw new Error("Imagem acima de 2 MB");
+    const caminho = `campanhas/${crypto.randomUUID()}.${TIPOS_IMAGEM[data.tipo]}`;
+    const { error } = await supabaseAdmin.storage
+      .from("email-assets")
+      .upload(caminho, bytes, { contentType: data.tipo, upsert: false });
+    if (error) throw new Error(error.message);
+    const { data: pub } = supabaseAdmin.storage.from("email-assets").getPublicUrl(caminho);
+    return { url: pub.publicUrl };
   });
