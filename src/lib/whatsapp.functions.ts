@@ -92,6 +92,27 @@ export const listConversations = createServerFn({ method: "GET" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     let result = rows ?? [];
+    /*
+     * Lead oculto (base do RD, lista de evento com "não criar lead") some pela
+     * regra de acesso, mas a conversa dele aparece: sem isso a caixa mostra
+     * "Sem nome". Quem vê a conversa pode ver o nome de com quem fala.
+     */
+    const semLead = result.filter((r) => r.lead_id && !r.leads).map((r) => r.lead_id as string);
+    if (semLead.length > 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: ocultos } = await supabaseAdmin
+        .from("leads")
+        .select(
+          "id,name,company_name,email,phone,priority,stage_id,assigned_to,lead_type,company_size",
+        )
+        .in("id", [...new Set(semLead)]);
+      const porId = new Map((ocultos ?? []).map((l) => [l.id, l]));
+      result = result.map((r) =>
+        r.lead_id && !r.leads && porId.has(r.lead_id)
+          ? ({ ...r, leads: porId.get(r.lead_id) } as typeof r)
+          : r,
+      );
+    }
     if (data?.search) {
       const s = data.search.toLowerCase();
       result = result.filter((r) => {
@@ -442,11 +463,21 @@ export const listMessages = createServerFn({ method: "GET" })
       .select("lead_id, leads:lead_id(id, name, company_name)")
       .eq("id", data.conversationId)
       .maybeSingle();
-    const leadRow = (conv?.leads ?? null) as {
+    let leadRow = (conv?.leads ?? null) as {
       id: string;
       name: string | null;
       company_name: string | null;
     } | null;
+    // Lead oculto: a regra de acesso esconde o lead, mas não a conversa.
+    if (!leadRow && conv?.lead_id) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: oculto } = await supabaseAdmin
+        .from("leads")
+        .select("id, name, company_name")
+        .eq("id", conv.lead_id)
+        .maybeSingle();
+      leadRow = oculto ?? null;
+    }
 
     // Janela de 24h: vale a última mensagem do lead na conversa inteira, não só
     // nas 500 carregadas acima.
