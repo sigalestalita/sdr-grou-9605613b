@@ -200,6 +200,33 @@ export const submitTemplateToMeta = createServerFn({ method: "POST" })
         .replace(/^_+|_+$/g, "")
         .slice(0, 60);
 
+    // Cabeçalho de imagem: a Meta exige uma imagem de exemplo já na criação.
+    const midia = (tpl as { header_media_url?: string | null }).header_media_url ?? null;
+    let headerImageHandle: string | null = null;
+    if (midia && !(tpl.header_text as string | null)) {
+      const { data: cfg } = await supabase
+        .from("app_settings")
+        .select("value")
+        .eq("key", "whatsapp_embedded_signup")
+        .maybeSingle();
+      const appId = (
+        ((cfg?.value ?? {}) as { app_id?: string }).app_id ||
+        process.env.META_APP_ID ||
+        ""
+      ).trim();
+      if (!appId) throw new Error("App da Meta não configurado (Contas → app_id)");
+      const { subirImagemDeExemplo } = await import("@/lib/whatsapp/meta-templates.server");
+      headerImageHandle = await subirImagemDeExemplo(
+        {
+          access_token: account.access_token as string,
+          provider_base_url: account.provider_base_url as string | null,
+          metadata: (account.metadata as Record<string, unknown>) ?? null,
+        },
+        appId,
+        midia,
+      );
+    }
+
     const result = await submitMetaTemplate(
       {
         access_token: account.access_token as string,
@@ -216,6 +243,7 @@ export const submitTemplateToMeta = createServerFn({ method: "POST" })
         body: bodyForMeta,
         bodyExamples,
         headerText: (tpl.header_text as string | null) ?? null,
+        headerImageHandle,
         footerText: (tpl.footer_text as string | null) ?? null,
         buttons: Array.isArray(tpl.buttons) ? (tpl.buttons as never) : [],
       },

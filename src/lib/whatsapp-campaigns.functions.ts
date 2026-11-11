@@ -384,6 +384,7 @@ export async function executarCampanha(
         provider_template_name: string | null;
         language: string | null;
         variables: unknown;
+        header_media_url?: string | null;
       } | null;
     }
   ).whatsapp_templates!;
@@ -682,6 +683,15 @@ export async function executarCampanha(
               templateName: tmplFull.provider_template_name!,
               templateLanguage: tmplFull.language ?? "pt_BR",
               templateParams,
+              // Template com imagem no topo precisa da arte em cada envio (#132012).
+              ...(tmplFull.header_media_url?.trim()
+                ? {
+                    templateHeaderMedia: {
+                      format: "IMAGE" as const,
+                      link: tmplFull.header_media_url.trim(),
+                    },
+                  }
+                : {}),
               // o body renderizado é salvo no chat só para histórico
               body,
             }
