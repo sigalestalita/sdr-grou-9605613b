@@ -15,6 +15,8 @@ export type MetaTemplateInput = {
   body: string;
   bodyExamples?: string[];
   headerText?: string | null;
+  /** Handle de upload (resumable upload) da imagem de exemplo do cabeçalho. */
+  headerImageHandle?: string | null;
   footerText?: string | null;
   buttons?: MetaButton[];
 };
@@ -38,7 +40,13 @@ function baseUrl(account: GraphAccount): string {
 
 function buildComponents(input: MetaTemplateInput) {
   const comps: Array<Record<string, unknown>> = [];
-  if (input.headerText && input.headerText.trim()) {
+  if (input.headerImageHandle) {
+    comps.push({
+      type: "HEADER",
+      format: "IMAGE",
+      example: { header_handle: [input.headerImageHandle] },
+    });
+  } else if (input.headerText && input.headerText.trim()) {
     comps.push({ type: "HEADER", format: "TEXT", text: input.headerText.trim() });
   }
   const bodyComp: Record<string, unknown> = { type: "BODY", text: input.body };
@@ -53,6 +61,43 @@ function buildComponents(input: MetaTemplateInput) {
     comps.push({ type: "BUTTONS", buttons: input.buttons });
   }
   return comps;
+}
+
+/**
+ * Sobe a imagem de exemplo do cabeçalho pela Resumable Upload API da Meta e
+ * devolve o handle que o template com cabeçalho de imagem exige na criação.
+ */
+export async function subirImagemDeExemplo(
+  account: GraphAccount,
+  appId: string,
+  imageUrl: string,
+): Promise<string> {
+  const img = await fetch(imageUrl);
+  if (!img.ok) throw new Error(`Não deu para baixar a imagem do cabeçalho (HTTP ${img.status})`);
+  const tipo = (img.headers.get("content-type") || "image/jpeg").split(";")[0].trim();
+  if (!["image/jpeg", "image/png"].includes(tipo))
+    throw new Error("A imagem do cabeçalho precisa ser JPG ou PNG");
+  const bytes = new Uint8Array(await img.arrayBuffer());
+  if (bytes.length > 5 * 1024 * 1024) throw new Error("A imagem do cabeçalho passa de 5 MB");
+  const base = baseUrl(account);
+  const sessao = await fetch(
+    `${base}/${appId}/uploads?file_length=${bytes.length}&file_type=${encodeURIComponent(tipo)}`,
+    { method: "POST", headers: { Authorization: `Bearer ${account.access_token}` } },
+  );
+  const s = (await sessao.json().catch(() => ({}))) as {
+    id?: string;
+    error?: { message?: string };
+  };
+  if (!sessao.ok || !s.id) throw new Error(s.error?.message || "Falha ao abrir o upload na Meta");
+  const envio = await fetch(`${base}/${s.id}`, {
+    method: "POST",
+    headers: { Authorization: `OAuth ${account.access_token}`, file_offset: "0" },
+    body: bytes,
+  });
+  const e = (await envio.json().catch(() => ({}))) as { h?: string; error?: { message?: string } };
+  if (!envio.ok || !e.h)
+    throw new Error(e.error?.message || "Falha ao enviar a imagem para a Meta");
+  return e.h;
 }
 
 export async function submitMetaTemplate(
@@ -75,10 +120,22 @@ export async function submitMetaTemplate(
     body: JSON.stringify(payload),
   });
   const text = await res.text();
-  let json: { id?: string; status?: string; category?: string; error?: { message?: string; error_user_msg?: string } } = {};
-  try { json = JSON.parse(text); } catch { /* ignore */ }
+  let json: {
+    id?: string;
+    status?: string;
+    category?: string;
+    error?: { message?: string; error_user_msg?: string };
+  } = {};
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* ignore */
+  }
   if (!res.ok) {
-    const msg = json.error?.error_user_msg || json.error?.message || `HTTP ${res.status}: ${text.slice(0, 400)}`;
+    const msg =
+      json.error?.error_user_msg ||
+      json.error?.message ||
+      `HTTP ${res.status}: ${text.slice(0, 400)}`;
     throw new Error(msg);
   }
   return { id: json.id ?? "", status: json.status ?? "PENDING", category: json.category };
@@ -100,7 +157,11 @@ export async function listMetaTemplates(account: GraphAccount): Promise<MetaTemp
   });
   const text = await res.text();
   let json: { data?: MetaTemplateRow[]; error?: { message?: string } } = {};
-  try { json = JSON.parse(text); } catch { /* ignore */ }
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* ignore */
+  }
   if (!res.ok) throw new Error(json.error?.message || `HTTP ${res.status}: ${text.slice(0, 300)}`);
   return json.data ?? [];
 }
@@ -122,7 +183,11 @@ export async function fetchMetaTemplateDetails(
   });
   const text = await res.text();
   let json: { components?: MetaTemplateComponent[]; error?: { message?: string } } = {};
-  try { json = JSON.parse(text); } catch { /* ignore */ }
+  try {
+    json = JSON.parse(text);
+  } catch {
+    /* ignore */
+  }
   if (!res.ok) throw new Error(json.error?.message || `HTTP ${res.status}: ${text.slice(0, 300)}`);
   return { components: json.components ?? [] };
 }
