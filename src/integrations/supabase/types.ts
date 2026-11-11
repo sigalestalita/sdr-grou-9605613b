@@ -2845,6 +2845,251 @@ export type Database = {
         }
         Relationships: []
       }
+      email_campanhas: {
+        Row: {
+          agendada_para: string | null
+          assunto: string
+          concluida_em: string | null
+          corpo: string
+          created_at: string
+          criado_por: string | null
+          destinatarios: number
+          formato: string
+          id: string
+          imagem_topo: string | null
+          iniciada_em: string | null
+          nome: string
+          preheader: string | null
+          remetente_email: string
+          remetente_nome: string
+          responder_para: string | null
+          segmento_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agendada_para?: string | null
+          assunto?: string
+          concluida_em?: string | null
+          corpo?: string
+          created_at?: string
+          criado_por?: string | null
+          destinatarios?: number
+          formato?: string
+          id?: string
+          imagem_topo?: string | null
+          iniciada_em?: string | null
+          nome: string
+          preheader?: string | null
+          remetente_email?: string
+          remetente_nome?: string
+          responder_para?: string | null
+          segmento_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agendada_para?: string | null
+          assunto?: string
+          concluida_em?: string | null
+          corpo?: string
+          created_at?: string
+          criado_por?: string | null
+          destinatarios?: number
+          formato?: string
+          id?: string
+          imagem_topo?: string | null
+          iniciada_em?: string | null
+          nome?: string
+          preheader?: string | null
+          remetente_email?: string
+          remetente_nome?: string
+          responder_para?: string | null
+          segmento_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campanhas_segmento_id_fkey"
+            columns: ["segmento_id"]
+            isOneToOne: false
+            referencedRelation: "email_segmentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_descadastros: {
+        Row: {
+          campanha_id: string | null
+          created_at: string
+          email: string
+          motivo: string | null
+          origem: string
+        }
+        Insert: {
+          campanha_id?: string | null
+          created_at?: string
+          email: string
+          motivo?: string | null
+          origem?: string
+        }
+        Update: {
+          campanha_id?: string | null
+          created_at?: string
+          email?: string
+          motivo?: string | null
+          origem?: string
+        }
+        Relationships: []
+      }
+      email_envios: {
+        Row: {
+          aberto_em: string | null
+          aberturas: number
+          campanha_id: string
+          clicado_em: string | null
+          cliques: number
+          created_at: string
+          descadastrou_em: string | null
+          email: string
+          empresa: string | null
+          enviado_em: string | null
+          erro: string | null
+          id: string
+          lead_id: string | null
+          nome: string | null
+          resend_id: string | null
+          status: string
+          token: string
+        }
+        Insert: {
+          aberto_em?: string | null
+          aberturas?: number
+          campanha_id: string
+          clicado_em?: string | null
+          cliques?: number
+          created_at?: string
+          descadastrou_em?: string | null
+          email: string
+          empresa?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          id?: string
+          lead_id?: string | null
+          nome?: string | null
+          resend_id?: string | null
+          status?: string
+          token?: string
+        }
+        Update: {
+          aberto_em?: string | null
+          aberturas?: number
+          campanha_id?: string
+          clicado_em?: string | null
+          cliques?: number
+          created_at?: string
+          descadastrou_em?: string | null
+          email?: string
+          empresa?: string | null
+          enviado_em?: string | null
+          erro?: string | null
+          id?: string
+          lead_id?: string | null
+          nome?: string | null
+          resend_id?: string | null
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_envios_campanha_id_fkey"
+            columns: ["campanha_id"]
+            isOneToOne: false
+            referencedRelation: "email_campanhas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_envios_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_modelos: {
+        Row: {
+          assunto: string | null
+          corpo: string
+          created_at: string
+          criado_por: string | null
+          formato: string
+          id: string
+          nome: string
+          preheader: string | null
+          updated_at: string
+        }
+        Insert: {
+          assunto?: string | null
+          corpo?: string
+          created_at?: string
+          criado_por?: string | null
+          formato?: string
+          id?: string
+          nome: string
+          preheader?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assunto?: string | null
+          corpo?: string
+          created_at?: string
+          criado_por?: string | null
+          formato?: string
+          id?: string
+          nome?: string
+          preheader?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      email_segmentos: {
+        Row: {
+          contado_em: string | null
+          created_at: string
+          criado_por: string | null
+          descricao: string | null
+          id: string
+          nome: string
+          regras: Json
+          ultima_contagem: number | null
+          updated_at: string
+        }
+        Insert: {
+          contado_em?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          nome: string
+          regras?: Json
+          ultima_contagem?: number | null
+          updated_at?: string
+        }
+        Update: {
+          contado_em?: string | null
+          created_at?: string
+          criado_por?: string | null
+          descricao?: string | null
+          id?: string
+          nome?: string
+          regras?: Json
+          ultima_contagem?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fatura_parcelas: {
         Row: {
           created_at: string
@@ -6003,6 +6248,27 @@ export type Database = {
         Returns: string
       }
       e_trainer: { Args: { _user_id: string }; Returns: boolean }
+      email_condicao_ok: {
+        Args: { alvo: string; op: string; v: string }
+        Returns: boolean
+      }
+      email_segmento_contagem: { Args: { regras: Json }; Returns: number }
+      email_segmento_leads: {
+        Args: { limite?: number; regras: Json }
+        Returns: {
+          email: string
+          empresa: string
+          lead_id: string
+          nome: string
+        }[]
+      }
+      email_valores_campo: {
+        Args: { campo: string }
+        Returns: {
+          total: number
+          valor: string
+        }[]
+      }
       etapa_encerra_cadencia: { Args: { _stage: string }; Returns: boolean }
       has_role: {
         Args: {
