@@ -64,8 +64,6 @@ async function avisar(p: Linha, titulo: string, corpo: string) {
     );
 }
 
-const tokenZ = z.object({ token: z.string().uuid() });
-
 /** Caminho no bucket privado propostas-slides, quando a URL é de lá. */
 function caminhoNoBucket(url: string): string | null {
   const m = /\/storage\/v1\/object\/(?:public|sign|authenticated)\/propostas-slides\/([^?#]+)/.exec(url);
