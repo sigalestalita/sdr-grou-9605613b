@@ -34,6 +34,9 @@ export type ItemProposta = {
   recorrencia: string;
 };
 
+/** Apresentação em slides (imagens 16:9, na ordem) que aparece no topo da página do cliente. */
+export type Apresentacao = { titulo: string; slides: string[]; fonte?: string };
+
 export type ConteudoProposta = {
   cor: string;
   titulo: string;
@@ -51,6 +54,8 @@ export type ConteudoProposta = {
   observacoes: string;
   modelos: Array<{ id: string; nome: string; versao: number }>;
   codigosNfse: string[];
+  /** Opcional: propostas antigas não têm. */
+  apresentacao?: Apresentacao;
 };
 
 export const VARIAVEIS: Array<{ chave: string; descricao: string }> = [
