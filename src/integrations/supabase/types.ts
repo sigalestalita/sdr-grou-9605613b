@@ -4382,6 +4382,7 @@ export type Database = {
         Row: {
           aceita_em: string | null
           aceite: Json | null
+          avisos_emails: string[]
           company_id: string | null
           contact_id: string | null
           conteudo: Json
@@ -4412,6 +4413,7 @@ export type Database = {
         Insert: {
           aceita_em?: string | null
           aceite?: Json | null
+          avisos_emails?: string[]
           company_id?: string | null
           contact_id?: string | null
           conteudo: Json
@@ -4442,6 +4444,7 @@ export type Database = {
         Update: {
           aceita_em?: string | null
           aceite?: Json | null
+          avisos_emails?: string[]
           company_id?: string | null
           contact_id?: string | null
           conteudo?: Json
