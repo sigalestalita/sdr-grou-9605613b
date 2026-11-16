@@ -4331,6 +4331,53 @@ export type Database = {
         }
         Relationships: []
       }
+      proposta_visitas: {
+        Row: {
+          id: string
+          iniciada_em: string
+          ip: string | null
+          maior_slide: number
+          proposta_id: string
+          segundos: number
+          sessao: string
+          slides_vistos: number[]
+          ultima_atividade_em: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          id?: string
+          iniciada_em?: string
+          ip?: string | null
+          maior_slide?: number
+          proposta_id: string
+          segundos?: number
+          sessao: string
+          slides_vistos?: number[]
+          ultima_atividade_em?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          id?: string
+          iniciada_em?: string
+          ip?: string | null
+          maior_slide?: number
+          proposta_id?: string
+          segundos?: number
+          sessao?: string
+          slides_vistos?: number[]
+          ultima_atividade_em?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposta_visitas_proposta_id_fkey"
+            columns: ["proposta_id"]
+            isOneToOne: false
+            referencedRelation: "propostas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       propostas: {
         Row: {
           aceita_em: string | null

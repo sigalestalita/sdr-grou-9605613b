@@ -162,6 +162,13 @@
       "when": 1792714235424,
       "tag": "0022_campanhas_agendadas",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794852279510,
+      "tag": "0023_20261116180000_proposta_visitas",
+      "breakpoints": true
     }
   ]
 }
