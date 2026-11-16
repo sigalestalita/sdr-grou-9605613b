@@ -31,7 +31,8 @@ async function pdfParaImagens(arquivo: File, progresso?: Progresso): Promise<Blo
   const pdfjs = await import("pdfjs-dist");
   const { default: workerUrl } = await import("pdfjs-dist/build/pdf.worker.min.mjs?url");
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
-  const doc = await pdfjs.getDocument({ data: new Uint8Array(await arquivo.arrayBuffer()) }).promise;
+  const tarefa = pdfjs.getDocument({ data: new Uint8Array(await arquivo.arrayBuffer()) });
+  const doc = await tarefa.promise;
   try {
     const total = doc.numPages;
     if (total > MAX_PAGINAS) throw new Error(`O PDF tem ${total} páginas; o máximo é ${MAX_PAGINAS}`);
@@ -56,7 +57,7 @@ async function pdfParaImagens(arquivo: File, progresso?: Progresso): Promise<Blo
     }
     return out;
   } finally {
-    await doc.destroy();
+    await tarefa.destroy();
   }
 }
 
