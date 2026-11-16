@@ -12,6 +12,12 @@ import {
 } from "@/lib/propostas/render";
 import { PUBLIC_SITE_URL } from "@/lib/propostas/site";
 import { hojeSP } from "@/lib/datas-sp";
+import {
+  dispositivo,
+  resumirVisitas,
+  type Rastreio,
+  type VisitaBruta,
+} from "@/lib/propostas/visitas";
 
 /*
  * Propostas comerciais e seus modelos (lado logado). O cliente entra pela
@@ -548,12 +554,15 @@ export const gerarProposta = createServerFn({ method: "POST" })
 
     const { data: ult } = await db
       .from("propostas")
-      .select("versao")
+      .select("versao, apresentacao:conteudo->apresentacao")
       .eq("deal_id", data.dealId)
       .order("versao", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const versao = ((ult as { versao: number } | null)?.versao ?? 0) + 1;
+    const anterior = ult as { versao: number; apresentacao: ConteudoProposta["apresentacao"] | null } | null;
+    const versao = (anterior?.versao ?? 0) + 1;
+    // A nova versão herda a apresentação em slides da anterior (dá para trocar no rascunho).
+    if (anterior?.apresentacao?.slides?.length) conteudo.apresentacao = anterior.apresentacao;
 
     const { data: nova, error } = await db
       .from("propostas")
@@ -610,7 +619,48 @@ export type PropostaLista = {
   autor: string | null;
   modelos: string[];
   conteudo: ConteudoProposta;
+  rastreio: Rastreio;
+  /** Histórico de visitas (só na lista do negócio), da mais recente para a mais antiga. */
+  visitas: Array<{
+    iniciadaEm: string;
+    ultimaEm: string | null;
+    segundos: number;
+    maiorSlide: number;
+    slidesVistos: number;
+    dispositivo: string;
+  }>;
 };
+
+type VisitaLinha = VisitaBruta & { proposta_id: string };
+
+async function visitasDasPropostas(
+  db: SupabaseClient,
+  ids: string[],
+  comNavegador: boolean,
+): Promise<Map<string, VisitaLinha[]>> {
+  const out = new Map<string, VisitaLinha[]>();
+  const cols = `proposta_id, iniciada_em, ultima_atividade_em, segundos, slides_vistos, maior_slide${comNavegador ? ", user_agent" : ""}`;
+  for (let i = 0; i < ids.length; i += 100) {
+    const lote = ids.slice(i, i + 100);
+    for (let de = 0; de < 10_000; de += 1000) {
+      const { data, error } = await db
+        .from("proposta_visitas")
+        .select(cols)
+        .in("proposta_id", lote)
+        .order("iniciada_em", { ascending: false })
+        .range(de, de + 999);
+      if (error) throw new Error(error.message);
+      const linhas = (data ?? []) as unknown as VisitaLinha[];
+      for (const v of linhas) {
+        const l = out.get(v.proposta_id) ?? [];
+        l.push(v);
+        out.set(v.proposta_id, l);
+      }
+      if (linhas.length < 1000) break;
+    }
+  }
+  return out;
+}
 
 export const listarPropostas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -643,9 +693,16 @@ export const listarPropostas = createServerFn({ method: "GET" })
         p.full_name,
       ]),
     );
+    const visitas = await visitasDasPropostas(
+      db,
+      lista.map((r) => r.id as string),
+      !!data.dealId,
+    );
     return lista.map((r): PropostaLista => {
       const deal = r.deals as { nome: string | null; companies: { nome: string } | null } | null;
       const conteudo = r.conteudo as ConteudoProposta;
+      const total = conteudo?.apresentacao?.slides?.length ?? 0;
+      const vs = visitas.get(r.id as string) ?? [];
       return {
         id: r.id as string,
         numero: Number(r.numero),
@@ -670,8 +727,83 @@ export const listarPropostas = createServerFn({ method: "GET" })
         autor: nome.get(r.created_by as string) ?? null,
         modelos: (conteudo?.modelos ?? []).map((m) => m.nome),
         conteudo,
+        rastreio: resumirVisitas(vs, total),
+        visitas: data.dealId
+          ? vs.map((v) => ({
+              iniciadaEm: v.iniciada_em,
+              ultimaEm: v.ultima_atividade_em,
+              segundos: v.segundos ?? 0,
+              maiorSlide: v.maior_slide ?? 0,
+              slidesVistos: (v.slides_vistos ?? []).length,
+              dispositivo: dispositivo(v.user_agent),
+            }))
+          : [],
       };
     });
+  });
+
+const apresentacaoZ = z.object({
+  titulo: z.string().trim().min(1).max(200),
+  slides: z
+    .array(
+      z
+        .string()
+        .url()
+        .max(1000)
+        .refine((u) => u.startsWith("https://") || u.startsWith("http://localhost"), "URL inválida"),
+    )
+    .min(1)
+    .max(120),
+  fonte: z.string().trim().max(500).optional(),
+});
+
+async function rascunhoParaEditar(db: SupabaseClient, id: string) {
+  const { data: p } = await db
+    .from("propostas")
+    .select("status, conteudo")
+    .eq("id", id)
+    .maybeSingle();
+  const atual = p as { status: string; conteudo: ConteudoProposta } | null;
+  if (!atual) throw new Error("Proposta não encontrada");
+  if (atual.status !== "rascunho")
+    throw new Error("A apresentação só pode ser trocada enquanto a proposta é rascunho");
+  return atual;
+}
+
+/** Anexa ou troca a apresentação em slides (só no rascunho). */
+export const salvarApresentacao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), apresentacao: apresentacaoZ }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = solto(context.supabase);
+    const atual = await rascunhoParaEditar(db, data.id);
+    const conteudo: ConteudoProposta = { ...atual.conteudo, apresentacao: data.apresentacao };
+    const { error } = await db
+      .from("propostas")
+      .update({ conteudo, updated_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .eq("status", "rascunho");
+    if (error) throw new Error(error.message);
+    return { ok: true, slides: data.apresentacao.slides.length };
+  });
+
+/** Tira a apresentação da proposta (só no rascunho). Os arquivos são apagados pela tela. */
+export const removerApresentacao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const db = solto(context.supabase);
+    const atual = await rascunhoParaEditar(db, data.id);
+    const { apresentacao: _fora, ...resto } = atual.conteudo;
+    const { error } = await db
+      .from("propostas")
+      .update({ conteudo: resto, updated_at: new Date().toISOString() })
+      .eq("id", data.id)
+      .eq("status", "rascunho");
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });
 
 /** Marca como enviada (quando o executivo manda o link por fora: WhatsApp, cópia). */

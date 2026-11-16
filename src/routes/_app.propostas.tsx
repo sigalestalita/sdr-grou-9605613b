@@ -12,6 +12,8 @@ import {
   type ModeloEntrada,
 } from "@/lib/propostas.functions";
 import { dataBr, moedaBr, STATUS_PROPOSTA } from "@/lib/propostas/render";
+import { duracao } from "@/lib/propostas/visitas";
+import { haQuanto } from "@/components/propostas/propostas-do-negocio";
 import { EditorModelo, MODELO_VAZIO } from "@/components/propostas/editor-modelo";
 import { ListaFichas } from "@/components/fichas/lista-fichas";
 import { Button } from "@/components/ui/button";
@@ -144,14 +146,23 @@ function ListaPropostas() {
                 <th className="px-3 py-2 text-right">Valor</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2">Situação</th>
+                <th className="px-3 py-2">Aberturas</th>
                 <th className="px-3 py-2">Por</th>
               </tr>
             </thead>
             <tbody>
               {lista.map((p) => {
                 const st = STATUS_PROPOSTA[p.status] ?? STATUS_PROPOSTA.rascunho;
+                const r = p.rastreio;
+                const ultima = r.ultima ?? p.visualizadaEm;
+                const recente =
+                  !!ultima && Date.now() - new Date(ultima).getTime() < 24 * 3600 * 1000;
+                const aberturas = Math.max(p.visualizacoes, r.aberturas);
                 return (
-                  <tr key={p.id} className="border-b last:border-0 hover:bg-muted/40">
+                  <tr
+                    key={p.id}
+                    className={`border-b last:border-0 hover:bg-muted/40 ${recente ? "bg-primary/[0.06]" : ""}`}
+                  >
                     <td className="px-3 py-2 tabular-nums">
                       {p.numero}
                       <span className="text-muted-foreground"> v{p.versao}</span>
@@ -187,6 +198,30 @@ function ListaPropostas() {
                             : `criada ${new Date(p.criadaEm).toLocaleDateString("pt-BR")}`}
                       {p.validadeAte && ["enviada", "visualizada"].includes(p.status) && (
                         <span className="block">até {dataBr(p.validadeAte)}</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-[12px]">
+                      {aberturas > 0 ? (
+                        <>
+                          <span
+                            className={`inline-flex items-center gap-1.5 ${recente ? "font-semibold text-primary" : "text-foreground"}`}
+                          >
+                            {recente && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden />
+                            )}
+                            Aberta {aberturas}×{ultima ? ` · última ${haQuanto(ultima)}` : ""}
+                          </span>
+                          {r.aberturas > 0 && (
+                            <span className="block text-[11px] text-muted-foreground">
+                              {r.totalSlides > 0
+                                ? `viu ${r.slidesVistos} de ${r.totalSlides} slides · `
+                                : ""}
+                              {duracao(r.segundos)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2 text-[12px] text-muted-foreground">

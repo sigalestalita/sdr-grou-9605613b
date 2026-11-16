@@ -9,7 +9,10 @@ import {
   verPropostaPublica,
 } from "@/lib/propostas-publico.functions";
 import { DocumentoProposta } from "@/components/propostas/documento-proposta";
+import { ApresentacaoSlides } from "@/components/propostas/apresentacao-slides";
 import { dataBr, moedaBr } from "@/lib/propostas/render";
+import { useRastreioProposta } from "@/lib/propostas/use-rastreio-proposta";
+import { supabase } from "@/integrations/supabase/client";
 
 type Busca = { imprimir?: boolean; previa?: boolean };
 
@@ -32,7 +35,9 @@ type Dados = Awaited<ReturnType<typeof verPropostaPublica>>;
 /**
  * O que o cliente abre pelo link: a proposta, o botão de baixar em PDF e o
  * aceite (nome, e-mail, cargo e a declaração de ciência). Sem login.
- * ?previa=1 é a prévia do executivo (não conta como visualização do cliente);
+ * Pré-visualização (nada é registrado): ?previa=1, ?imprimir=1 ou quem abre
+ * está logado no Compass. Fora disso, registra a visita (1 por sessão do
+ * navegador), os slides vistos e o tempo na página.
  * ?imprimir=1 abre direto a janela de salvar em PDF.
  */
 function PropostaPublica() {
@@ -42,16 +47,39 @@ function PropostaPublica() {
   const [d, setD] = useState<Dados | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const jaImprimiu = useRef(false);
+  // null = ainda verificando se é alguém do Compass.
+  const [emPrevia, setEmPrevia] = useState<boolean | null>(previa || imprimir ? true : null);
 
-  const carregar = (contar: boolean) =>
-    ver({ data: { token, contar } })
+  const carregar = () =>
+    ver({ data: { token } })
       .then(setD)
       .catch((e) => setErro(e instanceof Error ? e.message : "Erro ao abrir a proposta"));
 
   useEffect(() => {
-    void carregar(!previa && !imprimir);
+    void carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
+
+  useEffect(() => {
+    if (previa || imprimir) {
+      setEmPrevia(true);
+      return;
+    }
+    let vivo = true;
+    supabase.auth
+      .getSession()
+      .then(({ data }) => vivo && setEmPrevia(!!data.session))
+      .catch(() => vivo && setEmPrevia(false));
+    return () => {
+      vivo = false;
+    };
+  }, [previa, imprimir]);
+
+  const fora0 = d?.encontrada && (d.status === "substituida" || d.status === "cancelada");
+  const { viuSlide } = useRastreioProposta(
+    token,
+    emPrevia === false && !!d?.encontrada && !fora0,
+  );
 
   useEffect(() => {
     if (imprimir && d?.encontrada && !jaImprimiu.current) {
@@ -75,6 +103,7 @@ function PropostaPublica() {
   }
 
   const fora = d.status === "substituida" || d.status === "cancelada";
+  const slides = d.conteudo.apresentacao?.slides ?? [];
   return (
     <div className="min-h-[100dvh] bg-[#eceef1] pb-16 print:bg-white print:pb-0">
       <div className="sticky top-0 z-10 border-b border-black/5 bg-white/90 backdrop-blur print:hidden">
@@ -93,15 +122,27 @@ function PropostaPublica() {
         </div>
       </div>
 
-      {previa && (
-        <p className="mx-auto mt-4 max-w-[820px] rounded-lg bg-amber-100 px-4 py-2 text-[12px] text-amber-900 print:hidden">
-          Prévia de quem envia: esta visita não conta como abertura do cliente.
-        </p>
+      {emPrevia && (
+        <div className="mx-auto mt-3 flex max-w-[820px] justify-center px-4 print:hidden">
+          <span className="rounded-full bg-[#05104c]/[0.06] px-3 py-1 text-[11.5px] text-[#05104c]/70 ring-1 ring-[#05104c]/10">
+            Pré-visualização · nada é registrado
+          </span>
+        </div>
       )}
       {fora && (
         <p className="mx-auto mt-4 max-w-[820px] rounded-lg bg-[#fff1f0] px-4 py-3 text-[13px] text-[#a8071a] print:hidden">
           Esta versão da proposta não está mais valendo. Fale com a Grou para receber a atual.
         </p>
+      )}
+
+      {slides.length > 0 && (
+        <div className="mx-auto mt-4 max-w-[1100px] px-3 sm:px-4">
+          <ApresentacaoSlides
+            titulo={d.conteudo.apresentacao?.titulo ?? ""}
+            slides={slides}
+            onSlide={viuSlide}
+          />
+        </div>
       )}
 
       <div className="mx-auto mt-4 max-w-[820px] overflow-hidden rounded-xl shadow-sm print:mt-0 print:rounded-none print:shadow-none">
@@ -110,7 +151,7 @@ function PropostaPublica() {
 
       {!fora && !previa && (
         <div className="mx-auto mt-6 max-w-[820px] print:hidden">
-          <Aceite token={token} d={d} onFeito={() => carregar(false)} />
+          <Aceite token={token} d={d} onFeito={() => carregar()} />
         </div>
       )}
     </div>
