@@ -25,11 +25,13 @@ import {
   marcarPropostaEnviada,
   removerApresentacao,
   salvarApresentacao,
+  salvarAvisosEmails,
   type PropostaLista,
 } from "@/lib/propostas.functions";
 import { dataBr, moedaBr, STATUS_PROPOSTA } from "@/lib/propostas/render";
 import { duracao, type Rastreio } from "@/lib/propostas/visitas";
 import { PUBLIC_SITE_URL } from "@/lib/propostas/site";
+import { lerEmailsDigitados, MAX_AVISOS_EMAILS } from "@/lib/propostas/avisos-email";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -178,6 +180,7 @@ function LinhaProposta({
           {historico && <HistoricoVisitas p={p} />}
         </div>
       )}
+      <AvisarPorEmail p={p} onFeito={atualizar} />
       <div className="flex flex-wrap gap-1">
         <Acao
           icon={Eye}
@@ -269,6 +272,87 @@ function HistoricoVisitas({ p }: { p: PropostaLista }) {
         </li>
       ))}
     </ul>
+  );
+}
+
+/** "Avisar por e-mail": quem recebe os avisos de abertura, aceite e recusa. */
+function AvisarPorEmail({ p, onFeito }: { p: PropostaLista; onFeito: () => void }) {
+  const salvar = useServerFn(salvarAvisosEmails);
+  const [editando, setEditando] = useState(false);
+  const [texto, setTexto] = useState("");
+  const [erro, setErro] = useState<string | null>(null);
+  const [salvando, setSalvando] = useState(false);
+
+  const abrir = () => {
+    setTexto(p.avisosEmails.join(", "));
+    setErro(null);
+    setEditando(true);
+  };
+  const gravar = async () => {
+    const { validos, invalidos } = lerEmailsDigitados(texto);
+    if (invalidos.length) {
+      setErro(`E-mail inválido: ${invalidos.join(", ")}`);
+      return;
+    }
+    if (validos.length > MAX_AVISOS_EMAILS) {
+      setErro(`No máximo ${MAX_AVISOS_EMAILS} e-mails.`);
+      return;
+    }
+    setSalvando(true);
+    try {
+      await salvar({ data: { id: p.id, emails: validos } });
+      toast.success(validos.length ? "Lista de avisos salva" : "Avisos irão para quem enviou a proposta");
+      setEditando(false);
+      onFeito();
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (!editando) {
+    return (
+      <p className="flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground">
+        <Mail className="h-3 w-3" /> Avisar por e-mail:{" "}
+        <span className="text-foreground">
+          {p.avisosEmails.length ? p.avisosEmails.join(", ") : "quem enviou a proposta"}
+        </span>
+        <button type="button" className="ml-1 text-primary hover:underline" onClick={abrir}>
+          Editar
+        </button>
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-1.5 rounded-md border bg-muted/40 p-2">
+      <Label htmlFor={`avisos-${p.id}`} className="text-[11px]">
+        Avisar por e-mail
+      </Label>
+      <Textarea
+        id={`avisos-${p.id}`}
+        rows={2}
+        value={texto}
+        onChange={(e) => {
+          setTexto(e.target.value);
+          setErro(null);
+        }}
+        placeholder="nome@grougp.com.br, outra@grougp.com.br"
+        className="text-[12px]"
+      />
+      <p className="text-[10.5px] text-muted-foreground">
+        Separe por vírgula. Vazio: o aviso vai para quem enviou a proposta.
+      </p>
+      {erro && <p className="text-[11px] text-destructive">{erro}</p>}
+      <div className="flex justify-end gap-1.5">
+        <Button size="sm" variant="ghost" disabled={salvando} onClick={() => setEditando(false)}>
+          Cancelar
+        </Button>
+        <Button size="sm" disabled={salvando} onClick={gravar}>
+          {salvando ? "Salvando…" : "Salvar"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
