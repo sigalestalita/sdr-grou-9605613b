@@ -169,6 +169,13 @@
       "when": 1794852279510,
       "tag": "0023_20261116180000_proposta_visitas",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794853938560,
+      "tag": "0024_20261116190000_proposta_avisos_emails",
+      "breakpoints": true
     }
   ]
 }

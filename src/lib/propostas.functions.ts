@@ -18,6 +18,7 @@ import {
   type Rastreio,
   type VisitaBruta,
 } from "@/lib/propostas/visitas";
+import { MAX_AVISOS_EMAILS, normalizarEmails } from "@/lib/propostas/avisos-email";
 
 /*
  * Propostas comerciais e seus modelos (lado logado). O cliente entra pela
@@ -397,7 +398,7 @@ Responda SÓ com JSON: {"nome": string, "descricao": string, "titulo": string, "
 // Proposta do negócio
 // ---------------------------------------------------------------------------
 const COLS_PROPOSTA =
-  "id, numero, versao, status, token, deal_id, modelo_id, valor_total, valor_desconto, valor_impostos, valor_final, validade_ate, enviada_em, enviada_para, visualizada_em, visualizacoes, aceita_em, aceite, recusada_em, recusa_motivo, created_at, created_by, conteudo";
+  "id, numero, versao, status, token, deal_id, modelo_id, valor_total, valor_desconto, valor_impostos, valor_final, validade_ate, enviada_em, enviada_para, visualizada_em, visualizacoes, aceita_em, aceite, recusada_em, recusa_motivo, created_at, created_by, conteudo, avisos_emails";
 
 /** O que o diálogo "Gerar proposta" precisa: contatos, modelos sugeridos, pagamento. */
 export const dadosParaProposta = createServerFn({ method: "GET" })
@@ -554,12 +555,16 @@ export const gerarProposta = createServerFn({ method: "POST" })
 
     const { data: ult } = await db
       .from("propostas")
-      .select("versao, apresentacao:conteudo->apresentacao")
+      .select("versao, avisos_emails, apresentacao:conteudo->apresentacao")
       .eq("deal_id", data.dealId)
       .order("versao", { ascending: false })
       .limit(1)
       .maybeSingle();
-    const anterior = ult as { versao: number; apresentacao: ConteudoProposta["apresentacao"] | null } | null;
+    const anterior = ult as {
+      versao: number;
+      avisos_emails: string[] | null;
+      apresentacao: ConteudoProposta["apresentacao"] | null;
+    } | null;
     const versao = (anterior?.versao ?? 0) + 1;
     // A nova versão herda a apresentação em slides da anterior (dá para trocar no rascunho).
     if (anterior?.apresentacao?.slides?.length) conteudo.apresentacao = anterior.apresentacao;
@@ -581,6 +586,8 @@ export const gerarProposta = createServerFn({ method: "POST" })
         valor_final: conteudo.totais.final,
         validade_ate: conteudo.validadeAte,
         created_by: context.userId,
+        // Quem recebe os avisos por e-mail continua o mesmo da versão anterior.
+        avisos_emails: anterior?.avisos_emails ?? [],
       })
       .select("id, token, numero")
       .single();
@@ -615,6 +622,8 @@ export type PropostaLista = {
   aceite: { nome?: string; email?: string; cargo?: string } | null;
   recusadaEm: string | null;
   recusaMotivo: string | null;
+  /** Quem recebe os avisos por e-mail. Vazio: quem enviou a proposta. */
+  avisosEmails: string[];
   criadaEm: string;
   autor: string | null;
   modelos: string[];
@@ -723,6 +732,7 @@ export const listarPropostas = createServerFn({ method: "GET" })
         aceite: (r.aceite as PropostaLista["aceite"]) ?? null,
         recusadaEm: (r.recusada_em as string | null) ?? null,
         recusaMotivo: (r.recusa_motivo as string | null) ?? null,
+        avisosEmails: (r.avisos_emails as string[] | null) ?? [],
         criadaEm: String(r.created_at),
         autor: nome.get(r.created_by as string) ?? null,
         modelos: (conteudo?.modelos ?? []).map((m) => m.nome),
@@ -804,6 +814,30 @@ export const removerApresentacao = createServerFn({ method: "POST" })
       .eq("status", "rascunho");
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/** Lista "Avisar por e-mail" da proposta (vale em qualquer status). */
+export const salvarAvisosEmails = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        emails: z.array(z.string().trim().toLowerCase().email().max(200)).max(MAX_AVISOS_EMAILS),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = solto(context.supabase);
+    const emails = normalizarEmails(data.emails);
+    const { data: linhas, error } = await db
+      .from("propostas")
+      .update({ avisos_emails: emails })
+      .eq("id", data.id)
+      .select("id");
+    if (error) throw new Error(error.message);
+    if (!linhas?.length) throw new Error("Proposta não encontrada");
+    return { ok: true, emails };
   });
 
 /** Marca como enviada (quando o executivo manda o link por fora: WhatsApp, cópia). */
