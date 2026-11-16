@@ -578,7 +578,7 @@ function GerarPropostaDialog({ dealId, onClose }: { dealId: string; onClose: () 
             </div>
             <div className="space-y-1">
               <Label className="text-[11px]">
-                Apresentação em slides (opcional — sem PDF, usa a da versão anterior)
+                Apresentação em slides (opcional; sem PDF, mantém a da versão anterior, se houver)
               </Label>
               <EscolherPdf arquivo={pdf} onArquivo={setPdf} desabilitado={gerar.isPending} />
               {progresso && <p className="text-[12px] text-muted-foreground">{progresso}</p>}
