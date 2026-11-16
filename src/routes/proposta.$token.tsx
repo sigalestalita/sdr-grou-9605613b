@@ -149,7 +149,7 @@ function PropostaPublica() {
         <DocumentoProposta c={d.conteudo} numero={d.numero} versao={d.versao} />
       </div>
 
-      {!fora && emPrevia === false && (
+      {!fora && !previa && (
         <div className="mx-auto mt-6 max-w-[820px] print:hidden">
           <Aceite token={token} d={d} onFeito={() => carregar()} />
         </div>
