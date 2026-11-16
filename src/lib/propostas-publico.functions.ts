@@ -4,6 +4,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hojeSP } from "@/lib/datas-sp";
 import { moedaBr, type ConteudoProposta } from "@/lib/propostas/render";
+import { chegouAoFimAgora, ehRetorno, mesclarSlides, somarSegundos } from "@/lib/propostas/visitas";
 
 /*
  * Página do cliente (/proposta/<token>), sem login. Tudo passa por aqui com o
@@ -65,41 +66,215 @@ async function avisar(p: Linha, titulo: string, corpo: string) {
 
 const tokenZ = z.object({ token: z.string().uuid() });
 
+/** Caminho no bucket privado propostas-slides, quando a URL é de lá. */
+function caminhoNoBucket(url: string): string | null {
+  const m = /\/storage\/v1\/object\/(?:public|sign|authenticated)\/propostas-slides\/([^?#]+)/.exec(url);
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/**
+ * O bucket dos slides é privado: na hora de abrir a proposta (sempre pelo
+ * token) troca as URLs de lá por links temporários. URLs externas ficam iguais.
+ */
+async function slidesParaExibir(slides: string[]): Promise<string[]> {
+  const caminhos = slides.map(caminhoNoBucket);
+  const doBucket = caminhos.filter((c): c is string => !!c);
+  if (doBucket.length === 0) return slides;
+  const { data } = await db()
+    .storage.from("propostas-slides")
+    .createSignedUrls(doBucket, 60 * 60 * 12);
+  const assinada = new Map<string, string>();
+  for (const r of data ?? []) if (r.path && r.signedUrl) assinada.set(r.path, r.signedUrl);
+  return slides.map((url, i) => {
+    const c = caminhos[i];
+    const s = c ? assinada.get(c) : undefined;
+    if (!s) return url;
+    // Mantém o endereço que o navegador já usa (o da URL gravada).
+    try {
+      const base = new URL(url);
+      const assin = new URL(s);
+      return `${base.origin}${assin.pathname}${assin.search}`;
+    } catch {
+      return s;
+    }
+  });
+}
+
+const tokenZ = z.object({ token: z.string().uuid() });
+const sessaoZ = z
+  .string()
+  .min(8)
+  .max(64)
+  .regex(/^[A-Za-z0-9_-]+$/);
+
+/**
+ * Abre a proposta. Não registra visita: quem registra é registrarVisita, uma
+ * vez por sessão do navegador (e nunca na pré-visualização). `contar` fica
+ * aceito por compatibilidade com links antigos e é ignorado.
+ */
 export const verPropostaPublica = createServerFn({ method: "POST" })
-  .inputValidator((d) => tokenZ.extend({ contar: z.boolean().default(true) }).parse(d))
+  .inputValidator((d) => tokenZ.extend({ contar: z.boolean().optional() }).parse(d))
   .handler(async ({ data }) => {
     const p = await porToken(data.token);
     if (!p) return { encontrada: false as const };
-    if (data.contar && !["substituida", "cancelada"].includes(p.status)) {
-      const agora = new Date().toISOString();
-      const primeira = !p.visualizada_em;
-      await db()
-        .from("propostas")
-        .update({
-          visualizacoes: (p.visualizacoes ?? 0) + 1,
-          ...(primeira ? { visualizada_em: agora } : {}),
-          ...(p.status === "enviada" ? { status: "visualizada" } : {}),
-        })
-        .eq("id", p.id);
-      if (primeira && p.status === "enviada") {
-        await avisar(
-          p,
-          `${p.conteudo.cliente.empresa} abriu a proposta nº ${p.numero}`,
-          `${moedaBr(p.conteudo.totais.final)} · versão ${p.versao}`,
-        );
-      }
-    }
+    const ap = p.conteudo.apresentacao;
+    const conteudo: ConteudoProposta =
+      ap && Array.isArray(ap.slides) && ap.slides.length > 0
+        ? { ...p.conteudo, apresentacao: { ...ap, slides: await slidesParaExibir(ap.slides) } }
+        : p.conteudo;
     return {
       encontrada: true as const,
       numero: p.numero,
       versao: p.versao,
       status: p.status,
       vencida: vencida(p),
-      conteudo: p.conteudo,
+      conteudo,
       aceitaEm: p.aceita_em,
       aceite: p.aceite ? { nome: p.aceite.nome ?? "", cargo: p.aceite.cargo ?? "" } : null,
       recusadaEm: p.recusada_em,
     };
+  });
+
+function quemAcessa() {
+  const h = getRequest()?.headers;
+  const ip =
+    h?.get("cf-connecting-ip") ??
+    h?.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    h?.get("x-real-ip") ??
+    null;
+  return { ip, user_agent: h?.get("user-agent")?.slice(0, 300) ?? null };
+}
+
+const naoConta = (status: string) => ["substituida", "cancelada"].includes(status);
+
+/**
+ * Início de uma visita (uma por sessão do navegador). Recarregar a página na
+ * mesma sessão não soma visualização de novo.
+ */
+export const registrarVisita = createServerFn({ method: "POST" })
+  .inputValidator((d) => tokenZ.extend({ sessao: sessaoZ }).parse(d))
+  .handler(async ({ data }) => {
+    const p = await porToken(data.token);
+    if (!p || naoConta(p.status)) return { ok: false };
+    const { data: anteriores } = await db()
+      .from("proposta_visitas")
+      .select("iniciada_em, ultima_atividade_em")
+      .eq("proposta_id", p.id)
+      .neq("sessao", data.sessao)
+      .order("iniciada_em", { ascending: false })
+      .limit(50);
+    const ultimaAntes =
+      ((anteriores ?? []) as Array<{ iniciada_em: string; ultima_atividade_em: string | null }>)
+        .map((v) => v.ultima_atividade_em ?? v.iniciada_em)
+        .sort()
+        .at(-1) ?? null;
+    const agora = new Date();
+    const { data: nova } = await db()
+      .from("proposta_visitas")
+      .upsert(
+        {
+          proposta_id: p.id,
+          sessao: data.sessao,
+          ultima_atividade_em: agora.toISOString(),
+          ...quemAcessa(),
+        },
+        { onConflict: "proposta_id,sessao", ignoreDuplicates: true },
+      )
+      .select("id");
+    const novaSessao = (nova ?? []).length > 0;
+    if (!novaSessao) return { ok: true, nova: false };
+
+    const primeira = !p.visualizada_em;
+    await db()
+      .from("propostas")
+      .update({
+        visualizacoes: (p.visualizacoes ?? 0) + 1,
+        ...(primeira ? { visualizada_em: agora.toISOString() } : {}),
+        ...(p.status === "enviada" ? { status: "visualizada" } : {}),
+      })
+      .eq("id", p.id);
+    if (primeira && p.status === "enviada") {
+      await avisar(
+        p,
+        `${p.conteudo.cliente.empresa} abriu a proposta nº ${p.numero}`,
+        `${moedaBr(p.conteudo.totais.final)} · versão ${p.versao}`,
+      );
+    } else if (p.status !== "rascunho" && ehRetorno(ultimaAntes, agora)) {
+      await avisar(
+        p,
+        `${p.conteudo.cliente.empresa} voltou a abrir a proposta nº ${p.numero}`,
+        `Última visita em ${new Date(ultimaAntes!).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · ${(p.visualizacoes ?? 0) + 1}ª abertura`,
+      );
+    }
+    return { ok: true, nova: true };
+  });
+
+/**
+ * Atividade durante a visita: slides vistos e tempo com a página visível
+ * (em segundos desde o último envio).
+ */
+export const atividadeVisita = createServerFn({ method: "POST" })
+  .inputValidator((d) =>
+    tokenZ
+      .extend({
+        sessao: sessaoZ,
+        slides: z.array(z.number().int().min(1).max(500)).max(500).default([]),
+        segundos: z.number().int().min(0).max(100_000).default(0),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const p = await porToken(data.token);
+    if (!p || naoConta(p.status)) return { ok: false };
+    const { data: v } = await db()
+      .from("proposta_visitas")
+      .select("id, segundos, slides_vistos, maior_slide")
+      .eq("proposta_id", p.id)
+      .eq("sessao", data.sessao)
+      .maybeSingle();
+    const visita = v as {
+      id: string;
+      segundos: number;
+      slides_vistos: number[] | null;
+      maior_slide: number;
+    } | null;
+    if (!visita) return { ok: false };
+    const total = p.conteudo.apresentacao?.slides?.length ?? 0;
+    const vistos = mesclarSlides(visita.slides_vistos ?? [], data.slides, total);
+    const maior = Math.max(visita.maior_slide ?? 0, ...vistos, 0);
+
+    let maiorAntesDeTodos = 0;
+    if (total > 0 && maior >= total && (visita.maior_slide ?? 0) < total) {
+      const { data: top } = await db()
+        .from("proposta_visitas")
+        .select("maior_slide")
+        .eq("proposta_id", p.id)
+        .order("maior_slide", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      maiorAntesDeTodos = (top as { maior_slide: number } | null)?.maior_slide ?? 0;
+    } else {
+      maiorAntesDeTodos = total; // nada a avisar
+    }
+
+    await db()
+      .from("proposta_visitas")
+      .update({
+        ultima_atividade_em: new Date().toISOString(),
+        segundos: somarSegundos(visita.segundos ?? 0, data.segundos),
+        slides_vistos: vistos,
+        maior_slide: maior,
+      })
+      .eq("id", visita.id);
+
+    if (p.status !== "rascunho" && chegouAoFimAgora(maiorAntesDeTodos, maior, total)) {
+      await avisar(
+        p,
+        `${p.conteudo.cliente.empresa} viu todos os slides da proposta nº ${p.numero}`,
+        `${vistos.length} de ${total} slides · ${p.conteudo.apresentacao?.titulo ?? "apresentação"}`,
+      );
+    }
+    return { ok: true };
   });
 
 export const TEXTO_CIENCIA =
