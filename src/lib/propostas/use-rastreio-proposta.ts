@@ -31,9 +31,10 @@ export function useRastreioProposta(token: string, ativo: boolean) {
     pronto: Promise<unknown>;
     visivelDesde: number | null;
     acumuladoMs: number;
-    slides: Set<number>;
     timer: ReturnType<typeof setTimeout> | null;
   } | null>(null);
+  // Slides mostrados ainda não enviados (pode chegar antes da sessão começar).
+  const pendentes = useRef(new Set<number>());
 
   const enviar = useCallback(() => {
     const e = estado.current;
@@ -44,10 +45,10 @@ export function useRastreioProposta(token: string, ativo: boolean) {
       e.visivelDesde = document.visibilityState === "visible" ? agora : null;
     }
     const segundos = Math.floor(e.acumuladoMs / 1000);
-    const slides = [...e.slides];
+    const slides = [...pendentes.current];
     if (segundos === 0 && slides.length === 0) return;
     e.acumuladoMs -= segundos * 1000;
-    e.slides.clear();
+    pendentes.current.clear();
     void e.pronto
       .then(() => atividade({ data: { token, sessao: e.sessao, slides, segundos } }))
       .catch(() => undefined);
@@ -62,9 +63,9 @@ export function useRastreioProposta(token: string, ativo: boolean) {
       pronto,
       visivelDesde: document.visibilityState === "visible" ? Date.now() : null,
       acumuladoMs: 0,
-      slides: estado.current?.slides ?? new Set(),
       timer: null,
     };
+    if (pendentes.current.size > 0) void pronto.then(enviar);
     const batida = setInterval(() => {
       if (document.visibilityState === "visible") enviar();
     }, BATIDA_MS);
@@ -89,9 +90,9 @@ export function useRastreioProposta(token: string, ativo: boolean) {
   /** Slide mostrado (n começa em 1). */
   const viuSlide = useCallback(
     (n: number) => {
+      pendentes.current.add(n);
       const e = estado.current;
       if (!e) return;
-      e.slides.add(n);
       if (e.timer) clearTimeout(e.timer);
       e.timer = setTimeout(enviar, DEBOUNCE_SLIDE_MS);
     },
