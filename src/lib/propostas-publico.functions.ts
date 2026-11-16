@@ -4,7 +4,15 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hojeSP } from "@/lib/datas-sp";
 import { moedaBr, type ConteudoProposta } from "@/lib/propostas/render";
-import { chegouAoFimAgora, ehRetorno, mesclarSlides, somarSegundos } from "@/lib/propostas/visitas";
+import {
+  chegouAoFimAgora,
+  dispositivo,
+  ehRetorno,
+  mesclarSlides,
+  somarSegundos,
+} from "@/lib/propostas/visitas";
+import type { EventoProposta } from "@/lib/propostas/avisos-email";
+import { enviarAvisoPorEmail } from "@/lib/propostas/avisos-email.server";
 
 /*
  * Página do cliente (/proposta/<token>), sem login. Tudo passa por aqui com o
@@ -27,13 +35,14 @@ type Linha = {
   recusada_em: string | null;
   enviada_por: string | null;
   created_by: string | null;
+  avisos_emails: string[] | null;
 };
 
 async function porToken(token: string): Promise<Linha | null> {
   const { data } = await db()
     .from("propostas")
     .select(
-      "id, numero, versao, status, deal_id, conteudo, validade_ate, visualizada_em, visualizacoes, aceita_em, aceite, recusada_em, enviada_por, created_by",
+      "id, numero, versao, status, deal_id, conteudo, validade_ate, visualizada_em, visualizacoes, aceita_em, aceite, recusada_em, enviada_por, created_by, avisos_emails",
     )
     .eq("token", token)
     .maybeSingle();
@@ -44,8 +53,35 @@ function vencida(p: Linha) {
   return !!p.validade_ate && p.validade_ate < hojeSP(new Date());
 }
 
-/** Avisa o dono da proposta (sino do Compass). Falha aqui não derruba nada. */
-async function avisar(p: Linha, titulo: string, corpo: string) {
+type AvisoEmail = { evento: EventoProposta; userAgent: string | null; quando?: string };
+
+/**
+ * Avisa o dono da proposta (sino do Compass) e, com `email`, manda o aviso
+ * por e-mail para a lista da proposta. Falha aqui não derruba nada.
+ */
+async function avisar(p: Linha, titulo: string, corpo: string, email?: AvisoEmail | null) {
+  await Promise.allSettled([
+    avisarNoSino(p, titulo, corpo),
+    email
+      ? enviarAvisoPorEmail(
+          p,
+          {
+            empresa: p.conteudo.cliente.empresa,
+            numero: p.numero,
+            versao: p.versao,
+            valor: moedaBr(p.conteudo.totais.final),
+            dealId: p.deal_id,
+            quando: email.quando ?? new Date().toISOString(),
+            aparelho: dispositivo(email.userAgent),
+            evento: email.evento,
+          },
+          { db: db() },
+        )
+      : Promise.resolve(),
+  ]);
+}
+
+async function avisarNoSino(p: Linha, titulo: string, corpo: string) {
   const user = p.enviada_por ?? p.created_by;
   if (!user) return;
   await db()
@@ -143,6 +179,23 @@ function quemAcessa() {
   return { ip, user_agent: h?.get("user-agent")?.slice(0, 300) ?? null };
 }
 
+/**
+ * Quem está logado no Compass e abre a página está pré-visualizando: o
+ * navegador logado manda o token da sessão junto. Nesses casos o e-mail de
+ * aviso não sai (o resto do fluxo segue igual).
+ */
+async function ehAlguemDoCompass(): Promise<boolean> {
+  const auth = getRequest()?.headers.get("authorization") ?? "";
+  const m = /^Bearer\s+(.+)$/i.exec(auth);
+  if (!m) return false;
+  try {
+    const { data } = await supabaseAdmin.auth.getUser(m[1]);
+    return !!data.user;
+  } catch {
+    return false;
+  }
+}
+
 const naoConta = (status: string) => ["substituida", "cancelada"].includes(status);
 
 /**
@@ -167,6 +220,7 @@ export const registrarVisita = createServerFn({ method: "POST" })
         .sort()
         .at(-1) ?? null;
     const agora = new Date();
+    const acesso = quemAcessa();
     const { data: nova } = await db()
       .from("proposta_visitas")
       .upsert(
@@ -174,7 +228,7 @@ export const registrarVisita = createServerFn({ method: "POST" })
           proposta_id: p.id,
           sessao: data.sessao,
           ultima_atividade_em: agora.toISOString(),
-          ...quemAcessa(),
+          ...acesso,
         },
         { onConflict: "proposta_id,sessao", ignoreDuplicates: true },
       )
@@ -191,17 +245,26 @@ export const registrarVisita = createServerFn({ method: "POST" })
         ...(p.status === "enviada" ? { status: "visualizada" } : {}),
       })
       .eq("id", p.id);
+    const aberturas = (p.visualizacoes ?? 0) + 1;
+    const totalSlides = p.conteudo.apresentacao?.slides?.length ?? 0;
+    const quando = agora.toISOString();
     if (primeira && p.status === "enviada") {
       await avisar(
         p,
         `${p.conteudo.cliente.empresa} abriu a proposta nº ${p.numero}`,
         `${moedaBr(p.conteudo.totais.final)} · versão ${p.versao}`,
+        { evento: { tipo: "abertura", aberturas, totalSlides }, userAgent: acesso.user_agent, quando },
       );
     } else if (p.status !== "rascunho" && ehRetorno(ultimaAntes, agora)) {
       await avisar(
         p,
         `${p.conteudo.cliente.empresa} voltou a abrir a proposta nº ${p.numero}`,
-        `Última visita em ${new Date(ultimaAntes!).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · ${(p.visualizacoes ?? 0) + 1}ª abertura`,
+        `Última visita em ${new Date(ultimaAntes!).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })} · ${aberturas}ª abertura`,
+        {
+          evento: { tipo: "retorno", aberturas, totalSlides, ultimaAntes: ultimaAntes! },
+          userAgent: acesso.user_agent,
+          quando,
+        },
       );
     }
     return { ok: true, nova: true };
@@ -226,7 +289,7 @@ export const atividadeVisita = createServerFn({ method: "POST" })
     if (!p || naoConta(p.status)) return { ok: false };
     const { data: v } = await db()
       .from("proposta_visitas")
-      .select("id, segundos, slides_vistos, maior_slide")
+      .select("id, segundos, slides_vistos, maior_slide, user_agent")
       .eq("proposta_id", p.id)
       .eq("sessao", data.sessao)
       .maybeSingle();
@@ -235,6 +298,7 @@ export const atividadeVisita = createServerFn({ method: "POST" })
       segundos: number;
       slides_vistos: number[] | null;
       maior_slide: number;
+      user_agent: string | null;
     } | null;
     if (!visita) return { ok: false };
     const total = p.conteudo.apresentacao?.slides?.length ?? 0;
@@ -270,6 +334,16 @@ export const atividadeVisita = createServerFn({ method: "POST" })
         p,
         `${p.conteudo.cliente.empresa} viu todos os slides da proposta nº ${p.numero}`,
         `${vistos.length} de ${total} slides · ${p.conteudo.apresentacao?.titulo ?? "apresentação"}`,
+        {
+          evento: {
+            tipo: "todos_slides",
+            aberturas: Math.max(p.visualizacoes ?? 0, 1),
+            vistos: vistos.length,
+            total,
+            titulo: p.conteudo.apresentacao?.titulo ?? "",
+          },
+          userAgent: visita.user_agent,
+        },
       );
     }
     return { ok: true };
@@ -330,10 +404,24 @@ export const aceitarProposta = createServerFn({ method: "POST" })
       .update({ proposta_aceita_em: agora })
       .eq("id", p.deal_id)
       .is("proposta_aceita_em", null);
+    const previa = await ehAlguemDoCompass();
     await avisar(
       p,
       `Proposta nº ${p.numero} aceita por ${p.conteudo.cliente.empresa}`,
       `${data.nome} (${data.cargo}) aceitou ${moedaBr(p.conteudo.totais.final)}.`,
+      previa
+        ? null
+        : {
+            evento: {
+              tipo: "aceite",
+              nome: data.nome,
+              cargo: data.cargo,
+              email: data.email,
+              documento: data.documento || null,
+            },
+            userAgent: h?.get("user-agent") ?? null,
+            quando: agora,
+          },
     );
     return { ok: true };
   });
@@ -356,10 +444,18 @@ export const recusarProposta = createServerFn({ method: "POST" })
         updated_at: agora,
       })
       .eq("id", p.id);
+    const previa = await ehAlguemDoCompass();
     await avisar(
       p,
       `${p.conteudo.cliente.empresa} recusou a proposta nº ${p.numero}`,
       data.motivo ? `Motivo: ${data.motivo}` : "Sem motivo informado.",
+      previa
+        ? null
+        : {
+            evento: { tipo: "recusa", motivo: data.motivo },
+            userAgent: quemAcessa().user_agent,
+            quando: agora,
+          },
     );
     return { ok: true };
   });
