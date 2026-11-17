@@ -109,3 +109,49 @@ export const upsertCadenceTask = createServerFn({ method: "POST" })
     }
     return { ok: true };
   });
+
+/**
+ * Fixa a agenda da semana: grava as tarefas que o kanban montou e ainda não
+ * estão salvas (8 por dia por analista). Assim a semana não muda de lugar à
+ * medida que os atendimentos são feitos, e a conclusão por evidência do canal
+ * (e-mail, WhatsApp, reunião) já encontra a tarefa. O que já existe não muda.
+ */
+export const fixarSemanaCs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        weekStart: z.string().min(8),
+        itens: z
+          .array(
+            z.object({
+              clientUid: z.string().min(1),
+              weekday: z.number().int().min(1).max(5),
+              ownerId: z.string().uuid(),
+              title: z.string().max(500),
+              urgency: z.string().max(40),
+              color: z.string().max(40),
+            }),
+          )
+          .max(2000),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    if (data.itens.length === 0) return { gravadas: 0 };
+    const linhas = data.itens.map((i) => ({
+      client_uid: i.clientUid,
+      week_start: data.weekStart,
+      weekday: i.weekday,
+      owner_id: i.ownerId,
+      title: i.title,
+      urgency: i.urgency,
+      color: i.color,
+      created_by: context.userId,
+    }));
+    const { error } = await context.supabase
+      .from("cs_cadence_tasks")
+      .upsert(linhas as never, { onConflict: "client_uid,week_start", ignoreDuplicates: true });
+    if (error) throw new Error(error.message);
+    return { gravadas: linhas.length };
+  });
