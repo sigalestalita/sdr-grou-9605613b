@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { FAIXAS_VENCIMENTO, faixaVencimento } from "@/lib/cs/vencimento";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
@@ -176,6 +177,7 @@ function CsCadenciaPage() {
   const [urgency, setUrgency] = useState<string>("");
   const [color, setColor] = useState<string>("");
   const [onlyDue, setOnlyDue] = useState(true);
+  const [vencimento, setVencimento] = useState<string>("");
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
   const setOpenUid = (uid: string | null) => {
@@ -187,7 +189,8 @@ function CsCadenciaPage() {
     queryFn: () => fetchCadence({ data: { tipo, weeks: 12 } }),
   });
 
-  const rows = useMemo(() => {
+  // Filtros menos o de vencimento: a base das contagens de cada faixa.
+  const semVencimento = useMemo(() => {
     const all = data?.rows ?? [];
     const q = search.trim().toLowerCase();
     return all.filter((r) => {
@@ -200,6 +203,28 @@ function CsCadenciaPage() {
       return true;
     });
   }, [data, ownerId, urgency, color, onlyDue, search]);
+
+  const faixaDe = useMemo(() => {
+    const agora = new Date();
+    return new Map((data?.rows ?? []).map((r) => [r.clientUid, faixaVencimento(r.renewal, agora)]));
+  }, [data]);
+
+  const contagemVencimento = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const r of semVencimento) {
+      const f = faixaDe.get(r.clientUid) ?? "sem_data";
+      c[f] = (c[f] ?? 0) + 1;
+    }
+    return c;
+  }, [semVencimento, faixaDe]);
+
+  const rows = useMemo(
+    () =>
+      vencimento
+        ? semVencimento.filter((r) => faixaDe.get(r.clientUid) === vencimento)
+        : semVencimento,
+    [semVencimento, faixaDe, vencimento],
+  );
 
   const byWeekday = useMemo(() => {
     const map: Record<number, CsCadenceRow[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
@@ -265,7 +290,7 @@ function CsCadenciaPage() {
       </div>
 
       <Card className="p-3">
-        <div className="grid gap-2 md:grid-cols-5">
+        <div className="grid gap-2 md:grid-cols-3 lg:grid-cols-6">
           <Input
             placeholder="Buscar cliente..."
             value={search}
@@ -304,6 +329,19 @@ function CsCadenciaPage() {
             {URGENCY_ORDER.map((u) => (
               <option key={u} value={u}>
                 {CADENCE_URGENCY_LABEL[u as CadenceUrgency]}
+              </option>
+            ))}
+          </select>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            value={vencimento}
+            onChange={(e) => setVencimento(e.target.value)}
+            title="Quanto falta para os créditos vencerem"
+          >
+            <option value="">Todos os vencimentos</option>
+            {FAIXAS_VENCIMENTO.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.rotulo} ({contagemVencimento[f.id] ?? 0})
               </option>
             ))}
           </select>
