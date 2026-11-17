@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Card } from "@/components/ui/card";
@@ -9,7 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { getCsCadence, type CsCadenceRow } from "@/lib/cs-cadence.functions";
-import { listCadenceTasks, upsertCadenceTask } from "@/lib/cs-cadence-kanban.functions";
+import {
+  fixarSemanaCs,
+  listCadenceTasks,
+  upsertCadenceTask,
+} from "@/lib/cs-cadence-kanban.functions";
+import { ATENDIMENTOS_POR_DIA, montarSemana } from "@/lib/cs/semana-cs";
 import { CADENCE_URGENCY_LABEL, URGENCY_TONE, WEEKDAY_LABEL } from "@/lib/cs/cadence";
 import { CS_SIGNAL_LABEL, CS_STAGE_LABEL, mondayOf, type CsSignal } from "@/lib/cs-types";
 import { useAuth } from "@/lib/use-auth";
@@ -78,6 +83,7 @@ function CadenceKanbanCard({
   onToggle,
   onMove,
   busy,
+  diasCheios,
 }: {
   card: TaskCard;
   weekStart: string;
@@ -85,6 +91,8 @@ function CadenceKanbanCard({
   onToggle: (done: boolean) => void;
   onMove: (weekday: number) => void;
   busy: boolean;
+  /** Dias que já têm os 8 atendimentos deste analista. */
+  diasCheios: Set<number>;
 }) {
   const { row, done } = card;
   const p = row.plan;
@@ -138,7 +146,12 @@ function CadenceKanbanCard({
             {[1, 2, 3, 4, 5].map((d) => (
               <button
                 key={d}
-                disabled={busy || d === card.weekday}
+                disabled={busy || d === card.weekday || diasCheios.has(d)}
+                title={
+                  diasCheios.has(d) && d !== card.weekday
+                    ? `${WEEKDAY_LABEL[d]} já tem ${ATENDIMENTOS_POR_DIA} atendimentos`
+                    : undefined
+                }
                 onClick={() => onMove(d)}
                 className={`rounded border px-1.5 py-0.5 text-[10px] transition-colors ${
                   d === card.weekday
@@ -163,6 +176,7 @@ function CsKanbanPage() {
   const fetchCadence = useServerFn(getCsCadence);
   const fetchTasks = useServerFn(listCadenceTasks);
   const saveTask = useServerFn(upsertCadenceTask);
+  const fixarFn = useServerFn(fixarSemanaCs);
 
   const [weekStart, setWeekStart] = useState<string>(() => mondayOf());
   const [tipo, setTipo] = useState<"empresa" | "consultoria" | "all">("all");
@@ -204,26 +218,89 @@ function CsKanbanPage() {
   const verTodos = ownerId === "todos";
   const effectiveOwner = verTodos ? "" : ownerId || myOwnerId;
 
+  /*
+   * A semana de cada analista: exatamente 8 atendimentos por dia
+   * (regra em src/lib/cs/semana-cs.ts). A busca e "ocultar concluídos" só
+   * filtram a vista; a agenda é sempre a mesma.
+   */
+  const semana = useMemo(() => {
+    const rows = cadenceQ.data?.rows ?? [];
+    const tasks = tasksQ.data ?? [];
+    return montarSemana(
+      rows,
+      tasks.map((t) => ({
+        clientUid: t.clientUid,
+        weekday: t.weekday,
+        done: t.done,
+        ownerId: t.ownerId,
+      })),
+    );
+  }, [cadenceQ.data, tasksQ.data]);
+
+  // Grava a agenda montada (semana atual ou futura) para ela não mudar de lugar.
+  const fixadas = useRef<string>("");
+  useEffect(() => {
+    if (!cadenceQ.data || !tasksQ.data) return;
+    if (weekStart < mondayOf()) return;
+    const novos = semana.filter((i) => !i.salvo);
+    if (novos.length === 0) return;
+    const chave = `${weekStart}:${novos.length}:${novos[0]?.clientUid}`;
+    if (fixadas.current === chave) return;
+    fixadas.current = chave;
+    const porUid = new Map((cadenceQ.data.rows ?? []).map((r) => [r.clientUid, r]));
+    fixarFn({
+      data: {
+        weekStart,
+        itens: novos.map((i) => {
+          const r = porUid.get(i.clientUid);
+          return {
+            clientUid: i.clientUid,
+            weekday: i.weekday,
+            ownerId: i.ownerId,
+            title: (r?.plan.action ?? "Atendimento de cadência").slice(0, 500),
+            urgency: r?.plan.urgency ?? "normal",
+            color: r?.plan.color ?? "sem_dado",
+          };
+        }),
+      },
+    })
+      .then(() => qc.invalidateQueries({ queryKey: ["cs-cadence-tasks", weekStart] }))
+      .catch(() => {
+        fixadas.current = "";
+      });
+  }, [semana, weekStart, cadenceQ.data, tasksQ.data, fixarFn, qc]);
+
   const cards = useMemo(() => {
-    const tasks = new Map((tasksQ.data ?? []).map((t) => [t.clientUid, t]));
+    const porUid = new Map((cadenceQ.data?.rows ?? []).map((r) => [r.clientUid, r]));
     const q = search.trim().toLowerCase();
     const out: TaskCard[] = [];
-    for (const row of cadenceQ.data?.rows ?? []) {
-      const task = tasks.get(row.clientUid);
-      if (!row.plan.due && !task) continue;
-      if (!verTodos && effectiveOwner && row.ownerId !== effectiveOwner) continue;
+    for (const item of semana) {
+      const row = porUid.get(item.clientUid);
+      if (!row) continue;
+      if (!verTodos && effectiveOwner && item.ownerId !== effectiveOwner) continue;
       if (
         q &&
         !row.clientName.toLowerCase().includes(q) &&
         !row.clientUid.toLowerCase().includes(q)
       )
         continue;
-      const done = task?.done ?? false;
-      if (hideDone && done) continue;
-      out.push({ row, weekday: task?.weekday ?? row.plan.suggestedWeekday, done });
+      if (hideDone && item.done) continue;
+      out.push({ row, weekday: item.weekday, done: item.done });
     }
     return out;
-  }, [cadenceQ.data, tasksQ.data, effectiveOwner, verTodos, search, hideDone]);
+  }, [cadenceQ.data, semana, effectiveOwner, verTodos, search, hideDone]);
+
+  // Ocupação por analista e dia (sem filtros), para travar mover para dia cheio.
+  const ocupacao = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const i of semana)
+      m.set(`${i.ownerId}:${i.weekday}`, (m.get(`${i.ownerId}:${i.weekday}`) ?? 0) + 1);
+    return m;
+  }, [semana]);
+  const diasCheiosDe = (ownerId: string | null) =>
+    new Set(
+      [1, 2, 3, 4, 5].filter((d) => (ocupacao.get(`${ownerId}:${d}`) ?? 0) >= ATENDIMENTOS_POR_DIA),
+    );
 
   const byDay = useMemo(() => {
     const map: Record<number, TaskCard[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
@@ -271,8 +348,8 @@ function CsKanbanPage() {
         <div>
           <h1 className="text-xl font-bold tracking-tight">Kanban de Cadência CS</h1>
           <p className="text-sm text-muted-foreground">
-            O que fazer com cada cliente em cada dia da semana, segundo a cadência do Playbook — com
-            check por ação.
+            {ATENDIMENTOS_POR_DIA} atendimentos por dia para cada analista, na ordem de prioridade
+            da cadência do Playbook — com check por ação.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -379,6 +456,7 @@ function CsKanbanPage() {
                   onOpen={() => setOpenUid(c.row.clientUid)}
                   onToggle={(done) => toggle(c, done)}
                   onMove={(wd) => move(c, wd)}
+                  diasCheios={diasCheiosDe(c.row.ownerId)}
                 />
               ))}
               {(byDay[d]?.length ?? 0) === 0 ? (
