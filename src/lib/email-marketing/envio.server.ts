@@ -126,12 +126,23 @@ export async function iniciarCampanha(campanhaId: string) {
       .eq("id", c.segmento_id)
       .single();
     if (!seg) throw new Error("Segmentação não encontrada");
-    const { data: lista, error } = await db().rpc("email_segmento_leads", {
-      regras: (seg as Row).regras,
-      limite: null,
-    });
-    if (error) throw new Error(error.message);
-    const linhas = ((lista ?? []) as Row[]).map((l) => ({
+    /*
+     * O banco devolve no máximo 1.000 linhas por chamada: a lista vem em
+     * páginas. Sem isso, uma segmentação de 1.371 pessoas virava uma campanha
+     * de 1.000 (aconteceu na turma Sicredi de 18/11).
+     */
+    const lista: Row[] = [];
+    const PAGINA = 1000;
+    for (let de = 0; ; de += PAGINA) {
+      const { data: pagina, error } = await db()
+        .rpc("email_segmento_leads", { regras: (seg as Row).regras, limite: null })
+        .range(de, de + PAGINA - 1);
+      if (error) throw new Error(error.message);
+      const linhasDaPagina = (pagina ?? []) as Row[];
+      lista.push(...linhasDaPagina);
+      if (linhasDaPagina.length < PAGINA) break;
+    }
+    const linhas = lista.map((l) => ({
       campanha_id: c.id,
       lead_id: l.lead_id,
       email: String(l.email),
