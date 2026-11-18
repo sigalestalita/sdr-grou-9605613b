@@ -708,14 +708,14 @@ function TeamDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{team ? `Editar ${team.nome}` : "Novo time ou área"}</DialogTitle>
           <DialogDescription>
             O módulo define o que as pessoas do time enxergam e quais tipos de acesso existem nele.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <div className="space-y-1">
             <Label htmlFor="t-nome">Nome</Label>
             <Input
@@ -742,7 +742,7 @@ function TeamDialog({
               onValueChange={(v) => setModulo(v as AppTeam | "none")}
               disabled={isDefault || moduleLocked}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full min-w-0 [&>span]:truncate">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
