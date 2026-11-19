@@ -105,6 +105,7 @@ import { Route as ApiPublicHooksSyncRdCsClientsRouteImport } from './routes/api/
 import { Route as ApiPublicHooksSyncSinaleiraRouteImport } from './routes/api/public/hooks/sync-sinaleira'
 import { Route as ApiPublicHooksTransformRdRouteImport } from './routes/api/public/hooks/transform-rd'
 import { Route as ApiPublicMetaLeadsRouteImport } from './routes/api/public/meta/leads'
+import { Route as ApiPublicMktConversaoRouteImport } from './routes/api/public/mkt/conversao'
 import { Route as ApiPublicRdMarketingCallbackRouteImport } from './routes/api/public/rd-marketing/callback'
 import { Route as ApiPublicRdCallbackRouteImport } from './routes/api/public/rd/callback'
 import { Route as ApiPublicEmailAbrirTokenRouteImport } from './routes/api/public/email/abrir.$token'
@@ -609,6 +610,11 @@ const ApiPublicMetaLeadsRoute = ApiPublicMetaLeadsRouteImport.update({
   path: '/api/public/meta/leads',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMktConversaoRoute = ApiPublicMktConversaoRouteImport.update({
+  id: '/api/public/mkt/conversao',
+  path: '/api/public/mkt/conversao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicRdMarketingCallbackRoute =
   ApiPublicRdMarketingCallbackRouteImport.update({
     id: '/api/public/rd-marketing/callback',
@@ -741,6 +747,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/sync-sinaleira': typeof ApiPublicHooksSyncSinaleiraRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
+  '/api/public/mkt/conversao': typeof ApiPublicMktConversaoRoute
   '/api/public/rd-marketing/callback': typeof ApiPublicRdMarketingCallbackRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
   '/api/public/email/abrir/$token': typeof ApiPublicEmailAbrirTokenRoute
@@ -842,6 +849,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/sync-sinaleira': typeof ApiPublicHooksSyncSinaleiraRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
+  '/api/public/mkt/conversao': typeof ApiPublicMktConversaoRoute
   '/api/public/rd-marketing/callback': typeof ApiPublicRdMarketingCallbackRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
   '/api/public/email/abrir/$token': typeof ApiPublicEmailAbrirTokenRoute
@@ -947,6 +955,7 @@ export interface FileRoutesById {
   '/api/public/hooks/sync-sinaleira': typeof ApiPublicHooksSyncSinaleiraRoute
   '/api/public/hooks/transform-rd': typeof ApiPublicHooksTransformRdRoute
   '/api/public/meta/leads': typeof ApiPublicMetaLeadsRoute
+  '/api/public/mkt/conversao': typeof ApiPublicMktConversaoRoute
   '/api/public/rd-marketing/callback': typeof ApiPublicRdMarketingCallbackRoute
   '/api/public/rd/callback': typeof ApiPublicRdCallbackRoute
   '/api/public/email/abrir/$token': typeof ApiPublicEmailAbrirTokenRoute
@@ -1052,6 +1061,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-sinaleira'
     | '/api/public/hooks/transform-rd'
     | '/api/public/meta/leads'
+    | '/api/public/mkt/conversao'
     | '/api/public/rd-marketing/callback'
     | '/api/public/rd/callback'
     | '/api/public/email/abrir/$token'
@@ -1153,6 +1163,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-sinaleira'
     | '/api/public/hooks/transform-rd'
     | '/api/public/meta/leads'
+    | '/api/public/mkt/conversao'
     | '/api/public/rd-marketing/callback'
     | '/api/public/rd/callback'
     | '/api/public/email/abrir/$token'
@@ -1257,6 +1268,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-sinaleira'
     | '/api/public/hooks/transform-rd'
     | '/api/public/meta/leads'
+    | '/api/public/mkt/conversao'
     | '/api/public/rd-marketing/callback'
     | '/api/public/rd/callback'
     | '/api/public/email/abrir/$token'
@@ -1295,6 +1307,7 @@ export interface RootRouteChildren {
   ApiPublicHooksSyncSinaleiraRoute: typeof ApiPublicHooksSyncSinaleiraRoute
   ApiPublicHooksTransformRdRoute: typeof ApiPublicHooksTransformRdRoute
   ApiPublicMetaLeadsRoute: typeof ApiPublicMetaLeadsRoute
+  ApiPublicMktConversaoRoute: typeof ApiPublicMktConversaoRoute
   ApiPublicRdMarketingCallbackRoute: typeof ApiPublicRdMarketingCallbackRoute
   ApiPublicRdCallbackRoute: typeof ApiPublicRdCallbackRoute
   ApiPublicEmailAbrirTokenRoute: typeof ApiPublicEmailAbrirTokenRoute
@@ -1977,6 +1990,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMetaLeadsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/mkt/conversao': {
+      id: '/api/public/mkt/conversao'
+      path: '/api/public/mkt/conversao'
+      fullPath: '/api/public/mkt/conversao'
+      preLoaderRoute: typeof ApiPublicMktConversaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/rd-marketing/callback': {
       id: '/api/public/rd-marketing/callback'
       path: '/api/public/rd-marketing/callback'
@@ -2231,6 +2251,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSyncSinaleiraRoute: ApiPublicHooksSyncSinaleiraRoute,
   ApiPublicHooksTransformRdRoute: ApiPublicHooksTransformRdRoute,
   ApiPublicMetaLeadsRoute: ApiPublicMetaLeadsRoute,
+  ApiPublicMktConversaoRoute: ApiPublicMktConversaoRoute,
   ApiPublicRdMarketingCallbackRoute: ApiPublicRdMarketingCallbackRoute,
   ApiPublicRdCallbackRoute: ApiPublicRdCallbackRoute,
   ApiPublicEmailAbrirTokenRoute: ApiPublicEmailAbrirTokenRoute,

@@ -3659,6 +3659,7 @@ export type Database = {
           meeting_invite_sent_at: string | null
           meeting_invite_sequence: number
           meeting_invite_uid: string | null
+          mkt_ativo_id: string | null
           name: string
           next_action: string | null
           next_follow_up_at: string | null
@@ -3678,6 +3679,7 @@ export type Database = {
           rd_pipeline: string | null
           rd_status: string | null
           score: number
+          sem_ia_automatica: boolean
           source: string | null
           stage_entered_at: string | null
           stage_id: string | null
@@ -3733,6 +3735,7 @@ export type Database = {
           meeting_invite_sent_at?: string | null
           meeting_invite_sequence?: number
           meeting_invite_uid?: string | null
+          mkt_ativo_id?: string | null
           name: string
           next_action?: string | null
           next_follow_up_at?: string | null
@@ -3752,6 +3755,7 @@ export type Database = {
           rd_pipeline?: string | null
           rd_status?: string | null
           score?: number
+          sem_ia_automatica?: boolean
           source?: string | null
           stage_entered_at?: string | null
           stage_id?: string | null
@@ -3807,6 +3811,7 @@ export type Database = {
           meeting_invite_sent_at?: string | null
           meeting_invite_sequence?: number
           meeting_invite_uid?: string | null
+          mkt_ativo_id?: string | null
           name?: string
           next_action?: string | null
           next_follow_up_at?: string | null
@@ -3826,6 +3831,7 @@ export type Database = {
           rd_pipeline?: string | null
           rd_status?: string | null
           score?: number
+          sem_ia_automatica?: boolean
           source?: string | null
           stage_entered_at?: string | null
           stage_id?: string | null
@@ -3852,6 +3858,13 @@ export type Database = {
             columns: ["deal_id"]
             isOneToOne: false
             referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_mkt_ativo_id_fkey"
+            columns: ["mkt_ativo_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ativos"
             referencedColumns: ["id"]
           },
           {
@@ -4020,6 +4033,157 @@ export type Database = {
           gasto?: number
           impressoes?: number
           leads?: number
+        }
+        Relationships: []
+      }
+      mkt_ativos: {
+        Row: {
+          ativo: boolean
+          chave: string
+          created_at: string
+          etapa_funil: string
+          id: string
+          nome: string
+          regra_passagem: string
+          sem_ia_automatica: boolean
+          slug: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          chave: string
+          created_at?: string
+          etapa_funil?: string
+          id?: string
+          nome: string
+          regra_passagem?: string
+          sem_ia_automatica?: boolean
+          slug: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          chave?: string
+          created_at?: string
+          etapa_funil?: string
+          id?: string
+          nome?: string
+          regra_passagem?: string
+          sem_ia_automatica?: boolean
+          slug?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mkt_conversoes: {
+        Row: {
+          acao: string | null
+          aceita_contato: boolean
+          ativo_id: string
+          contact_id: string | null
+          created_at: string
+          email: string
+          empresa: string | null
+          id: string
+          idempotencia: string
+          ip: string | null
+          lead_id: string | null
+          nome: string | null
+          origem_tecnica: string
+          pagina_url: string | null
+          respostas: Json
+          telefone: string | null
+          user_agent: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+        }
+        Insert: {
+          acao?: string | null
+          aceita_contato?: boolean
+          ativo_id: string
+          contact_id?: string | null
+          created_at?: string
+          email: string
+          empresa?: string | null
+          id?: string
+          idempotencia: string
+          ip?: string | null
+          lead_id?: string | null
+          nome?: string | null
+          origem_tecnica?: string
+          pagina_url?: string | null
+          respostas?: Json
+          telefone?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Update: {
+          acao?: string | null
+          aceita_contato?: boolean
+          ativo_id?: string
+          contact_id?: string | null
+          created_at?: string
+          email?: string
+          empresa?: string | null
+          id?: string
+          idempotencia?: string
+          ip?: string | null
+          lead_id?: string | null
+          nome?: string | null
+          origem_tecnica?: string
+          pagina_url?: string | null
+          respostas?: Json
+          telefone?: string | null
+          user_agent?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mkt_conversoes_ativo_id_fkey"
+            columns: ["ativo_id"]
+            isOneToOne: false
+            referencedRelation: "mkt_ativos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_conversoes_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mkt_conversoes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mkt_limite_ip: {
+        Row: {
+          created_at: string
+          id: number
+          ip: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          ip: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          ip?: string
         }
         Relationships: []
       }
@@ -6352,6 +6516,10 @@ export type Database = {
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       lead_is_rd_import: {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
+        Returns: boolean
+      }
+      mkt_registrar_tentativa: {
+        Args: { _ip: string; _janela_min: number; _max: number }
         Returns: boolean
       }
       nome_empresa_normalizado: { Args: { _nome: string }; Returns: string }

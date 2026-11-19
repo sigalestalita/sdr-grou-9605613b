@@ -39,6 +39,7 @@ import { LeadNaEspinha } from "@/components/leads/lead-na-espinha";
 import { ReuniaoDoLead } from "@/components/leads/reuniao-do-lead";
 import { AnotacoesDoContato } from "@/components/leads/anotacoes-do-contato";
 import { HistoricoDoLead } from "@/components/leads/historico-do-lead";
+import { RespostasDoFormulario } from "@/components/leads/respostas-do-formulario";
 import {
   ArrowLeft,
   MessageSquare,
@@ -257,6 +258,15 @@ function LeadDetailPage() {
                   className="h-[18px] border-destructive/50 px-1.5 text-[10px] text-destructive"
                 >
                   Descartado: {lead.lost_reason ?? "sem motivo"}
+                </Badge>
+              )}
+              {lead.sem_ia_automatica && (
+                <Badge
+                  variant="outline"
+                  className="h-[18px] px-1.5 text-[10px] text-muted-foreground"
+                  title="Este card não recebe a abertura automática da IA no WhatsApp nem follow-ups automáticos."
+                >
+                  Sem IA automática
                 </Badge>
               )}
             </div>
@@ -665,6 +675,7 @@ function LeadDetailPage() {
                 <Info label="Formulário" value={lead.form_name} />
                 <Info label="Conversão" value={lead.converted_at} />
               </div>
+              <RespostasDoFormulario formPayload={lead.form_payload} />
             </Card>
 
             <CadenceJourney leadId={lead.id} />

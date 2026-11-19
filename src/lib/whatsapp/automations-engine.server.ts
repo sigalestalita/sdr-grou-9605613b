@@ -379,6 +379,14 @@ async function executeAiInitialOutreachForLead(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!lead.phone) return { ok: false, error: "Lead sem telefone" };
 
+  // Última barreira: card de ativo "sem IA automática" nunca recebe a abertura.
+  const { data: flag } = await supabaseAdmin
+    .from("leads")
+    .select("sem_ia_automatica")
+    .eq("id", lead.id)
+    .maybeSingle();
+  if (flag?.sem_ia_automatica) return { ok: false, error: "Lead sem IA automática" };
+
   /*
    * Sem dono não dá para assinar.
    *
@@ -650,6 +658,8 @@ async function evalNewLead(rule: RuleRow): Promise<LeadLite[]> {
       "id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at,form_payload",
     )
     .eq("oculto_sdr", false) // leads do RD ficam fora até a migração
+    // Card de ativo marcado "sem IA automática" (ex.: lista de evento) não recebe abertura.
+    .eq("sem_ia_automatica", false)
     .gte("created_at", since)
     .not("phone", "is", null)
     .limit(500);
@@ -763,6 +773,7 @@ async function evalStageChange(rule: RuleRow): Promise<LeadLite[]> {
       "id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at,stage_entered_at",
     )
     .eq("stage_id", stageId)
+    .eq("sem_ia_automatica", false)
     .gte("stage_entered_at", since)
     .not("phone", "is", null)
     .limit(500);
@@ -784,15 +795,16 @@ async function evalNoReply(rule: RuleRow): Promise<LeadLite[]> {
   const { data: convs } = await supabaseAdmin
     .from("whatsapp_conversations")
     .select(
-      "id, lead_id, last_message_at, status, leads:lead_id(id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at)",
+      "id, lead_id, last_message_at, status, leads:lead_id(id,name,company_name,phone,priority,lead_type,assigned_to,stage_id,created_at,meeting_at,sem_ia_automatica)",
     )
     .eq("status", "open")
     .lt("last_message_at", cutoff)
     .limit(500);
   const leads: LeadLite[] = [];
   for (const c of convs ?? []) {
-    const lead = (c as { leads: LeadLite | null }).leads;
+    const lead = (c as { leads: (LeadLite & { sem_ia_automatica?: boolean }) | null }).leads;
     if (!lead?.phone) continue;
+    if (lead.sem_ia_automatica) continue;
     if (!passesCommonFilters(lead, rule.trigger_config)) continue;
     // confirma que a última msg é do SDR (não foi o contato que ficou sem resposta)
     const { data: lastMsg } = await supabaseAdmin

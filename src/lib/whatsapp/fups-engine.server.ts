@@ -37,10 +37,11 @@ type LeadLite = {
   stage_id: string | null;
   created_at: string;
   stage_entered_at: string | null;
+  sem_ia_automatica: boolean | null;
 };
 
 const LEAD_COLS =
-  "id,name,company_name,phone,priority,lead_type,demo_free,company_size,email,assigned_to,stage_id,created_at,stage_entered_at";
+  "id,name,company_name,phone,priority,lead_type,demo_free,company_size,email,assigned_to,stage_id,created_at,stage_entered_at,sem_ia_automatica";
 
 function passesAudience(lead: LeadLite, f: Record<string, unknown> | null): boolean {
   if (!f) return true;
@@ -101,6 +102,7 @@ async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
       .from("leads")
       .select(LEAD_COLS)
       .eq("oculto_sdr", false)
+      .eq("sem_ia_automatica", false)
       .gte("created_at", since)
       .not("phone", "is", null)
       .limit(500);
@@ -115,6 +117,7 @@ async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
       .from("leads")
       .select(LEAD_COLS)
       .eq("oculto_sdr", false)
+      .eq("sem_ia_automatica", false)
       .eq("stage_id", stageId)
       .gte("stage_entered_at", since)
       .not("phone", "is", null)
@@ -134,6 +137,7 @@ async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
     for (const c of convs ?? []) {
       const lead = (c as unknown as { leads: LeadLite | null }).leads;
       if (!lead?.phone) continue;
+      if (lead.sem_ia_automatica) continue;
       // última msg precisa ser nossa (SDR/automação/IA)
       const { data: lastMsg } = await supabaseAdmin
         .from("whatsapp_messages")
@@ -157,6 +161,7 @@ async function fetchTriggerCandidates(seq: Sequence): Promise<LeadLite[]> {
       .from("leads")
       .select(LEAD_COLS)
       .eq("oculto_sdr", false)
+      .eq("sem_ia_automatica", false)
       .is("assigned_to", null)
       .gte("created_at", since)
       .not("phone", "is", null)
@@ -347,6 +352,19 @@ async function processEnrollment(
     return "failed";
   }
   const leadLite = lead as LeadLite;
+
+  // Card de ativo "sem IA automática": FUP automático não sai, nem se já estava inscrito.
+  if (leadLite.sem_ia_automatica) {
+    await supabaseAdmin
+      .from("whatsapp_fup_enrollments")
+      .update({
+        status: "stopped_manual",
+        last_error: "Lead sem IA/FUP automático (ativo de marketing)",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", enr.id);
+    return "stopped";
+  }
 
   // Stop por etapa
   if (

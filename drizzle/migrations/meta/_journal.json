@@ -176,6 +176,20 @@
       "when": 1794853938560,
       "tag": "0024_20261116190000_proposta_avisos_emails",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795094938462,
+      "tag": "0025_20261119140000_mkt_conversao_site",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795095300687,
+      "tag": "0026_20261119141000_mkt_conversoes_libera_set_null",
+      "breakpoints": true
     }
   ]
 }
