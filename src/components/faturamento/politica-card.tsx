@@ -3,7 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { AlertTriangle, ExternalLink, Pencil, Receipt } from "lucide-react";
-import { getPoliticaFaturamento, salvarPoliticaFaturamento } from "@/lib/faturamento.functions";
+import {
+  atrasoDaEmpresa,
+  getPoliticaFaturamento,
+  salvarPoliticaFaturamento,
+} from "@/lib/faturamento.functions";
 import {
   formatarCnpj,
   RETENCOES,
@@ -72,6 +76,7 @@ export function PoliticaFaturamentoCard({
     const frases = resumoPolitica(p);
     return (
       <div className="space-y-2 text-[12px]">
+        <AlertaAtraso companyId={data.companyId} />
         <dl className="space-y-1">
           <div className="flex justify-between gap-2">
             <dt className="text-muted-foreground">Código WebMais</dt>
@@ -456,5 +461,43 @@ function PoliticaDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Alerta de cliente em atraso (parcelas vencidas e não pagas). Fica no topo
+ * da política, na empresa e no negócio, para o executivo ver antes de
+ * negociar de novo.
+ */
+export function AlertaAtraso({ companyId }: { companyId: string }) {
+  const fn = useServerFn(atrasoDaEmpresa);
+  const { data } = useQuery({
+    queryKey: ["atraso-empresa", companyId],
+    queryFn: () => fn({ data: { companyId } }),
+    staleTime: 5 * 60_000,
+  });
+  if (!data || data.parcelas === 0) return null;
+  const dias = data.maisAntiga
+    ? Math.max(
+        1,
+        Math.floor((Date.now() - new Date(`${data.maisAntiga}T12:00:00`).getTime()) / 864e5),
+      )
+    : null;
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-2.5 py-2 text-destructive"
+    >
+      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+      <div>
+        <p className="font-semibold">Cliente em atraso</p>
+        <p>
+          {data.parcelas} parcela{data.parcelas > 1 ? "s" : ""} vencida
+          {data.parcelas > 1 ? "s" : ""}
+          {" · "}R$ {data.valor.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+          {dias ? ` · a mais antiga há ${dias} dia${dias > 1 ? "s" : ""}` : ""}
+        </p>
+      </div>
+    </div>
   );
 }
