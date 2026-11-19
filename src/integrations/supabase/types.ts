@@ -3207,6 +3207,8 @@ export type Database = {
         Row: {
           cidade: string | null
           company_id: string | null
+          confirmada_em: string | null
+          confirmada_por: string | null
           contact_id: string | null
           created_at: string
           dados: Json
@@ -3227,6 +3229,8 @@ export type Database = {
         Insert: {
           cidade?: string | null
           company_id?: string | null
+          confirmada_em?: string | null
+          confirmada_por?: string | null
           contact_id?: string | null
           created_at?: string
           dados?: Json
@@ -3247,6 +3251,8 @@ export type Database = {
         Update: {
           cidade?: string | null
           company_id?: string | null
+          confirmada_em?: string | null
+          confirmada_por?: string | null
           contact_id?: string | null
           created_at?: string
           dados?: Json
@@ -6317,6 +6323,14 @@ export type Database = {
         Returns: {
           total: number
           valor: string
+        }[]
+      }
+      empresa_em_atraso: {
+        Args: { _company: string }
+        Returns: {
+          mais_antiga: string
+          parcelas: number
+          valor: number
         }[]
       }
       etapa_encerra_cadencia: { Args: { _stage: string }; Returns: boolean }
