@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -9,13 +9,14 @@ import { formatarDocumento } from "@/lib/fichas/normalizar";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { FichaDados } from "./ficha-cadastral";
+import { ConfirmarFicha } from "./confirmar-ficha";
 
 /**
  * Todas as fichas recebidas do app de cadastro. As que não acharam empresa
  * pelo CNPJ ficam marcadas; quando a empresa passa a existir no Compass com
  * aquele CNPJ, a ficha se liga sozinha.
  */
-export function ListaFichas() {
+export function ListaFichas({ abrirId }: { abrirId?: string } = {}) {
   const fn = useServerFn(listarFichas);
   const qc = useQueryClient();
   const importarFn = useServerFn(importarFichasCsv);
@@ -36,6 +37,14 @@ export function ListaFichas() {
     queryKey: ["fichas", "todas", busca, soltas],
     queryFn: () => fn({ data: { busca, soltas } }),
   });
+  // Link do e-mail ("Confirmar dados"): abre a ficha direto.
+  const [abriuLink, setAbriuLink] = useState(false);
+  useEffect(() => {
+    if (!abrirId || abriuLink || !data) return;
+    const f = data.fichas.find((x) => x.id === abrirId);
+    if (f) setVer(f);
+    setAbriuLink(true);
+  }, [abrirId, abriuLink, data]);
   return (
     <div className="space-y-4">
       <p className="text-[13px] text-muted-foreground">
@@ -81,6 +90,7 @@ export function ListaFichas() {
                 <th className="px-3 py-2">Cidade</th>
                 <th className="px-3 py-2">Vendedor</th>
                 <th className="px-3 py-2">Empresa no Compass</th>
+                <th className="px-3 py-2">Confirmada</th>
                 <th className="px-3 py-2">Enviada</th>
               </tr>
             </thead>
@@ -117,6 +127,13 @@ export function ListaFichas() {
                     )}
                   </td>
                   <td className="px-3 py-2 text-[12px]">
+                    {f.confirmadaEm ? (
+                      <span className="text-success">sim</span>
+                    ) : (
+                      <span className="text-warning">a confirmar</span>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-[12px]">
                     {new Date(f.enviadaEm).toLocaleDateString("pt-BR")}
                   </td>
                 </tr>
@@ -136,6 +153,7 @@ export function ListaFichas() {
               {new Date(ver.enviadaEm).toLocaleString("pt-BR")}
               {ver.origem === "csv" ? " · histórico importado (só o resumo do CSV)" : ""}
             </p>
+            <ConfirmarFicha fichaId={ver.id} />
             <FichaDados f={ver} />
           </DialogContent>
         </Dialog>

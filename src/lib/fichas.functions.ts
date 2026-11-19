@@ -20,10 +20,12 @@ export type Ficha = {
   dados: Record<string, string>;
   enviadaEm: string;
   empresa: { id: string; uid: string; nome: string } | null;
+  confirmadaEm: string | null;
+  confirmadaPor: string | null;
 };
 
 const COLS =
-  "id, origem, tipo, documento, nome, nome_fantasia, email, vendedor_nome, cidade, estado, dados, enviada_em, companies:company_id(id, uid, nome)";
+  "id, origem, tipo, documento, nome, nome_fantasia, email, vendedor_nome, cidade, estado, dados, enviada_em, confirmada_em, confirmada_por, companies:company_id(id, uid, nome)";
 
 function mapear(r: Record<string, unknown>): Ficha {
   return {
@@ -40,6 +42,8 @@ function mapear(r: Record<string, unknown>): Ficha {
     dados: (r.dados as Record<string, string>) ?? {},
     enviadaEm: String(r.enviada_em),
     empresa: (r.companies as Ficha["empresa"]) ?? null,
+    confirmadaEm: (r.confirmada_em as string | null) ?? null,
+    confirmadaPor: (r.confirmada_por as string | null) ?? null,
   };
 }
 
@@ -116,4 +120,102 @@ export const importarFichasCsv = createServerFn({ method: "POST" })
     if (!pode) throw new Error("Sem permissão");
     const { importarCsvDeFichas } = await import("@/lib/fichas/fichas.server");
     return importarCsvDeFichas(data.csv);
+  });
+
+/** Uma ficha (link do e-mail para o executivo confirmar). */
+export const getFicha = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const db = solto(context.supabase);
+    const { data: r, error } = await db
+      .from("fichas_cadastrais")
+      .select(COLS)
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!r) return null;
+    const ficha = mapear(r as Record<string, unknown>);
+    let confirmadaPorNome: string | null = null;
+    if (ficha.confirmadaPor) {
+      const { data: p } = await db
+        .from("profiles")
+        .select("full_name")
+        .eq("id", ficha.confirmadaPor)
+        .maybeSingle();
+      confirmadaPorNome = (p as { full_name: string | null } | null)?.full_name ?? null;
+    }
+    const { sugestoesDeEmpresa } = await import("@/lib/fichas/fichas.server");
+    const sugestoes = ficha.empresa ? [] : await sugestoesDeEmpresa(ficha.nome, ficha.nomeFantasia);
+    return { ficha, confirmadaPorNome, sugestoes };
+  });
+
+/** Busca de empresa para vincular a ficha. */
+export const buscarEmpresaParaFicha = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ q: z.string().trim().min(2).max(80) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const db = solto(context.supabase);
+    const b = data.q.replace(/[%,()]/g, " ");
+    const dig = b.replace(/\D/g, "");
+    const { data: rows } = await db
+      .from("companies")
+      .select("id, uid, nome, cnpj")
+      .or(
+        [`nome.ilike.%${b}%`, dig.length >= 4 ? `cnpj.ilike.%${dig}%` : null]
+          .filter(Boolean)
+          .join(","),
+      )
+      .limit(8);
+    return (rows ?? []) as Array<{ id: string; uid: string; nome: string; cnpj: string | null }>;
+  });
+
+/**
+ * O executivo confirma os dados da ficha e a empresa dela. Ao confirmar o
+ * vínculo, a ficha completa o cadastro e a política de faturamento da
+ * empresa (só o que estiver vazio). Se a empresa não tem CNPJ, recebe o da
+ * ficha.
+ */
+export const confirmarFicha = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({ id: z.string().uuid(), companyId: z.string().uuid().nullable() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = solto(context.supabase);
+    const { data: f, error: e1 } = await db
+      .from("fichas_cadastrais")
+      .select("id, tipo, documento, dados, enviada_em")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (e1) throw new Error(e1.message);
+    if (!f) throw new Error("Ficha não encontrada");
+    const fi = f as {
+      tipo: string;
+      documento: string | null;
+      dados: Record<string, string>;
+      enviada_em: string;
+    };
+    const { error } = await db
+      .from("fichas_cadastrais")
+      .update({
+        company_id: data.companyId,
+        confirmada_em: data.companyId ? new Date().toISOString() : null,
+        confirmada_por: data.companyId ? context.userId : null,
+      })
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    if (data.companyId) {
+      const { aplicarFichaNaEmpresa } = await import("@/lib/fichas/fichas.server");
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if (fi.tipo === "CNPJ" && fi.documento?.length === 14) {
+        await (supabaseAdmin as unknown as SupabaseClient)
+          .from("companies")
+          .update({ cnpj: fi.documento })
+          .eq("id", data.companyId)
+          .is("cnpj", null);
+      }
+      await aplicarFichaNaEmpresa(data.companyId, fi.dados ?? {}, fi.enviada_em);
+    }
+    return { ok: true };
   });

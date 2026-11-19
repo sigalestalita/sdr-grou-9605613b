@@ -423,6 +423,17 @@ export const devolverAoComercial = createServerFn({ method: "POST" })
       link: `/negocio/${data.dealId}`,
       dealId: data.dealId,
     });
+    // Além do sino, e-mail: faturamento parado espera o executivo corrigir.
+    const { emailsDosUsuarios, enviarEmailInterno, esc } =
+      await import("@/lib/email-interno.server");
+    await enviarEmailInterno({
+      para: await emailsDosUsuarios([d?.executivo_user_id]),
+      assunto: `Faturamento devolvido: ${d?.nome ?? "venda"}`,
+      titulo: `O ADM devolveu o faturamento de ${d?.nome ?? "uma venda"}`,
+      corpoHtml: `<p style="margin:0 0 8px 0;">Para faturar, o Administrativo precisa que você corrija ou complete:</p><p style="margin:0;padding:10px 12px;border-radius:8px;background:#fffbeb;white-space:pre-wrap;">${esc(data.texto)}</p>`,
+      link: `/negocio/${data.dealId}`,
+      botao: "Corrigir no negócio",
+    });
     return { ok: true };
   });
 
@@ -746,5 +757,26 @@ export const relatorioFaturamento = createServerFn({ method: "GET" })
       porExecutivo: [...porExecutivo.entries()]
         .map(([executivo, v]) => ({ executivo, ...v }))
         .sort((a, b) => b.bruto - a.bruto),
+    };
+  });
+
+/** Cliente em atraso: resumo para o alerta na empresa e no negócio. */
+export const atrasoDaEmpresa = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ companyId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { data: r, error } = await solto(context.supabase).rpc("empresa_em_atraso", {
+      _company: data.companyId,
+    });
+    if (error) throw new Error(error.message);
+    const l = (Array.isArray(r) ? r[0] : r) as {
+      parcelas: number;
+      valor: number;
+      mais_antiga: string | null;
+    } | null;
+    return {
+      parcelas: Number(l?.parcelas ?? 0),
+      valor: Number(l?.valor ?? 0),
+      maisAntiga: l?.mais_antiga ?? null,
     };
   });

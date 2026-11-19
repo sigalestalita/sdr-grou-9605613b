@@ -28,8 +28,12 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_app/propostas")({
-  validateSearch: (s: Record<string, unknown>): { aba?: "propostas" | "modelos" | "fichas" } =>
-    s.aba === "modelos" || s.aba === "fichas" || s.aba === "propostas" ? { aba: s.aba } : {},
+  validateSearch: (
+    s: Record<string, unknown>,
+  ): { aba?: "propostas" | "modelos" | "fichas"; ficha?: string } => ({
+    ...(s.aba === "modelos" || s.aba === "fichas" || s.aba === "propostas" ? { aba: s.aba } : {}),
+    ...(typeof s.ficha === "string" && /^[0-9a-f-]{36}$/i.test(s.ficha) ? { ficha: s.ficha } : {}),
+  }),
   component: PropostasPage,
   head: () => ({ meta: [{ title: "Propostas | Grou Compass" }] }),
 });
@@ -39,7 +43,7 @@ export const Route = createFileRoute("/_app/propostas")({
  * A proposta em si nasce no negócio; aqui é acompanhamento e modelos.
  */
 function PropostasPage() {
-  const { aba: abaUrl } = Route.useSearch();
+  const { aba: abaUrl, ficha: fichaUrl } = Route.useSearch();
   const [aba, setAba] = useState<"propostas" | "modelos" | "fichas">(abaUrl ?? "propostas");
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 p-4 lg:p-8">
@@ -66,7 +70,13 @@ function PropostasPage() {
           ))}
         </div>
       </header>
-      {aba === "propostas" ? <ListaPropostas /> : aba === "modelos" ? <Modelos /> : <ListaFichas />}
+      {aba === "propostas" ? (
+        <ListaPropostas />
+      ) : aba === "modelos" ? (
+        <Modelos />
+      ) : (
+        <ListaFichas abrirId={fichaUrl} />
+      )}
     </div>
   );
 }
