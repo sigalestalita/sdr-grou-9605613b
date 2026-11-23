@@ -13,6 +13,7 @@ import {
   conferirPlanilhaNoPipeline,
 } from "@/lib/sheets.functions";
 import { getStatusMetaLeads } from "@/lib/meta-leads.functions";
+import { ContaAzulConexaoCard } from "@/components/faturamento/conta-azul";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -192,6 +193,8 @@ function SettingsPage() {
           </Link>
         </Card>
       )}
+
+      <ContaAzulConexaoCard />
 
       <Card className="p-5 space-y-3">
         <div className="flex justify-between items-center">
