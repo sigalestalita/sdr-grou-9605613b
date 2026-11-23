@@ -83,6 +83,7 @@ import { Route as AppWhatsappPlaygroundRouteImport } from './routes/_app.whatsap
 import { Route as AppWhatsappTemplatesRouteImport } from './routes/_app.whatsapp.templates'
 import { Route as AppEmailMarketingCampanhaIdRouteImport } from './routes/_app.email-marketing.campanha.$id'
 import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
+import { Route as ApiPublicContaAzulCallbackRouteImport } from './routes/api/public/conta-azul/callback'
 import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
 import { Route as ApiPublicEmailDescadastroRouteImport } from './routes/api/public/email/descadastro'
 import { Route as ApiPublicFichasWebhookRouteImport } from './routes/api/public/fichas/webhook'
@@ -98,6 +99,7 @@ import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/h
 import { Route as ApiPublicHooksSendJourneyEmailsRouteImport } from './routes/api/public/hooks/send-journey-emails'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
 import { Route as ApiPublicHooksSyncAgendaRouteImport } from './routes/api/public/hooks/sync-agenda'
+import { Route as ApiPublicHooksSyncContaAzulRouteImport } from './routes/api/public/hooks/sync-conta-azul'
 import { Route as ApiPublicHooksSyncPlanilhaRouteImport } from './routes/api/public/hooks/sync-planilha'
 import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
 import { Route as ApiPublicHooksSyncRdAllRouteImport } from './routes/api/public/hooks/sync-rd-all'
@@ -486,6 +488,12 @@ const AppWhatsappCampanhasIdRoute = AppWhatsappCampanhasIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppWhatsappCampanhasRoute,
 } as any)
+const ApiPublicContaAzulCallbackRoute =
+  ApiPublicContaAzulCallbackRouteImport.update({
+    id: '/api/public/conta-azul/callback',
+    path: '/api/public/conta-azul/callback',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicCsEmailInboundRoute = ApiPublicCsEmailInboundRouteImport.update({
   id: '/api/public/cs/email-inbound',
   path: '/api/public/cs/email-inbound',
@@ -569,6 +577,12 @@ const ApiPublicHooksSyncAgendaRoute =
   ApiPublicHooksSyncAgendaRouteImport.update({
     id: '/api/public/hooks/sync-agenda',
     path: '/api/public/hooks/sync-agenda',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicHooksSyncContaAzulRoute =
+  ApiPublicHooksSyncContaAzulRouteImport.update({
+    id: '/api/public/hooks/sync-conta-azul',
+    path: '/api/public/hooks/sync-conta-azul',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksSyncPlanilhaRoute =
@@ -725,6 +739,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp/': typeof AppWhatsappIndexRoute
   '/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/conta-azul/callback': typeof ApiPublicContaAzulCallbackRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
@@ -740,6 +755,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
+  '/api/public/hooks/sync-conta-azul': typeof ApiPublicHooksSyncContaAzulRoute
   '/api/public/hooks/sync-planilha': typeof ApiPublicHooksSyncPlanilhaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
@@ -827,6 +843,7 @@ export interface FileRoutesByTo {
   '/whatsapp': typeof AppWhatsappIndexRoute
   '/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
   '/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/conta-azul/callback': typeof ApiPublicContaAzulCallbackRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
@@ -842,6 +859,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
+  '/api/public/hooks/sync-conta-azul': typeof ApiPublicHooksSyncContaAzulRoute
   '/api/public/hooks/sync-planilha': typeof ApiPublicHooksSyncPlanilhaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
@@ -933,6 +951,7 @@ export interface FileRoutesById {
   '/_app/whatsapp/': typeof AppWhatsappIndexRoute
   '/_app/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
   '/_app/whatsapp/campanhas/$id': typeof AppWhatsappCampanhasIdRoute
+  '/api/public/conta-azul/callback': typeof ApiPublicContaAzulCallbackRoute
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
@@ -948,6 +967,7 @@ export interface FileRoutesById {
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
+  '/api/public/hooks/sync-conta-azul': typeof ApiPublicHooksSyncContaAzulRoute
   '/api/public/hooks/sync-planilha': typeof ApiPublicHooksSyncPlanilhaRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
@@ -1039,6 +1059,7 @@ export interface FileRouteTypes {
     | '/whatsapp/'
     | '/email-marketing/campanha/$id'
     | '/whatsapp/campanhas/$id'
+    | '/api/public/conta-azul/callback'
     | '/api/public/cs/email-inbound'
     | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
@@ -1054,6 +1075,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
+    | '/api/public/hooks/sync-conta-azul'
     | '/api/public/hooks/sync-planilha'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
@@ -1141,6 +1163,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/email-marketing/campanha/$id'
     | '/whatsapp/campanhas/$id'
+    | '/api/public/conta-azul/callback'
     | '/api/public/cs/email-inbound'
     | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
@@ -1156,6 +1179,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
+    | '/api/public/hooks/sync-conta-azul'
     | '/api/public/hooks/sync-planilha'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
@@ -1246,6 +1270,7 @@ export interface FileRouteTypes {
     | '/_app/whatsapp/'
     | '/_app/email-marketing/campanha/$id'
     | '/_app/whatsapp/campanhas/$id'
+    | '/api/public/conta-azul/callback'
     | '/api/public/cs/email-inbound'
     | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
@@ -1261,6 +1286,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
     | '/api/public/hooks/sync-agenda'
+    | '/api/public/hooks/sync-conta-azul'
     | '/api/public/hooks/sync-planilha'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
@@ -1285,6 +1311,7 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   PropostaTokenRoute: typeof PropostaTokenRoute
+  ApiPublicContaAzulCallbackRoute: typeof ApiPublicContaAzulCallbackRoute
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicEmailDescadastroRoute: typeof ApiPublicEmailDescadastroRoute
   ApiPublicFichasWebhookRoute: typeof ApiPublicFichasWebhookRoute
@@ -1300,6 +1327,7 @@ export interface RootRouteChildren {
   ApiPublicHooksSendJourneyEmailsRoute: typeof ApiPublicHooksSendJourneyEmailsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
   ApiPublicHooksSyncAgendaRoute: typeof ApiPublicHooksSyncAgendaRoute
+  ApiPublicHooksSyncContaAzulRoute: typeof ApiPublicHooksSyncContaAzulRoute
   ApiPublicHooksSyncPlanilhaRoute: typeof ApiPublicHooksSyncPlanilhaRoute
   ApiPublicHooksSyncRdRoute: typeof ApiPublicHooksSyncRdRoute
   ApiPublicHooksSyncRdAllRoute: typeof ApiPublicHooksSyncRdAllRoute
@@ -1836,6 +1864,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWhatsappCampanhasIdRouteImport
       parentRoute: typeof AppWhatsappCampanhasRoute
     }
+    '/api/public/conta-azul/callback': {
+      id: '/api/public/conta-azul/callback'
+      path: '/api/public/conta-azul/callback'
+      fullPath: '/api/public/conta-azul/callback'
+      preLoaderRoute: typeof ApiPublicContaAzulCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/cs/email-inbound': {
       id: '/api/public/cs/email-inbound'
       path: '/api/public/cs/email-inbound'
@@ -1939,6 +1974,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/hooks/sync-agenda'
       fullPath: '/api/public/hooks/sync-agenda'
       preLoaderRoute: typeof ApiPublicHooksSyncAgendaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/hooks/sync-conta-azul': {
+      id: '/api/public/hooks/sync-conta-azul'
+      path: '/api/public/hooks/sync-conta-azul'
+      fullPath: '/api/public/hooks/sync-conta-azul'
+      preLoaderRoute: typeof ApiPublicHooksSyncContaAzulRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/sync-planilha': {
@@ -2229,6 +2271,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   PropostaTokenRoute: PropostaTokenRoute,
+  ApiPublicContaAzulCallbackRoute: ApiPublicContaAzulCallbackRoute,
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicEmailDescadastroRoute: ApiPublicEmailDescadastroRoute,
   ApiPublicFichasWebhookRoute: ApiPublicFichasWebhookRoute,
@@ -2244,6 +2287,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSendJourneyEmailsRoute: ApiPublicHooksSendJourneyEmailsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
   ApiPublicHooksSyncAgendaRoute: ApiPublicHooksSyncAgendaRoute,
+  ApiPublicHooksSyncContaAzulRoute: ApiPublicHooksSyncContaAzulRoute,
   ApiPublicHooksSyncPlanilhaRoute: ApiPublicHooksSyncPlanilhaRoute,
   ApiPublicHooksSyncRdRoute: ApiPublicHooksSyncRdRoute,
   ApiPublicHooksSyncRdAllRoute: ApiPublicHooksSyncRdAllRoute,

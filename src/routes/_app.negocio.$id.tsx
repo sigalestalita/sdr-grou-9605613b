@@ -38,6 +38,7 @@ import {
   resumoPolitica,
 } from "@/lib/faturamento/politica";
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
+import { ContaAzulDoNegocio } from "@/components/faturamento/conta-azul";
 import { FaturamentoDoNegocio } from "@/components/faturamento/faturamento-do-negocio";
 import { ItensNegocio } from "@/components/catalogo/itens-negocio";
 import { ContratoDoNegocio } from "@/components/faturamento/contrato-e-turma";
@@ -455,6 +456,7 @@ function NegocioPage() {
           {n.status === "won" && <FaturamentoDoNegocio dealId={id} />}
 
           {n.company_id ? <PoliticaFaturamentoCard companyId={String(n.company_id)} /> : null}
+          {n.status === "won" ? <ContaAzulDoNegocio dealId={String(n.id)} /> : null}
 
           {n.company_id ? <FichaCadastralCard companyId={String(n.company_id)} /> : null}
 
