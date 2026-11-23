@@ -10,6 +10,7 @@ import {
   resumirNotas,
   vendaDaApi,
   vendaDoNegocio,
+  agregarStatus,
   type NotaCA,
   type VendaCA,
 } from "./mapear";
@@ -235,7 +236,24 @@ export async function sincronizarContaAzul(opts: { diasNotas?: number } = {}) {
   }
 }
 
-type Negocio = {
+type Alvo = {
+  /** Onde gravar: o próprio negócio ou uma linha do rateio por CNPJ. */
+  tabela: "deals" | "deal_faturamento_cnpjs";
+  id: string;
+  deal: { id: string; nome: string; executivo_user_id: string | null; faturado_em: string | null };
+  rotulo: string;
+  company_id: string | null;
+  amount: number | null;
+  ca_venda_id: string | null;
+  ca_venda_numero: number | null;
+  ca_situacao: string | null;
+  ca_nf_status: string | null;
+  ca_nf_numeros: string | null;
+};
+
+const DEAL_COLS =
+  "id, nome, company_id, amount, executivo_user_id, faturado_em, ca_venda_id, ca_venda_numero, ca_situacao, ca_nf_status, ca_nf_numeros";
+type DealRow = {
   id: string;
   nome: string;
   company_id: string | null;
@@ -246,34 +264,112 @@ type Negocio = {
   ca_venda_numero: number | null;
   ca_situacao: string | null;
   ca_nf_status: string | null;
+  ca_nf_numeros: string | null;
 };
+const alvoDoNegocio = (d: DealRow): Alvo => ({
+  tabela: "deals",
+  id: d.id,
+  deal: d,
+  rotulo: "",
+  company_id: d.company_id,
+  amount: d.amount,
+  ca_venda_id: d.ca_venda_id,
+  ca_venda_numero: d.ca_venda_numero,
+  ca_situacao: d.ca_situacao,
+  ca_nf_status: d.ca_nf_status,
+  ca_nf_numeros: d.ca_nf_numeros,
+});
+const fmtCnpj = (c: string) =>
+  c.length === 14
+    ? `${c.slice(0, 2)}.${c.slice(2, 5)}.${c.slice(5, 8)}/${c.slice(8, 12)}-${c.slice(12)}`
+    : c;
+const reais = (v: number) => `R$ ${v.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
 
-/** Liga negócios às vendas e copia o estado do faturamento para o negócio. */
+/**
+ * Liga negócios (ou cada CNPJ do rateio do negócio) às vendas da Conta Azul
+ * e copia o estado do faturamento. Negócio com rateio recebe a soma das
+ * linhas: vendido é um valor só, faturado é o que as notas somam.
+ */
 export async function atualizarNegocios() {
-  const cols =
-    "id, nome, company_id, amount, executivo_user_id, faturado_em, ca_venda_id, ca_venda_numero, ca_situacao, ca_nf_status";
-  const corte = new Date(Date.now() - 180 * 864e5).toISOString();
-  const [{ data: ligados }, { data: soltos }] = await Promise.all([
+  const corte = new Date(Date.now() - 365 * 864e5).toISOString();
+  const [{ data: ligados }, { data: soltos }, { data: linhas }] = await Promise.all([
     db()
       .from("deals")
-      .select(cols)
+      .select(DEAL_COLS)
       .or("ca_venda_id.not.is.null,ca_venda_numero.not.is.null")
-      .limit(2000),
+      .limit(3000),
     db()
       .from("deals")
-      .select(cols)
+      .select(DEAL_COLS)
       .eq("status", "won")
       .gte("closed_at", corte)
       .is("ca_venda_id", null)
       .is("ca_venda_numero", null)
       .not("company_id", "is", null)
-      .limit(2000),
+      .limit(3000),
+    db()
+      .from("deal_faturamento_cnpjs")
+      .select(
+        "id, deal_id, company_id, cnpj, valor, ca_venda_id, ca_venda_numero, ca_situacao, ca_nf_status, ca_nf_numeros",
+      )
+      .limit(3000),
   ]);
-  const lista = (ligados ?? []) as Negocio[];
-  const semVenda = (soltos ?? []) as Negocio[];
+  type Linha = {
+    id: string;
+    deal_id: string;
+    company_id: string | null;
+    cnpj: string;
+    valor: number;
+    ca_venda_id: string | null;
+    ca_venda_numero: number | null;
+    ca_situacao: string | null;
+    ca_nf_status: string | null;
+    ca_nf_numeros: string | null;
+  };
+  const rateio = (linhas ?? []) as Linha[];
+  const comRateio = new Set(rateio.map((l) => l.deal_id));
 
-  // Vendas candidatas das empresas dos negócios soltos.
-  const empresas = [...new Set(semVenda.map((d) => d.company_id!))];
+  // Negócios dos rateios (para nome, executivo e o resumo agregado).
+  const dealsDoRateio = new Map<string, DealRow>();
+  const idsRateio = [...comRateio];
+  for (let i = 0; i < idsRateio.length; i += 200) {
+    const { data } = await db()
+      .from("deals")
+      .select(DEAL_COLS)
+      .in("id", idsRateio.slice(i, i + 200));
+    for (const d of (data ?? []) as DealRow[]) dealsDoRateio.set(d.id, d);
+  }
+
+  const todos: Alvo[] = [];
+  const soltosAlvos: Alvo[] = [];
+  for (const d of (ligados ?? []) as DealRow[])
+    if (!comRateio.has(d.id)) todos.push(alvoDoNegocio(d));
+  for (const d of (soltos ?? []) as DealRow[])
+    if (!comRateio.has(d.id)) soltosAlvos.push(alvoDoNegocio(d));
+  for (const l of rateio) {
+    const d = dealsDoRateio.get(l.deal_id);
+    if (!d) continue;
+    const alvo: Alvo = {
+      tabela: "deal_faturamento_cnpjs",
+      id: l.id,
+      deal: d,
+      rotulo: ` · CNPJ ${fmtCnpj(l.cnpj)}`,
+      company_id: l.company_id,
+      amount: Number(l.valor),
+      ca_venda_id: l.ca_venda_id,
+      ca_venda_numero: l.ca_venda_numero,
+      ca_situacao: l.ca_situacao,
+      ca_nf_status: l.ca_nf_status,
+      ca_nf_numeros: l.ca_nf_numeros,
+    };
+    if (l.ca_venda_id || l.ca_venda_numero) todos.push(alvo);
+    else soltosAlvos.push(alvo);
+  }
+
+  // Vendas candidatas das empresas dos alvos ainda sem venda.
+  const empresas = [
+    ...new Set(soltosAlvos.map((a) => a.company_id).filter((x): x is string => !!x)),
+  ];
   const vendasDasEmpresas: Array<VendaCA & { company_id: string | null }> = [];
   for (let i = 0; i < empresas.length; i += 200) {
     const { data } = await db()
@@ -284,32 +380,32 @@ export async function atualizarNegocios() {
       .in("company_id", empresas.slice(i, i + 200));
     vendasDasEmpresas.push(...((data ?? []) as Array<VendaCA & { company_id: string | null }>));
   }
-  const jaLigadas = new Set(lista.map((d) => d.ca_venda_id).filter((x): x is string => !!x));
+  const jaLigadas = new Set(todos.map((a) => a.ca_venda_id).filter((x): x is string => !!x));
   let ligadosAgora = 0;
-  for (const d of semVenda) {
-    const id = vendaDoNegocio(d, vendasDasEmpresas, jaLigadas);
+  for (const a of soltosAlvos) {
+    const id = vendaDoNegocio(a, vendasDasEmpresas, jaLigadas);
     if (!id) continue;
     jaLigadas.add(id);
-    d.ca_venda_id = id;
-    lista.push(d);
+    a.ca_venda_id = id;
+    todos.push(a);
     ligadosAgora++;
   }
 
   // Número informado à mão → id.
-  const numeros = lista
-    .filter((d) => !d.ca_venda_id && d.ca_venda_numero)
-    .map((d) => d.ca_venda_numero!);
+  const numeros = todos
+    .filter((a) => !a.ca_venda_id && a.ca_venda_numero)
+    .map((a) => a.ca_venda_numero!);
   if (numeros.length) {
     const { data } = await db().from("ca_vendas").select("id, numero").in("numero", numeros);
     const porNumero = new Map(
       ((data ?? []) as Array<{ id: string; numero: number }>).map((v) => [v.numero, v.id]),
     );
-    for (const d of lista)
-      if (!d.ca_venda_id && d.ca_venda_numero)
-        d.ca_venda_id = porNumero.get(d.ca_venda_numero) ?? null;
+    for (const a of todos)
+      if (!a.ca_venda_id && a.ca_venda_numero)
+        a.ca_venda_id = porNumero.get(a.ca_venda_numero) ?? null;
   }
 
-  const ids = [...new Set(lista.map((d) => d.ca_venda_id).filter((x): x is string => !!x))];
+  const ids = [...new Set(todos.map((a) => a.ca_venda_id).filter((x): x is string => !!x))];
   const vendaPorId = new Map<string, VendaCA>();
   const notasPorVenda = new Map<string, NotaCA[]>();
   for (let i = 0; i < ids.length; i += 200) {
@@ -336,10 +432,15 @@ export async function atualizarNegocios() {
 
   let atualizados = 0;
   let avisos = 0;
-  for (const d of lista) {
-    const v = d.ca_venda_id ? vendaPorId.get(d.ca_venda_id) : undefined;
+  const agora = new Date().toISOString();
+  const resumoDaLinha = new Map<
+    string,
+    { status: string; valor: number; numeros: string[]; emissao: string | null }
+  >();
+  for (const a of todos) {
+    const v = a.ca_venda_id ? vendaPorId.get(a.ca_venda_id) : undefined;
     if (!v) continue;
-    const r = resumirNotas(notasPorVenda.get(v.id) ?? [], v.total ?? d.amount);
+    const r = resumirNotas(notasPorVenda.get(v.id) ?? [], v.total ?? a.amount);
     const patch: Record<string, unknown> = {
       ca_venda_id: v.id,
       ca_venda_numero: v.numero,
@@ -347,62 +448,129 @@ export async function atualizarNegocios() {
       ca_nf_status: r.status,
       ca_nf_numeros: r.numeros.join(", ") || null,
       ca_valor_faturado: r.valorFaturado,
-      ca_sincronizado_em: new Date().toISOString(),
+      ca_sincronizado_em: agora,
     };
-    if (!d.faturado_em && r.primeiraEmissao && (r.status === "EMITIDA" || r.status === "PARCIAL"))
+    const faturou = r.status === "EMITIDA" || r.status === "PARCIAL";
+    if (a.tabela === "deals" && !a.deal.faturado_em && r.primeiraEmissao && faturou)
       patch.faturado_em = new Date(`${r.primeiraEmissao}T12:00:00-03:00`).toISOString();
-    const { error } = await db().from("deals").update(patch).eq("id", d.id);
+    const { error } = await db().from(a.tabela).update(patch).eq("id", a.id);
     if (error) continue;
     atualizados++;
+    if (a.tabela === "deal_faturamento_cnpjs")
+      resumoDaLinha.set(a.id, {
+        status: r.status,
+        valor: r.valorFaturado,
+        numeros: r.numeros,
+        emissao: r.primeiraEmissao,
+      });
 
     // Avisos só na mudança (cada leitura não repete o aviso).
-    const vendaCancelou = v.situacao === "CANCELADO" && d.ca_situacao !== "CANCELADO";
-    const notaMudou = r.status !== d.ca_nf_status;
+    const vendaCancelou = v.situacao === "CANCELADO" && a.ca_situacao !== "CANCELADO";
+    const notaMudou = r.status !== a.ca_nf_status;
+    const antigas = new Set(
+      (a.ca_nf_numeros ?? "")
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean),
+    );
+    const novas = r.numeros.filter((n) => !antigas.has(n));
     if (vendaCancelou) {
       await avisar(
-        d,
-        `Venda cancelada na Conta Azul: ${d.nome}`,
-        `A venda nº ${v.numero ?? "?"} foi cancelada pelo financeiro.`,
+        a.deal,
+        `Venda cancelada na Conta Azul: ${a.deal.nome}`,
+        `A venda nº ${v.numero ?? "?"}${a.rotulo} foi cancelada pelo financeiro.`,
+        "problema",
       );
       avisos++;
     } else if (notaMudou && (r.status === "FALHA" || r.status === "CANCELADA")) {
       await avisar(
-        d,
+        a.deal,
         r.status === "FALHA"
-          ? `Nota com problema na Conta Azul: ${d.nome}`
-          : `Nota cancelada na Conta Azul: ${d.nome}`,
-        `${r.status === "FALHA" ? "A nota da venda" : "A nota da venda foi cancelada. Venda"} nº ${v.numero ?? "?"}${r.motivo ? ` — motivo: ${r.motivo}` : ""}. Confira os dados do faturamento no negócio.`,
+          ? `Nota com problema na Conta Azul: ${a.deal.nome}`
+          : `Nota cancelada na Conta Azul: ${a.deal.nome}`,
+        `${r.status === "FALHA" ? "A nota da venda" : "A nota da venda foi cancelada. Venda"} nº ${v.numero ?? "?"}${a.rotulo}${r.motivo ? ` — motivo: ${r.motivo}` : ""}. Confira os dados do faturamento no negócio.`,
+        "problema",
       );
       avisos++;
-    } else if (notaMudou && (r.status === "EMITIDA" || r.status === "PARCIAL") && d.ca_nf_status) {
+    } else if (faturou && novas.length > 0) {
+      const valorNovas = (notasPorVenda.get(v.id) ?? [])
+        .filter((n) => n.numero_nfse && novas.includes(n.numero_nfse))
+        .reduce((s, n) => s + (n.valor ?? 0), 0);
       await avisar(
-        d,
-        `Faturado na Conta Azul: ${d.nome}`,
-        `Nota${r.numeros.length > 1 ? "s" : ""} ${r.numeros.join(", ")} · R$ ${r.valorFaturado.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}${r.status === "PARCIAL" ? " (parte do valor vendido)" : ""}.`,
-        false,
+        a.deal,
+        `Faturado na Conta Azul: ${a.deal.nome}`,
+        `NF ${novas.join(", ")}${a.rotulo} · ${reais(valorNovas)}. Faturado até agora: ${reais(r.valorFaturado)}${r.status === "PARCIAL" ? " (parte do valor vendido)" : ""}.`,
+        "faturado",
       );
+      avisos++;
     }
+  }
+
+  // Negócio com rateio: soma das linhas.
+  const linhasPorDeal = new Map<string, Linha[]>();
+  for (const l of rateio)
+    linhasPorDeal.set(l.deal_id, [...(linhasPorDeal.get(l.deal_id) ?? []), l]);
+  for (const [dealId, ls] of linhasPorDeal) {
+    const d = dealsDoRateio.get(dealId);
+    if (!d) continue;
+    const resumos = ls.map(
+      (l) =>
+        resumoDaLinha.get(l.id) ?? {
+          status: l.ca_nf_status ?? "SEM_NOTA",
+          valor: 0,
+          numeros: (l.ca_nf_numeros ?? "")
+            .split(",")
+            .map((x) => x.trim())
+            .filter(Boolean),
+          emissao: null,
+        },
+    );
+    const emissoes = resumos
+      .map((r) => r.emissao)
+      .filter((x): x is string => !!x)
+      .sort();
+    const status = agregarStatus(resumos.map((r) => r.status));
+    const patch: Record<string, unknown> = {
+      ca_nf_status: status,
+      ca_nf_numeros: resumos.flatMap((r) => r.numeros).join(", ") || null,
+      ca_valor_faturado: Math.round(resumos.reduce((s, r) => s + r.valor, 0) * 100) / 100,
+      ca_sincronizado_em: agora,
+    };
+    if (!d.faturado_em && emissoes[0] && (status === "EMITIDA" || status === "PARCIAL"))
+      patch.faturado_em = new Date(`${emissoes[0]}T12:00:00-03:00`).toISOString();
+    await db().from("deals").update(patch).eq("id", dealId);
   }
   return { negociosLigados: ligadosAgora, negociosAtualizados: atualizados, avisos };
 }
 
-/** Sino para o executivo e o ADM; e-mail para o executivo quando é problema. */
-async function avisar(d: Negocio, titulo: string, corpo: string, problema = true) {
-  const { data: times } = await db()
-    .from("teams")
-    .select("slug")
-    .eq("modulo", "administrativo")
-    .eq("ativo", true);
-  const slugs = ((times ?? []) as Array<{ slug: string }>).map((t) => t.slug);
-  const { data: adm } = slugs.length
-    ? await db().from("user_teams").select("user_id, access").in("team", slugs)
-    : { data: [] };
-  const admIds = ((adm ?? []) as Array<{ user_id: string; access: string[] | null }>)
-    .filter((u) => (u.access ?? []).some((a) => a === "faturamento" || a === "gestao"))
-    .map((u) => u.user_id);
-  const para = [
-    ...new Set([d.executivo_user_id, ...(problema ? admIds : [])].filter((x): x is string => !!x)),
-  ];
+/**
+ * Problema (nota com falha, cancelada, venda cancelada): sino para o
+ * executivo e o ADM, e-mail para o executivo. Faturado: sino e e-mail para
+ * o executivo (o ADM já vê o card mudar de coluna).
+ */
+async function avisar(
+  d: { id: string; executivo_user_id: string | null },
+  titulo: string,
+  corpo: string,
+  tipo: "problema" | "faturado",
+) {
+  const problema = tipo === "problema";
+  let admIds: string[] = [];
+  if (problema) {
+    const { data: times } = await db()
+      .from("teams")
+      .select("slug")
+      .eq("modulo", "administrativo")
+      .eq("ativo", true);
+    const slugs = ((times ?? []) as Array<{ slug: string }>).map((t) => t.slug);
+    const { data: adm } = slugs.length
+      ? await db().from("user_teams").select("user_id, access").in("team", slugs)
+      : { data: [] };
+    admIds = ((adm ?? []) as Array<{ user_id: string; access: string[] | null }>)
+      .filter((u) => (u.access ?? []).some((a) => a === "faturamento" || a === "gestao"))
+      .map((u) => u.user_id);
+  }
+  const para = [...new Set([d.executivo_user_id, ...admIds].filter((x): x is string => !!x))];
   if (para.length)
     await db()
       .from("notificacoes")
@@ -416,12 +584,12 @@ async function avisar(d: Negocio, titulo: string, corpo: string, problema = true
           deal_id: d.id,
         })),
       );
-  if (problema && d.executivo_user_id)
+  if (d.executivo_user_id)
     await enviarEmailInterno({
       para: await emailsDosUsuarios([d.executivo_user_id]),
       assunto: titulo,
-      titulo,
-      corpoHtml: `<p style="margin:0;padding:10px 12px;border-radius:8px;background:#fffbeb;">${esc(corpo)}</p>`,
+      titulo: problema ? titulo : "A venda foi faturada",
+      corpoHtml: `<p style="margin:0;padding:10px 12px;border-radius:8px;background:${problema ? "#fffbeb" : "#ecfdf5"};">${esc(corpo)}</p>`,
       link: `/negocio/${d.id}`,
       botao: "Abrir o negócio",
     });

@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format } from "date-fns";
@@ -39,6 +39,8 @@ import {
 } from "@/lib/faturamento/politica";
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
 import { ContaAzulDoNegocio } from "@/components/faturamento/conta-azul";
+import { RateioCnpjs } from "@/components/faturamento/jornada";
+import { ultimoGanhoDaEmpresa } from "@/lib/jornada-faturamento.functions";
 import { FaturamentoDoNegocio } from "@/components/faturamento/faturamento-do-negocio";
 import { ItensNegocio } from "@/components/catalogo/itens-negocio";
 import { ContratoDoNegocio } from "@/components/faturamento/contrato-e-turma";
@@ -457,6 +459,9 @@ function NegocioPage() {
 
           {n.company_id ? <PoliticaFaturamentoCard companyId={String(n.company_id)} /> : null}
           {n.status === "won" ? <ContaAzulDoNegocio dealId={String(n.id)} /> : null}
+          {n.status === "won" ? (
+            <RateioCnpjs dealId={String(n.id)} valorVendido={Number(n.amount ?? 0)} />
+          ) : null}
 
           {n.company_id ? <FichaCadastralCard companyId={String(n.company_id)} /> : null}
 
@@ -525,6 +530,23 @@ function FecharDialog({
     queryFn: () => fatFn({ data: { dealId } }),
     enabled: modo === "ganho",
   });
+  // Já cliente: o ganho vem com o último faturamento da empresa (o executivo só confere).
+  const ultimoFn = useServerFn(ultimoGanhoDaEmpresa);
+  const { data: ultimo } = useQuery({
+    queryKey: ["faturamento", "ultimo-ganho", dealId],
+    queryFn: () => ultimoFn({ data: { dealId } }),
+    enabled: modo === "ganho",
+  });
+  const [preenchido, setPreenchido] = useState(false);
+  useEffect(() => {
+    if (!ultimo || preenchido) return;
+    setPreenchido(true);
+    if (ultimo.cnpj) setCnpj((c) => c ?? formatarCnpj(ultimo.cnpj));
+    if (ultimo.forma) setForma((f) => f || ultimo.forma || "");
+    if (ultimo.prazo) setPrazo((p) => p || ultimo.prazo || "");
+    if (ultimo.parcelas) setParcelas((p) => (p === "1" ? String(ultimo.parcelas) : p));
+    if (ultimo.contatoId) setContatoId((c) => c || ultimo.contatoId || "");
+  }, [ultimo, preenchido]);
   const politica = fat?.politica ?? null;
   const cnpjEfetivo = cnpj ?? (fat?.empresa?.cnpj ? formatarCnpj(fat.empresa.cnpj) : "");
   const emissaoSugerida = politica
@@ -606,6 +628,12 @@ function FecharDialog({
 
         {modo === "ganho" ? (
           <div className="space-y-4">
+            {ultimo && (
+              <p className="rounded-md border bg-muted/40 p-2 text-[12px] text-muted-foreground">
+                Já cliente: CNPJ, pagamento e contato vieram do último ganho desta empresa (
+                {ultimo.em.slice(0, 10).split("-").reverse().join("/")}). Confira antes de salvar.
+              </p>
+            )}
             {(regras.length > 0 || politica?.observacoes) && (
               <div className="rounded-md border border-amber-500/40 bg-amber-500/5 p-3 text-[12px]">
                 <p className="mb-1 font-medium">Regras deste cliente</p>

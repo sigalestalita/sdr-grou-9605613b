@@ -58,8 +58,8 @@ export const Route = createFileRoute("/_app/faturamento")({
 const ETAPAS: Array<{ v: EtapaFila; l: string; dica: string }> = [
   { v: "a_conferir", l: "A conferir", dica: "Ganhos que chegaram do comercial" },
   { v: "pendencia", l: "Com o comercial", dica: "Devolvidos por falta de informação" },
-  { v: "a_faturar", l: "A faturar", dica: "Conferidos, aguardando a nota" },
-  { v: "a_receber", l: "A receber", dica: "Nota emitida, parcelas em aberto" },
+  { v: "a_faturar", l: "A faturar", dica: "Conferidos, aguardando a nota (ou parte dela)" },
+  { v: "a_receber", l: "A receber", dica: "Faturado, parcelas em aberto" },
   { v: "recebido", l: "Recebido", dica: "Últimos 120 dias" },
 ];
 
@@ -179,7 +179,11 @@ function Fila() {
                       <span className="text-muted-foreground">{i.executivo ?? "—"}</span>
                     </p>
                     <div className="mt-1 flex flex-wrap gap-1">
-                      {i.codigoWebmais ? (
+                      {i.contaAzul.vendaNumero ? (
+                        <Badge variant="outline" className="text-[10px]">
+                          CA venda {i.contaAzul.vendaNumero}
+                        </Badge>
+                      ) : i.codigoWebmais ? (
                         <Badge variant="outline" className="text-[10px]">
                           WM {i.codigoWebmais}
                         </Badge>
@@ -188,7 +192,30 @@ function Fila() {
                           variant="outline"
                           className="border-amber-500/40 text-[10px] text-amber-700 dark:text-amber-400"
                         >
-                          sem WebMais
+                          sem venda na Conta Azul
+                        </Badge>
+                      )}
+                      {i.contaAzul.nfNumeros && (
+                        <Badge variant="outline" className="text-[10px]">
+                          NF {i.contaAzul.nfNumeros}
+                        </Badge>
+                      )}
+                      {i.contaAzul.nfStatus === "FALHA" && (
+                        <Badge variant="destructive" className="text-[10px]">
+                          nota com problema
+                        </Badge>
+                      )}
+                      {i.contaAzul.nfStatus === "EM_EMISSAO" && (
+                        <Badge variant="outline" className="text-[10px]">
+                          nota em emissão
+                        </Badge>
+                      )}
+                      {i.contaAzul.nfStatus === "PARCIAL" && (
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-500/40 text-[10px] text-emerald-700 dark:text-emerald-400"
+                        >
+                          faturado {moeda(i.faturado)} de {moeda(i.valor)}
                         </Badge>
                       )}
                       {i.emissaoPrevistaEm && e.v !== "a_receber" && e.v !== "recebido" && (

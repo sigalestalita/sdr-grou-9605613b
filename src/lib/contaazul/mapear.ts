@@ -220,3 +220,14 @@ export function vendaDoNegocio(
   );
   return cands.length === 1 ? cands[0].id : null;
 }
+
+/** Status do negócio com rateio: junta o status de cada CNPJ. */
+export function agregarStatus(statuses: string[]): string {
+  if (!statuses.length) return "SEM_NOTA";
+  if (statuses.includes("FALHA")) return "FALHA";
+  if (statuses.every((s) => s === "EMITIDA")) return "EMITIDA";
+  if (statuses.some((s) => s === "EMITIDA" || s === "PARCIAL")) return "PARCIAL";
+  if (statuses.includes("EM_EMISSAO")) return "EM_EMISSAO";
+  if (statuses.every((s) => s === "CANCELADA")) return "CANCELADA";
+  return "SEM_NOTA";
+}
