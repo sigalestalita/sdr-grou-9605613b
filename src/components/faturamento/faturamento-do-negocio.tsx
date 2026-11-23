@@ -15,6 +15,7 @@ import {
 } from "@/lib/requerimentos.functions";
 import { STATUS_REQUERIMENTO } from "@/lib/requerimentos/regras";
 import { InscreverEmTurma } from "@/components/faturamento/contrato-e-turma";
+import { JornadaEtapas, NotasDaEmpresa } from "@/components/faturamento/jornada";
 import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -81,6 +82,10 @@ export function FaturamentoDoNegocio({ dealId }: { dealId: string }) {
           </Link>
         )}
       </div>
+      <JornadaEtapas
+        negocio={n as Record<string, string | number | boolean | null>}
+        dealId={dealId}
+      />
       <p className="flex items-center gap-1 text-[13px]">
         {n.faturado_em ? (
           <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
@@ -108,6 +113,8 @@ export function FaturamentoDoNegocio({ dealId }: { dealId: string }) {
       ) : null}
 
       <Execucao dealId={dealId} podeFaturar={data.podeEditar} />
+
+      <NotasDaEmpresa dealId={dealId} />
 
       {notas.length > 0 && (
         <ul className="space-y-2 text-[12px]">

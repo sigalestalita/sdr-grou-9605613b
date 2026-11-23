@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  agregarStatus,
   horaSP,
   itensDaResposta,
   janelas,
@@ -90,5 +91,13 @@ describe("Conta Azul → Compass", () => {
     expect(vendaDoNegocio(neg, [v("a", 4858), v("b", 4860)], new Set())).toBeNull();
     expect(vendaDoNegocio(neg, [v("a", 4858)], new Set(["a"]))).toBeNull();
     expect(vendaDoNegocio(neg, [v("a", 4858, "e2")], new Set())).toBeNull();
+  });
+
+  it("junta o status dos CNPJs do rateio", () => {
+    expect(agregarStatus(["EMITIDA", "EMITIDA"])).toBe("EMITIDA");
+    expect(agregarStatus(["EMITIDA", "SEM_NOTA"])).toBe("PARCIAL");
+    expect(agregarStatus(["EMITIDA", "FALHA"])).toBe("FALHA");
+    expect(agregarStatus(["EM_EMISSAO", "SEM_NOTA"])).toBe("EM_EMISSAO");
+    expect(agregarStatus([])).toBe("SEM_NOTA");
   });
 });

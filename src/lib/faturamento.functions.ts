@@ -27,7 +27,7 @@ import { hojeSP } from "@/lib/datas-sp";
 const solto = (s: unknown) => s as Db;
 
 const DEAL_FAT_COLS =
-  "id, nome, company_id, executivo_user_id, status, amount, tipo_venda, produtos_texto, observacao_adm, ordem_compra_em, ordem_compra_numero, oc_situacao, oc_anexo_url, cnpj_faturamento, emissao_prevista_em, prazo_pagamento, forma_pagamento, parcelas, valor_liquido, contato_faturamento_id, adm_checked_at, adm_checked_by, adm_pendencia, adm_pendencia_em, faturado_em, cs_entregue_em, esteira, closed_at";
+  "id, nome, company_id, executivo_user_id, status, amount, tipo_venda, produtos_texto, observacao_adm, ordem_compra_em, ordem_compra_numero, oc_situacao, oc_anexo_url, cnpj_faturamento, emissao_prevista_em, prazo_pagamento, forma_pagamento, parcelas, valor_liquido, contato_faturamento_id, adm_checked_at, adm_checked_by, adm_pendencia, adm_pendencia_em, faturado_em, cs_entregue_em, esteira, closed_at, ca_venda_numero, ca_situacao, ca_nf_status, ca_nf_numeros, ca_valor_faturado";
 
 async function exigeFaturamento(db: Db, userId: string) {
   if (!(await podeFaturar(db, userId)))
@@ -136,12 +136,17 @@ type FaturaRow = {
   }>;
 };
 
-function etapaDoNegocio(d: DealFat, faturas: FaturaRow[]): EtapaFila {
+function etapaDoNegocio(d: DealFat, faturas: FaturaRow[], caAbertas: number): EtapaFila {
   const validas = faturas.filter((f) => f.status === "emitida");
   if (d.faturado_em && validas.length > 0) {
     const abertas = validas.flatMap((f) => f.fatura_parcelas).filter((p) => !p.pago_em);
     return abertas.length > 0 ? "a_receber" : "recebido";
   }
+  // Conta Azul: nota toda emitida → recebimento pelo contas a receber da
+  // empresa; faturado em parte ou nota com problema ainda é trabalho do ADM.
+  if (d.ca_nf_status === "EMITIDA") return caAbertas > 0 ? "a_receber" : "recebido";
+  if (d.ca_nf_status === "PARCIAL" || d.ca_nf_status === "FALHA" || d.ca_nf_status === "EM_EMISSAO")
+    return "a_faturar";
   if (d.adm_pendencia && !d.adm_checked_at) return "pendencia";
   return d.adm_checked_at ? "a_faturar" : "a_conferir";
 }
@@ -200,6 +205,44 @@ export const listarFilaFaturamento = createServerFn({ method: "GET" })
       db.from("profiles").select("id, full_name, email"),
     ]);
 
+    // Contas a receber da Conta Azul das empresas já faturadas por lá.
+    const caEmpresas = [
+      ...new Set(
+        lista
+          .filter((d) => d.ca_nf_status === "EMITIDA" || d.ca_nf_status === "PARCIAL")
+          .map((d) => d.company_id)
+          .filter(Boolean),
+      ),
+    ] as string[];
+    const { data: caReceber } = caEmpresas.length
+      ? await db
+          .from("ca_receber")
+          .select("company_id, data_vencimento, status, nao_pago, total")
+          .in("company_id", caEmpresas)
+          .gt("nao_pago", 0)
+      : { data: [] };
+    const abertasCa = (
+      (caReceber ?? []) as Array<{
+        company_id: string;
+        data_vencimento: string | null;
+        status: string | null;
+        nao_pago: number | null;
+        total: number | null;
+      }>
+    ).filter((r) => !["RECEBIDO", "PERDIDO", "RENEGOCIADO"].includes(r.status ?? ""));
+    const caDoNegocio = (d: DealFat) => {
+      // Parcelas da empresa com vencimento depois da venda.
+      const desde = String(d.closed_at ?? "").slice(0, 10);
+      const ps = abertasCa.filter(
+        (r) => r.company_id === d.company_id && (!desde || (r.data_vencimento ?? "") >= desde),
+      );
+      return {
+        abertas: ps.length,
+        valor: ps.reduce((s, r) => s + Number(r.nao_pago ?? r.total ?? 0), 0),
+        vencidas: ps.filter((r) => (r.data_vencimento ?? "9999") < hojeSP()).length,
+      };
+    };
+
     const fatPorDeal = new Map<string, FaturaRow[]>();
     for (const f of (faturas ?? []) as FaturaRow[]) {
       const arr = fatPorDeal.get(f.deal_id) ?? [];
@@ -228,6 +271,8 @@ export const listarFilaFaturamento = createServerFn({ method: "GET" })
         empresa?.parent_company_id ? polPorEmpresa.get(empresa.parent_company_id) : null,
       );
       const fats = fatPorDeal.get(d.id) ?? [];
+      const ca = caDoNegocio(d);
+      const usaCa = fats.filter((f) => f.status === "emitida").length === 0 && !!d.ca_nf_status;
       const parcelasAbertas = fats
         .filter((f) => f.status === "emitida")
         .flatMap((f) => f.fatura_parcelas)
@@ -255,14 +300,21 @@ export const listarFilaFaturamento = createServerFn({ method: "GET" })
         ordemCompraEm: d.ordem_compra_em as string,
         emissaoPrevistaEm: (d.emissao_prevista_em as string | null) ?? null,
         pendenciaAdm: (d.adm_pendencia as string | null) ?? null,
-        etapa: etapaDoNegocio(d, fats),
+        etapa: etapaDoNegocio(d, fats, ca.abertas),
         codigoWebmais: politica.codigo_webmais,
         resumoPendencias: pendencias.map((p) => p.mensagem),
-        faturado: fats
-          .filter((f) => f.status === "emitida")
-          .reduce((s, f) => s + Number(f.valor_bruto), 0),
-        aReceber: parcelasAbertas.reduce((s, p) => s + Number(p.valor), 0),
-        vencidas: parcelasAbertas.filter((p) => p.vencimento < hoje).length,
+        faturado: usaCa
+          ? Number(d.ca_valor_faturado ?? 0)
+          : fats
+              .filter((f) => f.status === "emitida")
+              .reduce((s, f) => s + Number(f.valor_bruto), 0),
+        aReceber: usaCa ? ca.valor : parcelasAbertas.reduce((s, p) => s + Number(p.valor), 0),
+        vencidas: usaCa ? ca.vencidas : parcelasAbertas.filter((p) => p.vencimento < hoje).length,
+        contaAzul: {
+          vendaNumero: (d.ca_venda_numero as number | null) ?? null,
+          nfStatus: (d.ca_nf_status as string | null) ?? null,
+          nfNumeros: (d.ca_nf_numeros as string | null) ?? null,
+        },
       };
     });
 
