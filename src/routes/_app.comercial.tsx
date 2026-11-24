@@ -178,7 +178,7 @@ function ComercialPage() {
             <Tile
               label="Em aberto"
               valor={String(d.resumo.abertos)}
-              hint={moeda(d.resumo.valorAberto)}
+              hint={`${moeda(d.resumo.valorAberto)}${d.resumo.congelados ? ` · ${d.resumo.congelados} congelado(s) fora da conta (${moeda(d.resumo.valorCongelado)})` : ""}`}
             />
             <Tile
               label="Vendas ganhas"

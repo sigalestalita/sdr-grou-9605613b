@@ -38,10 +38,15 @@ type DealRow = {
   esteira: string;
   lost_reason: string | null;
   created_at: string;
+  congelado_ate: string | null;
 };
 
+/** Aberto e não congelado: o que conta no funil e na previsão. */
+const ativo = (d: Pick<DealRow, "status" | "congelado_ate">) =>
+  d.status === "open" && !d.congelado_ate;
+
 const DEAL_COLS =
-  "id, nome, company_id, executivo_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, reuniao_em, agendado_em, closed_at, ordem_compra_em, proposta_aceita_em, faturado_em, cs_entregue_em, adm_checked_at, esteira, lost_reason, created_at";
+  "id, nome, company_id, executivo_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, reuniao_em, agendado_em, closed_at, ordem_compra_em, proposta_aceita_em, faturado_em, cs_entregue_em, adm_checked_at, esteira, lost_reason, created_at, congelado_ate, congelado_motivo";
 
 /** Data que caracteriza a venda ganha, na regra da gestora. */
 export function dataGanho(d: Pick<DealRow, "status" | "ordem_compra_em" | "closed_at">) {
@@ -174,7 +179,7 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
     const stageById = new Map(stages.map((s) => [s.id, s]));
     const porEtapa = new Map<string, { quantidade: number; valor: number }>();
     for (const d of doFoco) {
-      if (d.status !== "open" || !d.stage_id) continue;
+      if (!ativo(d) || !d.stage_id) continue;
       const atual = porEtapa.get(d.stage_id) ?? { quantidade: 0, valor: 0 };
       atual.quantidade += 1;
       atual.valor += Number(d.amount ?? 0);
@@ -249,7 +254,7 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
     const pessoas: PessoaComercial[] = [...ids]
       .map((id) => {
         const meus = negocios.filter((d) => d.executivo_user_id === id);
-        const abertosList = meus.filter((d) => d.status === "open");
+        const abertosList = meus.filter(ativo);
         const ganhosList = meus.filter((d) => dentro(dataGanho(d), de, ate));
         const perdidosList = meus.filter(
           (d) => d.status === "lost" && dentro(d.closed_at, de, ate),
@@ -260,7 +265,7 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
         const propostas = meus.filter(
           (d) =>
             dentro(d.proposta_aceita_em, de, ate) ||
-            (d.status === "open" && d.stage_id && stageProposta.has(d.stage_id)),
+            (ativo(d) && d.stage_id && stageProposta.has(d.stage_id)),
         ).length;
         const valorGanho = ganhosList.reduce((a, d) => a + Number(d.amount ?? 0), 0);
         const decididos = ganhosList.length + perdidosList.length;
@@ -300,7 +305,8 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
     const semOrdemCompra = ganhosNoPeriodo.filter((d) => !d.ordem_compra_em).length;
 
     const totalGanho = ganhosNoPeriodo.reduce((a, d) => a + Number(d.amount ?? 0), 0);
-    const abertosFoco = doFoco.filter((d) => d.status === "open");
+    const abertosFoco = doFoco.filter(ativo);
+    const congeladosFoco = doFoco.filter((d) => d.status === "open" && !!d.congelado_ate);
 
     return {
       isManager: !!isManager,
@@ -309,6 +315,8 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
       resumo: {
         abertos: abertosFoco.length,
         valorAberto: abertosFoco.reduce((a, d) => a + Number(d.amount ?? 0), 0),
+        congelados: congeladosFoco.length,
+        valorCongelado: congeladosFoco.reduce((a, d) => a + Number(d.amount ?? 0), 0),
         ganhos: ganhosNoPeriodo.length,
         valorGanho: totalGanho,
         ticketMedio: ganhosNoPeriodo.length ? Math.round(totalGanho / ganhosNoPeriodo.length) : 0,

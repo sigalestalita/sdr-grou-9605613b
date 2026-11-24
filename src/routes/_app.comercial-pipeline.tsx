@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   FileCheck2,
   Flame,
+  Snowflake,
   Sparkles,
   User as UserIcon,
 } from "lucide-react";
@@ -42,6 +43,8 @@ type Deal = {
   ordem_compra_em: string | null;
   proposta_aceita_em: string | null;
   fonte: string | null;
+  congelado_ate?: string | null;
+  congelado_motivo?: string | null;
   companies?: { id: string; nome: string | null } | null;
 };
 
@@ -78,6 +81,8 @@ function PipelinePage() {
   // O funil sem as colunas de fechado esconde justamente a venda: quem procura
   // um negócio ganho no kanban não achava nada.
   const [mostrarFechados, setMostrarFechados] = useState(false);
+  // Congelado = o cliente decide mais adiante: fora do funil até a data.
+  const [mostrarCongelados, setMostrarCongelados] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["comercial-pipeline", pipelineId, executivo, mostrarFechados],
@@ -98,7 +103,9 @@ function PipelinePage() {
   const quadro = `comercial:${(data?.stages?.[0] as Stage | undefined)?.pipeline_id ?? pipelineId ?? "padrao"}`;
   const { ocultas: etapasOcultas } = useEtapasOcultas(quadro);
   const stages = todasAsEtapas.filter((s) => !etapasOcultas.has(s.id));
-  const deals = (data?.deals ?? []) as Deal[];
+  const todosDeals = (data?.deals ?? []) as Deal[];
+  const congelados = todosDeals.filter((d) => !!d.congelado_ate);
+  const deals = mostrarCongelados ? todosDeals : todosDeals.filter((d) => !d.congelado_ate);
   const nomeDe = new Map(
     (data?.profiles ?? []).map(
       (p: { id: string; full_name: string | null; email: string | null }) => [
@@ -160,6 +167,17 @@ function PipelinePage() {
             <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
             {mostrarFechados ? "Ocultar fechados" : "Mostrar fechados"}
           </Button>
+          {congelados.length > 0 && (
+            <Button
+              size="sm"
+              variant={mostrarCongelados ? "default" : "outline"}
+              className="h-8 text-xs"
+              onClick={() => setMostrarCongelados((v) => !v)}
+            >
+              <Snowflake className="mr-1 h-3.5 w-3.5" />
+              {mostrarCongelados ? "Ocultar congelados" : `Congelados (${congelados.length})`}
+            </Button>
+          )}
           <EtapasVisiveis
             quadro={quadro}
             etapas={todasAsEtapas.map((s) => ({ id: s.id, nome: s.nome }))}
@@ -246,6 +264,16 @@ function PipelinePage() {
                           <span className="inline-flex items-center gap-0.5 text-violet-600 dark:text-violet-400">
                             <Sparkles className="h-3 w-3" />
                             do CS
+                          </span>
+                        )}
+                        {d.congelado_ate && (
+                          <span
+                            className="inline-flex items-center gap-0.5 text-sky-600 dark:text-sky-400"
+                            title={d.congelado_motivo ?? undefined}
+                          >
+                            <Snowflake className="h-3 w-3" />
+                            congelado até{" "}
+                            {format(new Date(`${d.congelado_ate}T12:00:00`), "dd/MM/yy")}
                           </span>
                         )}
                         {d.ordem_compra_em && (
