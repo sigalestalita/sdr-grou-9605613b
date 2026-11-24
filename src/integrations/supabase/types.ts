@@ -2562,6 +2562,11 @@ export type Database = {
       }
       deals: {
         Row: {
+          congelado_ate: string | null
+          congelado_em: string | null
+          congelado_motivo: string | null
+          congelado_por: string | null
+          vezes_congelado: number
           adm_checked_at: string | null
           adm_checked_by: string | null
           adm_pendencia: string | null
@@ -2631,6 +2636,11 @@ export type Database = {
           valor_liquido: number | null
         }
         Insert: {
+          congelado_ate?: string | null
+          congelado_em?: string | null
+          congelado_motivo?: string | null
+          congelado_por?: string | null
+          vezes_congelado?: number
           adm_checked_at?: string | null
           adm_checked_by?: string | null
           adm_pendencia?: string | null
@@ -2700,6 +2710,11 @@ export type Database = {
           valor_liquido?: number | null
         }
         Update: {
+          congelado_ate?: string | null
+          congelado_em?: string | null
+          congelado_motivo?: string | null
+          congelado_por?: string | null
+          vezes_congelado?: number
           adm_checked_at?: string | null
           adm_checked_by?: string | null
           adm_pendencia?: string | null

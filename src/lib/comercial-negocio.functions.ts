@@ -24,7 +24,7 @@ export const TIPOS_ATIVIDADE = [
 ] as const;
 
 const DEAL_COLS =
-  "id, nome, company_id, contact_id, executivo_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, tipo_venda, categoria_venda, produtos_texto, observacao_adm, proximo_passo, proximo_passo_em, reuniao_em, agendado_em, devolutiva_em, proposta_aceita_em, ordem_compra_em, ordem_compra_numero, contrato_assinado_em, adm_checked_at, faturado_em, cs_entregue_em, closed_at, lost_reason, esteira, created_at, updated_at";
+  "id, nome, company_id, contact_id, executivo_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, tipo_venda, categoria_venda, produtos_texto, observacao_adm, proximo_passo, proximo_passo_em, reuniao_em, agendado_em, devolutiva_em, proposta_aceita_em, ordem_compra_em, ordem_compra_numero, contrato_assinado_em, adm_checked_at, faturado_em, cs_entregue_em, closed_at, lost_reason, esteira, created_at, updated_at, congelado_ate, congelado_motivo, vezes_congelado";
 
 /** Ficha do negócio: dados, etapas possíveis e histórico. */
 export const getNegocio = createServerFn({ method: "GET" })
@@ -378,6 +378,7 @@ export const minhaFilaComercial = createServerFn({ method: "GET" })
         .select(`id, nome, amount, stage_id, updated_at, companies:company_id(nome)`)
         .eq("executivo_user_id", alvo)
         .eq("status", "open")
+        .is("congelado_ate", null)
         .is("proximo_passo_em", null)
         .order("updated_at", { ascending: true })
         .limit(20),
@@ -404,4 +405,80 @@ export const minhaFilaComercial = createServerFn({ method: "GET" })
         paradoDesde: d.updated_at as string,
       })),
     };
+  });
+
+export const MOTIVOS_CONGELAR = [
+  "Orçamento previsto para mais adiante",
+  "Decisão adiada pelo cliente",
+  "Aguardando outro projeto ou evento do cliente",
+  "Troca de gestão ou reestruturação no cliente",
+] as const;
+
+/**
+ * Congela o negócio até uma data: o cliente decide depois do nosso ciclo
+ * (orçamento do ano que vem, decisão adiada). Em vez de perda por tempo, o
+ * negócio sai do funil ativo e da previsão, e volta sozinho na data, com o
+ * próximo passo marcado e aviso para o executivo. `ate` null descongela agora.
+ */
+export const congelarNegocio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        dealId: z.string().uuid(),
+        ate: z.string().date().nullable(),
+        motivo: z.string().trim().min(3).max(300).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: atual, error: e1 } = await supabase
+      .from("deals")
+      .select("status, vezes_congelado")
+      .eq("id", data.dealId)
+      .maybeSingle();
+    if (e1) throw new Error(e1.message);
+    if (!atual) throw new Error("Negócio não encontrado");
+    const a = atual as unknown as { status: string; vezes_congelado: number | null };
+    if (a.status !== "open") throw new Error("Só dá para congelar negócio em aberto");
+    const agora = new Date().toISOString();
+
+    let patch: Record<string, unknown>;
+    let nota: string;
+    if (data.ate) {
+      const hoje = new Date().toISOString().slice(0, 10);
+      const limite = new Date(Date.now() + 548 * 864e5).toISOString().slice(0, 10);
+      if (data.ate <= hoje) throw new Error("A data de retomada precisa ser depois de hoje");
+      if (data.ate > limite) throw new Error("Congele por no máximo 18 meses");
+      if (!data.motivo) throw new Error("Diga o motivo de congelar");
+      const dataBr = data.ate.split("-").reverse().join("/");
+      patch = {
+        congelado_ate: data.ate,
+        congelado_motivo: data.motivo,
+        congelado_em: agora,
+        congelado_por: userId,
+        vezes_congelado: (a.vezes_congelado ?? 0) + 1,
+        proximo_passo: `Retomar a negociação (congelado: ${data.motivo})`.slice(0, 500),
+        proximo_passo_em: new Date(`${data.ate}T09:00:00-03:00`).toISOString(),
+        updated_at: agora,
+      };
+      nota = `Negócio congelado até ${dataBr} — ${data.motivo}`;
+    } else {
+      patch = { congelado_ate: null, updated_at: agora };
+      nota = "Negócio descongelado antes da data.";
+    }
+    const { error } = await supabase
+      .from("deals")
+      .update(patch as never)
+      .eq("id", data.dealId);
+    if (error) throw new Error(error.message);
+    await supabase.from("deal_activities").insert({
+      deal_id: data.dealId,
+      tipo: "nota",
+      descricao: nota,
+      occurred_at: agora,
+      author_id: userId,
+    } as never);
+    return { ok: true };
   });

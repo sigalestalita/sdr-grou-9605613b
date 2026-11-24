@@ -16,6 +16,7 @@ import {
   Phone,
   StickyNote,
   Users,
+  Snowflake,
   XCircle,
 } from "lucide-react";
 import {
@@ -46,6 +47,7 @@ import { ItensNegocio } from "@/components/catalogo/itens-negocio";
 import { ContratoDoNegocio } from "@/components/faturamento/contrato-e-turma";
 import { PropostasDoNegocio } from "@/components/propostas/propostas-do-negocio";
 import { FichaCadastralCard } from "@/components/fichas/ficha-cadastral";
+import { CongelarDialog, FaixaCongelado } from "@/components/comercial/congelar-negocio";
 import { MencionarPessoas } from "@/components/app-shell/mencionar-pessoas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -113,6 +115,7 @@ function NegocioPage() {
   const [proximoEm, setProximoEm] = useState("");
   const [mencionados, setMencionados] = useState<string[]>([]);
   const [fechando, setFechando] = useState<null | "ganho" | "perdido">(null);
+  const [congelando, setCongelando] = useState(false);
 
   const recarrega = () => {
     qc.invalidateQueries({ queryKey: ["negocio", id] });
@@ -226,10 +229,29 @@ function NegocioPage() {
               <Button size="sm" variant="outline" onClick={() => setFechando("perdido")}>
                 <XCircle className="mr-1 h-3.5 w-3.5" /> Marcar perda
               </Button>
+              {!n.congelado_ate && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setCongelando(true)}
+                  title="Cliente decide depois do nosso ciclo: tira do funil ativo até uma data, sem dar perda"
+                >
+                  <Snowflake className="mr-1 h-3.5 w-3.5" /> Congelar
+                </Button>
+              )}
             </>
           )}
         </div>
       </header>
+
+      {aberto && n.congelado_ate ? (
+        <FaixaCongelado
+          dealId={id}
+          ate={String(n.congelado_ate)}
+          motivo={(n.congelado_motivo as string | null) ?? null}
+          onDone={recarrega}
+        />
+      ) : null}
 
       {/* etapas do funil, clicáveis */}
       {aberto && (
@@ -479,6 +501,10 @@ function NegocioPage() {
           ) : null}
         </div>
       </div>
+
+      {congelando && (
+        <CongelarDialog dealId={id} onClose={() => setCongelando(false)} onDone={recarrega} />
+      )}
 
       {fechando && (
         <FecharDialog
