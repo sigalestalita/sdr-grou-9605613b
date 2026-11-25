@@ -3,6 +3,13 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { modulesFromMemberships, type AppTeam, type Membership, type Team } from "@/lib/teams";
+import {
+  COMPASS_URL,
+  MAX_ASSUNTO,
+  MAX_CORPO,
+  REMETENTE_BOAS_VINDAS,
+  montarHtmlBoasVindas,
+} from "@/lib/boas-vindas";
 
 const TALITA_EMAIL = "talita.sigales@grougp.com.br";
 
@@ -297,8 +304,9 @@ export const setSuperAdmin = createServerFn({ method: "POST" })
 
 /**
  * Cria a conta pela administração: e-mail de qualquer domínio (a conta nasce
- * confirmada), com os vínculos escolhidos. Sem senha informada, envia o e-mail
- * para a pessoa definir a própria.
+ * confirmada), com os vínculos escolhidos. Não manda e-mail nenhum: a tela
+ * mostra em seguida o e-mail de boas-vindas para o admin revisar e enviar
+ * (sendWelcomeEmail), com o link para definir a senha quando não houver uma.
  */
 export const createUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -309,7 +317,6 @@ export const createUser = createServerFn({ method: "POST" })
         fullName: z.string().trim().min(2).max(120),
         password: z.string().min(8).max(72).optional(),
         memberships: z.array(MembershipSchema),
-        redirectTo: z.string().url(),
       })
       .parse(input),
   )
@@ -332,14 +339,98 @@ export const createUser = createServerFn({ method: "POST" })
 
     await replaceMemberships(created.user.id, data.memberships);
 
-    let inviteSent = false;
-    if (!data.password) {
-      const { error: rErr } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
-        redirectTo: data.redirectTo,
+    return { ok: true, userId: created.user.id, email, semSenha: !data.password };
+  });
+
+/**
+ * E-mail de boas-vindas com o texto revisado pelo admin. Vai para o e-mail da
+ * conta (não para um endereço digitado). Com link de senha, o botão leva a um
+ * link de recuperação gerado na hora — de uso único, como o do "Esqueci minha
+ * senha". Cada tentativa fica em integration_logs (action "boas_vindas_email").
+ */
+export const sendWelcomeEmail = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        userId: z.string().uuid(),
+        assunto: z.string().trim().min(3).max(MAX_ASSUNTO),
+        corpo: z.string().trim().min(10).max(MAX_CORPO),
+        comLinkDeSenha: z.boolean(),
+        redirectTo: z.string().url(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ context, data }) => {
+    await requireSuperAdmin(context.userId, "enviar boas-vindas");
+    const { data: target } = await supabaseAdmin
+      .from("profiles")
+      .select("email")
+      .eq("id", data.userId)
+      .maybeSingle();
+    const email = (target?.email as string | undefined)?.toLowerCase();
+    if (!email) throw new Error("Usuário sem e-mail cadastrado");
+
+    const registrar = async (status: string, detail: Record<string, unknown>) => {
+      try {
+        await supabaseAdmin.from("integration_logs").insert({
+          provider: "resend",
+          action: "boas_vindas_email",
+          status,
+          detail: { user_id: data.userId, para: email, por: context.userId, ...detail },
+        } as never);
+      } catch {
+        /* log nunca derruba nada */
+      }
+    };
+
+    let botao = { texto: "Entrar no Compass", url: `${COMPASS_URL}/login` };
+    if (data.comLinkDeSenha) {
+      const { data: link, error } = await supabaseAdmin.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: { redirectTo: data.redirectTo },
       });
-      inviteSent = !rErr;
+      const url = link?.properties?.action_link;
+      if (error || !url) {
+        await registrar("error", { erro: error?.message ?? "sem link de senha" });
+        throw new Error(`Não foi possível gerar o link de senha: ${error?.message ?? "sem link"}`);
+      }
+      botao = { texto: "Definir minha senha", url };
     }
-    return { ok: true, userId: created.user.id, inviteSent };
+
+    const { html, texto } = montarHtmlBoasVindas(data.corpo, botao);
+    const lovable = process.env.LOVABLE_API_KEY;
+    const resend = process.env.RESEND_API_KEY;
+    if (!lovable || !resend) {
+      await registrar("error", { erro: "LOVABLE_API_KEY/RESEND_API_KEY não configuradas" });
+      throw new Error("Envio de e-mail não configurado (Resend)");
+    }
+    try {
+      const res = await fetch("https://connector-gateway.lovable.dev/resend/emails", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${lovable}`,
+          "X-Connection-Api-Key": resend,
+        },
+        body: JSON.stringify({
+          from: REMETENTE_BOAS_VINDAS,
+          to: [email],
+          subject: data.assunto,
+          html,
+          text: texto,
+        }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    } catch (e) {
+      const erro = e instanceof Error ? e.message.slice(0, 500) : String(e).slice(0, 500);
+      await registrar("error", { assunto: data.assunto, erro });
+      throw new Error(`O e-mail não foi enviado: ${erro}`);
+    }
+    await registrar("ok", { assunto: data.assunto, com_link_de_senha: data.comLinkDeSenha });
+    return { ok: true, email };
   });
 
 export const removeUser = createServerFn({ method: "POST" })

@@ -1,0 +1,1080 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manual do Compass — Grou</title>
+<meta name="description" content="Manual do produto Grou Compass CRM — Módulos CS e SDR, versão de 25/11/2026: cada tela, o que é automático, o que cada perfil faz e o que mudou desde 09/09.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon-32x32.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=Source+Sans+3:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#f7f6f3;--surface:#ffffff;--ink:#1c2430;--muted:#5f6b78;--line:#e2e0da;--soft:#eef1f6;
+    --navy:#1f3556;--navy-bg:#e7edf6;
+    --auto:#1f6f4a;--auto-bg:#e2f3ea;--you:#8a5a00;--you-bg:#fff1d6;--cfg:#4b3fa0;--cfg-bg:#ebe8fa;--mgr:#8a2f6b;--mgr-bg:#f8e5f1;
+    --verde:#1f9d55;--amarelo:#d9a400;--vermelho:#d0342c;--preto:#333;
+    /* mock (sempre claro, é ilustração) */
+    --m-bg:#f3f4f7;--m-surface:#fff;--m-line:#e4e6ea;--m-ink:#1c2430;--m-muted:#6b7683;--m-sb:#232f47;--m-sb-ink:#e9eef7;--m-primary:#1d4ed8;
+  }
+  @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+    --bg:#121519;--surface:#1a1f26;--ink:#e9ecf0;--muted:#9ba6b3;--line:#2b323c;--soft:#222a34;
+    --navy:#9fb8dc;--navy-bg:#1e2a3c;--auto:#7cd3a3;--auto-bg:#173626;--you:#f1c46b;--you-bg:#3a2c0e;--cfg:#b9b0f2;--cfg-bg:#28244a;--mgr:#f0a7d6;--mgr-bg:#3d1b33;}}
+  :root[data-theme="dark"]{
+    --bg:#121519;--surface:#1a1f26;--ink:#e9ecf0;--muted:#9ba6b3;--line:#2b323c;--soft:#222a34;
+    --navy:#9fb8dc;--navy-bg:#1e2a3c;--auto:#7cd3a3;--auto-bg:#173626;--you:#f1c46b;--you-bg:#3a2c0e;--cfg:#b9b0f2;--cfg-bg:#28244a;--mgr:#f0a7d6;--mgr-bg:#3d1b33;}
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--ink);font:16px/1.6 "Source Sans 3",system-ui,sans-serif;margin:0}
+  .wrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:40px;max-width:1240px;margin:0 auto;padding:36px 24px 100px}
+  nav{position:sticky;top:20px;align-self:start;font-size:14px;max-height:calc(100vh - 40px);overflow:auto}
+  nav .brand{font:600 13px "Source Sans 3";letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+  nav a{display:block;color:var(--ink);text-decoration:none;padding:4px 10px;border-radius:6px}
+  nav a:hover{background:var(--soft)} nav a:focus-visible{outline:2px solid var(--navy)}
+  h1,h2,h3{font-family:"Source Serif 4",Georgia,serif;text-wrap:balance;margin:0}
+  h1{font-size:36px;font-weight:600;line-height:1.15}
+  h2{font-size:26px;font-weight:600;margin:60px 0 8px;padding-top:10px;border-top:1px solid var(--line)}
+  h3{font-size:18px;font-weight:600;margin:24px 0 6px}
+  p{margin:8px 0;max-width:74ch} li{margin:4px 0} ul,ol{padding-left:22px;max-width:74ch}
+  .lead{font-size:18px;color:var(--muted);max-width:68ch}
+  .masthead{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  .masthead .product{font:600 13px "Source Sans 3";letter-spacing:.14em;text-transform:uppercase;color:var(--navy)}
+  .masthead .ver{font-size:12px;color:var(--muted)}
+  .module{display:inline-block;font:600 12px "Source Sans 3";letter-spacing:.1em;text-transform:uppercase;color:var(--navy);background:var(--navy-bg);border-radius:6px;padding:3px 10px;margin:22px 0 6px}
+  .toc-mod{font:600 11px "Source Sans 3";letter-spacing:.1em;text-transform:uppercase;color:var(--navy);margin:12px 10px 4px}
+  .soon{color:var(--muted);font-style:italic}
+  .tag{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.03em;border-radius:999px;padding:2px 10px;margin-right:6px;white-space:nowrap;vertical-align:middle}
+  .t-auto{background:var(--auto-bg);color:var(--auto)} .t-you{background:var(--you-bg);color:var(--you)} .t-cfg{background:var(--cfg-bg);color:var(--cfg)} .t-mgr{background:var(--mgr-bg);color:var(--mgr)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:18px 0 0;font-size:14px;color:var(--muted)}
+  .callout{border-left:4px solid var(--navy);background:var(--navy-bg);border-radius:0 10px 10px 0;padding:12px 16px;margin:14px 0;max-width:78ch}
+  .callout b{color:var(--navy)}
+  table.doc{border-collapse:collapse;width:100%;font-size:14.5px;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  table.doc th,table.doc td{padding:9px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}
+  table.doc th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--soft)}
+  table.doc tr:last-child td{border-bottom:0}
+  .tbl{overflow-x:auto;margin:12px 0}
+  kbd{font:13px "Source Sans 3";background:var(--soft);border:1px solid var(--line);border-radius:5px;padding:1px 7px;white-space:nowrap}
+  .where{font-size:13px;color:var(--muted);margin:2px 0 8px} .where b{color:var(--ink)}
+  .small{font-size:14px;color:var(--muted)}
+  /* seletor de perfil */
+  .viewer{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+  .viewer button{font:600 13px "Source Sans 3";border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}
+  .viewer button[aria-pressed="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+  body[data-view="analista"] .mgr{display:none !important}
+  .mgr-note{font-size:12px;color:var(--mgr);font-weight:600}
+  /* ---------- mock ---------- */
+  .mock{margin:14px 0 6px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--m-bg);color:var(--m-ink);font:12.5px/1.4 "Source Sans 3",system-ui,sans-serif;box-shadow:0 12px 30px -20px rgba(0,0,0,.35)}
+  .mock *{box-sizing:border-box}
+  .mock .cap{background:var(--surface);color:var(--muted);font-size:12px;padding:6px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+  .app{display:grid;grid-template-columns:172px 1fr;min-height:320px}
+  .app.nosb{grid-template-columns:1fr}
+  .sb{background:var(--m-sb);color:var(--m-sb-ink);padding:10px 8px;font-size:12px}
+  .sb.glass{margin:8px 0 8px 8px;border-radius:14px;background:linear-gradient(160deg,rgba(35,47,71,.86),rgba(35,47,71,.72));box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 18px 40px -22px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14)}
+  .sb .logo{font-weight:600;letter-spacing:.02em;padding:4px 8px 10px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:8px}
+  .sb .it{padding:5px 8px;border-radius:7px;color:rgba(233,238,247,.75);display:flex;gap:7px;align-items:center}
+  .sb .it.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600;box-shadow:inset 0 1px 0 rgba(255,255,255,.2)}
+  .sb .grp{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:rgba(233,238,247,.5);padding:8px 8px 3px;display:flex;justify-content:space-between}
+  .sb .ico{width:12px;height:12px;border-radius:3px;background:rgba(255,255,255,.35);flex:0 0 auto}
+  .sb .sep{border-top:1px solid rgba(255,255,255,.1);margin:6px 0}
+  .main{padding:10px 12px;min-width:0}
+  .topbar{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .search{flex:1;max-width:320px;border:1px solid var(--m-line);background:var(--m-surface);border-radius:999px;padding:5px 12px;color:var(--m-muted);display:flex;justify-content:space-between}
+  .glassbar{box-shadow:inset 0 1px 0 rgba(255,255,255,.7),0 8px 20px -14px rgba(0,0,0,.3);background:rgba(255,255,255,.75)}
+  .glassbg{background:radial-gradient(600px 260px at -5% -10%,rgba(150,180,240,.35),transparent 60%),radial-gradient(500px 240px at 105% 110%,rgba(200,170,240,.25),transparent 60%),var(--m-bg)}
+  .h{font-size:16px;font-weight:600;margin:0 0 2px}
+  .sub{color:var(--m-muted);margin:0 0 8px}
+  .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
+  .tile{background:var(--m-surface);border:1px solid var(--m-line);border-radius:9px;padding:8px 10px}
+  .tile b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+  .tile span{color:var(--m-muted);font-size:11px}
+  .cols{display:grid;gap:10px}
+  .panel{background:var(--m-surface);border:1px solid var(--m-line);border-radius:10px;padding:9px 10px}
+  .panel .ph{font-weight:600;font-size:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--m-line);align-items:center}
+  .row:last-child{border-bottom:0}
+  .row .l{min-width:0} .row .l b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .row .l span{color:var(--m-muted);font-size:11px}
+  .b{display:inline-block;border:1px solid var(--m-line);border-radius:999px;padding:1px 7px;font-size:10.5px;white-space:nowrap;background:var(--m-surface);color:var(--m-muted)}
+  .b.ok{border-color:#9fd6b6;color:#1f6f4a;background:#e6f6ec} .b.warn{border-color:#f0d58a;color:#8a5a00;background:#fff5da} .b.bad{border-color:#f2b3ae;color:#b3261e;background:#fde9e7} .b.pri{border-color:#b9c9f2;color:#1d4ed8;background:#e8eefc} .b.dash{border-style:dashed}
+  .btn{display:inline-block;border-radius:7px;padding:4px 9px;font-size:11.5px;font-weight:600;border:1px solid var(--m-line);background:var(--m-surface);white-space:nowrap}
+  .btn.p{background:var(--m-primary);color:#fff;border-color:var(--m-primary)} .btn.g{color:#1f6f4a;border-color:#9fd6b6;background:#e6f6ec}
+  .chip{display:inline-block;border:1px solid var(--m-line);background:var(--m-surface);border-radius:999px;padding:2px 9px;font-size:11px;margin:0 4px 4px 0}
+  .chip.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle;margin-right:5px}
+  .v{background:var(--verde)} .a{background:var(--amarelo)} .r{background:var(--vermelho)} .k{background:var(--preto)} .s{background:#c7ccd3}
+  .strip{display:inline-flex;gap:2px} .strip i{width:10px;height:10px;border-radius:2px;display:inline-block}
+  table.m{width:100%;border-collapse:collapse;font-size:11.5px;background:var(--m-surface)}
+  table.m th{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--m-muted);text-align:left;padding:5px 7px;border-bottom:1px solid var(--m-line)}
+  table.m td{padding:5px 7px;border-bottom:1px solid var(--m-line);vertical-align:top;white-space:nowrap}
+  .tabs{display:flex;gap:2px;border-bottom:1px solid var(--m-line);margin-bottom:8px;overflow:hidden}
+  .tabs span{padding:5px 9px;color:var(--m-muted);font-size:11.5px;white-space:nowrap} .tabs span.on{color:var(--m-ink);font-weight:600;border-bottom:2px solid var(--m-primary)}
+  .bar{height:5px;background:#e6e8ee;border-radius:3px;overflow:hidden} .bar i{display:block;height:100%;background:var(--verde)}
+  .form{display:grid;gap:6px} .in{border:1px solid var(--m-line);border-radius:7px;padding:5px 8px;background:var(--m-surface);color:var(--m-muted);font-size:11.5px}
+  .in.on{color:var(--m-ink)}
+  .kb{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+  .kb .col{background:var(--m-surface);border:1px solid var(--m-line);border-radius:9px;padding:6px;min-height:120px}
+  .kb .col h6{margin:0 0 6px;font-size:10.5px;color:var(--m-muted);text-transform:uppercase;letter-spacing:.06em;display:flex;justify-content:space-between}
+  .card{border:1px solid var(--m-line);border-radius:8px;padding:6px;margin-bottom:6px;background:#fbfbfc;font-size:11px}
+  .card b{display:block;font-size:11.5px}
+  .card .meta{color:var(--m-muted);font-size:10.5px;margin:2px 0}
+  .n{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:50%;background:var(--m-primary);color:#fff;font-size:10.5px;font-weight:700;margin-left:4px;vertical-align:middle;flex:0 0 auto}
+  .n.mgr{background:#8a2f6b}
+  ol.leg{font-size:14.5px;margin:6px 0 0;padding-left:0;list-style:none;max-width:78ch}
+  ol.leg li{margin:4px 0;padding-left:26px;position:relative}
+  ol.leg li::before{content:attr(data-n);position:absolute;left:0;top:3px;width:18px;height:18px;border-radius:50%;background:var(--m-primary);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+  ol.leg li.mgr::before{background:#8a2f6b}
+  .pre{background:#fbfbfc;border:1px solid var(--m-line);border-radius:8px;padding:8px;white-space:pre-wrap;font-size:11.5px}
+  .mock-note{font-size:12.5px;color:var(--muted);margin:2px 0 0}
+  @media (max-width:900px){.wrap{grid-template-columns:1fr}nav{position:static;max-height:none}.app{grid-template-columns:1fr}.sb{display:none}.tiles{grid-template-columns:repeat(2,1fr)}.kb{grid-template-columns:1fr 1fr}}
+</style>
+<style>
+  [id]{scroll-margin-top:64px}
+  .t-new{background:var(--navy-bg);color:var(--navy)}
+  .t-out{background:var(--soft);color:var(--muted);text-decoration:line-through}
+  .mudou{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:14px 0;max-width:100%}
+  .mudou section{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .mudou h3{margin:0 0 6px;font-size:17px}
+  .mudou ul{margin:0;padding-left:18px;font-size:14.5px}
+  .mudou li{margin:5px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <div class="brand">Grou Compass CRM · Manual</div>
+  <a href="#intro">Sobre este manual</a>
+  <a href="#mudou">O que mudou desde 09/09</a>
+  <div class="toc-mod">Comum aos módulos</div>
+  <a href="#menu">1. Menu, busca, sino e assistente</a>
+  <div class="toc-mod">Módulo CS</div>
+  <a href="#modulo-cs">Visão do módulo</a>
+  <a href="#pedido">Pedido × entregue</a>
+  <a href="#inicio">2. Início</a>
+  <a href="#empresas">3. Empresas (carteira)</a>
+  <a href="#ficha">4. Ficha da empresa</a>
+  <a href="#health">5. Health score</a>
+  <a href="#cadencia">6. Kanban semanal e cadência</a>
+  <a href="#tarefas">7. Tarefas com evidência</a>
+  <a href="#integracoes">8. Integrações por pessoa</a>
+  <a href="#contato">9. Registrar contato e reunião</a>
+  <a href="#masterclass">10. Masterclasses</a>
+  <a href="#oportunidade">11. Oportunidade comercial</a>
+  <a href="#jornadas">12. Jornadas Reais</a>
+  <a href="#gestao">13. Dashboard CS (BI) e escalações</a>
+  <a href="#alertas">14. Alertas</a>
+  <a href="#playbook">15. Playbook</a>
+  <a href="#config">16. Configurações CS</a>
+  <a href="#campos">17. Campos essenciais</a>
+  <a href="#consultorias">18. Consultorias</a>
+  <a href="#cs-whatsapp">19. WhatsApp CS e Tickets</a>
+  <a href="#financeiro">20. Financeiro e requerimentos</a>
+  <a href="#jornada-cliente">21. Jornada do cliente</a>
+  <a href="#migracao">Migração do RD — onde estamos</a>
+  <div class="toc-mod">Módulo SDR</div>
+  <a href="#modulo-sdr">Visão do módulo</a>
+  <a href="#sdr-menu">1. Menu e Início do SDR</a>
+  <a href="#sdr-pipeline">2. Pipeline</a>
+  <a href="#sdr-lead">3. Página do lead</a>
+  <a href="#sdr-inbox">4. WhatsApp</a>
+  <a href="#sdr-ia">5. A IA de atendimento</a>
+  <a href="#sdr-automacoes">6. Campanhas, automações, custos</a>
+  <a href="#sdr-agenda">7. Agenda de FUPs</a>
+  <a href="#sdr-cadencia">8. Cadência e playbook</a>
+  <a href="#sdr-analise">9. Visão geral e BI</a>
+  <a href="#sdr-config">10. Configurações</a>
+  <div class="toc-mod">Fora deste manual</div>
+  <a href="#modulos-futuros" class="soon">Comercial, Administrativo, Marketing</a>
+</nav>
+<main>
+
+<div class="masthead"><span class="product">Grou Compass CRM</span><span class="ver">Manual do produto · versão de 25/11/2026 · substitui a de 09/09/2026</span></div>
+<h1 id="intro">Manual do produto</h1>
+<p class="lead">O Grou Compass CRM (<strong>compass.grougp.com</strong>) é o sistema que substitui o RD CRM como espinha dorsal da Grou: empresas, contatos, negócios e tarefas em um lugar só, com os módulos de cada time por cima. Este manual cobre o <strong>Módulo CS</strong> e o <strong>Módulo SDR</strong>. Os outros módulos que já existem estão listados no fim e terão manual próprio.</p>
+<div class="viewer" role="group" aria-label="Ver como">
+  <span>Ver o manual como:</span>
+  <button type="button" data-v="gestao" aria-pressed="true">Gestão (vê tudo)</button>
+  <button type="button" data-v="analista" aria-pressed="false">Analista (CS ou SDR)</button>
+  <span class="small">— elementos marcados <span class="tag t-mgr">gestão</span> só aparecem para quem tem papel de gestão.</span>
+</div>
+<div class="legend">
+  <span><span class="tag t-auto">Automático</span> o sistema faz sozinho</span>
+  <span><span class="tag t-you">Você faz</span> ação de quem opera</span>
+  <span><span class="tag t-mgr">Gestão</span> só gestão vê ou faz</span>
+  <span><span class="tag t-cfg">Configurável</span> ajustável nas configurações</span>
+  <span><span class="tag t-new">Novo</span> entrou depois de 09/09</span>
+</div>
+<div class="callout"><b>O sistema já roda com os dados reais.</b> Na versão de 09/09 as telas mostravam dados de marcação porque a migração do RD ainda não tinha terminado. Hoje a carteira, os leads e o histórico do RD estão no Compass, e a regra do time é: <strong>se não está no Compass, não aconteceu</strong>. As telas deste manual continuam sendo ilustrações com <strong>dados de exemplo</strong>, para não expor cliente real.</div>
+
+<h2 id="mudou">O que mudou desde 09/09</h2>
+<p>O resumo para quem já conhecia a versão anterior. Cada item aponta o capítulo onde está o detalhe.</p>
+<div class="mudou">
+  <section><h3>Comum aos dois módulos</h3><ul>
+    <li><span class="tag t-new">Novo</span> Todo mundo entra pelo <strong>Início</strong>, montado para o papel de cada um (antes a SDR caía no Pipeline). <a href="#inicio">→</a></li>
+    <li><span class="tag t-new">Novo</span> <strong>Sino de notificações</strong> no topo: menções, follow-up vencido e avisos entre áreas. <a href="#menu">→</a></li>
+    <li><span class="tag t-new">Novo</span> <strong>Assistente de IA</strong> flutuante: responde com os dados do CRM e explica qualquer tela. <a href="#menu">→</a></li>
+    <li><span class="tag t-new">Novo</span> <strong>Relatórios com IA</strong> em BI: você descreve o relatório e ele monta. <a href="#sdr-analise">→</a></li>
+    <li>Visual com as cores e a fonte da Grou. O visual de vidro virou o padrão; a varinha volta ao clássico. O menu pode ser recolhido.</li>
+    <li>A busca do topo procura no banco inteiro, inclusive empresas e leads que estão fora do kanban.</li>
+    <li><span class="tag t-new">Novo</span> Botão <strong>Etapas</strong> em todos os kanbans: cada pessoa esconde as colunas que não usa.</li>
+  </ul></section>
+  <section><h3>Módulo CS</h3><ul>
+    <li><strong>Kanban semanal com 8 atendimentos por dia</strong> para cada analista, montado por prioridade e travado quando o dia enche. <a href="#cadencia">→</a></li>
+    <li><span class="tag t-new">Novo</span> Filtro por <strong>vencimento do contrato</strong> na Cadência e sinaleira. <a href="#cadencia">→</a></li>
+    <li>A <strong>sinaleira é lida da planilha todo dia de manhã</strong>, sem ninguém clicar.</li>
+    <li><span class="tag t-new">Novo</span> <strong>Oportunidade comercial</strong>: o CS sinaliza e o executivo assume. Substituiu a oferta de funcionalidades. <a href="#oportunidade">→</a></li>
+    <li><span class="tag t-new">Novo</span> Consultorias em tela própria, focada na renovação. <a href="#consultorias">→</a></li>
+    <li><span class="tag t-new">Novo</span> WhatsApp do CS com <strong>Tickets</strong>: cliente que escreve cai na caixa do CS dele. <a href="#cs-whatsapp">→</a></li>
+    <li><span class="tag t-new">Novo</span> Na ficha: <strong>política de faturamento</strong>, alerta de cliente em atraso e ficha cadastral. <a href="#financeiro">→</a></li>
+    <li><span class="tag t-out">Saiu</span> Marcos 1º e 2º Sucesso, painel e aba de Funcionalidades, consultorias na lista de Empresas.</li>
+    <li>Meta diária de contatos passou de 5 para <strong>8</strong>. Reunião só salva com o tipo.</li>
+  </ul></section>
+  <section><h3>Módulo SDR</h3><ul>
+    <li>Menu "Inbox" virou <strong>WhatsApp</strong>, com abas novas: Custos e Ensaio da IA. <a href="#sdr-inbox">→</a></li>
+    <li><span class="tag t-new">Novo</span> Selo de <strong>quem está com a conversa</strong> (IA atendendo, Aguardando SDR, Com a SDR) no card e no chat. <a href="#sdr-pipeline">→</a></li>
+    <li><span class="tag t-new">Novo</span> Leads do Meta Ads entram <strong>direto da Meta</strong>, em segundos; a planilha ficou de reserva. <a href="#sdr-pipeline">→</a></li>
+    <li><span class="tag t-new">Novo</span> Etapa <strong>No-show</strong>. Agendado e Desqualificado saem da cadência sozinhos.</li>
+    <li><span class="tag t-new">Novo</span> <strong>Agenda de FUPs refeita</strong>: Hoje, Semana e Atrasados, com Retomar e Encerrar. <a href="#sdr-agenda">→</a></li>
+    <li>A IA pergunta o cadastro antes da qualificação, responde uma vez só, espera 30 s, assina com o nome da SDR e manda candidato a vaga para o RH. <a href="#sdr-ia">→</a></li>
+    <li><span class="tag t-new">Novo</span> O celular da SDR espelhado no Compass: o lead fala com um número só. <a href="#sdr-inbox">→</a></li>
+    <li>Toda consultoria vai para a Mariana; empresa e pessoa física, para Camila ou Lisiane.</li>
+    <li><span class="tag t-new">Novo</span> Painel de <strong>custos do WhatsApp</strong>, campanhas agendadas e templates com imagem. <a href="#sdr-automacoes">→</a></li>
+  </ul></section>
+</div>
+
+<!-- ============================ MENU (comum) ============================ -->
+<h2 id="menu">1. Menu, busca, sino e assistente</h2>
+<p class="where">Comum a todos os módulos · <kbd>⌘K</kbd> abre "Encontrar ou perguntar"</p>
+<div class="mock"><div class="cap"><span>Menu no visual de vidro (padrão) — pessoa do CS, grupo Customer Success aberto</span><span>dados de exemplo</span></div>
+<div class="app glassbg">
+  <div class="sb glass">
+    <div class="logo">▣ compass <span style="float:right;opacity:.6">⇤ <span class="n">1</span></span></div>
+    <div class="it"><i class="ico"></i>Início</div>
+    <div class="it on"><i class="ico"></i>Empresas</div>
+    <div class="it"><i class="ico"></i>Tarefas</div>
+    <div class="it"><i class="ico"></i>Jornada do cliente</div>
+    <div class="sep"></div>
+    <div class="grp">› Canais <span>3</span></div>
+    <div class="grp">⌄ Customer Success <span>8</span></div>
+    <div class="it"><i class="ico"></i>Kanban semanal</div>
+    <div class="it"><i class="ico"></i>Cadência e sinaleira</div>
+    <div class="it"><i class="ico"></i>Consultorias</div>
+    <div class="it"><i class="ico"></i>WhatsApp CS</div>
+    <div class="it"><i class="ico"></i>Tickets</div>
+    <div class="it"><i class="ico"></i>Requerimentos</div>
+    <div class="it"><i class="ico"></i>Integrações</div>
+    <div class="it mgr"><i class="ico"></i>Configurações CS <span class="n mgr">G</span></div>
+    <div class="grp">› BI</div>
+    <div class="grp">› Administração</div>
+    <div class="sep"></div>
+    <div class="it" style="font-size:11px">✦ ◐ Sair <span class="n">2</span></div>
+  </div>
+  <div class="main">
+    <div class="topbar"><div class="search glassbar"><span>🔍 Encontrar ou perguntar</span><span>⌘K</span></div><span class="n">3</span><span style="margin-left:auto" class="b">🔔 3</span><span class="n">4</span></div>
+    <p class="h">Empresas · Customer Success</p>
+    <p class="sub">Conteúdo da página…</p>
+    <div style="text-align:right;margin-top:150px"><span class="btn p">✦ Assistente</span><span class="n">5</span></div>
+  </div>
+</div></div>
+<ol class="leg">
+  <li data-n="1">Recolher o menu: ele vira uma coluna estreita só de ícones. O grupo da página atual abre sozinho; os outros abrem no clique e o sistema lembra quais você deixou abertos.</li>
+  <li data-n="2">Rodapé: a <strong>varinha</strong> alterna entre o visual de vidro (padrão desde novembro) e o clássico; depois vêm tema claro/escuro e Sair. A escolha fica no seu navegador.</li>
+  <li data-n="3">Busca global: páginas, ações, empresas e leads pelo nome, inclusive os leads que estão fora do kanban (aparecem marcados assim).</li>
+  <li data-n="4"><span class="tag t-new">Novo</span> <strong>Sino</strong>: follow-up vencido, menções a você em registros de negócio, alertas da carteira e avisos entre áreas (por exemplo, a pendência que o Administrativo devolve ao executivo). Comece o dia por ele.</li>
+  <li data-n="5"><span class="tag t-new">Novo</span> <strong>Assistente</strong>: pergunte sobre os dados ("quais clientes vermelhos vencem este mês?") ou sobre o sistema ("onde eu ligo minha agenda?"). Ele consulta com o seu acesso: vê o mesmo que você veria abrindo as telas.</li>
+</ol>
+<p>O menu é dividido por módulo, e cada pessoa vê só o que é do seu time e papel. Os <strong>objetos</strong> ficam no topo: Início, Empresas, Tarefas e Jornada do cliente. Os grupos de cada módulo vêm em seguida: <em>SDR</em>, <em>Canais</em>, <em>Customer Success</em>. Depois deles, <em>BI</em> reúne as leituras analíticas: Relatórios, Performance SDR, Funil SDR (RD), Dashboard CS e Chat Analytics. Por último, <em>Administração</em> tem Usuários, Configurações e Migração do RD (esses três só para a gestão) e a referência de cada módulo: Playbook SDR, Playbook CS e Novidades. A gestão vê tudo, e um item que existe em dois módulos aparece uma vez só.</p>
+<p><span class="tag t-new">Novo</span> <strong>Etapas</strong>: em todo kanban (Pipeline do SDR, Empresas em modo funil, pipeline de negócios) o botão Etapas esconde as colunas que você não usa. A escolha vale só para você. <span class="mgr">A gestão pode esconder uma coluna para todo mundo, e "Voltar ao padrão da gestão" desfaz a escolha pessoal.</span> Os cards de uma coluna escondida continuam existindo: um aviso no topo diz quantas etapas e quantos cards estão ocultos.</p>
+
+<span class="module" id="modulo-cs">Módulo CS — Customer Success</span>
+<p class="lead">O Módulo CS põe o Playbook Sinaleira GROU v2 para rodar sozinho: o sistema lê a sinaleira, monta a semana de cada analista, sugere o que oferecer e registra o que aconteceu de verdade. Cada capítulo mostra a tela, o que é automático, o que o analista faz e o que a gestão controla.</p>
+<div class="callout"><b>Princípio do Módulo CS:</b> nada que importa é marcado "feito" à mão. E-mail, WhatsApp e reunião só contam quando o próprio canal registra que aconteceram. A rotina do dia cabe em cinco passos: abrir o Início e o sino, ir ao Kanban semanal, atender e registrar na ficha, marcar o card como concluído, e sinalizar o que não é do CS (oportunidade para o comercial, nota e boleto para o financeiro).</div>
+
+<h2 id="pedido">O que foi pedido × o que foi entregue</h2>
+<div class="tbl"><table class="doc">
+<thead><tr><th style="width:38%">Pedido (briefing + playbook)</th><th>Como ficou</th><th style="width:15%">Capítulo</th></tr></thead>
+<tbody>
+<tr><td>Layout no estilo HubSpot: objetos, lista com visões, ficha em três colunas</td><td>Menu por objetos e grupos; Empresas com visões salvas, filtros, lista e funil; ficha em três colunas com timeline unificada, que inclui o histórico do RD</td><td>Menu, 3, 4</td></tr>
+<tr><td>Health score configurável (40/20/10/10/10/10)</td><td>Fórmula exata, pesos editáveis, renormalização sem sinaleira, preto fora do cálculo</td><td>5</td></tr>
+<tr><td>Cadência por cor, semanas, tendência, carência, 4 contatos/ano, dias da semana</td><td>Motor de cadência com as tabelas do playbook; kanban semanal com 8 atendimentos por dia por analista</td><td>6</td></tr>
+<tr><td>Tarefa de e-mail/WhatsApp só conclui com o envio real</td><td>Conclusão por evidência do canal; check manual recusado; gestão com justificativa</td><td>7</td></tr>
+<tr><td>Reunião contada pela agenda de cada analista, só com contato da empresa no convite</td><td>Google Agenda por pessoa (iCal); evento ligado pelo e-mail do contato; "Reunião realizada" automática</td><td>7, 8</td></tr>
+<tr><td>Gestor avisado de atraso &gt; 1 semana e/ou nada feito; dashboard por pessoa</td><td>Escalações (regra configurável, ciência, reatribuir, e-mail) e Dashboard CS por liderado</td><td>13</td></tr>
+<tr><td>Masterclasses: 6 módulos, oferta por cor/tempo</td><td>Catálogo e regra editáveis, "oferecer agora", participação com uso real. Os marcos 1º e 2º Sucesso foram retirados a pedido do time.</td><td>10</td></tr>
+<tr><td>tag_uso como gatilho, na empresa; depois vem do RD</td><td>Campo da empresa, preenchido pela importação do RD; a edição manual tem prioridade</td><td>17</td></tr>
+<tr><td>Playbook v2 completo (15 blocos)</td><td>Conteúdo carregado e editável; diagnóstico do vermelho; acionar Executivo; Jornadas Reais; alerta de analista; lista da diretoria. A IA do WhatsApp do CS responde a partir dele.</td><td>9, 12, 15, 19</td></tr>
+<tr><td>Roteamento por porte</td><td>Corte por faixa de funcionários (não por aporte); porte na ficha e vindo do RD</td><td>16</td></tr>
+<tr><td>Importar tudo do RD (não só clientes) e migrar para o Compass</td><td>Carga feita: empresas, contatos, negócios, anotações e tarefas, com os donos definidos pela gestão. O RD segue sincronizando até ser desligado.</td><td>Migração</td></tr>
+</tbody></table></div>
+
+<!-- ============================ 2. INÍCIO ============================ -->
+<h2 id="inicio">2. Início — sua manhã em uma tela</h2>
+<p class="where">Menu: <b>Início</b> · é a primeira tela de todo mundo ao entrar · <span class="tag t-auto">Automático</span> tudo aqui é calculado para a pessoa logada</p>
+<div class="mock"><div class="cap"><span>Início — Dandara Brasil (analista de CS) · período "Esta semana"</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="topbar" style="justify-content:space-between"><p class="h">Bom dia, Dandara</p><span><span class="chip">Esta semana ▾ <span class="n">1</span></span><span class="chip mgr">Minhas métricas ▾ <span class="n mgr">2</span></span></span></div>
+  <div class="tiles">
+    <div class="tile"><b>42</b><span>Minha carteira · 30 verde · 7 amarelo · 5 vermelho</span></div>
+    <div class="tile"><b>19</b><span>Contatos no período · 4 reuniões</span></div>
+    <div class="tile"><b style="color:var(--vermelho)">3</b><span>Alertas abertos</span></div>
+    <div class="tile"><b>7</b><span>Tarefas pendentes · 2 atrasadas</span></div>
+  </div>
+  <div class="cols" style="grid-template-columns:3fr 2fr">
+    <div>
+      <div class="panel"><div class="ph">Tarefas <span class="btn">Ver agenda</span></div>
+        <div class="row"><div class="l"><b><span class="dot r"></span>Ligar: diagnóstico do vermelho — Bela Vista Alimentos</b><span>atrasada · 24/11 10:00</span></div><span class="btn g">✓ Concluir</span></div>
+        <div class="row"><div class="l"><b><span class="dot a"></span>E-mail: proposta de masterclass — Acme Tecnologia</b><span>25/11 11:00</span></div><span class="b dash">🛡 Conclui ao enviar e-mail <span class="n">3</span></span></div>
+      </div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Contatos da cadência <span class="btn">Kanban</span></div>
+        <div class="row"><div class="l"><b><span class="dot r"></span>Bela Vista Alimentos · 2ª semana vermelha</b><span>Urgente · plano de ação com Executivo</span></div><span class="b bad">Urgente</span></div>
+        <div class="row"><div class="l"><b><span class="dot a"></span>Sicredi Sul SC · 3ª semana amarela</b><span>Normal · primeiro contato</span></div><span class="b warn">Normal</span></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel mgr" style="border-color:#e6b8d6"><div class="ph">⚠ Escalações <span class="b bad">4</span> <span class="n mgr">4</span></div>
+        <div class="row"><div class="l"><b>Bela Vista Alimentos · Tarefa</b><span>Camila Mattie · venceu 15/11 · <b style="display:inline;color:#b3261e">10d</b> · sem ação</span></div></div>
+        <div class="row"><div class="l"><span>+ 3 no dashboard</span></div></div>
+      </div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Alertas da minha carteira <span class="btn">Ver carteira</span></div>
+        <div class="row"><div class="l"><b>Sicredi Sul SC</b><span>Sem analista PDA cadastrado</span></div><span class="b warn">média</span></div>
+        <div class="row"><div class="l"><b>Bela Vista Alimentos</b><span>Queda de sinaleira: verde → vermelho</span></div><span class="b bad">alta</span></div>
+      </div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Feed de atividades</div>
+        <div class="row"><div class="l"><b>Acme Tecnologia · E-mail enviado: Proposta Módulo 4</b><span>e-mail · Camila · 25/11 09:12</span></div></div>
+      </div>
+    </div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Período dos indicadores: Hoje, Esta semana, Este mês ou Últimos 30 dias.</li>
+  <li data-n="2" class="mgr">A gestão troca "Minhas métricas" por qualquer pessoa do time e vê o Início dela.</li>
+  <li data-n="3">Tarefa de e-mail, WhatsApp ou reunião não tem botão de concluir. Ela mostra "conclui ao enviar" e some sozinha quando o canal registra o envio (capítulo 7).</li>
+  <li data-n="4" class="mgr">Bloco de <strong>Escalações</strong>: as ações mais atrasadas do time, com responsável, dias e motivo, e o link para o Dashboard CS.</li>
+</ol>
+<p>O Início muda com o papel. Quem é do CS vê os blocos acima. A SDR vê o dela (capítulo 1 do SDR), o executivo vê o comercial, e a gestão vê os dos times que acompanha.</p>
+
+<!-- ============================ 3. EMPRESAS ============================ -->
+<h2 id="empresas">3. Empresas — a carteira</h2>
+<p class="where">Menu: <b>Empresas</b> · todos os clientes com atendimento de CS, cada um com o seu CS responsável</p>
+<div class="mock"><div class="cap"><span>Empresas · visão "Minha carteira", modo lista, filtro Uso do PDA = recrutamento</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="tabs"><span>Carteira CS</span><span class="on">Minha carteira</span><span>Vermelhos 5+ semanas</span><span>Renovação ≤ 60 d</span><span>Todas</span><span>+ Salvar visão <span class="n">1</span></span></div>
+  <div style="margin-bottom:8px"><span class="chip">🔍 Pesquisar</span><span class="chip">Responsável CS: eu</span><span class="chip">Executivo</span><span class="chip">Sinaleira</span><span class="chip">Etapa</span><span class="chip">Tag</span><span class="chip on">Uso do PDA: recrutamento</span><span class="chip">Tipo</span><span class="chip">Status</span> <span class="btn">☰ Lista · ⊞ Funil <span class="n">2</span></span> <span class="btn">Exportar</span> <span class="btn">+ Adicionar empresa</span> <span class="btn mgr">↻ Sincronizar sinaleira · Gerar alertas <span class="n mgr">3</span></span></div>
+  <table class="m"><thead><tr><th>Empresa</th><th>Sinaleira · 8 sem</th><th>Health</th><th>Etapa</th><th>Uso do PDA</th><th>Porte</th><th>Último contato</th><th>Renovação</th><th>Alertas</th></tr></thead>
+  <tbody>
+  <tr><td><b>Acme Tecnologia</b></td><td><span class="strip"><i class="a"></i><i class="a"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i></span></td><td><span class="b ok">82</span></td><td>Ativação</td><td>recrutamento</td><td>101 - 200</td><td>21/11</td><td>12/03/2027</td><td>—</td></tr>
+  <tr><td><b>Bela Vista Alimentos</b></td><td><span class="strip"><i class="v"></i><i class="v"></i><i class="v"></i><i class="a"></i><i class="r"></i><i class="r"></i><i class="r"></i><i class="r"></i></span></td><td><span class="b bad">31</span></td><td>Renovação</td><td>recrutamento</td><td>51 - 100</td><td>08/11</td><td>30/12/2026</td><td><span class="b bad">2</span></td></tr>
+  <tr><td><b>Nova Era RH</b></td><td><span class="strip"><i class="s"></i><i class="s"></i><i class="s"></i><i class="s"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i></span></td><td><span class="b ok">74</span></td><td>Onboarding</td><td>recrutamento</td><td>21 - 50</td><td>24/11</td><td>20/07/2027</td><td>—</td></tr>
+  </tbody></table>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Visões prontas — Carteira CS, Minha carteira, Vermelhos 5+ semanas, Renovação ≤ 60 dias e Todas — e as que você salvar, com filtros e colunas. As duas que mais ajudam no dia a dia são Vermelhos 5+ semanas e Renovação ≤ 60 dias.</li>
+  <li data-n="2">Dois jeitos de ver: <strong>lista</strong>, para buscar e exportar, e <strong>funil</strong>, para ver em que etapa cada cliente está. O funil tem o botão Etapas para esconder colunas.</li>
+  <li data-n="3" class="mgr">Sincronizar sinaleira e Gerar alertas rodam sozinhos todo dia. Os botões ficam para a gestão forçar uma rodada fora de hora; o analista não precisa usar.</li>
+</ol>
+<p><span class="tag t-out">Saiu</span> A visão "Consultorias" saiu da lista de Empresas: consultoria agora tem tela própria (capítulo 18) e não aparece mais na lista nem na sinaleira.</p>
+
+<!-- ============================ 4. FICHA ============================ -->
+<h2 id="ficha">4. Ficha da empresa — três colunas</h2>
+<p class="where">Empresas → clique no nome · é onde o CS trabalha a conta</p>
+<div class="mock"><div class="cap"><span>Ficha — Bela Vista Alimentos (vermelho há 4 semanas)</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="topbar" style="justify-content:space-between"><div><p class="h">Bela Vista Alimentos <span class="b bad">Vermelho</span> <span class="b">Renovação</span></p><p class="sub">BVA-0231 · CS: Camila Mattie · Executivo: Maicon Pellizzaro</p></div><div><span class="btn">✎ Editar</span> <span class="btn">✦ Enriquecer <span class="n">1</span></span> <span class="btn p">☎ Registrar contato</span></div></div>
+  <div class="cols" style="grid-template-columns:1fr 1.6fr 1fr">
+    <div>
+      <div class="panel"><div class="ph">Saúde do cliente</div><b style="font-size:22px">31</b> <span class="b bad">Risco</span><div class="bar" style="margin:4px 0 8px"><i style="width:31%;background:var(--vermelho)"></i></div><span class="strip"><i class="v"></i><i class="v"></i><i class="v"></i><i class="a"></i><i class="r"></i><i class="r"></i><i class="r"></i><i class="r"></i></span><div class="sub" style="margin-top:4px">Tendência: descendo · consumo 38%</div></div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Oportunidade comercial <span class="n">2</span></div><span class="btn">+ Sinalizar oportunidade</span></div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Masterclasses</div><div class="card" style="border-color:#b9c9f2;background:#eef3ff"><b>💡 Oferecer agora</b><div class="meta"><b style="display:inline">Módulo 1</b> · Fundamentos do PDA — Capacitar o novo analista</div></div></div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Jornadas Reais</div><div class="row"><div class="l"><b>E-mail 3 — 6 meses</b><span>28/12 · Joana Prado</span></div><span class="b">Agendado</span></div></div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Sobre esta empresa · Contrato <span class="n">3</span></div>
+        <div class="row"><span>Uso do PDA</span><b>recrutamento</b></div><div class="row"><span>Causa do diagnóstico</span><b>Analista novo</b></div><div class="row"><span>Porte</span><b>51 - 100 · 72 func.</b></div><div class="row"><span>Início contrato</span><b>02/03/2026</b></div></div>
+    </div>
+    <div>
+      <div class="panel"><div class="tabs"><span class="on">Atividades</span><span>Reuniões</span><span>Vendas</span><span>Registros</span></div>
+        <div style="margin-bottom:6px"><span class="chip on">Tudo (38)</span><span class="chip">WhatsApp (12)</span><span class="chip">E-mails (9)</span></div>
+        <div class="row"><div class="l"><b>E-mail enviado: Proposta de masterclass Módulo 1</b><span>e-mail · Camila · <b style="display:inline">Vermelho 4ª sem · descendo</b> <span class="n">4</span> · 25/11 09:12</span></div></div>
+        <div class="row"><div class="l"><b>Ligação — diagnóstico do vermelho</b><span>ligação · Camila · Vermelho 3ª sem → sem. seguinte: vermelho · 18/11</span></div></div>
+        <div class="row"><div class="l"><b>Reunião realizada: Revisão de uso</b><span>reunião · Google Agenda · Joana Prado · 10/11</span></div></div>
+        <div class="row"><div class="l"><b>Anotação do RD: "cliente pediu proposta de 40 licenças"</b><span>histórico importado do RD · Maicon · 14/03/2025 <span class="n">5</span></span></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="panel" style="border-color:#f2b3ae;background:#fff7f6"><div class="ph">Política de faturamento <span class="n">6</span></div><b style="color:#b3261e;font-size:11.5px">⚠ Em atraso: 2 parcelas · R$ 4.380 · 23 dias</b><div class="sub" style="margin:4px 0 0">OC obrigatória · 28 dias · boleto · ficha cadastral ✓</div></div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Tarefas <span class="btn">+ Tarefa</span></div>
+        <div class="row"><div class="l"><b>E-mail: convite Masterclass Módulo 1</b><span>26/11 10:00 · Camila</span></div><span class="b dash">🛡 ao enviar</span></div>
+        <div class="row"><div class="l"><b>Reunião: plano de ação com Executivo</b><span>28/11 14:00</span></div><span class="b dash">🛡 ao realizar</span></div>
+      </div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Contatos (3) <span class="n">7</span></div>
+        <div class="row"><div class="l"><b>Joana Prado <span class="b pri">Analista PDA</span></b><span>joana@belavista.com.br · (51) 9 9812-…</span></div></div>
+        <div class="row"><div class="l"><b>Ricardo Lemos</b><span>ricardo@belavista.com.br · RH</span></div></div>
+      </div>
+      <div class="panel" style="margin-top:8px"><div class="ph">Tags (2) · Alertas (2)</div><span class="chip">masterclass_modulo_1</span><span class="chip">renovacao_2026</span></div>
+    </div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1"><span class="tag t-new">Novo</span> <strong>Enriquecer</strong>: busca no site da empresa os dados que faltam (segmento, porte, descrição).</li>
+  <li data-n="2"><span class="tag t-new">Novo</span> <strong>Oportunidade comercial</strong>: o CS viu chance de venda e passa para o executivo da carteira (capítulo 11). No lugar dela ficava o painel de Funcionalidades, que saiu.</li>
+  <li data-n="3">Os campos que alimentam as regras (uso do PDA, causa do diagnóstico, porte, datas do contrato). Etapa, Responsável CS e Executivo mudam na hora em <kbd>Editar</kbd>.</li>
+  <li data-n="4">Cada contato carrega o carimbo da sinaleira do momento e, quando houve, a cor da semana seguinte.</li>
+  <li data-n="5"><span class="tag t-new">Novo</span> O histórico do RD (anotações, tarefas e contatos dos negócios antigos) entra na mesma linha do tempo, com o autor original.</li>
+  <li data-n="6"><span class="tag t-new">Novo</span> <strong>Política de faturamento</strong>: vem do financeiro e o CS só consulta. Cliente em atraso aparece em vermelho no topo (capítulo 20).</li>
+  <li data-n="7">Contatos com e-mail e telefone — é por eles que e-mails, mensagens e reuniões são ligados à empresa. Marque quem é o <strong>analista PDA certificado</strong>. <span class="tag t-new">Novo</span> O nome de cada contato abre o histórico completo dele, e "Outras pessoas da empresa" lista quem veio do RD e dos negócios.</li>
+</ol>
+<p class="small">O painel "Planilha da sinaleira" ainda está em construção; não use como referência por enquanto.</p>
+
+<!-- ============================ 5. HEALTH ============================ -->
+<h2 id="health">5. Health score</h2>
+<p class="where"><span class="tag t-auto">Automático</span><span class="tag t-cfg">Configurável</span> Configurações CS → <b>Health score</b> <span class="mgr-note mgr">(gestão)</span></p>
+<div class="mock"><div class="cap"><span>Configurações CS → Health score</span><span>dados de exemplo <span class="mgr-note mgr">· gestão</span></span></div>
+<div class="app nosb"><div class="main">
+  <div class="tabs"><span class="on">Health score</span><span>Metas</span><span>Tarefas e evidência</span><span>Masterclasses</span><span>Jornadas Reais</span><span>SLA da jornada</span><span>Roteamento</span><span>Carteira e delegações</span><span>Importar carteira</span></div>
+  <table class="m"><thead><tr><th>Critério</th><th>Peso</th><th>Como o sistema lê</th></tr></thead><tbody>
+  <tr><td>Sinaleira</td><td><span class="in on" style="display:inline-block;width:52px">40</span></td><td>verde 40 · amarelo 20 · vermelho 0 (editáveis) · preto não entra</td></tr>
+  <tr><td>Agenda realizada</td><td><span class="in on" style="display:inline-block;width:52px">20</span></td><td>reuniões nos últimos 90 dias (manuais + agenda vinculada)</td></tr>
+  <tr><td>WhatsApp respondido</td><td><span class="in on" style="display:inline-block;width:52px">10</span></td><td>houve resposta do cliente no período</td></tr>
+  <tr><td>Proposta em aberto</td><td><span class="in on" style="display:inline-block;width:52px">10</span></td><td>venda "em negociação" na aba Vendas</td></tr>
+  <tr><td>Masterclass realizada</td><td><span class="in on" style="display:inline-block;width:52px">10</span></td><td>participação registrada</td></tr>
+  <tr><td>Analista PDA</td><td><span class="in on" style="display:inline-block;width:52px">10</span></td><td>contato ativo marcado como analista certificado</td></tr>
+  </tbody></table>
+  <div class="sub" style="margin-top:6px">☑ Renormalizar quando o cliente não tem sinaleira &nbsp;·&nbsp; Soma dos pesos: 100 <span class="btn p" style="float:right">💾 Salvar</span></div>
+</div></div></div>
+<p>Cliente sem sinaleira (sem login PDA ou outro serviço) é <strong>renormalizado</strong>: os demais critérios passam a valer 100%. Consultorias ficam fora das métricas gerenciais. O score é recalculado a cada mudança e toda vez que a sinaleira é lida.</p>
+
+<!-- ============================ 6. CADÊNCIA ============================ -->
+<h2 id="cadencia">6. Kanban semanal e cadência</h2>
+<p class="where"><span class="tag t-auto">Automático</span> Menu: Customer Success → <b>Kanban semanal</b> e <b>Cadência e sinaleira</b></p>
+<div class="mock"><div class="cap"><span>Kanban semanal — semana de 24/11 · minha carteira · 8 atendimentos por dia</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div style="margin-bottom:8px"><span class="chip">◀ Semana atual ▶</span><span class="chip">🔍 Buscar cliente</span><span class="chip on">Minha carteira</span><span class="chip mgr">Todos os analistas <span class="n mgr">1</span></span><span class="chip">Funil ▾</span><span class="chip">Ocultando concluídos</span></div>
+  <div class="kb">
+    <div class="col"><h6>Segunda <span>8/8</span></h6><div class="card" style="opacity:.6"><b>☑ Grupo Aurora</b><div class="meta"><span class="dot r"></span>Vermelho · Crise · 10ª semana</div><span class="b ok">✓ concluído</span></div><div class="meta">+ 7 cards · dia cheio <span class="n">2</span></div></div>
+    <div class="col"><h6>Terça <span>3/8</span></h6><div class="card"><b>☐ Bela Vista Alimentos <span class="n">3</span></b><div class="meta"><span class="dot r"></span>Vermelho · Urgente · 4ª semana</div><div>Contato a cada 14 dias com plano de ação + Executivo</div><span class="b bad">Urgente</span> <span class="b bad">Atrasado 3d</span> <span class="b">Escalar: executivo</span> <span class="b pri">MC módulo 1</span><div class="meta">mover: S T Q Q S</div></div></div>
+    <div class="col"><h6>Quarta <span>0/8</span></h6><div class="card"><b>☐ Sicredi Sul SC</b><div class="meta"><span class="dot a"></span>Amarelo · Normal · 3ª semana</div><div>Primeiro contato: investigar causa e propor próximo passo</div><span class="b pri">MC módulo 2</span></div></div>
+    <div class="col"><h6>Quinta <span>0/8</span></h6><div class="card"><b>☐ Acme Tecnologia</b><div class="meta"><span class="dot v"></span>Verde · Normal · 6ª semana</div><div>A cada 45 dias — aprofundar caso de uso</div></div></div>
+    <div class="col"><h6>Sexta <span>0/8</span></h6><div class="card"><b>☐ Nova Era RH</b><div class="meta"><span class="dot v"></span>Verde · vence em 52 dias</div><div>Próximo a vencer — completa o dia</div></div></div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1" class="mgr">"Todos os analistas": a gestão vê a semana do time inteiro num quadro só; cada card mostra de quem é.</li>
+  <li data-n="2"><span class="tag t-new">Novo</span> <strong>Exatamente 8 atendimentos por dia</strong> para cada analista. A semana é montada assim: primeiro o que já foi feito ou movido; depois os clientes devidos pela cadência, por urgência e dias de atraso; e, para completar os 8, os próximos a vencer. Dia cheio trava: não entra o nono.</li>
+  <li data-n="3">Cada card traz a regra do playbook: cor, semanas na cor, urgência, o que fazer e para quem escalar, além do selo "Atrasado Nd" e do módulo de masterclass a oferecer. Os botões S T Q Q S mudam o card de dia; a caixa marca como concluído.</li>
+</ol>
+<p>A semana montada fica <strong>gravada</strong>: os cards não mudam de lugar sozinhos durante a semana. Carteira com menos de 40 clientes não completa 8 por dia, porque não há quem pôr. Atendeu mais do que 8 num dia? Pode, e o atendimento extra se registra na ficha da empresa; o kanban é que planeja 8.</p>
+<div class="mock"><div class="cap"><span>Cadência e sinaleira — lista de todos os clientes, com o filtro de vencimento</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="tiles"><div class="tile"><b>128</b><span>Clientes na carteira</span></div><div class="tile"><b>23</b><span>Contatos devidos</span></div><div class="tile"><b>9</b><span>Em carência (60 d)</span></div><div class="tile"><b>4 · 7</b><span>Meta anual em risco · Escaladas</span></div></div>
+  <div style="margin-bottom:8px"><span class="chip">Todos os CS ▾</span><span class="chip">Toda sinaleira ▾</span><span class="chip">Toda urgência ▾</span><span class="chip">☐ Só com gatilho aberto</span><span class="chip on">Vence em menos de 1 mês (6) <span class="n">1</span></span></div>
+  <table class="m"><thead><tr><th>Empresa</th><th>Sinaleira · 12 sem</th><th>Cor · semanas</th><th>Tendência</th><th>Intervalo</th><th>Próximo contato</th><th>Urgência</th><th>Contatos c/ resposta (8 m)</th></tr></thead><tbody>
+  <tr><td><b>Bela Vista Alimentos</b></td><td><span class="strip"><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="a"></i><i class="r"></i><i class="r"></i><i class="r"></i><i class="r"></i></span></td><td>Vermelho · 4ª</td><td>descendo</td><td>14 d</td><td>25/11</td><td><span class="b bad">Urgente</span> executivo</td><td>3</td></tr>
+  <tr><td><b>Colégio Horizonte</b></td><td><span class="strip"><i class="v"></i><i class="v"></i><i class="v"></i><i class="v"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i><i class="a"></i></span></td><td>Amarelo · 8ª</td><td>estável</td><td>30 d</td><td>27/11</td><td><span class="b bad">Urgente</span> renovação</td><td>2 <span class="b warn">meta em risco</span></td></tr>
+  </tbody></table>
+</div></div></div>
+<ol class="leg"><li data-n="1"><span class="tag t-new">Novo</span> <strong>Filtro de vencimento</strong> do contrato, com as faixas que a sinaleira.grougp.com tinha: Vencido, menos de 1 mês, 1 a 12 meses, mais de 1 ano e Sem data. Cada faixa mostra quantos clientes tem, já respeitando os outros filtros. Combinado com "Toda sinaleira = vermelho", mostra quem priorizar na renovação.</li></ol>
+<p>O motor combina cinco variáveis — cor atual, semanas na cor, tendência das últimas 4 semanas (subindo, descendo, estável, oscilando), dias desde o último contato e dias até a renovação — e aplica as tabelas do playbook:</p>
+<ul>
+  <li><strong>Carência</strong>: nos primeiros 60 dias de licença (nova ou renovada) nada dispara.</li>
+  <li><span class="dot r"></span><strong>Vermelho</strong>: 1ª semana em 5 dias · 2ª em 7 dias + Executivo · 3ª–4ª a cada 14 · 5ª–8ª a cada 21 · 8+ mensal em crise · 24+ lista da diretoria. Descendo rápido: 3 dias. Subindo: 21 dias, tom de reforço.</li>
+  <li><span class="dot a"></span><strong>Amarelo</strong>: 1ª–2ª só observar · 3ª primeiro contato · depois a cada 30 dias. Descendo do verde: já na 2ª semana. Oscilando: 45 dias.</li>
+  <li><span class="dot v"></span><strong>Verde</strong>: 3ª semana check-in · 4ª–8ª a cada 45 · consolidado a cada 60. Consumo 40% acima: imediato + Executivo.</li>
+  <li><strong>Renovação ≤ 60 dias</strong> fora do verde: imediato, urgente. <strong>4 contatos com resposta por ano</strong> (janela de 8 meses): aviso de meta em risco.</li>
+  <li>Distribuição sugerida da semana: vermelhos na segunda e na terça, amarelos na quarta, verdes na quinta e na sexta.</li>
+</ul>
+<p><span class="tag t-auto">Automático</span> <strong>A sinaleira é lida da planilha todo dia de manhã</strong>; ninguém precisa clicar nem mexer na planilha à mão. Cada aba vale para a semana da data que está no título dela, não para a semana em que foi lida. Por isso, reprocessar uma aba antiga só corrige o histórico: a cor atual da ficha muda apenas com a aba mais recente. Cliente da planilha que ainda não tinha ficha é ligado à empresa pelo nome.</p>
+
+<!-- ============================ 7. TAREFAS ============================ -->
+<h2 id="tarefas">7. Tarefas com evidência</h2>
+<p class="where"><span class="tag t-auto">Automático</span><span class="tag t-cfg">Configurável</span> Menu: <b>Tarefas</b> · Ficha → painel Tarefas · Configurações CS → Tarefas e evidência</p>
+<div class="mock"><div class="cap"><span>Tarefas de CS — semana · atrasados + calendário</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="topbar" style="justify-content:space-between"><p class="h">Tarefas de CS</p><div><span class="btn p">+ Nova tarefa <span class="n">1</span></span> <span class="chip">Minha agenda ▾</span> <span class="chip">‹ Hoje ›</span></div></div>
+  <div class="tiles"><div class="tile"><b style="color:#b3261e">2</b><span>Atrasados</span></div><div class="tile"><b>4</b><span>Hoje</span></div><div class="tile"><b>11</b><span>Pendentes na semana</span></div><div class="tile"><b>6</b><span>Concluídos na semana</span></div></div>
+  <div class="cols" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="card"><div class="meta">10:00 · <span class="dot r"></span> <span class="b">✉ E-mail</span></div><b>Bela Vista Alimentos</b><div class="meta">Camila Mattie</div><div>Convite Masterclass Módulo 1</div><span class="b dash">🛡 Conclui ao enviar e-mail <span class="n">2</span></span> <span class="btn mgr">✓ Gestão <span class="n mgr">3</span></span> <span class="btn">Reagendar</span></div>
+    <div class="card"><div class="meta">14:00 · <span class="dot a"></span> <span class="b">☎ Ligação</span></div><b>Sicredi Sul SC</b><div class="meta">Dandara Brasil</div><div>Investigar causa do amarelo</div><span class="btn g">✓ Resultado <span class="n">4</span></span> <span class="btn">Reagendar</span></div>
+    <div class="card" style="border-color:#9fd6b6;background:#f0faf3"><div class="meta">09:12 · <span class="dot v"></span> <span class="b">✉ E-mail</span></div><b>Acme Tecnologia</b><div class="meta">Camila Mattie</div><div>Proposta de masterclass Módulo 4</div><span class="b ok">🛡 Concluída pelo canal vinculado · 25/11 09:12 <span class="n">5</span></span></div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Nova tarefa: empresa (busca), tipo (E-mail, WhatsApp, Reunião, Ligação, Outro), título, prazo, responsável e, se quiser, o contato específico.</li>
+  <li data-n="2">Tarefa de canal: sem botão de concluir. Quando o canal registra o envio ou a reunião, ela conclui sozinha; tentar concluir por outro caminho é recusado.</li>
+  <li data-n="3" class="mgr">"Gestão": conclui sem evidência, com justificativa obrigatória (fica registrada na timeline).</li>
+  <li data-n="4">Ligação e Outro: <strong>Resultado</strong> abre o modal com desfecho, canal, observações e próximo follow-up. Se a gestão incluir Ligação entre os canais que exigem evidência, a ligação também passa a ser concluída só pela gestão.</li>
+  <li data-n="5">Concluída por evidência: mostra data e hora e guarda qual mensagem foi a prova. Também atualiza o "último contato" e marca a cadência da semana.</li>
+</ol>
+<div class="tbl"><table class="doc"><thead><tr><th>Tipo</th><th>Como conclui</th><th>O que é a evidência</th></tr></thead><tbody>
+<tr><td>E-mail</td><td>Sozinha</td><td>E-mail enviado da caixa vinculada do CS para um contato da empresa</td></tr>
+<tr><td>WhatsApp</td><td>Sozinha</td><td>Mensagem enviada pelo WhatsApp do CS ao telefone de um contato da empresa, confirmada pelo provedor</td></tr>
+<tr><td>Reunião</td><td>Sozinha</td><td>Evento da agenda vinculada com um contato da empresa no convite, terminado sem cancelamento</td></tr>
+<tr><td>Ligação / Outro</td><td>Botão (ou só gestão, se configurado)</td><td>Não há registro automático de ligação</td></tr>
+</tbody></table></div>
+
+<!-- ============================ 8. INTEGRAÇÕES ============================ -->
+<h2 id="integracoes">8. Integrações por pessoa — agenda, link de reunião, e-mail</h2>
+<p class="where"><span class="tag t-you">Você faz</span> Menu: Customer Success → <b>Integrações</b> (último item do grupo) · cada pessoa vincula o seu; a gestão pode vincular por alguém</p>
+<div class="mock"><div class="cap"><span>Integrações — minha agenda, meu link de reunião, minha caixa e o status do time</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="cols" style="grid-template-columns:1fr 1fr">
+    <div class="panel"><div class="ph">📅 Minha Google Agenda <span class="b ok">Vinculada</span></div><div class="sub">camila@grougp.com.br · última sincronização 25/11 08:30</div><div class="in">https://calendar.google.com/calendar/ical/…/private-…/basic.ics <span class="n">1</span></div><div style="margin-top:6px"><span class="btn">↻ Sincronizar</span> <span class="btn">Desvincular</span></div><div class="sub mgr" style="margin-top:6px">Vincular em nome de: <span class="in" style="display:inline-block">Eu mesmo ▾</span> <span class="n mgr">2</span></div></div>
+    <div class="panel"><div class="ph">🎥 Meu link de reunião <span class="b ok">Definido</span> <span class="n">3</span></div><div class="in on">https://meet.google.com/abc-defg-hij</div><div class="ph" style="margin-top:10px">✉ Minha caixa de e-mail</div><div class="in on">camila@grougp.com.br</div><div class="sub" style="margin-top:6px">Encaminhe <b>recebidos e enviados</b> para o endereço de recebimento <span class="n">4</span></div></div>
+  </div>
+  <div class="panel mgr" style="margin-top:8px"><div class="ph">Status do time <span class="n mgr">5</span></div>
+    <div class="row"><div class="l"><b>Camila Mattie</b></div><span><span class="b ok">Google OK</span> <span class="b ok">Link OK</span> <span class="b ok">camila@grougp…</span></span></div>
+    <div class="row"><div class="l"><b>Isac Rodrigues</b></div><span><span class="b">Sem Google</span> <span class="b">Sem link</span> <span class="b ok">isac@grougp…</span></span></div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Na Google Agenda (web): Configurações → sua agenda → <em>Integrar agenda</em> → copie o <strong>endereço secreto em formato iCal</strong> e cole aqui. Só leitura, só dessa agenda; dá para redefinir no Google a qualquer momento. <strong>Sem a agenda vinculada, as reuniões não aparecem no Compass.</strong></li>
+  <li data-n="2" class="mgr">A gestão pode vincular a agenda ou a caixa em nome de outra pessoa do time.</li>
+  <li data-n="3"><span class="tag t-new">Novo</span> <strong>Meu link de reunião</strong>: o seu Google Meet ou Zoom fixo. Quando o SDR marca uma reunião com você, esse link vai no convite do lead e na sua agenda, e o horário livre é lido da Google Agenda vinculada.</li>
+  <li data-n="4">No Gmail ou Outlook, encaminhe recebidos <em>e</em> enviados (regra "de: mim" ou cópia oculta). O e-mail enviado é a evidência das tarefas de e-mail.</li>
+  <li data-n="5" class="mgr">Quem do time tem agenda, link e caixa vinculados; dá para desvincular.</li>
+</ol>
+<div class="callout"><b>A regra que amarra tudo:</b> o sistema só liga um e-mail, mensagem ou reunião a uma empresa se o e-mail ou telefone do outro lado está cadastrado em um <strong>contato daquela empresa</strong>. O WhatsApp do cliente entra pelo WhatsApp CS (capítulo 19), pelo telefone do contato.</div>
+
+<!-- ============================ 9. CONTATO ============================ -->
+<h2 id="contato">9. Registrar contato e reunião — diagnóstico do vermelho e acionar o Executivo</h2>
+<p class="where"><span class="tag t-you">Você faz</span> Ficha → <kbd>Registrar contato</kbd> · aba Reuniões → <kbd>Nova reunião</kbd></p>
+<div class="mock"><div class="cap"><span>Registrar contato — empresa em vermelho</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="panel form">
+    <div class="cols" style="grid-template-columns:1fr 2fr"><div class="in on">Ligação ▾</div><div class="in on">Ligação de diagnóstico com a Joana</div></div>
+    <div class="in">Detalhes do contato (opcional)</div>
+    <div class="panel" style="border-color:#f2b3ae;background:#fff7f6"><b>☑ Diagnóstico do vermelho — as cinco perguntas <span class="n">1</span></b>
+      <div class="row"><span>O cliente sabe que está usando pouco?</span><span><span class="chip on">Sim</span><span class="chip">Não</span><span class="chip">—</span></span></div>
+      <div class="row"><span>Há projeto parado?</span><span><span class="chip">Sim</span><span class="chip on">Não</span><span class="chip">—</span></span></div>
+      <div class="row"><span>Houve mudança de equipe — saiu o analista PDA?</span><span><span class="chip on">Sim</span><span class="chip">Não</span><span class="chip">—</span></span></div>
+      <div class="row"><span>Há dúvida técnica acumulada?</span><span><span class="chip">Sim</span><span class="chip on">Não</span><span class="chip">—</span></span></div>
+      <div class="row"><span>Ainda acredita no valor da ferramenta?</span><span><span class="chip on">Sim</span><span class="chip">Não</span><span class="chip">—</span></span></div>
+      <div class="cols" style="grid-template-columns:1fr 1fr;margin-top:6px"><div class="in on">Causa principal: Analista novo ▾ <span class="n">2</span></div><div class="in">Observação do diagnóstico</div></div>
+    </div>
+    <div class="panel"><b>☑ Acionar o Executivo (vira tarefa para ele, com contexto) <span class="n">3</span></b><div class="cols" style="grid-template-columns:1fr 1fr;margin-top:6px"><div class="in on">Projeto: expansão para 40 licenças no 2º semestre</div><div class="in on">Contato: Ricardo Lemos (RH)</div><div class="in on" style="grid-column:1/-1">Última conversa: cliente quer usar o PDA na seleção da nova unidade</div></div></div>
+    <div class="row" style="border:0"><span class="in">25/11/2026 14:30</span><span class="btn p">Salvar na timeline</span></div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Só aparece quando a empresa está vermelha. As respostas entram na descrição do contato.</li>
+  <li data-n="2">A causa principal é gravada na empresa e decide qual masterclass o sistema sugere (analista novo → Módulo 1; falta de projeto → 2 ou 3; não vê valor → 6).</li>
+  <li data-n="3">Cria uma tarefa para o executivo da empresa com projeto, contato e contexto, e registra "Executivo acionado" na timeline.</li>
+</ol>
+<p><span class="tag t-auto">Automático</span> Todo registro recebe o carimbo da sinaleira do momento (cor, semanas, tendência) e, depois, a cor da semana seguinte. Registrar contato <strong>conta para a cadência</strong>: o cliente sai da lista de devidos na hora.</p>
+<p><strong>Reunião</strong> se registra na aba Reuniões da ficha, com status Realizada, Agendada, Cancelada ou No-show. <span class="tag t-new">Novo</span> A reunião <strong>só salva com o tipo escolhido</strong>: é o tipo que diz se ela foi uma masterclass. Quando é, a tag do módulo entra na empresa com a reunião de origem registrada.</p>
+
+<!-- ============================ 10. MASTERCLASS ============================ -->
+<h2 id="masterclass">10. Masterclasses</h2>
+<p class="where"><span class="tag t-auto">Automático</span><span class="tag t-you">Você faz</span><span class="tag t-cfg">Configurável</span> Ficha → painel Masterclasses · Configurações CS → Masterclasses</p>
+<div class="mock"><div class="cap"><span>Painel Masterclasses — Acme Tecnologia (verde há 6 semanas, uso: recrutamento)</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main" style="max-width:520px">
+  <div class="panel">
+    <div><span class="sub">Uso do PDA (tag_uso): <b>recrutamento</b></span> <span class="btn" style="float:right">+ Registrar</span></div>
+    <div class="card" style="border-color:#b9c9f2;background:#eef3ff;margin-top:6px"><b>💡 Oferecer agora <span class="n">1</span></b>
+      <div class="row"><div class="l"><b>Módulo 4 · Demanda de Equipes e Cultura Organizacional</b><span>Cliente em alta — conversa estratégica</span></div><span class="btn">registrar</span></div>
+      <div class="row"><div class="l"><b>Módulo 5 · Liderança e Sucessão</b><span>Cliente em alta — conversa estratégica</span></div><span class="btn">registrar</span></div>
+    </div>
+    <div class="row"><div class="l"><b>🎓 Módulo 2 · Seleção e Onboarding Inteligente</b><span>10/05/2026 · Ana, Pedro · usado em projeto 15/06 <span class="n">2</span></span></div><span>🗑</span></div>
+    <div class="row"><div class="l"><b>🎓 Módulo 1 · Fundamentos do PDA</b><span>12/04/2026 · Ana · sem uso comprovado</span></div><span>🗑</span></div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Sugestão pela tabela do playbook (cor × semanas, causa do diagnóstico, mês 3 e 6 do contrato, analista novo). Módulos já feitos não voltam.</li>
+  <li data-n="2">Ao registrar, marque "Cliente usou em projeto real" com data e como usou — é a comprovação.</li>
+</ol>
+<p><span class="tag t-out">Saiu</span> Os marcos <strong>1º e 2º Sucesso</strong> foram retirados do painel, das configurações e do Início a pedido do time. O que já tinha sido gravado continua no banco, sem uso na tela.</p>
+<div class="tbl"><table class="doc"><thead><tr><th>Situação</th><th>Módulo sugerido</th></tr></thead><tbody>
+<tr><td>Verde há 3–4 semanas · Verde há 8+</td><td>4 ou 5 · 6</td></tr>
+<tr><td>Amarelo há 3+ (primeira abordagem) · Amarelo há 8+</td><td>Módulo do uso do PDA · 4</td></tr>
+<tr><td>Vermelho: analista novo · falta de projeto · não vê valor</td><td>1 · 2 ou 3 · 6</td></tr>
+<tr><td>Analista PDA novo registrado (até 60 dias)</td><td>1</td></tr>
+<tr><td>Mês 3 do contrato · Mês 6</td><td>Módulo do uso do PDA · 4 ou 5</td></tr>
+</tbody></table></div>
+
+<!-- ============================ 11. OPORTUNIDADE ============================ -->
+<h2 id="oportunidade">11. Oportunidade comercial — o CS sinaliza, o executivo abre <span class="tag t-new">Novo</span></h2>
+<p class="where"><span class="tag t-you">Você faz</span> Ficha da empresa → painel <b>Oportunidade comercial</b> → <kbd>Sinalizar oportunidade</kbd></p>
+<div class="mock"><div class="cap"><span>Sinalizar oportunidade — Sicredi Sul SC</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main" style="max-width:560px">
+  <div class="panel form">
+    <div><span class="chip on">Recompra</span><span class="chip">Cross sell</span><span class="chip">Renovação</span> <span class="n">1</span></div>
+    <div class="sub">O cliente já usa e vai comprar mais do mesmo. Créditos acabando, licença maior.</div>
+    <div class="in on">O que você viu: créditos devem acabar em janeiro; vão abrir 3 unidades novas</div>
+    <div class="cols" style="grid-template-columns:1fr 1fr"><div class="in on">Produto sugerido: Licença PDA 200</div><div class="in on">Valor estimado: R$ 18.000</div></div>
+    <div style="text-align:right"><span class="btn p">Sinalizar ao comercial <span class="n">2</span></span></div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">O tipo decide o funil. <strong>Recompra</strong> (o cliente compra mais do mesmo) e <strong>Renovação</strong> (nos dois últimos meses do contrato) vão para o funil curto de UP SELL, porque o cliente já usa e não há o que descobrir. <strong>Cross sell</strong> (outro produto que o cliente ainda não tem) vai para o funil longo, que passa por identificação de necessidade antes de virar oportunidade.</li>
+  <li data-n="2">Vira um card no funil da carteira, na primeira etapa, já no nome do executivo responsável pela conta e marcado como vindo do CS. Sem executivo na conta, o card fica na fila para alguém assumir.</li>
+</ol>
+<p>O executivo vê em <strong>Sinalizações do CS</strong>, na Visão geral do comercial, e clica em <kbd>Assumir</kbd>: isso cria o negócio, leva junto o que o CS escreveu e abre a ficha. A oportunidade nasce no CS, que é quem percebe os créditos acabando ou a dor que outro produto resolve, mas o número fica com quem vende. Oportunidade que o CS vê e não sinaliza se perde.</p>
+<p><span class="tag t-out">Saiu</span> A oferta de <strong>Funcionalidades da plataforma</strong> (Compatibilidade de Cargos, Tendências de Grupo, Líder × Liderado, Feedback 360) saiu do Compass: painel, aba de configuração e regras. O campo "Pessoas mapeadas" continua na empresa, como dado do cliente.</p>
+
+<!-- ============================ 12. JORNADAS ============================ -->
+<h2 id="jornadas">12. Jornadas Reais — e-mails por marco da licença</h2>
+<p class="where"><span class="tag t-auto">Automático</span><span class="tag t-you">Você faz</span><span class="tag t-cfg">Configurável</span> Ficha → painel Jornadas Reais · Configurações CS → Jornadas Reais</p>
+<div class="mock"><div class="cap"><span>Painel Jornadas Reais — Nova Era RH (contrato desde 10/10/2026, uso: recrutamento) · modo aprovação</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main" style="max-width:560px">
+  <div class="panel"><div class="sub">Modo aprovação: o analista envia com um clique no dia do marco.</div>
+    <div class="row"><div class="l"><b>✉ E-mail 1 — 30 dias de licença</b><span>09/11 · Ana Souza &lt;ana@novaera.com.br&gt;</span></div><span class="b warn">Pronto para enviar</span></div>
+    <div class="pre"><b>Assunto:</b> 1 mês de PDA — você já usou no processo seletivo?
+
+Oi Ana,
+
+Completamos um mês de parceria, e queria aproveitar esse marco pra compartilhar algo que pode fazer diferença nos seus próximos processos seletivos…
+
+Marcela</div>
+    <div><span class="btn p">➤ Enviar agora <span class="n">1</span></span> <span class="btn">Pular</span> <span class="btn">Reativar</span></div>
+    <div class="row"><div class="l"><b>✉ E-mail 2 — 90 dias de contrato</b><span>08/01/2027 · Ana Souza</span></div><span class="b">Agendado</span></div>
+  </div>
+</div></div></div>
+<ol class="leg"><li data-n="1">O envio sai do domínio da Grou com a assinatura configurada e "responder-para" a caixa do CS responsável; entra na timeline como e-mail enviado (vale como evidência). Após 14 dias sem envio, expira — e dá para reativar. No modo automático, o sistema envia sozinho no dia.</li></ol>
+<p>Os quatro e-mails do playbook (dia 30 só para recrutamento/ambos; 90, 180 e 300 para todos) são agendados a partir do início do contrato, para o contato com e-mail (o analista PDA, se houver). O texto é o do playbook; só o nome e a assinatura mudam.</p>
+
+<!-- ============================ 13. DASHBOARD ============================ -->
+<h2 id="gestao">13. Dashboard CS (módulo BI) e escalações <span class="tag t-mgr">gestão</span></h2>
+<p class="where">Menu: BI → <b>Dashboard CS</b> · Início → Escalações · Configurações CS → Tarefas e evidência → Escalação ao gestor</p>
+<div class="mock mgr"><div class="cap"><span>Dashboard CS — últimos 30 dias</span><span>dados de exemplo · gestão</span></div>
+<div class="app nosb"><div class="main">
+  <div class="tiles"><div class="tile"><b>112</b><span>Clientes ativos (sem consultorias)</span></div><div class="tile"><b>61</b><span>Health médio · 48 verdes · 39 amarelos · 25 vermelhos</span></div><div class="tile"><b style="color:#b3261e">17</b><span>Alertas abertos · 32 resolvidos</span></div><div class="tile"><b>R$ 2,4 mi</b><span>Aporte da carteira</span></div></div>
+  <div class="tiles"><div class="tile"><b style="color:#b3261e">6</b><span>Escalações ativas</span></div><div class="tile"><b>84</b><span>Tarefas concluídas · 71% por evidência</span></div><div class="tile"><b style="color:#8a5a00">9</b><span>Tarefas atrasadas · 37 pendentes</span></div><div class="tile"><b>78%</b><span>Cadência cumprida · 61 e-mails · 140 whats · 23 reuniões</span></div></div>
+  <div class="panel"><div class="ph">⚠ Escalações <span class="b bad">6</span> <span><span class="chip">Todo o time ▾</span><span class="chip">☐ incluir com ciência</span> <span class="btn">✉ Enviar e-mail agora</span> <span class="btn">✉ Vermelho 6+ meses (2) <span class="n mgr">1</span></span></span></div>
+    <table class="m"><thead><tr><th>Empresa</th><th>Ação</th><th>Responsável</th><th>Venceu</th><th>Atraso</th><th>Motivo</th><th></th></tr></thead><tbody>
+    <tr><td><b>Bela Vista Alimentos</b></td><td><span class="b">Tarefa</span> Convite Masterclass</td><td><span class="in on" style="display:inline-block">Camila Mattie ▾</span> <span class="n mgr">2</span></td><td>15/11</td><td style="color:#b3261e;font-weight:600">10d</td><td style="color:#8a5a00">Atrasada e sem ação</td><td><span class="btn">✓ Ciência</span> <span class="n mgr">3</span></td></tr>
+    <tr><td><b>Grupo Aurora</b></td><td><span class="b">Cadência</span> Contato mensal</td><td><span class="in on" style="display:inline-block">Isac Rodrigues ▾</span></td><td>13/11</td><td style="color:#b3261e;font-weight:600">12d</td><td>Atrasada</td><td><span class="btn">✓ Ciência</span></td></tr>
+    </tbody></table></div>
+  <div class="panel" style="margin-top:8px"><div class="ph">Desempenho por liderado de CS <span class="chip">Ordenar por escalações ▾</span></div>
+    <table class="m"><thead><tr><th>CS</th><th>Carteira</th><th>Sinaleira</th><th>Health</th><th>Tarefas</th><th>Escaladas</th><th>Canais</th><th>Cadência</th><th>Contatos/dia</th><th>Sem contato 30d</th></tr></thead><tbody>
+    <tr><td><b>Camila Mattie</b></td><td>44</td><td><span class="strip"><i class="v"></i><i class="v"></i><i class="a"></i><i class="r"></i></span> 9 vermelhos</td><td><span class="b warn">58</span></td><td>31 <span style="color:#1f6f4a">74% evid.</span> · 12 pend. · <span style="color:#8a5a00">4 atras.</span></td><td style="color:#b3261e;font-weight:600">3</td><td>22 e-mail · 51 whats · 8 reun.</td><td>29/38 (76%)</td><td>7,1 / 8</td><td>6</td></tr>
+    <tr><td><b>Dandara Brasil</b></td><td>42</td><td><span class="strip"><i class="v"></i><i class="v"></i><i class="v"></i><i class="a"></i></span> 5 vermelhos</td><td><span class="b ok">71</span></td><td>36 <span style="color:#1f6f4a">83% evid.</span> · 10 pend. · 1 atras.</td><td>1</td><td>25 e-mail · 62 whats · 11 reun.</td><td>34/39 (87%)</td><td>7,8 / 8</td><td>2</td></tr>
+    </tbody></table></div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1" class="mgr">E-mail "Clientes em vermelho há 6+ meses" para gestão e diretoria (lista automática: cliente, semanas, CS, Executivo, renovação, último contato). Também sai mensalmente.</li>
+  <li data-n="2" class="mgr">Trocar o responsável na própria linha reatribui a tarefa ou ação.</li>
+  <li data-n="3" class="mgr">Ciência: some da lista até voltar a escalar. O e-mail diário à gestão só inclui o que não tem ciência.</li>
+</ol>
+<p class="mgr"><strong>Regra de escalação</strong> (configurável): uma ação com a empresa — tarefa, cadência da semana, próximo passo de reunião, tratativa de alerta — é escalada quando atrasa mais de 7 dias <em>e/ou</em> quando nada foi feito com a empresa desde que venceu (3 dias). Recalculada a cada hora. A meta de contatos por dia, que era 5, agora é <strong>8</strong>, a mesma do Kanban semanal.</p>
+
+<!-- ============================ 14. ALERTAS ============================ -->
+<h2 id="alertas">14. Alertas</h2>
+<p class="where"><span class="tag t-auto">Automático</span> Ficha → Alertas · Início · lista Empresas · sino</p>
+<div class="mock"><div class="cap"><span>Tratar alerta — modal</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main" style="max-width:520px"><div class="panel form"><b>Queda de sinaleira — Bela Vista Alimentos</b><div class="sub">Cliente veio de verde e caiu para vermelho nesta semana.</div><div class="cols" style="grid-template-columns:1fr 1fr"><div class="in on">Contato: Ligação ▾</div><div class="in">Tipo de agenda (se agenda)</div></div><div class="in">O que foi tratado?</div><div class="row" style="border:0"><span>☐ Cliente autossuficiente</span><span class="btn p">Registrar e resolver</span></div></div></div></div></div>
+<p>Gerados pela varredura diária da carteira: <strong>sinaleira crítica</strong> (5+ semanas vermelhas), <strong>queda</strong> (verde → vermelho), <strong>oportunidade de upsell</strong> (5+ verdes), <strong>SLA da etapa estourado</strong>, <strong>sem contato</strong>, <strong>licença vencida</strong> (preto → reativação) e <strong>sem analista PDA cadastrado</strong>. Resolver pede o registro do contato feito (canal, resposta, agenda), que alimenta a timeline e o health.</p>
+
+<!-- ============================ 15. PLAYBOOK ============================ -->
+<h2 id="playbook">15. Playbook CS</h2>
+<p class="where">Menu: Administração → <b>Playbook CS</b></p>
+<div class="mock"><div class="cap"><span>Playbook CS — filtro Cadência Vermelho</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="topbar" style="justify-content:space-between"><div><span class="in" style="display:inline-block;width:180px">🔍 Buscar no playbook…</span> <span class="chip">Todos os tipos ▾</span> <span class="chip on">Cadência Vermelho</span><span class="chip">Amarelo</span><span class="chip">Verde</span></div><div class="mgr"><span class="chip">☐ incluir inativos</span> <span class="btn p">+ Novo bloco <span class="n mgr">1</span></span></div></div>
+  <div class="panel"><div class="ph">▸ Cadência VERMELHO — intervalos, tendências e o que fazer <span><span class="b">Gatilho</span> <span class="b bad">Vermelho</span> <span class="mgr">✎ 🗑</span></span></div></div>
+  <div class="panel" style="margin-top:6px"><div class="ph">▾ Como conduzir o contato com cliente VERMELHO <span><span class="b">Playbook</span> <span class="b bad">Vermelho</span></span></div><div class="sub">A regra do vermelho: o primeiro contato acontece em até 5 dias úteis da primeira semana vermelha. Ponto. …<br><b>As cinco perguntas do diagnóstico</b> 1. O cliente sabe que está usando pouco? 2. Há projeto parado? …</div></div>
+</div></div></div>
+<ol class="leg"><li data-n="1" class="mgr">A gestão cria, edita, desativa e apaga blocos aqui mesmo (markdown; tabelas com <code>| coluna | coluna |</code>).</li></ol>
+<p>Os blocos do documento estão carregados: lógica de cadência, cadência por cor, mapa anual, missão, leitura da oscilação, condução por cor, masterclasses, modelos de mensagem, Jornadas Reais e guia de tags. Filtre por tipo, cor ou palavra. <span class="tag t-new">Novo</span> Os blocos ativos são também o que a <strong>IA do WhatsApp do CS</strong> sabe (capítulo 19): editar um bloco muda a resposta automática na hora.</p>
+
+<!-- ============================ 16. CONFIGURAÇÕES ============================ -->
+<h2 id="config">16. Configurações CS <span class="tag t-mgr">gestão</span></h2>
+<p class="where">Menu: Customer Success → <b>Configurações CS</b> · tudo que o playbook parametriza, ajustável pela própria gestão</p>
+<div class="mock mgr"><div class="cap"><span>Configurações CS → Tarefas e evidência (com Escalação ao gestor) e Roteamento</span><span>dados de exemplo · gestão</span></div>
+<div class="app nosb"><div class="main">
+  <div class="tabs"><span>Health score</span><span>Metas</span><span class="on">Tarefas e evidência</span><span>Masterclasses</span><span>Jornadas Reais</span><span>SLA da jornada</span><span>Roteamento</span><span>Carteira e delegações</span><span>Importar carteira</span></div>
+  <div class="cols" style="grid-template-columns:1fr 1fr">
+    <div class="panel form"><b>Evidência</b><div>☑ Exigir evidência do canal para concluir tarefas</div><div>Canais: <span class="chip on">E-mail</span><span class="chip on">WhatsApp</span><span class="chip on">Reunião</span><span class="chip">Ligação</span></div><div class="cols" style="grid-template-columns:1fr 1fr"><div class="in on">Antecedência: 72 h</div><div class="in on">Retroativo: 72 h</div></div><div>☑ Gestão pode concluir com justificativa</div><div>☐ Automações contam como envio</div><div>☐ Reunião exige aceite do convite</div></div>
+    <div class="panel form"><b>Escalação ao gestor</b><div class="cols" style="grid-template-columns:1fr 1fr 1fr"><div class="in on">Após 7 dias de atraso</div><div class="in on">Sem ação: 3 dias</div><div class="in on">Atraso OU sem ação ▾</div></div><div>☑ Avisar a gestão por e-mail (diário)</div><div class="in on">diretoria@grougp.com.br, admin@grougp.com.br</div>
+      <b style="margin-top:8px">Roteamento (outra aba)</b><div class="in on">Corte de porte: 101 funcionários</div><div class="sub">Abaixo do corte o comercial fica com o próprio CS; a partir dele vai para o pool de executivos. CS de consultorias · CS de renovação · Roleta de CS.</div></div>
+  </div>
+  <div style="text-align:right;margin-top:8px"><span class="btn p">💾 Salvar</span></div>
+</div></div></div>
+<div class="tbl"><table class="doc"><thead><tr><th>Aba</th><th>Controla</th></tr></thead><tbody>
+<tr><td>Health score</td><td>Pesos dos 6 critérios, pontos por cor, renormalização</td></tr>
+<tr><td>Metas</td><td>Contatos por dia por analista — <strong>8</strong>, a mesma do Kanban semanal</td></tr>
+<tr><td>Tarefas e evidência</td><td>Exigência de evidência e canais, antecedência e retroativo, gestão conclui, automações, aceite; escalação ao gestor (prazos, critério, e-mail, diretoria)</td></tr>
+<tr><td>Masterclasses</td><td>Módulos e a tabela "quando oferecer"</td></tr>
+<tr><td>Jornadas Reais</td><td>Modo (aprovação ou automático), assinatura, janela, os 4 textos</td></tr>
+<tr><td>SLA da jornada</td><td>Dias por etapa e limite sem contato</td></tr>
+<tr><td>Roteamento</td><td>Corte de porte, CS de consultorias e de renovação, roleta de CS, pool de executivos</td></tr>
+<tr><td>Carteira e delegações</td><td>Cobertura de férias e afastamento</td></tr>
+<tr><td>Importar carteira</td><td>CSV de empresas</td></tr>
+</tbody></table></div>
+<p><span class="tag t-out">Saiu</span> A aba Funcionalidades (junto com a oferta, capítulo 11) e a configuração dos marcos de sucesso.</p>
+
+<!-- ============================ 17. CAMPOS ============================ -->
+<h2 id="campos">17. Os campos que sustentam tudo</h2>
+<p><span class="tag t-you">Você faz</span> Preencher no onboarding e manter atualizado é o que faz o sistema sugerir a coisa certa.</p>
+<div class="tbl"><table class="doc"><thead><tr><th>Campo</th><th>Onde</th><th>Para que serve</th></tr></thead><tbody>
+<tr><td><strong>Uso do PDA (tag_uso)</strong> — recrutamento, desenvolvimento ou ambos</td><td>Sobre esta empresa (vem do RD; a edição manual vale mais)</td><td>Masterclass do uso, e-mail de 30 dias, filtro da carteira</td></tr>
+<tr><td><strong>Analista PDA certificado</strong></td><td>Contatos → marcar no contato</td><td>Health (10%), alerta quando não há, Módulo 1 quando muda, destinatário das jornadas</td></tr>
+<tr><td><strong>Causa do diagnóstico</strong></td><td>Sobre esta empresa ou no registro de contato (vermelho)</td><td>Qual masterclass oferecer no vermelho</td></tr>
+<tr><td><strong>Porte / nº de funcionários</strong></td><td>Sobre esta empresa (vem do RD)</td><td>Roteamento: CS × pool de executivos</td></tr>
+<tr><td><strong>Início do contrato / renovação</strong></td><td>Contrato</td><td>Carência, marcos de mês 3 e 6, Jornadas Reais, renovação ≤ 60 dias, filtro de vencimento</td></tr>
+<tr><td><strong>Responsável CS e Executivo</strong></td><td>Editar, no topo da ficha</td><td>De quem é o kanban, para quem vai a oportunidade sinalizada e quem recebe o WhatsApp do cliente</td></tr>
+<tr><td><strong>E-mail e WhatsApp dos contatos</strong></td><td>Contatos</td><td>Liga e-mails, mensagens e reuniões à empresa — sem isso não há evidência, e o cliente que escreve no WhatsApp não é reconhecido</td></tr>
+</tbody></table></div>
+
+<!-- ============================ 18. CONSULTORIAS ============================ -->
+<h2 id="consultorias">18. Consultorias <span class="tag t-new">Novo</span></h2>
+<p class="where">Menu: Customer Success → <b>Consultorias</b></p>
+<div class="mock"><div class="cap"><span>Consultorias por vencimento — janela de 15 dias para trás e 15 para frente</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div style="margin-bottom:8px"><span class="chip on">15 dias para trás</span><span class="chip on">15 dias para frente</span> <span class="n">1</span> <span class="b warn">4 consultorias sem data de renovação</span> <span class="n">2</span></div>
+  <table class="m"><thead><tr><th>Consultoria</th><th>Renovação</th><th>Situação</th><th>CS</th><th>Empresas atendidas</th></tr></thead><tbody>
+  <tr><td><b>Pessoas &amp; Rumo Consultoria</b></td><td>12/11/2026</td><td><span class="b bad">venceu há 13 dias</span></td><td>Marcela</td><td>6</td></tr>
+  <tr><td><b>Talentos Sul</b></td><td>04/12/2026</td><td><span class="b warn">vence em 9 dias</span></td><td>Marcela</td><td>3</td></tr>
+  </tbody></table>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Para consultoria, o que importa é a renovação. Os 15 dias para trás pegam o que venceu e ninguém tratou; os 15 para frente, o que dá para agir antes. A janela é ajustável.</li>
+  <li data-n="2">A tela avisa quantas consultorias estão sem data de renovação — essas não aparecem em nenhuma janela até alguém preencher.</li>
+</ol>
+<p>Consultoria saiu do resto do módulo: não aparece mais na lista de Empresas, na sinaleira nem nas métricas gerenciais. Na ficha de uma consultoria, o painel "Empresas atendidas" lista os clientes dela.</p>
+
+<!-- ============================ 19. WHATSAPP CS ============================ -->
+<h2 id="cs-whatsapp">19. WhatsApp CS e Tickets <span class="tag t-new">Novo</span></h2>
+<p class="where"><span class="tag t-auto">Automático</span><span class="tag t-you">Você faz</span> Menu: Customer Success → <b>WhatsApp CS</b> e <b>Tickets</b> · Canais → <b>Caixa de entrada</b></p>
+<div class="mock"><div class="cap"><span>Tickets do CS — em aberto</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div style="margin-bottom:8px"><span class="chip on">Em aberto ▾</span><span class="chip">☐ Só os meus</span></div>
+  <table class="m"><thead><tr><th>Cliente</th><th>Pedido</th><th>Status</th><th>Responsável</th><th>Aberto</th></tr></thead><tbody>
+  <tr><td><b>Acme Tecnologia</b></td><td>Relatório de equipe não gera PDF <span class="b">🤖 aberto pela IA</span> <span class="n">1</span></td><td><span class="b warn">Aberto</span></td><td>Camila</td><td>25/11 10:40</td></tr>
+  <tr><td><b>Nova Era RH</b></td><td>Trocar o analista PDA cadastrado</td><td><span class="b">Aguardando cliente</span> <span class="n">2</span></td><td>Dandara</td><td>24/11 16:02</td></tr>
+  </tbody></table>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Ticket nasce da conversa de WhatsApp — a IA do CS abre sozinha o que precisa de gente — ou à mão, pela ficha do cliente.</li>
+  <li data-n="2">Status: Aberto, Em andamento, <strong>Aguardando cliente</strong> e Resolvido. "Aguardando cliente" existe para separar o que depende do analista do que depende do cliente.</li>
+</ol>
+<p><span class="tag t-auto">Automático</span> Quando quem escreve no WhatsApp <strong>já é cliente</strong>, a conversa vai para a caixa do CS na hora, no nome de quem cuida da conta, com o histórico inteiro. É a mesma conversa, em outra caixa, e fica registrado quando e por que ela mudou. O cliente é reconhecido pelo telefone cadastrado num contato da empresa.</p>
+<p>A <strong>IA do CS é separada da IA do SDR</strong>: a do SDR qualifica e vende, a do CS resolve. Ela responde a partir dos blocos ativos do Playbook CS, abre ticket quando o assunto está fora do playbook em vez de inventar procedimento, e manda assunto comercial para o executivo da carteira. Ela não herda as ofertas de campanha da IA do SDR: oferecer desconto a quem já comprou é exatamente o que não pode acontecer.</p>
+
+<!-- ============================ 20. FINANCEIRO ============================ -->
+<h2 id="financeiro">20. O que vem do financeiro, e os requerimentos <span class="tag t-new">Novo</span></h2>
+<p class="where">Ficha da empresa → <b>Política de faturamento</b> · Menu: Customer Success → <b>Requerimentos</b></p>
+<div class="tbl"><table class="doc"><thead><tr><th>O que aparece</th><th>De onde vem</th><th>O que o CS faz</th></tr></thead><tbody>
+<tr><td><strong>Cliente em atraso</strong>: em vermelho no topo da política — parcelas vencidas, valor e há quantos dias</td><td>Contas a receber da Conta Azul, lido a cada 15 minutos</td><td>Só lê. Cobrança não é assunto do CS; antes de uma conversa de renovação, olhe o alerta e alinhe com o financeiro.</td></tr>
+<tr><td><strong>Política de faturamento</strong>: OC obrigatória, prazo, forma de pagamento, e-mails que recebem a nota</td><td>Cadastrada pelo Administrativo, confirmada com o executivo</td><td>Consulta. Só o Administrativo edita.</td></tr>
+<tr><td><strong>Ficha cadastral</strong>: o link aparece na política quando o cliente já mandou a ficha</td><td>App de cadastro (fichacadastral.grougp.com.br)</td><td>Consulta</td></tr>
+<tr><td><strong>Requerimentos de serviço</strong>: o que foi vendido e precisa ser entregue (treinamento, turma, licença PDA)</td><td>Aberto pelo comercial no negócio ganho; o Administrativo prepara, escala a trainer e monta o cronograma</td><td>Acompanha o andamento da entrega dos seus clientes</td></tr>
+</tbody></table></div>
+<p class="small">Enquanto o financeiro termina de migrar da WebMais para a Conta Azul, o alerta de atraso pode levar alguns dias para ficar completo.</p>
+
+<!-- ============================ 21. JORNADA DO CLIENTE ============================ -->
+<h2 id="jornada-cliente">21. Jornada do cliente <span class="tag t-new">Novo</span></h2>
+<p class="where">Menu: <b>Jornada do cliente</b> (nos objetos, no topo) · escolha a empresa</p>
+<p>O caminho inteiro de uma empresa numa linha só, do lead que o SDR trabalhou até o atendimento do CS, passando pelo negócio do comercial e pelo faturamento. Os módulos falam da mesma empresa, então a linha é uma só. Útil antes de uma reunião de renovação, para saber como o cliente chegou e o que já foi prometido.</p>
+<p><span class="tag t-auto">Automático</span> Cada empresa tem um <strong>ciclo de vida calculado</strong> — lead, oportunidade, cliente, inativo (licença PDA vencida) — a partir dos negócios e da ficha do CS. Ele é recalculado a cada mudança e uma vez por dia, para pegar as licenças que venceram.</p>
+
+<!-- ============================ MIGRAÇÃO ============================ -->
+<h2 id="migracao">Migração do RD — onde estamos</h2>
+<p>Em 09/09 a migração estava em 45% e as telas usavam dados de marcação. Hoje a carga está feita e o trabalho acontece no Compass. O RD continua ligado só como fonte de sincronização, até ser desligado.</p>
+<div class="card" style="background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0;max-width:78ch">
+  <div class="tbl"><table class="doc"><thead><tr><th style="width:52%">Etapa</th><th>Situação</th></tr></thead><tbody>
+  <tr><td>1. Inventário completo do RD (organizações, negócios, contatos e campos personalizados)</td><td><span class="tag t-auto">Concluído</span></td></tr>
+  <tr><td>2. Mapeamento campo a campo</td><td><span class="tag t-auto">Concluído</span></td></tr>
+  <tr><td>3. Modelo de dados do Compass: Empresa × Contato × Negócio, unidades mãe → filha, edição manual com prioridade sobre o RD</td><td><span class="tag t-auto">Concluído</span></td></tr>
+  <tr><td>4. Motor de importação e transformação</td><td><span class="tag t-auto">Concluído</span></td></tr>
+  <tr><td>5. Carga completa: empresas, contatos dos negócios, negócios, anotações e tarefas, com o autor original</td><td><span class="tag t-auto">Concluído</span></td></tr>
+  <tr><td>6. Revisão com o time: donos de cada carteira (regras definidas pela gestão), funis sem destino fora da carga, conferência funil a funil</td><td><span class="tag t-auto">Concluído</span></td></tr>
+  <tr><td>7. Campo "Uso do PDA" (tag_uso) importado do RD para a ficha de CS</td><td><span class="tag t-you">Pronto no Compass</span> — a importação já lê o campo; ele só chega preenchido onde estiver preenchido no RD</td></tr>
+  <tr><td>8. Base de marketing do RD (fora do kanban) e histórico de cada lead pela API do RD Marketing</td><td><span class="tag t-you">Em andamento</span> — a base entrou; o histórico chega aos poucos, 100 leads por minuto</td></tr>
+  <tr><td>9. Sincronização contínua RD → Compass até a virada</td><td><span class="tag t-auto">Rodando</span> a cada 15 minutos</td></tr>
+  <tr><td>10. Desligamento do RD</td><td><span class="tag t-cfg">A fazer</span> — é decisão da gestão, não falta de carga</td></tr>
+  </tbody></table></div>
+</div>
+<p class="mgr">A tela <strong>Administração → Migração do RD</strong> (gestão) mostra a conferência funil a funil, as vendas ganhas por ano, os donos do RD e para quem cada um foi, e os botões para importar o histórico e reaplicar donos depois de criar usuários novos.</p>
+
+<span class="module" id="modulo-sdr">Módulo SDR — Pré-vendas</span>
+<p class="lead">O Módulo SDR é a operação de pré-vendas: cada lead inbound entra no Pipeline segundos depois de converter, recebe pontuação de ICP e uma dona, é abordado pela IA no WhatsApp e pela SDR em cadência multicanal (WhatsApp, ligação, e-mail, LinkedIn) dentro do SLA, qualificado por BANT e, quando marca reunião, passa o bastão para o executivo.</p>
+<div class="callout"><b>Princípio do Módulo SDR:</b> o playbook de pré-vendas 2026 está embutido. O sistema diz quem tocar agora, por qual canal e com qual roteiro, e mede SLA, toques e conversão por SDR. O que é regra (quem recebe o lead, quando a IA para, quando a cadência acaba) é garantido em código, não depende de alguém lembrar.</div>
+
+<!-- ============================ SDR 1. MENU E INÍCIO ============================ -->
+<h2 id="sdr-menu">1. Menu e Início do SDR</h2>
+<p class="where">Ao entrar, a SDR cai no <b>Início</b>, montado para ela <span class="tag t-new">Novo</span> (antes caía direto no Pipeline)</p>
+<div class="mock"><div class="cap"><span>Início — Lisiane Baudini (SDR) · esta semana</span><span>dados de exemplo</span></div>
+<div class="app">
+  <div class="sb">
+    <div class="logo">▣ compass</div>
+    <div class="it on"><i class="ico"></i>Início</div>
+    <div class="grp">⌄ SDR</div>
+    <div class="it"><i class="ico"></i>Visão geral</div>
+    <div class="it"><i class="ico"></i>Pipeline</div>
+    <div class="it"><i class="ico"></i>WhatsApp</div>
+    <div class="it"><i class="ico"></i>Agenda de FUPs</div>
+    <div class="it"><i class="ico"></i>Cadência</div>
+    <div class="grp">› BI <span>4</span></div>
+    <div class="grp">› Administração <span>2</span></div>
+    <div class="sep"></div>
+    <div class="it" style="font-size:11px">✦ ◐ Sair</div>
+  </div>
+  <div class="main">
+    <p class="h">Bom dia, Lisiane</p>
+    <div class="tiles"><div class="tile"><b>23</b><span>Leads novos · no meu nome</span></div><div class="tile"><b>19</b><span>Abordados · 1º toque feito</span></div><div class="tile"><b>6</b><span>Agendas marcadas · taxa 32%</span></div><div class="tile"><b>81%</b><span>SLA 1º toque dentro do prazo</span></div></div>
+    <div class="cols" style="grid-template-columns:1fr 1fr">
+      <div class="panel"><div class="ph">Responder primeiro <span class="n">1</span></div><div class="row"><div class="l"><b>Fernanda Costa · Alfa Engenharia</b><span>sem 1º contato · chegou há 38 min</span></div><span class="b bad">SLA</span></div><div class="row"><div class="l"><b>Marcos Vieira · Beta Log</b><span>sem 1º contato · 1 h</span></div></div></div>
+      <div class="panel"><div class="ph">Follow-up <span class="n">2</span></div><div class="row"><div class="l"><b>Diego Nunes</b><span>vence hoje 15:00</span></div></div><div class="row"><div class="l"><b>Paula Reis</b><span>atrasado 2 dias</span></div><span class="b bad">atrasado</span></div></div>
+      <div class="panel"><div class="ph">Reuniões de hoje <span class="n">3</span></div><div class="row"><div class="l"><b>Renata Lima · 14:00 com Maicon</b><span>confirmação ✓ · material ✓ · lembrete hoje 13:00</span></div></div></div>
+      <div class="panel"><div class="ph">Leads mais quentes</div><div class="row"><div class="l"><b>Ana Kelly · Agro Industrial Tabu</b><span>200+ funcionários · cargo decisor · 100 pts</span></div></div></div>
+    </div>
+  </div>
+</div></div>
+<ol class="leg">
+  <li data-n="1">Leads sem 1º contato, do mais antigo para o mais novo. É a fila do SLA de 15 minutos.</li>
+  <li data-n="2">Follow-ups que vencem hoje e os atrasados.</li>
+  <li data-n="3">As reuniões do dia e o que a <strong>jornada da agenda</strong> já mandou ao lead (capítulo 6).</li>
+</ol>
+<p>O menu da SDR tem o grupo <em>SDR</em> (Visão geral, Pipeline, <strong>WhatsApp</strong> — antes chamado Inbox —, Agenda de FUPs, Cadência), <em>BI</em> (Relatórios, Performance SDR, Funil SDR (RD), Chat Analytics) e, em <em>Administração</em>, o Playbook SDR e as Novidades. No topo ficam a busca, o sino e o assistente (veja "Menu, busca, sino e assistente").</p>
+
+<!-- ============================ SDR 2. PIPELINE ============================ -->
+<h2 id="sdr-pipeline">2. Pipeline — o kanban de leads</h2>
+<p class="where"><span class="tag t-auto">Automático</span><span class="tag t-you">Você faz</span> Menu: SDR → <b>Pipeline</b></p>
+<div class="mock"><div class="cap"><span>Pipeline — funil Empresas &amp; PF, período "Este mês"</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="topbar" style="justify-content:space-between;flex-wrap:wrap"><div><span class="chip on">Empresas &amp; PF 761</span><span class="chip">Consultorias 397</span> <span class="n">1</span> <span class="sub" style="display:inline">612 leads no filtro atual</span></div><div><span class="chip">📅 Este mês ▾ <span class="n">2</span></span><span class="chip">🔍 Buscar nome, email, empresa</span><span class="chip">Filtros (1)</span><span class="chip">Etapas</span><span class="btn">Exportar</span><span class="btn">↻ Sincronizar RD</span><span class="btn p">+ Novo lead</span></div></div>
+  <div class="kb" style="grid-template-columns:repeat(5,1fr)">
+    <div class="col"><h6><span class="dot" style="background:#3b82f6"></span>Novo lead · Priorização <span>184 <span style="opacity:.6">de 1.162</span> <span class="n">3</span></span></h6><div class="card"><b>Ana Kelly <span class="b bad" style="float:right">Alta</span></b><div class="meta">Agro Industrial Tabu · Supervisor · 101 - 200</div><div class="meta">Lisiane Baudini</div><span class="b">Empresa</span> <span class="b pri">IA atendendo <span class="n">4</span></span><div style="margin-top:3px"><span class="b ok">Cargo decisor</span> <span class="b ok">200+ funcionários</span></div><div style="margin-top:3px"><span class="b bad">SLA 12 min · estourado</span> <span class="b">D1 M · WHATS · hoje <span class="n">5</span></span></div><div class="meta">Meta Ads · produto_pda_lead_native</div></div></div>
+    <div class="col"><h6><span class="dot" style="background:#6366f1"></span>Em qualificação <span>58</span></h6><div class="card"><b>Ricardo</b><div class="meta">Crgy · Gerente de RH</div><span class="b ok">Com a SDR</span> <span class="b">📱 veio do WhatsApp <span class="n">6</span></span></div></div>
+    <div class="col"><h6><span class="dot" style="background:#0ea5e9"></span>Em contato <span>31</span></h6><div class="card"><b>Josué Prado</b><div class="meta">Scal · Coord. de Pessoas</div><span class="b warn">Aguardando SDR</span></div></div>
+    <div class="col"><h6><span class="dot" style="background:#22c55e"></span>Agendado <span>17</span></h6><div class="card"><b>Rayanne Danuzy <span class="b warn" style="float:right">Média</span></b><div class="meta">Syndata · Supervisor</div><div class="panel" style="padding:5px;margin-top:4px"><div class="meta">📅 Reunião 27/11 14:00 · marcada em 25/11 11:05</div><div class="meta">Executivo: Maicon ▾</div><span class="btn p">Enviar convite <span class="n">7</span></span></div></div></div>
+    <div class="col"><h6><span class="dot" style="background:#f59e0b"></span>No-show <span>3</span></h6><div class="card"><b>Diego Nunes</b><div class="meta">Delta Varejo · reunião perdida 21/11</div><span class="btn">Remarcar <span class="n">8</span></span></div></div>
+  </div>
+  <div class="sub" style="margin-top:6px">… Aguardando retorno (9) · Desqualificado (1.144) → arraste o card para mudar de etapa</div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1">Dois funis: <strong>Empresas &amp; PF</strong> e <strong>Consultorias</strong>, com a contagem de cada um.</li>
+  <li data-n="2"><span class="tag t-new">Novo</span> Período na barra do quadro: hoje, ontem, últimos 7/15/30/90/180 dias, este mês, mês anterior, todo o período ou "Personalizado…" com de/até. O período vai direto para o banco, então filtrar setembro traz setembro inteiro, não só os cards que estavam na tela.</li>
+  <li data-n="3">Cada coluna carrega os 250 cards mais recentes do período, para o quadro não pesar. O número é o que está na tela; quando a coluna tem mais no banco, aparece "de N" ao lado. Os que ficaram de fora continuam no banco e aparecem na busca e na página do lead. Para alcançá-los no quadro, estreite o período.</li>
+  <li data-n="4"><span class="tag t-new">Novo</span> <strong>Quem está com a conversa</strong>: <em>IA atendendo</em> (a IA está qualificando), <em>Aguardando SDR</em> (o bastão foi passado e ninguém assumiu — a IA já não responde) ou <em>Com a SDR</em>. O mesmo selo aparece no chat.</li>
+  <li data-n="5">SLA de 1º atendimento (15 min, da conversão ao primeiro toque) e o próximo toque da trilha.</li>
+  <li data-n="6"><span class="tag t-new">Novo</span> Marca do lead que chegou escrevendo direto no WhatsApp, sem formulário.</li>
+  <li data-n="7">Card Agendado: data da reunião (editável), quando foi marcada (automático), executivo e o convite (.ics e link "Adicionar à Google Agenda") para o lead e o executivo, com o resumo BANT.</li>
+  <li data-n="8"><span class="tag t-new">Novo</span> Etapa <strong>No-show</strong>, entre Agendado e Desqualificado, para a reunião que não aconteceu. Não é final: o card mostra a reunião perdida e o bloco para remarcar. No funil, no-show conta como agenda marcada.</li>
+</ol>
+<p>As etapas: Novo lead · Priorização → Em qualificação → Em contato → Aguardando retorno → Agendado → No-show → Desqualificado. Na coluna Novo lead, os cards vêm ordenados pelo encaixe no ICP. Descartar pede o <strong>motivo</strong>, de uma lista única — Sem perfil, Sem fit com soluções, Sem contato, Sem interesse, Interesse pessoal, Sem orçamento, Timing inadequado, Concorrência, Lead duplicado, NFD — que é a mesma do filtro do kanban e da ficha do lead. Grafias diferentes do mesmo motivo foram agrupadas.</p>
+<p><span class="tag t-auto">Automático</span> Ao entrar em <strong>Agendado</strong> ou <strong>Desqualificado</strong>, o lead sai da cadência: o próximo follow-up é apagado e as sequências de WhatsApp param. No-show não encerra.</p>
+<h3>Como o lead chega e de quem ele fica</h3>
+<div class="tbl"><table class="doc"><thead><tr><th>Entrada</th><th>Como funciona</th></tr></thead><tbody>
+<tr><td><strong>Meta Ads (Lead Ads)</strong> <span class="tag t-new">Novo</span></td><td>A Meta avisa o Compass a cada formulário enviado, e o lead entra em Novo lead em segundos, com todas as respostas do formulário. A planilha do Google Sheets continua ligada <strong>como reserva</strong>: é lida a cada 2 minutos e pula o que já entrou direto.</td></tr>
+<tr><td><strong>Formulários do site</strong> <span class="tag t-new">Novo</span></td><td>Entram pela porta de conversão do marketing e viram card do SDR. Esses leads não recebem a abordagem automática da IA; as respostas do formulário ficam no card.</td></tr>
+<tr><td><strong>WhatsApp direto</strong></td><td>Quem escreve sem ter convertido vira lead e recebe a marca "veio do WhatsApp". A IA pergunta o cadastro antes de qualificar (capítulo 5).</td></tr>
+<tr><td><strong>RD Station</strong></td><td>Sincronização a cada 15 minutos. O card segue o responsável da negociação no RD.</td></tr>
+<tr><td><strong>Manual</strong></td><td>+ Novo lead: nome, empresa, cargo, e-mail, WhatsApp, origem.</td></tr>
+</tbody></table></div>
+<p><span class="tag t-auto">Automático</span> <strong>Distribuição na entrada</strong>, mesmo sem telefone: <strong>toda consultoria vai para a Mariana Borges</strong> — inclusive a que a IA descobre depois, no meio da conversa —, e empresa e pessoa física vão para Camila ou Lisiane. A <strong>pontuação de ICP</strong> lê porte e cargo: 2 sinais = alta, 1 = média, 0 = baixa, fora de ICP ou pendente (enriquecendo). Lead de campanha por lista não vira card até responder (capítulo 6).</p>
+
+<!-- ============================ SDR 3. PÁGINA DO LEAD ============================ -->
+<h2 id="sdr-lead">3. Página do lead — histórico, qualificação e reunião</h2>
+<p class="where"><span class="tag t-you">Você faz</span> Pipeline → clique no card · ou pela busca</p>
+<div class="mock"><div class="cap"><span>Página do lead — Diego Nunes (Delta Varejo) · aba Histórico</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="topbar" style="justify-content:space-between"><div><p class="h">Diego Nunes <span class="b ok">ICP alta</span> <span class="b pri">Mid-Market (100–500)</span> <span class="b">Com a SDR</span></p><p class="sub">Delta Varejo · Head de Pessoas · diego@deltavarejo.com.br · (11) 9 8877-… · dona: Camila</p></div><div><span class="chip">Etapa: Em contato ▾</span> <span class="btn p">💬 Abrir no WhatsApp</span></div></div>
+  <div class="tabs"><span class="on">Histórico <span class="n">1</span></span><span>Qualificação e atendimento <span class="n">2</span></span></div>
+  <div class="cols" style="grid-template-columns:1.4fr 1fr">
+    <div class="panel"><div style="margin-bottom:6px"><span class="chip on">Tudo</span><span class="chip">Conversões</span><span class="chip">Negociações</span><span class="chip">Anotações</span><span class="chip">Contatos</span><span class="chip">WhatsApp</span><span class="chip">Reuniões</span><span class="chip">Propostas</span><span class="chip">Etapas</span></div>
+      <div class="row"><div class="l"><b>WhatsApp · lead respondeu</b><span>"Pode me ligar amanhã à tarde?" · 24/11 18:02</span></div></div>
+      <div class="row"><div class="l"><b>Toque · Ligação · sem resposta</b><span>Camila · 24/11 15:10</span></div></div>
+      <div class="row"><div class="l"><b>Conversão · formulário "Demo PDA"</b><span>Meta Ads · PDA Recrutamento · Vídeo 15s · 24/11 09:14</span></div></div>
+      <div class="row"><div class="l"><b>Conversão anterior (2025) · e-book Liderança</b><span>RD · mesma pessoa, outro cadastro</span></div></div>
+    </div>
+    <div class="panel"><div class="ph">Reunião com o executivo <span class="n">3</span></div><div class="row"><span>Data</span><b>27/11 14:00</b></div><div class="row"><span>Marcada em</span><b>25/11 11:05</b></div><div class="row"><span>Executivo</span><b>Maicon ▾</b></div><div class="row"><span>Convite</span><b>enviado ✓</b></div></div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1"><span class="tag t-new">Novo</span> A página abre no <strong>Histórico</strong>, no estilo do RD: dados de identificação, empresa, estágio, dono, negócios e a linha do tempo com filtros por tipo. Ela junta todos os cadastros da mesma pessoa, inclusive conversões antigas vindas do RD.</li>
+  <li data-n="2"><strong>Qualificação e atendimento</strong>: a trilha da cadência com os roteiros, o registro de toque (canal, ação, desfecho), o BANT com o resumo que vai no convite, o resultado da abordagem e o contexto de conversão. Quem abre pelo kanban ou pela cadência cai direto nesta aba.</li>
+  <li data-n="3"><span class="tag t-new">Novo</span> Reunião com o executivo: data, quando foi marcada, executivo, agenda e convite. <strong>Marcar a reunião aqui move o lead para Agendado</strong>. A lista de executivos que recebem reunião nova da SDR é definida pela gestão; a disponibilidade vem da Google Agenda de cada um e o link é o "Meu link de reunião" dele.</li>
+</ol>
+<p><span class="tag t-new">Novo</span> <strong>Lead fora do kanban</strong> (base de marketing do RD, cards antigos) também abre aqui, com o aviso "fora do kanban" e o botão <kbd>Trazer para o kanban</kbd>. Editar um lead desses já o traz de volta.</p>
+
+<!-- ============================ SDR 4. WHATSAPP ============================ -->
+<h2 id="sdr-inbox">4. WhatsApp — a caixa de entrada dentro do sistema</h2>
+<p class="where"><span class="tag t-you">Você faz</span><span class="tag t-auto">Automático</span> Menu: SDR → <b>WhatsApp</b> (antes "Inbox") · abas: Inbox, Métricas, Templates, Campanhas, Custos, IA, Ensaio da IA, Automações, FUPs, Alertas, Contas</p>
+<div class="mock"><div class="cap"><span>WhatsApp → Inbox — fila geral e conversa com a SDR</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="tabs"><span class="on">Inbox</span><span>Métricas</span><span>Templates</span><span>Campanhas</span><span>Custos</span><span>IA</span><span>Ensaio da IA</span><span>Automações</span><span>FUPs</span><span>Alertas</span><span>Contas</span></div>
+  <div class="cols" style="grid-template-columns:1fr 1.6fr">
+    <div class="panel"><div class="in" style="margin-bottom:6px">🔍 Buscar lead, empresa, mensagem…</div><div style="margin-bottom:6px"><span class="chip on">Fila geral (4) <span class="n">1</span></span><span class="chip">Minhas (7)</span><span class="chip">🔥 Quentes</span></div>
+      <div class="row"><div class="l"><b>Fernanda Costa · Alfa Engenharia</b><span>"Tenho interesse, como funciona?" · 2 min</span></div><span class="b pri">IA atendendo</span></div>
+      <div class="row" style="background:#eef3ff"><div class="l"><b>Diego Nunes · Delta Varejo</b><span>Você: "Perfeito, te ligo às 15h" · 1 h</span></div><span class="b ok">Com a SDR</span></div>
+      <div class="row"><div class="l"><b>Josué Prado · Scal</b><span>IA: "Vou te passar para a Lisiane" · 3 h</span></div><span class="b warn">Aguardando SDR</span></div>
+    </div>
+    <div class="panel"><div class="ph">Diego Nunes <span class="b ok">Com a SDR</span> <span class="b">Em contato</span> <span><span class="btn">Transferir</span> <span class="btn">Encerrar</span></span></div>
+      <div class="pre" style="background:#f7f7f9">Lisiane · 09:40 — Oi Diego, tudo bem? Aqui é a Lisiane, da Grou…
+Diego · 18:02 — Pode me ligar amanhã à tarde?
+Lisiane (celular) · 18:05 — Perfeito, te ligo às 15h. <span class="n">2</span></div>
+      <div class="sub" style="margin-top:4px">⏱ Janela de 24h aberta até amanhã 18:02 <span class="n">3</span></div>
+      <div class="cols" style="grid-template-columns:1fr auto;margin-top:6px"><div class="in">Mensagem… · 📎 · Template ▾ · 🎙</div><span class="btn p">Enviar</span></div>
+      <div class="sub" style="margin-top:4px">Resumo da IA: lead quente, pediu ligação; dor: turnover no comercial.</div>
+    </div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1"><strong>Fila geral</strong>: conversas sem dono. <kbd>Assumir conversa</kbd> traz para a sua lista. Cada conversa está ligada ao lead e ao card do Pipeline, e mostra quem está com ela.</li>
+  <li data-n="2"><span class="tag t-new">Novo</span> <strong>Celular da SDR espelhado</strong>: o que a SDR digita no app do WhatsApp no celular entra na conversa como mensagem dela, com mídia, e tira a IA da conversa na hora. O lead fala com um número só: a conversa fica no número em que começou, e campanhas, FUPs e automações saem por ele.</li>
+  <li data-n="3">A janela de 24 h fica visível. Fora dela só sai template, que dá para escolher e enviar direto pelo chat. Mensagem que não foi entregue mostra o motivo da Meta.</li>
+</ol>
+<ul>
+  <li><span class="tag t-new">Novo</span> <strong>Esconder mensagem da IA</strong>: passando o mouse numa mensagem da IA que não deveria ter saído, o ícone a tira da vista do CRM. Ela não é apagada do WhatsApp — a Meta não permite, e quem recebeu já leu. Mensagem do lead não pode ser escondida, para não sumir o contexto de quem vai atender.</li>
+  <li><span class="tag t-new">Novo</span> <strong>Caixa privada</strong> <span class="mgr">(a gestão liga em Usuários, por pessoa)</span>: as conversas atribuídas a essa pessoa somem da caixa das outras, inclusive da gestão. Conversa sem dono nunca é privada.</li>
+  <li>Cliente que escreve vai para a caixa do CS dele (Módulo CS, capítulo 19), não fica na do SDR.</li>
+</ul>
+
+<!-- ============================ SDR 5. IA ============================ -->
+<h2 id="sdr-ia">5. A IA de atendimento</h2>
+<p class="where"><span class="tag t-auto">Automático</span><span class="tag t-cfg">Configurável</span> WhatsApp → <b>IA</b> (configuração, gestão) · <b>Ensaio da IA</b> (testar sem tocar em nada)</p>
+<p>A IA aborda o lead novo, faz o cadastro e a qualificação, e passa o bastão para a SDR. Tudo o que é regra está em código, não no texto do prompt: não depende de a IA "lembrar".</p>
+<div class="tbl"><table class="doc"><thead><tr><th>Regra</th><th>Como funciona</th></tr></thead><tbody>
+<tr><td><strong>Primeira mensagem</strong></td><td>Sai no nome da SDR dona do lead, já distribuído, e pelo número dela quando ela tem um conectado.</td></tr>
+<tr><td><strong>Cadastro antes da qualificação</strong> <span class="tag t-new">Novo</span></td><td>Para quem chega pelo WhatsApp sem formulário, a IA pergunta primeiro o que falta — se é empresa, pessoa física ou consultoria, nome da empresa, cargo, porte e e-mail — e preenche o card. Só depois parte para as perguntas de qualificação.</td></tr>
+<tr><td><strong>Uma resposta por vez</strong> <span class="tag t-new">Novo</span></td><td>Se o lead manda três mensagens seguidas, a IA responde uma vez, considerando as três. A abertura enviada pelo sistema não conta como conversa começada.</td></tr>
+<tr><td><strong>Espera antes de responder</strong> <span class="tag t-new">Novo</span></td><td>30 segundos por padrão, contados desde a mensagem do lead, para não soar como robô. <span class="mgr">Ajustável em "Esperar antes de responder (segundos)"; zero responde na hora.</span></td></tr>
+<tr><td><strong>Assinatura</strong></td><td>Com o nome da SDR responsável, nunca um nome interno.</td></tr>
+<tr><td><strong>Passagem de bastão</strong></td><td>Anunciada uma vez só. A partir daí o selo vira "Aguardando SDR" e a IA não responde mais naquela conversa. Se a SDR digita no celular, a IA sai na hora.</td></tr>
+<tr><td><strong>Consultoria</strong></td><td>Quando o lead se revela consultoria no meio da conversa, ele passa para a Mariana. Se ela tem número conectado, a IA avisa e a Mariana se apresenta pelo número dela, com o template de passagem configurado.</td></tr>
+<tr><td><strong>Quem procura vaga</strong> <span class="tag t-new">Novo</span></td><td>A IA responde com educação que currículos vão para <strong>rh@grougp.com.br</strong>, encerra a conversa e move o card para Desqualificado com o motivo "Sem perfil".</td></tr>
+<tr><td><strong>Ofertas</strong></td><td>Só cita as ofertas cadastradas, com validade e público (por exemplo, só para quem ainda não é cliente). A oferta não escolhe a pergunta de qualificação, e o nome da campanha nunca vira o nome da empresa do lead.</td></tr>
+<tr><td><strong>Resposta a disparo enviado por engano</strong></td><td>Quem responde a um disparo errado recebe uma resposta pronta, uma vez só.</td></tr>
+</tbody></table></div>
+<p class="mgr"><strong>Configuração (gestão):</strong> Ativação (IA habilitada, responder automaticamente, disparo inicial proativo, parar após resposta do lead, atender 100% das consultorias), quem a IA atende e com que nome, ofertas que pode citar, etapas de handoff, roteamento por conta de WhatsApp, template de passagem para consultoria, prompt operacional (diferenciais, objeções, FAQ) e teste manual com um número.</p>
+<p><span class="tag t-new">Novo</span> <strong>Ensaio da IA</strong>: converse com a IA como se fosse um lead, vendo a primeira mensagem de campanha, sem enviar nada a ninguém e sem mexer em card. É onde se testa uma mudança de prompt ou de oferta antes de ligar.</p>
+
+<!-- ============================ SDR 6. CAMPANHAS E AUTOMAÇÕES ============================ -->
+<h2 id="sdr-automacoes">6. Campanhas, automações, FUPs, templates e custos</h2>
+<p class="where"><span class="tag t-cfg">Configurável</span> WhatsApp → abas · a gestão configura, o time usa</p>
+<div class="mock"><div class="cap"><span>WhatsApp → Campanhas · nova campanha por lista, agendada</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main"><div class="panel form"><b>Nova campanha</b>
+  <div class="cols" style="grid-template-columns:1fr 1fr"><div class="in on">Nome: Convite NR-1 Estratégica</div><div class="in on">Template: convite_nr1 (com imagem no topo) ▾ <span class="n">1</span></div></div>
+  <div class="cols" style="grid-template-columns:1fr 1fr"><div class="in on">Audiência: lista colada (312 números)</div><div class="in on">Criar lead no Compass? Só quando responder ▾ <span class="n">2</span></div></div>
+  <div class="row" style="border:0"><span class="in on">Agendar: 26/11 09:00 <span class="n">3</span></span><span class="btn p">Agendar</span></div>
+</div></div></div></div>
+<ol class="leg">
+  <li data-n="1"><span class="tag t-new">Novo</span> Template com <strong>imagem no topo</strong>, criado na Meta pela própria tela e usado em campanhas. Cada número de SDR dispara com a cópia do template aprovada no WhatsApp Business dela.</li>
+  <li data-n="2"><span class="tag t-new">Novo</span> Campanha por lista escolhe o que acontece com quem está nela: criar lead, criar <strong>só quando responder</strong> (padrão) ou não criar. Assim uma lista de evento não enche o kanban nem aciona a primeira mensagem da IA.</li>
+  <li data-n="3"><span class="tag t-new">Novo</span> Campanha agendada dispara sozinha no horário, sem ninguém clicar. Se o template ainda não foi aprovado pela Meta, o disparo espera.</li>
+</ol>
+<div class="tbl"><table class="doc"><thead><tr><th>Aba</th><th>O que faz</th><th>Quem</th></tr></thead><tbody>
+<tr><td><strong>Campanhas</strong></td><td>Disparo em massa por segmentação (tipo de lead, prioridade, porte, período de entrada, motivo de descarte, domínio) ou por lista, com audiência estimada e exclusão de quem respondeu nos últimos 7 dias.</td><td>Gestão</td></tr>
+<tr><td><strong>Automações</strong></td><td>Gatilhos (novo lead, sem resposta, mudança de etapa, lembrete de reunião) que enviam template, mudam etapa ou avisam; distribuição de atendimento; histórico de execuções.</td><td>Gestão configura</td></tr>
+<tr><td><strong>FUPs</strong></td><td>Sequências de follow-up por WhatsApp: passos com template e intervalo; param quando o lead responde ou chega a certas etapas — e sempre que vira Agendado ou Desqualificado.</td><td>Gestão configura</td></tr>
+<tr><td><strong>Templates</strong></td><td>Modelos aprovados na Meta, com variáveis, botões, link e imagem no topo; busca na lista e criação pela tela.</td><td>Gestão</td></tr>
+<tr><td><strong>Custos</strong> <span class="tag t-new">Novo</span></td><td>Volume por mês e por categoria (marketing, utilidade, autenticação, atendimento), custo pela tarifa oficial da Meta para o Brasil (em dólar, com cotação à parte) e quais templates mais pesam. A tabela da nova cobrança, que vale a partir de 01/10/2026, está em branco até alguém preencher os valores: sem eles, a tela mostra o volume e avisa o que falta, em vez de inventar um custo. Utilidade e atendimento enviados dentro da janela de 24 h não são cobrados e aparecem numa coluna própria; marketing é pago sempre.</td><td>Gestão</td></tr>
+<tr><td><strong>Contas</strong></td><td>Números conectados, conexão pelo cadastro incorporado da Meta, espelhamento do celular (coexistência), diagnóstico de por que um número não recebe e quem vê cada número.</td><td>Gestão</td></tr>
+<tr><td><strong>Métricas · Alertas</strong></td><td>Enviadas, entregues, lidas, falhas, temperatura das conversas · log dos alertas de lead quente enviados ao time.</td><td>Todos</td></tr>
+</tbody></table></div>
+<p><span class="tag t-new">Novo</span> <strong>Jornada da agenda</strong>: depois que a reunião é marcada, o sistema manda ao lead, pelo WhatsApp, a confirmação, o material, a mensagem da véspera e o lembrete do dia. Reagendou, a jornada se refaz; cancelou, ela some. Cada passo sai uma vez por reunião. <span class="mgr">Ela liga pela gestão, passo a passo, conforme os templates de cada mensagem são aprovados na Meta.</span></p>
+
+<!-- ============================ SDR 7. AGENDA DE FUPs ============================ -->
+<h2 id="sdr-agenda">7. Agenda de FUPs — Hoje, Semana e Atrasados <span class="tag t-new">Refeita</span></h2>
+<p class="where"><span class="tag t-auto">Automático</span><span class="tag t-you">Você faz</span> Menu: SDR → <b>Agenda de FUPs</b></p>
+<p>A agenda antiga desenhava cada toque da cadência como um card na coluna do dia, e o mesmo lead aparecia em vários cards. A nova tem três abas, e <strong>em todas cada lead aparece uma vez só</strong>. Os quatro números do topo — Para hoje, Atrasados, Pendentes na semana, Feitos na semana — também são atalhos para as abas.</p>
+<div class="mock"><div class="cap"><span>Agenda de FUPs → aba Hoje (padrão)</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="tiles"><div class="tile" style="border-color:#1d4ed8"><b>14</b><span>Para hoje · 6 leads</span></div><div class="tile"><b style="color:#b3261e">23</b><span>Atrasados</span></div><div class="tile"><b>41</b><span>Pendentes na semana</span></div><div class="tile"><b>18</b><span>Feitos na semana</span></div></div>
+  <div style="margin-bottom:8px"><span class="chip on">Hoje 14</span><span class="chip">Semana</span><span class="chip">Atrasados <b style="color:#b3261e">23</b></span></div>
+  <div class="sub"><b>COM HORA MARCADA · 1</b></div>
+  <div class="row panel" style="margin-bottom:8px"><div class="l"><b>14:00 · Carla Cristiane · Clique Retire</b><span>Manual · Touch 2 — follow-up manual</span></div><span><span class="btn">Atender</span> <span class="btn g">✓ Feito</span></span></div>
+  <div class="sub"><b>CADÊNCIA DE HOJE · 6 LEADS</b> <span class="n">1</span></div>
+  <div class="panel"><div class="ph"><span><span class="dot r"></span>Ricardo · Crgy · Em qualificação</span><span><span class="b bad">⏱ SLA 15 min</span> Dia 1 de 10 ▰▱▱▱</span></div>
+    <div class="row"><span>☐ 💬 WhatsApp · Entrada Inbound (&lt;15 min)</span><span class="btn" style="color:#1d4ed8">📜 Ver roteiro <span class="n">2</span></span></div>
+    <div class="row"><span>☐ ✉ E-mail · E-mail de abertura</span><span class="btn" style="color:#1d4ed8">📜 Ver roteiro</span></div>
+    <div class="row"><span>☐ 📞 Ligação · Ligação imediata</span><span class="btn" style="color:#1d4ed8">📜 Ver roteiro</span></div>
+    <div class="sub" style="margin-top:4px">Depois: seg 26/11 · Dia 2 — Ligação tática manhã <span class="n">3</span> <span style="float:right;color:#1d4ed8">Atender</span></div>
+  </div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1"><strong>Hoje</strong> é a fila de trabalho: um lead por linha, com os toques que a trilha pede hoje como lista de marcar, um a um. A ordem é a do trabalho: primeiro SLA de 15 min correndo, depois a prioridade do lead, depois o horário. Lead que já fez tudo do dia desce para o fim.</li>
+  <li data-n="2"><strong>Ver roteiro</strong> abre o texto do playbook já com o nome do lead e o da SDR no lugar de [Nome], [Empresa] e [SDR], com o botão Copiar roteiro. Marcar o toque registra no histórico do lead; não se desmarca daqui.</li>
+  <li data-n="3">O resto da trilha aparece numa linha só, em vez de cards espalhados pelos outros dias.</li>
+</ol>
+<div class="mock"><div class="cap"><span>Agenda de FUPs → aba Semana: lead nas linhas, dia nas colunas</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <table class="m"><thead><tr><th>Lead · 4</th><th>Seg 24/11</th><th>Ter 25/11</th><th>Qua 26/11</th><th>Qui 27/11</th><th>Sex 28/11</th></tr></thead><tbody>
+  <tr><td><b>Ricardo</b> · Crgy</td><td></td><td>💬 ✉ 📞</td><td>📞 📞</td><td>🎙 📞</td><td>📞</td></tr>
+  <tr><td><b>Flavia</b> · Iosg</td><td></td><td></td><td>💬 ✉ 📞</td><td>📞 📞</td><td>🎙 📞</td></tr>
+  <tr><td><b>Ana Kelly</b> · Agro Tabu</td><td><span style="color:#b3261e">✉ 📞</span></td><td>📞</td><td>✉ 📞</td><td>💬</td><td>📞</td></tr>
+  <tr><td><b>Carla Cristiane</b></td><td></td><td></td><td></td><td>🕑 14:00</td><td></td></tr>
+  <tr><td><b>A fazer no dia</b></td><td>2</td><td>4</td><td>7</td><td>6</td><td>4</td></tr>
+  </tbody></table>
+  <div class="sub" style="margin-top:6px">Cores: feito (verde) · atrasado (vermelho) · hoje (azul) · previsto (cinza) · 🕑 hora marcada · navegue com ◀ Esta semana ▶</div>
+</div></div></div>
+<p><strong>Semana</strong> é para planejar: cada lead ocupa uma linha e o rodapé mostra a carga de cada dia. Passe o mouse num ícone para ver o passo. Sábado e domingo só aparecem se tiverem algo.</p>
+<div class="mock"><div class="cap"><span>Agenda de FUPs → aba Atrasados</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="panel"><div class="ph"><span><span class="dot r"></span>Ana Kelly · Agro Industrial Tabu</span><span style="color:#b3261e">há 4 dias · 3 toques vencidos</span></div>
+    <div class="row"><span>✉ Parou no Dia 2 — E-mail diretoria de RH</span><span><span class="btn" style="color:#1d4ed8">↻ Retomar hoje <span class="n">1</span></span> <span class="btn">⊗ Encerrar <span class="n">2</span></span> <span class="btn">Atender</span></span></div></div>
+</div></div></div>
+<ol class="leg">
+  <li data-n="1"><strong>Retomar hoje</strong>: o passo onde o lead parou cai hoje, e os seguintes mantêm o espaçamento da trilha. É diferente de reiniciar, que voltaria ao Dia 1. Fica registrado no histórico do lead, com a data antiga e a nova.</li>
+  <li data-n="2"><strong>Encerrar</strong>: para o lead que já seguiu por outro caminho. Pede confirmação antes.</li>
+</ol>
+<p>A lista vem por prioridade e, entre iguais, pelo atraso mais recente, que ainda dá para recuperar. Não existe "retomar todos" de propósito: retomar dezenas de uma vez jogaria centenas de toques no mesmo dia. Follow-ups com hora marcada que passaram aparecem num bloco próprio, com o botão Feito. A aba escolhida fica lembrada no seu navegador.</p>
+
+<!-- ============================ SDR 8. CADÊNCIA E PLAYBOOK ============================ -->
+<h2 id="sdr-cadencia">8. Cadência e Playbook SDR</h2>
+<p class="where"><span class="tag t-auto">Automático</span> Menu: SDR → <b>Cadência</b> · Administração → <b>Playbook SDR</b></p>
+<div class="mock"><div class="cap"><span>Cadência e Touches — gestão da cadência comercial</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div class="tiles"><div class="tile"><b>184</b><span>Leads no período</span></div><div class="tile"><b>612</b><span>Touches registrados</span></div><div class="tile"><b style="color:#b3261e">11</b><span>Leads sem nenhum touch</span></div><div class="tile"><b>8 / 23</b><span>Follow-ups vencidos / agendados</span></div></div>
+  <div class="cols" style="grid-template-columns:1fr 1fr 1fr">
+    <div class="panel"><div class="ph">Taxa de resposta por canal</div><div class="row"><span>WhatsApp</span><b>38%</b></div><div class="row"><span>Ligação</span><b>21%</b></div><div class="row"><span>E-mail</span><b>9%</b></div><div class="row"><span>LinkedIn</span><b>14%</b></div></div>
+    <div class="panel"><div class="ph">Resposta por número do touch</div><div class="row"><span>Touch 1</span><b>18%</b></div><div class="row"><span>Touch 2–3</span><b>27%</b></div><div class="row"><span>Touch 4–6</span><b>31%</b></div><div class="row"><span>7+</span><b>12%</b></div></div>
+    <div class="panel"><div class="ph">Desempenho por SDR</div><div class="row"><span>Camila</span><b>3,4 touches/lead · 2,1 até reunião</b></div><div class="row"><span>Lisiane</span><b>2,9 · 2,6</b></div></div>
+  </div>
+  <div class="sub" style="margin-top:6px">Regras de cadência: descarte após 6 touches sem resposta · lembrete em 3 dias · esquecido em 7 dias</div>
+</div></div></div>
+<p>A trilha vem do porte: <strong>PME</strong> (&lt;100 func.) 10 dias e 12 toques · <strong>Mid-Market</strong> (100–500) 15 dias e 13 toques · <strong>Enterprise</strong> (+500) até 30 dias, com foco em ligações. Cada passo tem dia, período (manhã ou tarde), canal e roteiro, e o Pipeline, a página do lead e a Agenda de FUPs leem a mesma trilha.</p>
+<p><span class="tag t-new">Novo</span> <strong>A trilha cai só em dia útil</strong>: passo que cairia no sábado ou no domingo vai para a segunda seguinte. Antes ele nascia morto e virava atraso na segunda, inchando a lista de atrasados sem ninguém ter falhado.</p>
+<p>O Playbook SDR (Administração) continua sendo a referência: jornada do lead inbound, SLA de 15 min, cadências por porte com roteiros, formatos de abordagem, BANT, objeções, motivos de descarte e metas.</p>
+
+<!-- ============================ SDR 9. VISÃO GERAL E BI ============================ -->
+<h2 id="sdr-analise">9. Visão geral e BI</h2>
+<p class="where"><span class="tag t-auto">Automático</span> Menu: SDR → <b>Visão geral</b> · BI → <b>Relatórios</b> · <b>Performance SDR</b> · <b>Funil SDR (RD)</b> · <b>Chat Analytics</b></p>
+<div class="mock"><div class="cap"><span>Visão geral — funil do período por SDR</span><span>dados de exemplo</span></div>
+<div class="app nosb"><div class="main">
+  <div style="margin-bottom:8px"><span class="chip on">📅 Últimos 30 dias ▾</span> <span class="sub" style="display:inline">ou Personalizado… de/até</span></div>
+  <div class="tiles"><div class="tile"><b>184</b><span>Leads tocados</span></div><div class="tile"><b>11 min</b><span>1ª abordagem (média)</span></div><div class="tile"><b>9,2%</b><span>Conversão lead → agenda (no-show conta como agenda)</span></div><div class="tile"><b>57</b><span>Cards abertos</span></div></div>
+  <div class="cols" style="grid-template-columns:1fr 1fr">
+    <div class="panel"><div class="ph">Etapas</div><div class="row"><span>Em qualificação</span><b>31</b></div><div class="row"><span>Em contato</span><b>12</b></div><div class="row"><span>Aguardando retorno</span><b>9</b></div><div class="row"><span>Agendado · No-show</span><b>17 · 3</b></div><div class="row"><span>Desqualificados</span><b>22</b></div></div>
+    <div class="panel"><div class="ph">Prioridade ICP</div><div class="row"><span>Alta</span><b>41</b></div><div class="row"><span>Média</span><b>63</b></div><div class="row"><span>Baixa</span><b>80</b></div></div>
+  </div>
+</div></div></div>
+<ul>
+  <li><span class="tag t-new">Novo</span> <strong>Período personalizado</strong> na Visão geral, com os mesmos atalhos do Pipeline.</li>
+  <li><span class="tag t-new">Novo</span> <strong>Relatórios</strong>: descreva o relatório em palavras ("leads por origem e por SDR em outubro, em barras") e a IA monta a partir de uma lista fechada de bases (negócios, leads, carteira do CS, propostas). Dá para ajustar à mão — base, até 2 agrupamentos, até 3 métricas, período, filtros e gráfico —, exportar CSV, salvar e compartilhar. Roda com o seu acesso.</li>
+  <li><span class="tag t-new">Novo</span> <strong>Funil SDR (RD)</strong>: as mesmas contas do relatório do RD, só que com o dia de hoje — o relatório do RD só processa de madrugada. Por responsável e etapa, com período e filtro de funil.</li>
+  <li><strong>Performance SDR</strong>: leads, contatados, quentes, reuniões, ganhos e perdidos por período, origem e SDR.</li>
+  <li><strong>Chat Analytics</strong>: perguntas em linguagem natural sobre os dados do módulo, com histórico.</li>
+  <li class="mgr"><span class="tag t-new">Novo</span> <strong>Campanhas Meta</strong> (menu Marketing, gestão): investimento, leads, CPL, leads que de fato entraram no Compass, reuniões e custo por reunião, por dia, por campanha e por anúncio.</li>
+</ul>
+
+<!-- ============================ SDR 10. CONFIGURAÇÕES ============================ -->
+<h2 id="sdr-config">10. Configurações do sistema <span class="tag t-mgr">gestão</span></h2>
+<p class="where">Menu: Administração → <b>Configurações</b> · <b>Usuários</b></p>
+<div class="tbl mgr"><table class="doc"><thead><tr><th>Seção</th><th>Controla</th></tr></thead><tbody>
+<tr><td>Etapas do Kanban</td><td>Nome, ordem e cor das etapas do Pipeline</td></tr>
+<tr><td>ICP — pesos e thresholds</td><td>Sinais que definem prioridade alta, média e baixa</td></tr>
+<tr><td>SLA</td><td>Minutos para o 1º atendimento e regras de cadência (toques até descarte, lembretes)</td></tr>
+<tr><td>Template de mensagem WhatsApp</td><td>Mensagem padrão de abertura</td></tr>
+<tr><td>Leads do Meta Ads direto no kanban <span class="tag t-new">Novo</span></td><td>Endereço do webhook, o que falta configurar e o registro de cada lead recebido ou erro</td></tr>
+<tr><td>Integração Google Sheets (Meta Ads)</td><td>A planilha de reserva, lida a cada 2 minutos</td></tr>
+<tr><td>RD Station CRM · Logs de sincronização</td><td>Entrada de leads do RD a cada 15 minutos e o que aconteceu em cada rodada</td></tr>
+<tr><td>Usuários e papéis</td><td>Papel (super admin, gestão, executivo, SDR, trainer) e time (SDR/Comercial, CS, Administrativo) — é o que define o menu e o acesso. <span class="tag t-new">Novo</span> Caixa privada de WhatsApp por pessoa e cadastro de usuário novo pela própria tela.</td></tr>
+</tbody></table></div>
+<p class="mgr">A gestão vê todos os módulos. Para o SDR, os indicadores ficam em Início, Visão geral, Cadência, Performance e Funil SDR (RD); para o CS, no Início e no Dashboard CS.</p>
+
+<h2 id="modulos-futuros">Outros módulos do Compass (fora deste manual)</h2>
+<p>Desde 09/09 o Compass ganhou módulos que não são de CS nem de SDR. Eles terão manual próprio; aqui fica só onde encontrar cada um.</p>
+<div class="tbl"><table class="doc"><thead><tr><th>Módulo</th><th>O que tem</th><th>Quem usa</th></tr></thead><tbody>
+<tr><td><strong>Comercial</strong></td><td>Visão geral (com as Sinalizações do CS), pipeline de negócios, carteira comercial, agenda, propostas com link e aceite do cliente, metas com micrometas, comissão com dupla aprovação, análise comercial, congelar negócio</td><td>Executivos e gestão comercial</td></tr>
+<tr><td><strong>Administrativo</strong></td><td>Faturamento ligado à Conta Azul (fila, aviso de faturado, rateio por CNPJ), política de faturamento, requerimentos de serviço, turmas e catálogo com a Tabela de Preço Grou 2026</td><td>Administrativo, trainers e gestão</td></tr>
+<tr><td><strong>Marketing</strong></td><td>E-mail marketing (segmentações, campanhas, reengajamento de quem não abriu, descadastro) e Campanhas Meta</td><td>Marketing e gestão</td></tr>
+</tbody></table></div>
+</main>
+</div>
+<script>
+  (function(){
+    var btns = document.querySelectorAll('.viewer button');
+    function set(v){ document.body.setAttribute('data-view', v); btns.forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.v === v)); }); try{ localStorage.setItem('manual:view', v); }catch(e){} }
+    btns.forEach(function(b){ b.addEventListener('click', function(){ set(b.dataset.v); }); });
+    var saved = null; try{ saved = localStorage.getItem('manual:view'); }catch(e){}
+    set(saved === 'analista' ? 'analista' : 'gestao');
+  })();
+</script>
+
+</body></html>

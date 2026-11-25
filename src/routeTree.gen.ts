@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as DescadastroRouteImport } from './routes/descadastro'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ManualRouteImport } from './routes/manual'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
@@ -132,6 +133,11 @@ const DescadastroRoute = DescadastroRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManualRoute = ManualRouteImport.update({
+  id: '/manual',
+  path: '/manual',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
@@ -669,6 +675,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
+  '/manual': typeof ManualRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/agenda': typeof AppAgendaRoute
@@ -775,6 +782,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
+  '/manual': typeof ManualRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/agenda': typeof AppAgendaRoute
@@ -881,6 +889,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
+  '/manual': typeof ManualRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_app/agenda': typeof AppAgendaRoute
@@ -989,6 +998,7 @@ export interface FileRouteTypes {
     | '/'
     | '/descadastro'
     | '/login'
+    | '/manual'
     | '/privacidade'
     | '/reset-password'
     | '/agenda'
@@ -1095,6 +1105,7 @@ export interface FileRouteTypes {
     | '/'
     | '/descadastro'
     | '/login'
+    | '/manual'
     | '/privacidade'
     | '/reset-password'
     | '/agenda'
@@ -1200,6 +1211,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/descadastro'
     | '/login'
+    | '/manual'
     | '/privacidade'
     | '/reset-password'
     | '/_app/agenda'
@@ -1308,6 +1320,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   DescadastroRoute: typeof DescadastroRoute
   LoginRoute: typeof LoginRoute
+  ManualRoute: typeof ManualRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   PropostaTokenRoute: typeof PropostaTokenRoute
@@ -1372,6 +1385,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual': {
+      id: '/manual'
+      path: '/manual'
+      fullPath: '/manual'
+      preLoaderRoute: typeof ManualRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacidade': {
@@ -2268,6 +2288,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   DescadastroRoute: DescadastroRoute,
   LoginRoute: LoginRoute,
+  ManualRoute: ManualRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   PropostaTokenRoute: PropostaTokenRoute,
