@@ -40,6 +40,7 @@ import { CsMasterclassPanel } from "@/components/cs/cs-masterclass-panel";
 import { CsOportunidadePanel } from "@/components/cs/cs-oportunidade-panel";
 import { CsJourneyPanel } from "@/components/cs/cs-journey-panel";
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
+import { CadastroContaAzulCard } from "@/components/faturamento/cadastro-conta-azul";
 import {
   ClientEditor,
   ContactsPanel,
@@ -562,6 +563,7 @@ function CompanyPage() {
         {/* Direita */}
         <div className="space-y-4">
           <PoliticaFaturamentoCard uid={clientUid} />
+          <CadastroContaAzulCard uid={clientUid} />
 
           <Panel title="Tarefas">
             <CsTasksPanel

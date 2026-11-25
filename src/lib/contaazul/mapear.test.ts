@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   agregarStatus,
+  clienteDaApi,
+  detalheClienteDaApi,
   horaSP,
   itensDaResposta,
   janelas,
@@ -99,5 +101,50 @@ describe("Conta Azul → Compass", () => {
     expect(agregarStatus(["EMITIDA", "FALHA"])).toBe("FALHA");
     expect(agregarStatus(["EM_EMISSAO", "SEM_NOTA"])).toBe("EM_EMISSAO");
     expect(agregarStatus([])).toBe("SEM_NOTA");
+  });
+});
+
+describe("cliente da Conta Azul", () => {
+  it("lista: observações em observacoes_gerais, endereço em objeto", () => {
+    const c = clienteDaApi({
+      id: "p1",
+      nome: "ACME LTDA",
+      documento: "12.345.678/0001-90",
+      observacoes_gerais: "  Exige OC no corpo da nota ",
+      email: "fin@acme.com",
+      telefone: "11 9999",
+      ativo: true,
+      data_alteracao: "2026-11-20T10:00:00",
+      endereco: { cidade: "São Paulo", estado: "SP", cep: "01000-000" },
+    });
+    expect(c?.documento).toBe("12345678000190");
+    expect(c?.observacoes).toBe("Exige OC no corpo da nota");
+    expect(c?.endereco?.cidade).toBe("São Paulo");
+  });
+
+  it("detalhe: observacao, outros contatos, e-mails de cobrança e inscrição", () => {
+    const d = detalheClienteDaApi({
+      id: "p1",
+      nome: "ACME",
+      observacao: "Boleto só dia 10",
+      outros_contatos: [
+        { nome: "Ana", cargo: "Financeiro", email: "ana@acme.com", telefone_comercial: "11 1" },
+        { nome: "", email: "" },
+      ],
+      contato_cobranca_faturamento: { emails: ["NF@acme.com, nf@acme.com", "x"] },
+      inscricoes: [{ inscricao_estadual: "123", inscricao_municipal: "456" }],
+      enderecos: [{ cidade: "Curitiba", estado: "PR" }],
+    });
+    expect(d?.observacoes).toBe("Boleto só dia 10");
+    expect(d?.outros_contatos).toEqual([
+      { nome: "Ana", cargo: "Financeiro", email: "ana@acme.com", telefone: "11 1" },
+    ]);
+    expect(d?.emails_cobranca).toEqual(["nf@acme.com"]);
+    expect(d?.inscricao_estadual).toBe("123");
+    expect(d?.endereco?.cidade).toBe("Curitiba");
+  });
+
+  it("sem id não vira cliente", () => {
+    expect(clienteDaApi({ nome: "x" })).toBeNull();
   });
 });
