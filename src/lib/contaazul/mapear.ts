@@ -231,3 +231,104 @@ export function agregarStatus(statuses: string[]): string {
   if (statuses.every((s) => s === "CANCELADA")) return "CANCELADA";
   return "SEM_NOTA";
 }
+
+export type ContatoCA = {
+  nome: string | null;
+  cargo: string | null;
+  email: string | null;
+  telefone: string | null;
+};
+
+export type ClienteCA = {
+  cliente_id: string;
+  documento: string | null;
+  nome: string | null;
+  observacoes: string | null;
+  email: string | null;
+  telefone: string | null;
+  ativo: boolean | null;
+  ca_alterado_em: string | null;
+  endereco: {
+    logradouro: string | null;
+    numero: string | null;
+    complemento: string | null;
+    bairro: string | null;
+    cidade: string | null;
+    estado: string | null;
+    cep: string | null;
+  } | null;
+};
+
+export type DetalheClienteCA = ClienteCA & {
+  outros_contatos: ContatoCA[];
+  emails_cobranca: string[];
+  inscricao_estadual: string | null;
+  inscricao_municipal: string | null;
+};
+
+const enderecoDe = (v: unknown): ClienteCA["endereco"] => {
+  const e = obj(Array.isArray(v) ? v[0] : v);
+  if (!Object.keys(e).length) return null;
+  return {
+    logradouro: txt(e.logradouro),
+    numero: txt(e.numero),
+    complemento: txt(e.complemento),
+    bairro: txt(e.bairro),
+    cidade: txt(obj(e.cidade).nome) ?? txt(e.cidade),
+    estado: txt(obj(e.estado).sigla) ?? txt(e.estado),
+    cep: txt(e.cep),
+  };
+};
+const limpo = (v: unknown) => {
+  const s = txt(v)?.trim();
+  return s ? s : null;
+};
+
+/**
+ * Pessoa da Conta Azul → cliente. Serve para a lista (/v1/pessoas, onde as
+ * observações vêm em "observacoes_gerais") e para o detalhe
+ * (/v1/pessoas/{id}, onde vêm em "observacao").
+ */
+export function clienteDaApi(p: Obj): ClienteCA | null {
+  const id = txt(p.id) ?? txt(p.uuid);
+  if (!id) return null;
+  const doc = soDigitos(p.documento);
+  return {
+    cliente_id: id,
+    documento: doc || null,
+    nome: limpo(p.nome) ?? limpo(p.nome_empresa),
+    observacoes: limpo(p.observacao) ?? limpo(p.observacoes_gerais) ?? limpo(p.observacoes),
+    email: limpo(p.email),
+    telefone: limpo(p.telefone) ?? limpo(p.telefone_comercial) ?? limpo(p.telefone_celular),
+    ativo: typeof p.ativo === "boolean" ? p.ativo : null,
+    ca_alterado_em: txt(p.data_alteracao),
+    endereco: enderecoDe(p.enderecos ?? p.endereco),
+  };
+}
+
+export function detalheClienteDaApi(p: Obj): DetalheClienteCA | null {
+  const base = clienteDaApi(p);
+  if (!base) return null;
+  const contatos = (Array.isArray(p.outros_contatos) ? p.outros_contatos : [])
+    .map(obj)
+    .map((c) => ({
+      nome: limpo(c.nome),
+      cargo: limpo(c.cargo),
+      email: limpo(c.email),
+      telefone: limpo(c.telefone_comercial) ?? limpo(c.telefone_celular) ?? limpo(c.telefone),
+    }))
+    .filter((c) => c.nome || c.email || c.telefone);
+  const cob = obj(p.contato_cobranca_faturamento);
+  const emailsCob = (Array.isArray(cob.emails) ? cob.emails : [])
+    .flatMap((e) => String(e ?? "").split(/[,;\s]+/))
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
+  const insc = obj(Array.isArray(p.inscricoes) ? p.inscricoes[0] : p.inscricoes);
+  return {
+    ...base,
+    outros_contatos: contatos,
+    emails_cobranca: [...new Set(emailsCob)],
+    inscricao_estadual: limpo(insc.inscricao_estadual),
+    inscricao_municipal: limpo(insc.inscricao_municipal),
+  };
+}

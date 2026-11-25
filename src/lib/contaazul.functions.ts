@@ -160,3 +160,112 @@ export const ligarVendaContaAzul = createServerFn({ method: "POST" })
     }
     return { ok: true, aviso: null };
   });
+
+export type CadastroContaAzul = {
+  clienteId: string;
+  nome: string | null;
+  documento: string | null;
+  observacoes: string | null;
+  email: string | null;
+  telefone: string | null;
+  emailsCobranca: string[];
+  outrosContatos: Array<{
+    nome: string | null;
+    cargo: string | null;
+    email: string | null;
+    telefone: string | null;
+  }>;
+  inscricaoEstadual: string | null;
+  inscricaoMunicipal: string | null;
+  endereco: string | null;
+  ativo: boolean | null;
+  atualizadoEm: string | null;
+};
+
+/**
+ * Cadastro do cliente na Conta Azul (observações gerais, contatos, e-mails
+ * de cobrança). Vê quem fatura (ADM/gestão) e o executivo que tem negócio
+ * com a empresa. Para os demais volta vazio.
+ */
+export const getCadastroContaAzul = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({ companyId: z.string().uuid().optional(), uid: z.string().max(40).optional() })
+      .refine((v) => v.companyId || v.uid, "Informe a empresa")
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ clientes: CadastroContaAzul[] }> => {
+    const db = solto(context.supabase);
+    let companyId = data.companyId ?? null;
+    if (!companyId && data.uid) {
+      const { data: c } = await db.from("companies").select("id").eq("uid", data.uid).maybeSingle();
+      companyId = (c as { id: string } | null)?.id ?? null;
+    }
+    if (!companyId) return { clientes: [] };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const adm = supabaseAdmin as unknown as SupabaseClient;
+    let pode = await podeFaturar(db, context.userId);
+    if (!pode) {
+      const { count } = await adm
+        .from("deals")
+        .select("id", { count: "exact", head: true })
+        .eq("company_id", companyId)
+        .eq("executivo_user_id", context.userId);
+      pode = (count ?? 0) > 0;
+    }
+    if (!pode) return { clientes: [] };
+    const { data: linhas } = await adm
+      .from("ca_clientes")
+      .select(
+        "cliente_id, nome, documento, observacoes, email, telefone, emails_cobranca, outros_contatos, inscricao_estadual, inscricao_municipal, endereco, ativo, updated_at",
+      )
+      .eq("company_id", companyId)
+      .order("updated_at", { ascending: false })
+      .limit(5);
+    type Linha = {
+      cliente_id: string;
+      nome: string | null;
+      documento: string | null;
+      observacoes: string | null;
+      email: string | null;
+      telefone: string | null;
+      emails_cobranca: string[] | null;
+      outros_contatos: CadastroContaAzul["outrosContatos"] | null;
+      inscricao_estadual: string | null;
+      inscricao_municipal: string | null;
+      endereco: Record<string, string | null> | null;
+      ativo: boolean | null;
+      updated_at: string | null;
+    };
+    return {
+      clientes: ((linhas ?? []) as Linha[]).map((l) => {
+        const e = l.endereco ?? {};
+        const endereco =
+          [
+            [e.logradouro, e.numero].filter(Boolean).join(", "),
+            e.complemento,
+            e.bairro,
+            [e.cidade, e.estado].filter(Boolean).join("/"),
+            e.cep,
+          ]
+            .filter(Boolean)
+            .join(" · ") || null;
+        return {
+          clienteId: l.cliente_id,
+          nome: l.nome,
+          documento: l.documento,
+          observacoes: l.observacoes,
+          email: l.email,
+          telefone: l.telefone,
+          emailsCobranca: l.emails_cobranca ?? [],
+          outrosContatos: Array.isArray(l.outros_contatos) ? l.outros_contatos : [],
+          inscricaoEstadual: l.inscricao_estadual,
+          inscricaoMunicipal: l.inscricao_municipal,
+          endereco,
+          ativo: l.ativo,
+          atualizadoEm: l.updated_at,
+        };
+      }),
+    };
+  });

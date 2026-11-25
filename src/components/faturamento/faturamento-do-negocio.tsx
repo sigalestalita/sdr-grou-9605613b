@@ -16,6 +16,7 @@ import {
 import { STATUS_REQUERIMENTO } from "@/lib/requerimentos/regras";
 import { InscreverEmTurma } from "@/components/faturamento/contrato-e-turma";
 import { JornadaEtapas, NotasDaEmpresa } from "@/components/faturamento/jornada";
+import { CadastroContaAzulCard } from "@/components/faturamento/cadastro-conta-azul";
 import { moeda } from "@/lib/comercial/metas";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,6 +116,8 @@ export function FaturamentoDoNegocio({ dealId }: { dealId: string }) {
       <Execucao dealId={dealId} podeFaturar={data.podeEditar} />
 
       <NotasDaEmpresa dealId={dealId} />
+
+      <CadastroContaAzulCard companyId={(n.company_id as string | null) ?? null} semMoldura />
 
       {notas.length > 0 && (
         <ul className="space-y-2 text-[12px]">
