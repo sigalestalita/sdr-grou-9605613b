@@ -1,6 +1,16 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+
+/**
+ * Data e hora vinda da tela ou do banco. O banco devolve "+00:00" no lugar
+ * de "Z" (e às vezes com microssegundos), o que z.datetime() recusa: aceita
+ * qualquer data válida e normaliza para ISO.
+ */
+const dataHora = z
+  .string()
+  .refine((v) => !Number.isNaN(new Date(v).getTime()), "Data inválida")
+  .transform((v) => new Date(v).toISOString());
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { IDS_CAMPOS, IDS_OPERADORES } from "@/lib/email-marketing/campos";
 
@@ -224,7 +234,7 @@ const CampanhaSchema = z.object({
   // Reengajamento: em vez da segmentação, quem não abriu/clicou outra campanha.
   origem_campanha_id: z.string().uuid().nullable().optional(),
   reengajar: z.enum(["nao_abriu", "nao_clicou"]).nullable().optional(),
-  reengajar_ate: z.string().datetime().nullable().optional(),
+  reengajar_ate: dataHora.nullable().optional(),
 });
 export type CampanhaEditavel = z.infer<typeof CampanhaSchema>;
 
@@ -443,7 +453,7 @@ export const acaoCampanha = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid(),
         acao: z.enum(["enviar", "agendar", "pausar", "retomar", "cancelar", "voltar_rascunho"]),
-        quando: z.string().datetime().optional(),
+        quando: dataHora.optional(),
       })
       .parse(d),
   )
@@ -704,7 +714,7 @@ export const contarReengajamento = createServerFn({ method: "POST" })
       .object({
         origem: z.string().uuid(),
         criterio: z.enum(["nao_abriu", "nao_clicou"]),
-        ate: z.string().datetime().nullable(),
+        ate: dataHora.nullable(),
       })
       .parse(d),
   )
@@ -729,7 +739,7 @@ export const criarReengajamento = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid(),
         criterio: z.enum(["nao_abriu", "nao_clicou"]),
-        ate: z.string().datetime().nullable().optional(),
+        ate: dataHora.nullable().optional(),
       })
       .parse(d),
   )
