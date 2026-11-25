@@ -34,6 +34,12 @@ import {
 } from "@/lib/email-marketing.functions";
 import { renderEmail, variaveisDesconhecidas } from "@/lib/email-marketing/render";
 import { useAuth } from "@/lib/use-auth";
+import {
+  QuemRecebeReengajamento,
+  ReengajarBotao,
+  ROTULO_CRITERIO,
+  useContagemReengajamento,
+} from "@/components/email-marketing/reengajamento";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +130,9 @@ function formDe(c: CampanhaCompleta): Form {
     remetente_email: c.remetente_email || "marketing@grougp.com.br",
     responder_para: c.responder_para ?? null,
     imagem_topo: c.imagem_topo ?? null,
+    origem_campanha_id: c.origem_campanha_id ?? null,
+    reengajar: c.reengajar ?? null,
+    reengajar_ate: c.reengajar_ate ?? null,
   };
 }
 
@@ -214,6 +223,14 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
     queryFn: () => segmentosFn(),
   });
   const segmento = segmentos?.find((s) => s.id === form.segmento_id) ?? null;
+  // Reengajamento: a lista vem de outra campanha (quem não abriu/clicou).
+  const reengajando = form.reengajar != null;
+  const { data: contagemReeng } = useContagemReengajamento(
+    form.origem_campanha_id,
+    form.reengajar,
+    form.reengajar_ate,
+  );
+  const temDestino = reengajando ? !!form.origem_campanha_id : !!form.segmento_id;
 
   const atualizar = () => {
     qc.invalidateQueries({ queryKey: ["email-mkt", "campanha", id] });
@@ -282,7 +299,10 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
       quando?: string;
     }) => {
       if (p.acao === "enviar" || p.acao === "agendar" || p.acao === "retomar") {
-        if (!form.segmento_id) throw new Error("Escolha uma segmentação");
+        if (!temDestino)
+          throw new Error(
+            reengajando ? "Escolha a campanha a reengajar" : "Escolha uma segmentação",
+          );
         exigeConteudo();
         await salvarAgora();
       }
@@ -328,15 +348,23 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
 
   const ocupado = salvar.isPending || teste.isPending || acao.isPending || apagar.isPending;
   const status = campanha.status;
-  const contagem = segmento?.ultima_contagem ?? null;
+  const contagem = reengajando
+    ? (contagemReeng?.total ?? null)
+    : (segmento?.ultima_contagem ?? null);
 
   const enviarAgora = () => {
-    if (!form.segmento_id) return toast.error("Escolha uma segmentação");
+    if (!temDestino)
+      return toast.error(
+        reengajando ? "Escolha a campanha a reengajar" : "Escolha uma segmentação",
+      );
     const n = contagem != null ? contagem.toLocaleString("pt-BR") : "todos os";
     const verbo = status === "pausada" ? "Retomar o envio" : "Enviar agora";
+    const quem = reengajando
+      ? `que ${form.reengajar === "nao_abriu" ? "não abriram" : "não clicaram"} a campanha de origem`
+      : `da segmentação “${segmento?.nome ?? ""}”`;
     if (
       !window.confirm(
-        `${verbo} para ${n} destinatário(s) da segmentação “${segmento?.nome ?? ""}”?\n\nDescadastrados ficam de fora. O envio sai em lotes, a cada minuto.`,
+        `${verbo} para ${n} destinatário(s) ${quem}?\n\nDescadastrados ficam de fora. O envio sai em lotes, a cada minuto.`,
       )
     )
       return;
@@ -364,31 +392,72 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
             />
           </Campo>
           <Campo rotulo="Quem recebe">
-            <select
-              className={SELECT}
-              value={form.segmento_id ?? ""}
-              onChange={(e) => set("segmento_id", e.target.value || null)}
-            >
-              <option value="">Escolha uma segmentação…</option>
-              {(segmentos ?? []).map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nome}
-                  {s.ultima_contagem != null
-                    ? ` (${s.ultima_contagem.toLocaleString("pt-BR")})`
-                    : ""}
-                </option>
-              ))}
-            </select>
-            <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-              <span>
-                {segmento
-                  ? `${(segmento.ultima_contagem ?? 0).toLocaleString("pt-BR")} contatos na última contagem${segmento.contado_em ? ` (${dataHora(segmento.contado_em)})` : ""}`
-                  : "A lista final é montada na hora do envio."}
-              </span>
-              <Link to="/email-marketing/segmentos" className="text-primary hover:underline">
-                Criar segmentação
-              </Link>
+            <div className="mb-2 flex gap-1.5">
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    reengajar: null,
+                    origem_campanha_id: null,
+                    reengajar_ate: null,
+                  }))
+                }
+                className={`rounded-full border px-3 py-1 text-[12px] ${!reengajando ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+              >
+                Uma segmentação
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    reengajar: f.reengajar ?? "nao_abriu",
+                    segmento_id: null,
+                  }))
+                }
+                className={`rounded-full border px-3 py-1 text-[12px] ${reengajando ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
+              >
+                Reengajar outra campanha
+              </button>
             </div>
+            {reengajando ? (
+              <QuemRecebeReengajamento
+                campanhaId={id}
+                origem={form.origem_campanha_id ?? null}
+                criterio={form.reengajar ?? "nao_abriu"}
+                ate={form.reengajar_ate ?? null}
+                onChange={(v) => setForm((f) => ({ ...f, ...v }))}
+              />
+            ) : (
+              <>
+                <select
+                  className={SELECT}
+                  value={form.segmento_id ?? ""}
+                  onChange={(e) => set("segmento_id", e.target.value || null)}
+                >
+                  <option value="">Escolha uma segmentação…</option>
+                  {(segmentos ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.nome}
+                      {s.ultima_contagem != null
+                        ? ` (${s.ultima_contagem.toLocaleString("pt-BR")})`
+                        : ""}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
+                  <span>
+                    {segmento
+                      ? `${(segmento.ultima_contagem ?? 0).toLocaleString("pt-BR")} contatos na última contagem${segmento.contado_em ? ` (${dataHora(segmento.contado_em)})` : ""}`
+                      : "A lista final é montada na hora do envio."}
+                  </span>
+                  <Link to="/email-marketing/segmentos" className="text-primary hover:underline">
+                    Criar segmentação
+                  </Link>
+                </div>
+              </>
+            )}
           </Campo>
         </Secao>
 
@@ -439,10 +508,14 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
         {/* 4. Revisar e enviar */}
         <Secao n={4} titulo="Revisar e enviar">
           <ul className="space-y-1 text-[12px] text-muted-foreground">
-            <Item ok={!!form.segmento_id}>
-              {segmento
-                ? `Segmentação: ${segmento.nome} (${(segmento.ultima_contagem ?? 0).toLocaleString("pt-BR")})`
-                : "Sem segmentação escolhida"}
+            <Item ok={temDestino}>
+              {reengajando
+                ? form.origem_campanha_id
+                  ? `Reengajamento: ${ROTULO_CRITERIO[form.reengajar ?? "nao_abriu"].toLowerCase()} (${(contagem ?? 0).toLocaleString("pt-BR")})`
+                  : "Sem campanha de origem escolhida"
+                : segmento
+                  ? `Segmentação: ${segmento.nome} (${(segmento.ultima_contagem ?? 0).toLocaleString("pt-BR")})`
+                  : "Sem segmentação escolhida"}
             </Item>
             <Item ok={!!form.assunto.trim()}>
               {form.assunto.trim() ? `Assunto: ${form.assunto}` : "Sem assunto"}
@@ -1009,6 +1082,7 @@ function Painel({
         >
           <Copy className="mr-1 h-3.5 w-3.5" /> Duplicar
         </Button>
+        <ReengajarBotao campanhaId={c.id} enviados={m.enviados} />
         <span className="text-[12px] text-muted-foreground">
           Início {dataHora(c.iniciada_em)}
           {c.concluida_em ? ` · fim ${dataHora(c.concluida_em)}` : ""}
