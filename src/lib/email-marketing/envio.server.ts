@@ -47,6 +47,9 @@ type Campanha = {
   responder_para: string | null;
   status: string;
   segmento_id: string | null;
+  origem_campanha_id?: string | null;
+  reengajar?: "nao_abriu" | "nao_clicou" | null;
+  reengajar_ate?: string | null;
 };
 
 async function enviarUm(
@@ -119,13 +122,14 @@ export async function iniciarCampanha(campanhaId: string) {
     throw new Error("Esta campanha já foi enviada ou cancelada");
   if (!c.assunto.trim() || !c.corpo.trim()) throw new Error("Falta assunto ou conteúdo");
   if (c.status !== "pausada") {
-    if (!c.segmento_id) throw new Error("Escolha a segmentação");
-    const { data: seg } = await db()
-      .from("email_segmentos")
-      .select("regras")
-      .eq("id", c.segmento_id)
-      .single();
-    if (!seg) throw new Error("Segmentação não encontrada");
+    // Reengajamento: a lista é quem não abriu/não clicou a campanha de origem.
+    const reengajar = c.origem_campanha_id && c.reengajar;
+    if (!reengajar && !c.segmento_id) throw new Error("Escolha a segmentação");
+    const seg = reengajar
+      ? null
+      : (await db().from("email_segmentos").select("regras").eq("id", c.segmento_id!).single())
+          .data;
+    if (!reengajar && !seg) throw new Error("Segmentação não encontrada");
     /*
      * O banco devolve no máximo 1.000 linhas por chamada: a lista vem em
      * páginas. Sem isso, uma segmentação de 1.371 pessoas virava uma campanha
@@ -134,9 +138,15 @@ export async function iniciarCampanha(campanhaId: string) {
     const lista: Row[] = [];
     const PAGINA = 1000;
     for (let de = 0; ; de += PAGINA) {
-      const { data: pagina, error } = await db()
-        .rpc("email_segmento_leads", { regras: (seg as Row).regras, limite: null })
-        .range(de, de + PAGINA - 1);
+      const { data: pagina, error } = await (
+        reengajar
+          ? db().rpc("email_reengajamento", {
+              origem: c.origem_campanha_id,
+              criterio: c.reengajar,
+              ate: c.reengajar_ate ?? null,
+            })
+          : db().rpc("email_segmento_leads", { regras: (seg as Row).regras, limite: null })
+      ).range(de, de + PAGINA - 1);
       if (error) throw new Error(error.message);
       const linhasDaPagina = (pagina ?? []) as Row[];
       lista.push(...linhasDaPagina);

@@ -221,6 +221,10 @@ const CampanhaSchema = z.object({
     .regex(/^https:\/\//i, "A imagem precisa de um endereço https")
     .nullable()
     .optional(),
+  // Reengajamento: em vez da segmentação, quem não abriu/clicou outra campanha.
+  origem_campanha_id: z.string().uuid().nullable().optional(),
+  reengajar: z.enum(["nao_abriu", "nao_clicou"]).nullable().optional(),
+  reengajar_ate: z.string().datetime().nullable().optional(),
 });
 export type CampanhaEditavel = z.infer<typeof CampanhaSchema>;
 
@@ -405,7 +409,7 @@ export const duplicarCampanha = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: c } = await t(context.supabase, "email_campanhas")
       .select(
-        "nome, segmento_id, assunto, preheader, corpo, formato, remetente_nome, remetente_email, responder_para, imagem_topo",
+        "nome, segmento_id, assunto, preheader, corpo, formato, remetente_nome, remetente_email, responder_para, imagem_topo, origem_campanha_id, reengajar, reengajar_ate",
       )
       .eq("id", data.id)
       .single();
@@ -688,4 +692,70 @@ export const subirImagemTopo = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const { data: pub } = supabaseAdmin.storage.from("email-assets").getPublicUrl(caminho);
     return { url: pub.publicUrl };
+  });
+
+/** Quantas pessoas recebem um reengajamento (não abriu/não clicou até a data). */
+export const contarReengajamento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        origem: z.string().uuid(),
+        criterio: z.enum(["nao_abriu", "nao_clicou"]),
+        ate: z.string().datetime().nullable(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: n, error } = await (context.supabase as unknown as SupabaseClient).rpc(
+      "email_reengajamento_contagem",
+      { origem: data.origem, criterio: data.criterio, ate: data.ate },
+    );
+    if (error) throw new Error(error.message);
+    return { total: Number(n ?? 0) };
+  });
+
+/**
+ * Cria a campanha de reengajamento a partir de uma campanha enviada: mesmo
+ * remetente e conteúdo (para ajustar), indo só para quem não abriu ou não
+ * clicou até a data escolhida.
+ */
+export const criarReengajamento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        criterio: z.enum(["nao_abriu", "nao_clicou"]),
+        ate: z.string().datetime().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: c } = await t(context.supabase, "email_campanhas")
+      .select(
+        "nome, status, assunto, preheader, corpo, formato, remetente_nome, remetente_email, responder_para, imagem_topo",
+      )
+      .eq("id", data.id)
+      .single();
+    if (!c) throw new Error("Campanha não encontrada");
+    const o = c as Row;
+    if (!["enviada", "enviando", "pausada", "cancelada"].includes(String(o.status)))
+      throw new Error("Reengajamento só a partir de uma campanha que já foi enviada");
+    const { status: _s, nome, ...conteudo } = o;
+    void _s;
+    const rotulo = data.criterio === "nao_abriu" ? "não abriu" : "não clicou";
+    const { data: r, error } = await t(context.supabase, "email_campanhas")
+      .insert({
+        ...conteudo,
+        nome: `Reengajamento · ${String(nome)} (${rotulo})`.slice(0, 160),
+        segmento_id: null,
+        origem_campanha_id: data.id,
+        reengajar: data.criterio,
+        reengajar_ate: data.ate ?? null,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    return { id: String((r as Row).id) };
   });
