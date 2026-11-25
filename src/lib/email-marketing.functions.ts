@@ -595,8 +595,10 @@ export const escreverComIa = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const sistema = `Você escreve e-mails de marketing B2B da Grou (consultoria de gestão de pessoas, PDA Assessment, treinamentos e licenças). Português do Brasil, tom próximo e profissional, frases curtas, sem exageros nem promessas que não estejam no briefing.
 Formato do corpo (texto simples, não HTML):
-- "# " para título, linha em branco entre parágrafos, "- " para lista, **negrito**
+- "# " para título, linha em branco entre parágrafos, "- " para lista, **negrito**, *itálico*
+- cor só quando ajudar a destacar algo pontual: {cor:#c2410c}texto{/cor} (use pouco)
 - botão de chamada: uma linha só com [[Texto do botão|https://link]] (use o link do briefing; se não houver, use https://grougp.com.br)
+- imagens são linhas com ![descrição](https://…): ao ajustar um e-mail, mantenha as que já existem, no lugar certo; não invente imagens
 - personalize com {{primeiro_nome|tudo bem}} na saudação; {{empresa}} se fizer sentido
 - não escreva rodapé nem descadastro (o sistema põe)
 Responda SOMENTE com JSON: {"assunto": "...", "preheader": "...", "corpo": "..."}`;

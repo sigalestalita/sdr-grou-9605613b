@@ -1,18 +1,28 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  AlertTriangle,
   CalendarClock,
   Copy,
   ImageIcon,
   Loader2,
+  Monitor,
   Pause,
   Play,
   Save,
   Send,
+  Smartphone,
   Sparkles,
   Trash2,
   Undo2,
@@ -32,8 +42,13 @@ import {
   type CampanhaEditavel,
   type EnvioDaCampanha,
 } from "@/lib/email-marketing.functions";
-import { renderEmail, variaveisDesconhecidas } from "@/lib/email-marketing/render";
+import {
+  avisosDoConteudo,
+  renderEmail,
+  variaveisDesconhecidas,
+} from "@/lib/email-marketing/render";
 import { useAuth } from "@/lib/use-auth";
+import { BarraFormatacao, useAtalhosDoCorpo } from "@/components/email-marketing/barra-formatacao";
 import {
   QuemRecebeReengajamento,
   ReengajarBotao,
@@ -210,6 +225,30 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
   const [testeAberto, setTesteAberto] = useState(false);
   const [testePara, setTestePara] = useState("");
   const [agendarAberto, setAgendarAberto] = useState(false);
+  const [revisaoAberta, setRevisaoAberta] = useState(false);
+  // Versão do conteúdo no último teste: avisa se mudou depois dele.
+  const versaoConteudo = JSON.stringify([
+    form.assunto,
+    form.preheader,
+    form.corpo,
+    form.formato,
+    form.imagem_topo,
+    form.remetente_nome,
+    form.remetente_email,
+  ]);
+  const [testadoEm, setTestadoEm] = useState<string | null>(null);
+  const testadoAtual = testadoEm === versaoConteudo;
+  const avisos = useMemo(
+    () =>
+      avisosDoConteudo({
+        assunto: form.assunto,
+        preheader: form.preheader,
+        corpo: form.corpo,
+        formato: form.formato,
+      }),
+    [form.assunto, form.preheader, form.corpo, form.formato],
+  );
+  const bloqueios = avisos.filter((a) => a.nivel === "erro");
   const [quando, setQuando] = useState(() =>
     localInput(
       campanha.agendada_para
@@ -279,15 +318,27 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
     if (!form.corpo.trim()) throw new Error("Escreva o corpo do e-mail");
   };
 
+  const destinosTeste = testePara
+    .split(/[\s,;]+/)
+    .map((e) => e.trim())
+    .filter(Boolean);
   const teste = useMutation({
     mutationFn: async () => {
-      if (!EMAIL_OK.test(testePara.trim())) throw new Error("Informe um e-mail válido");
+      if (!destinosTeste.length) throw new Error("Informe um e-mail");
+      const invalido = destinosTeste.find((e) => !EMAIL_OK.test(e));
+      if (invalido) throw new Error(`E-mail inválido: ${invalido}`);
+      if (destinosTeste.length > 5) throw new Error("Até 5 e-mails por teste");
       exigeConteudo();
       await salvarAgora();
-      return testeFn({ data: { id, para: testePara.trim() } });
+      for (const para of destinosTeste) await testeFn({ data: { id, para } });
     },
     onSuccess: () => {
-      toast.success(`Teste enviado para ${testePara.trim()}`);
+      toast.success(
+        destinosTeste.length === 1
+          ? `Teste enviado para ${destinosTeste[0]}`
+          : `Teste enviado para ${destinosTeste.length} e-mails`,
+      );
+      setTestadoEm(versaoConteudo);
       setTesteAberto(false);
     },
     onError: erro,
@@ -357,17 +408,10 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
       return toast.error(
         reengajando ? "Escolha a campanha a reengajar" : "Escolha uma segmentação",
       );
-    const n = contagem != null ? contagem.toLocaleString("pt-BR") : "todos os";
-    const verbo = status === "pausada" ? "Retomar o envio" : "Enviar agora";
-    const quem = reengajando
-      ? `que ${form.reengajar === "nao_abriu" ? "não abriram" : "não clicaram"} a campanha de origem`
-      : `da segmentação “${segmento?.nome ?? ""}”`;
-    if (
-      !window.confirm(
-        `${verbo} para ${n} destinatário(s) ${quem}?\n\nDescadastrados ficam de fora. O envio sai em lotes, a cada minuto.`,
-      )
-    )
-      return;
+    setRevisaoAberta(true);
+  };
+  const confirmarEnvio = () => {
+    setRevisaoAberta(false);
     acao.mutate({ acao: status === "pausada" ? "retomar" : "enviar" });
   };
 
@@ -375,6 +419,7 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
     const d = new Date(quando);
     if (Number.isNaN(d.getTime())) return toast.error("Data inválida");
     if (d.getTime() < Date.now()) return toast.error("Escolha uma data futura");
+    if (bloqueios.length) return toast.error(bloqueios[0].texto);
     acao.mutate({ acao: "agendar", quando: d.toISOString() });
   };
 
@@ -526,7 +571,17 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
             <Item ok={REMETENTE_OK.test(form.remetente_email.trim())}>
               De: {form.remetente_nome} &lt;{form.remetente_email}&gt;
             </Item>
+            <Item ok={testadoAtual}>
+              {testadoAtual
+                ? "Teste enviado com esta versão"
+                : testadoEm
+                  ? "Mudou depois do último teste: vale mandar outro"
+                  : "Ainda sem teste: mande um para ver no seu e-mail"}
+            </Item>
           </ul>
+          <ListaAvisos
+            avisos={avisos.filter((a) => a.texto !== "Sem assunto" && a.texto !== "Corpo vazio")}
+          />
           {status === "pausada" && (
             <p className="rounded-md bg-orange-50 p-2 text-[12px] text-orange-800 dark:bg-orange-900/30 dark:text-orange-200">
               Envio pausado. Ao retomar, a fila continua de onde parou.
@@ -655,19 +710,86 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
         <Previa form={form} />
       </div>
 
+      <Dialog open={revisaoAberta} onOpenChange={setRevisaoAberta}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {status === "pausada" ? "Retomar o envio" : "Revisar e disparar"}
+            </DialogTitle>
+            <DialogDescription>
+              Confira antes: depois de sair, o e-mail não volta.
+            </DialogDescription>
+          </DialogHeader>
+          <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+            <dt className="text-muted-foreground">Para</dt>
+            <dd className="font-medium">
+              {contagem != null ? `${contagem.toLocaleString("pt-BR")} pessoa(s)` : "Toda a lista"}{" "}
+              <span className="font-normal text-muted-foreground">
+                {reengajando
+                  ? `que ${form.reengajar === "nao_abriu" ? "não abriram" : "não clicaram"} a campanha de origem`
+                  : `da segmentação “${segmento?.nome ?? ""}”`}
+              </span>
+            </dd>
+            <dt className="text-muted-foreground">De</dt>
+            <dd className="truncate">
+              {form.remetente_nome} &lt;{form.remetente_email}&gt;
+            </dd>
+            <dt className="text-muted-foreground">Assunto</dt>
+            <dd className="font-medium">{form.assunto}</dd>
+            {form.preheader && (
+              <>
+                <dt className="text-muted-foreground">Pré-cabeçalho</dt>
+                <dd>{form.preheader}</dd>
+              </>
+            )}
+          </dl>
+          <ul className="space-y-1 text-[12px] text-muted-foreground">
+            <Item ok={testadoAtual}>
+              {testadoAtual
+                ? "Você mandou um teste desta versão"
+                : "Sem teste desta versão: recomendo mandar um antes"}
+            </Item>
+            <Item ok>Descadastrados ficam de fora; o envio sai em lotes, a cada minuto</Item>
+          </ul>
+          <ListaAvisos avisos={avisos} />
+          <DialogFooter className="gap-2 sm:gap-0">
+            {!testadoAtual && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRevisaoAberta(false);
+                  setTestePara((t) => t || user?.email || "");
+                  setTesteAberto(true);
+                }}
+              >
+                <Send className="mr-1 h-3.5 w-3.5" /> Mandar teste antes
+              </Button>
+            )}
+            <Button onClick={confirmarEnvio} disabled={bloqueios.length > 0 || acao.isPending}>
+              <Send className="mr-1 h-3.5 w-3.5" />
+              {status === "pausada"
+                ? "Retomar envio"
+                : contagem != null
+                  ? `Enviar para ${contagem.toLocaleString("pt-BR")}`
+                  : "Enviar agora"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={testeAberto} onOpenChange={setTesteAberto}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Enviar teste</DialogTitle>
             <DialogDescription>
-              O teste usa seus dados nas variáveis e não conta nas métricas.
+              O teste usa seus dados nas variáveis e não conta nas métricas. Para mandar a mais de
+              uma pessoa, separe os e-mails por vírgula (até 5).
             </DialogDescription>
           </DialogHeader>
           <Input
-            type="email"
             value={testePara}
             onChange={(e) => setTestePara(e.target.value)}
-            placeholder="seu@email.com"
+            placeholder="seu@email.com, colega@grougp.com.br"
             autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter") teste.mutate();
@@ -692,6 +814,30 @@ function Editor({ campanha }: { campanha: CampanhaCompleta }) {
   );
 }
 
+/** Sobe uma imagem para o armazenamento dos e-mails e devolve a URL pública. */
+function useSubirImagem() {
+  const subirFn = useServerFn(subirImagemTopo);
+  const [subindo, setSubindo] = useState(false);
+  const subir = async (arquivo: File) => {
+    if (!/^image\/(png|jpeg|gif|webp)$/.test(arquivo.type))
+      throw new Error("Use PNG, JPG, GIF ou WebP");
+    if (arquivo.size > 2 * 1024 * 1024) throw new Error("Imagem acima de 2 MB");
+    setSubindo(true);
+    try {
+      const base64 = await new Promise<string>((ok, falha) => {
+        const r = new FileReader();
+        r.onload = () => ok(String(r.result).split(",")[1] ?? "");
+        r.onerror = () => falha(new Error("Não deu para ler o arquivo"));
+        r.readAsDataURL(arquivo);
+      });
+      return (await subirFn({ data: { tipo: arquivo.type, base64 } })).url;
+    } finally {
+      setSubindo(false);
+    }
+  };
+  return { subir, subindo };
+}
+
 /**
  * Imagem do topo do e-mail: sem nada, vai o logo da Grou. Dá para subir uma
  * imagem (banner de 600 px de largura fica melhor) ou colar o endereço dela.
@@ -703,20 +849,11 @@ function ImagemDoTopo({
   valor: string | null;
   onChange: (v: string | null) => void;
 }) {
-  const subirFn = useServerFn(subirImagemTopo);
+  const { subir: subirArquivo } = useSubirImagem();
   const subir = useMutation({
-    mutationFn: async (arquivo: File) => {
-      if (arquivo.size > 2 * 1024 * 1024) throw new Error("Imagem acima de 2 MB");
-      const base64 = await new Promise<string>((ok, falha) => {
-        const r = new FileReader();
-        r.onload = () => ok(String(r.result).split(",")[1] ?? "");
-        r.onerror = () => falha(new Error("Não deu para ler o arquivo"));
-        r.readAsDataURL(arquivo);
-      });
-      return subirFn({ data: { tipo: arquivo.type, base64 } });
-    },
-    onSuccess: (r) => {
-      onChange(r.url);
+    mutationFn: subirArquivo,
+    onSuccess: (url) => {
+      onChange(url);
       toast.success("Imagem do topo atualizada");
     },
     onError: erro,
@@ -780,6 +917,14 @@ function Conteudo({
   setForm: Dispatch<SetStateAction<Form>>;
 }) {
   const iaFn = useServerFn(escreverComIa);
+  const corpoRef = useRef<HTMLTextAreaElement>(null);
+  const { subir, subindo } = useSubirImagem();
+  const editor = {
+    ref: corpoRef,
+    valor: form.corpo,
+    onChange: (v: string) => set("corpo", v),
+  };
+  const atalhos = useAtalhosDoCorpo(editor, subir);
   const [iaAberta, setIaAberta] = useState(false);
   const [briefing, setBriefing] = useState("");
   const ia = useMutation({
@@ -887,40 +1032,67 @@ function Conteudo({
         </div>
       )}
 
+      {form.formato === "texto" && (
+        <BarraFormatacao editor={editor} subirImagem={subir} subindo={subindo} />
+      )}
       <Textarea
+        ref={corpoRef}
         rows={18}
         value={form.corpo}
         onChange={(e) => set("corpo", e.target.value)}
+        {...(form.formato === "texto" ? atalhos : {})}
         placeholder={
           form.formato === "texto"
-            ? "# Título\n\nOi, {{primeiro_nome|tudo bem}}?\n\nTexto do e-mail…\n\n[[Quero saber mais|https://grougp.com.br]]"
+            ? "# Título\n\nOi, {{primeiro_nome|tudo bem}}?\n\nTexto do e-mail… Selecione um trecho e use a barra acima para negrito, itálico, cor ou link. Cole ou arraste uma imagem aqui para inseri-la.\n\n[[Quero saber mais|https://grougp.com.br]]"
             : "<h1>Título</h1>\n<p>Oi, {{primeiro_nome|tudo bem}}?</p>"
         }
-        className="font-mono text-[12px] leading-relaxed"
+        className={`font-mono text-[12px] leading-relaxed ${form.formato === "texto" ? "rounded-t-none" : ""}`}
       />
       {form.formato === "texto" ? (
-        <div className="grid gap-x-4 gap-y-0.5 rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground sm:grid-cols-2">
-          <span>
-            <code># Título</code> título
-          </span>
-          <span>
-            <code>- item</code> lista
-          </span>
-          <span>
-            <code>**texto**</code> negrito
-          </span>
-          <span>
-            <code>[texto](https://…)</code> link
-          </span>
-          <span className="sm:col-span-2">
-            <code>[[Texto do botão|https://link]]</code> botão (linha sozinha)
-          </span>
-          <span className="sm:col-span-2">
-            <code>{"{{primeiro_nome|tudo bem}}"}</code> nome (ou o padrão) ·{" "}
-            <code>{"{{empresa}}"}</code> · <code>{"{{email}}"}</code>
-          </span>
-          <span className="sm:col-span-2">Linha em branco separa parágrafos.</span>
-        </div>
+        <details className="rounded-md bg-muted/50 p-2 text-[11px] text-muted-foreground">
+          <summary className="cursor-pointer select-none">
+            Atalhos: Ctrl+B negrito · Ctrl+I itálico · Ctrl+U sublinhado · Ctrl+K link · cole ou
+            arraste uma imagem no texto. Ver todas as marcações
+          </summary>
+          <div className="mt-2 grid gap-x-4 gap-y-0.5 sm:grid-cols-2">
+            <span>
+              <code># Título</code> título
+            </span>
+            <span>
+              <code>- item</code> lista
+            </span>
+            <span>
+              <code>**texto**</code> negrito · <code>*texto*</code> itálico
+            </span>
+            <span>
+              <code>__texto__</code> sublinhado
+            </span>
+            <span>
+              <code>{"{cor:#c2410c}texto{/cor}"}</code> cor
+            </span>
+            <span>
+              <code>{"{fundo:#fef08a}texto{/fundo}"}</code> marca-texto
+            </span>
+            <span>
+              <code>[texto](https://…)</code> link
+            </span>
+            <span>
+              <code>-&gt; texto</code> centralizado · <code>---</code> divisória
+            </span>
+            <span className="sm:col-span-2">
+              <code>[[Texto do botão|https://link]]</code> botão (linha sozinha)
+            </span>
+            <span className="sm:col-span-2">
+              <code>![descrição|50%](https://imagem)(https://link)</code> imagem (linha sozinha;
+              largura e link são opcionais)
+            </span>
+            <span className="sm:col-span-2">
+              <code>{"{{primeiro_nome|tudo bem}}"}</code> nome (ou o padrão) ·{" "}
+              <code>{"{{empresa}}"}</code> · <code>{"{{email}}"}</code>
+            </span>
+            <span className="sm:col-span-2">Linha em branco separa parágrafos.</span>
+          </div>
+        </details>
       ) : (
         <p className="text-[11px] text-muted-foreground">
           HTML vai dentro do layout da Grou (cabeçalho e rodapé de descadastro são automáticos). As
@@ -968,22 +1140,48 @@ function Previa({
       }),
     [form.assunto, form.preheader, form.corpo, form.formato, form.imagem_topo],
   );
+  const [celular, setCelular] = useState(false);
   return (
     <Card className="overflow-hidden">
       <div className="space-y-0.5 border-b px-3 py-2 text-[12px]">
-        <p className="section-label">{titulo} · como Maria Silva, Empresa Exemplo</p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="section-label">{titulo} · como Maria Silva, Empresa Exemplo</p>
+          <div className="flex rounded-full bg-muted p-0.5" role="radiogroup" aria-label="Tela">
+            {[
+              { v: false, rotulo: "Computador", Icone: Monitor },
+              { v: true, rotulo: "Celular", Icone: Smartphone },
+            ].map(({ v, rotulo, Icone }) => (
+              <button
+                key={rotulo}
+                type="button"
+                role="radio"
+                aria-checked={celular === v}
+                title={rotulo}
+                aria-label={rotulo}
+                onClick={() => setCelular(v)}
+                className={`rounded-full px-2 py-1 ${celular === v ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
+              >
+                <Icone className="h-3.5 w-3.5" />
+              </button>
+            ))}
+          </div>
+        </div>
         <p className="truncate text-muted-foreground">
           De: {form.remetente_nome} &lt;{form.remetente_email}&gt;
         </p>
         <p className="truncate font-semibold">{r.assunto || "(sem assunto)"}</p>
         {form.preheader && <p className="truncate text-muted-foreground">{form.preheader}</p>}
       </div>
-      <iframe
-        title="Prévia do e-mail"
-        srcDoc={r.html}
-        sandbox=""
-        className="h-[520px] w-full border-0 bg-[#f3f5f9] lg:h-[calc(100vh-220px)]"
-      />
+      <div className="bg-[#f3f5f9]">
+        <iframe
+          title="Prévia do e-mail"
+          srcDoc={r.html}
+          sandbox=""
+          className={`mx-auto block h-[520px] border-0 bg-[#f3f5f9] transition-[width] lg:h-[calc(100vh-220px)] ${
+            celular ? "w-[375px] max-w-full border-x border-border" : "w-full"
+          }`}
+        />
+      </div>
     </Card>
   );
 }
@@ -1247,6 +1445,23 @@ function Campo({
       {children}
       {msg && <span className="block text-[11px] text-destructive">{msg}</span>}
     </label>
+  );
+}
+
+function ListaAvisos({ avisos }: { avisos: { nivel: "erro" | "atencao"; texto: string }[] }) {
+  if (!avisos.length) return null;
+  return (
+    <ul className="space-y-1 rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-[12px]">
+      {avisos.map((a) => (
+        <li
+          key={a.texto}
+          className={`flex items-start gap-1.5 ${a.nivel === "erro" ? "text-destructive" : "text-amber-700 dark:text-amber-300"}`}
+        >
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+          {a.texto}
+        </li>
+      ))}
+    </ul>
   );
 }
 
