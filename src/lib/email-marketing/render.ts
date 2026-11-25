@@ -5,9 +5,15 @@
  *   # Título                      → título
  *   linha em branco               → novo parágrafo
  *   - item                        → lista
- *   **negrito**                   → negrito
+ *   **negrito**  *itálico*  __sublinhado__
+ *   {cor:#c2410c}texto{/cor}      → texto colorido
+ *   {fundo:#fef08a}texto{/fundo}  → marca-texto
  *   [texto](https://…)            → link
  *   [[Texto do botão|https://…]]  → botão
+ *   ![descrição](https://…/img.png)              → imagem (linha sozinha)
+ *   ![descrição|50%](https://…/img.png)(https://…) → imagem menor, com link
+ *   ---                           → divisória
+ *   -> texto                      → parágrafo centralizado
  *   {{primeiro_nome}} {{nome}} {{empresa}} {{email}} → dados do contato
  * ou em HTML (formato "html"), que vai como está dentro do layout.
  *
@@ -80,33 +86,64 @@ export function trocar(texto: string, vars: Record<string, string>): string {
 const COR = "#0b1f3a";
 const COR_BOTAO = "#1e4f9c";
 
+const COR_OK = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/**
+ * Marcação dentro da linha. Recursiva: dá para combinar (negrito colorido,
+ * itálico dentro de link etc.). Cor inválida sai como texto sem cor.
+ */
 function inline(linha: string, link: (u: string) => string): string {
   let out = "";
   let i = 0;
-  const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)<]+)/g;
+  const re =
+    /\*\*(.+?)\*\*|\*([^*\s](?:[^*]*?[^*\s])?)\*|__(.+?)__|\{(cor|fundo):(#[0-9a-fA-F]{3,6})\}(.+?)\{\/\4\}|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s)<]+)/g;
   for (const m of linha.matchAll(re)) {
     const at = m.index ?? 0;
     out += esc(linha.slice(i, at));
-    if (m[1] != null) out += `<strong>${esc(m[1])}</strong>`;
-    else if (m[2] != null)
-      out += `<a href="${esc(link(m[3]))}" style="color:${COR_BOTAO};text-decoration:underline;">${esc(m[2])}</a>`;
-    else out += `<a href="${esc(link(m[4]))}" style="color:${COR_BOTAO};">${esc(m[4])}</a>`;
+    if (m[1] != null) out += `<strong>${inline(m[1], link)}</strong>`;
+    else if (m[2] != null) out += `<em>${inline(m[2], link)}</em>`;
+    else if (m[3] != null) out += `<u>${inline(m[3], link)}</u>`;
+    else if (m[4] != null) {
+      const dentro = inline(m[6], link);
+      if (!COR_OK.test(m[5])) out += dentro;
+      else if (m[4] === "cor") out += `<span style="color:${m[5]};">${dentro}</span>`;
+      else
+        out += `<span style="background:${m[5]};padding:0 2px;border-radius:2px;">${dentro}</span>`;
+    } else if (m[7] != null)
+      out += `<a href="${esc(link(m[8]))}" style="color:${COR_BOTAO};text-decoration:underline;">${inline(m[7], link)}</a>`;
+    else out += `<a href="${esc(link(m[9]))}" style="color:${COR_BOTAO};">${esc(m[9])}</a>`;
     i = at + m[0].length;
   }
   return out + esc(linha.slice(i));
+}
+
+/** Imagem no meio do e-mail: ![descrição|largura%](https://img)(https://link opcional). */
+const RE_IMAGEM =
+  /^\s*!\[([^\]|]*)(?:\|(\d{1,3})%)?\]\((https:\/\/[^\s)]+)\)(?:\((https?:\/\/[^\s)]+)\))?\s*$/;
+
+function imagemHtml(m: RegExpExecArray, link: (u: string) => string): string {
+  const pct = Math.min(100, Math.max(10, Number(m[2] ?? 100)));
+  const larg = Math.round((544 * pct) / 100);
+  const img = `<img src="${esc(m[3])}" width="${larg}" alt="${esc(m[1].trim())}" style="display:inline-block;width:100%;max-width:${larg}px;height:auto;border:0;border-radius:6px;">`;
+  const conteudo = m[4]
+    ? `<a href="${esc(link(m[4]))}" style="text-decoration:none;">${img}</a>`
+    : img;
+  return `<p style="margin:8px 0 20px 0;text-align:center;line-height:0;">${conteudo}</p>`;
 }
 
 /** Texto simples → HTML do miolo do e-mail. */
 export function textoParaHtml(texto: string, link: (u: string) => string = (u) => u): string {
   const partes: string[] = [];
   let paragrafo: string[] = [];
+  let centro = false;
   let lista: string[] | null = null;
   const fecharP = () => {
     if (paragrafo.length)
       partes.push(
-        `<p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#1f2937;">${paragrafo.map((l) => inline(l, link)).join("<br>")}</p>`,
+        `<p style="margin:0 0 16px 0;font-size:15px;line-height:1.6;color:#1f2937;${centro ? "text-align:center;" : ""}">${paragrafo.map((l) => inline(l, link)).join("<br>")}</p>`,
       );
     paragrafo = [];
+    centro = false;
   };
   const fecharL = () => {
     if (lista)
@@ -131,6 +168,19 @@ export function textoParaHtml(texto: string, link: (u: string) => string = (u) =
       );
       continue;
     }
+    const imagem = RE_IMAGEM.exec(l);
+    if (imagem) {
+      fecharP();
+      fecharL();
+      partes.push(imagemHtml(imagem, link));
+      continue;
+    }
+    if (/^\s*-{3,}\s*$/.test(l)) {
+      fecharP();
+      fecharL();
+      partes.push(`<hr style="border:0;border-top:1px solid #e5e7eb;margin:8px 0 20px 0;">`);
+      continue;
+    }
     const item = /^\s*[-•*]\s+(.*)$/.exec(l);
     if (item) {
       fecharP();
@@ -148,6 +198,14 @@ export function textoParaHtml(texto: string, link: (u: string) => string = (u) =
       );
       continue;
     }
+    const centralizado = /^\s*->\s?(.*)$/.exec(l);
+    if (centralizado) {
+      if (paragrafo.length && !centro) fecharP();
+      centro = true;
+      paragrafo.push(centralizado[1].trim());
+      continue;
+    }
+    if (centro) fecharP();
     paragrafo.push(l.trim());
   }
   fecharP();
@@ -187,9 +245,18 @@ Não quer mais receber? <a href="${esc(o.urlDescadastro)}" style="color:#6b7280;
 ${o.urlAbertura ? `<img src="${esc(o.urlAbertura)}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px;">` : ""}
 </body></html>`;
   const texto = `${corpo
+    .replace(
+      /^\s*!\[([^\]|]*)(?:\|\d{1,3}%)?\]\([^)]+\)(?:\(([^)]+)\))?\s*$/gm,
+      (_, alt: string, url?: string) =>
+        [alt.trim() && `[${alt.trim()}]`, url].filter(Boolean).join(" "),
+    )
+    .replace(/^\s*->\s?/gm, "")
+    .replace(/\{(cor|fundo):[^}]*\}(.+?)\{\/\1\}/g, "$2")
+    .replace(/__(.+?)__/g, "$1")
     .replace(/\[\[([^|\]]+)\|([^\]]+)\]\]/g, "$1: $2")
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
     .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\*([^*\s](?:[^*]*?[^*\s])?)\*/g, "$1")
     .replace(/<[^>]+>/g, "")}\n\n—\nPara não receber mais: ${o.urlDescadastro}`;
   return { html, texto, assunto };
 }
@@ -199,4 +266,69 @@ export function variaveisDesconhecidas(texto: string): string[] {
   const conhecidas = new Set(["nome", "primeiro_nome", "empresa", "email"]);
   const achadas = [...texto.matchAll(/\{\{\s*([a-z_]+)/gi)].map((m) => m[1].toLowerCase());
   return [...new Set(achadas.filter((v) => !conhecidas.has(v)))];
+}
+
+export type Aviso = { nivel: "erro" | "atencao"; texto: string };
+
+/**
+ * O que revisar antes do disparo. "erro" impede o envio; "atencao" só avisa.
+ */
+export function avisosDoConteudo(c: {
+  assunto: string;
+  preheader?: string | null;
+  corpo: string;
+  formato: "texto" | "html";
+}): Aviso[] {
+  const a: Aviso[] = [];
+  if (!c.assunto.trim()) a.push({ nivel: "erro", texto: "Sem assunto" });
+  if (!c.corpo.trim()) a.push({ nivel: "erro", texto: "Corpo vazio" });
+  const desconhecidas = variaveisDesconhecidas(`${c.assunto}\n${c.preheader ?? ""}\n${c.corpo}`);
+  if (desconhecidas.length)
+    a.push({
+      nivel: "atencao",
+      texto: `Variável desconhecida (sai vazia): ${desconhecidas.map((v) => `{{${v}}}`).join(", ")}`,
+    });
+  if (c.assunto.trim().length > 70)
+    a.push({ nivel: "atencao", texto: "Assunto longo: no celular ele aparece cortado" });
+  if (!c.preheader?.trim())
+    a.push({
+      nivel: "atencao",
+      texto: "Sem pré-cabeçalho: a caixa de entrada mostra o começo do texto no lugar",
+    });
+  if (c.formato === "texto") {
+    const linhas = c.corpo.split("\n");
+    const imgs = linhas.filter((l) => /^\s*!\[/.test(l));
+    const quebradas = imgs.filter((l) => !/^\s*!\[[^\]]*\]\(https:\/\/[^\s)]+\)/.test(l));
+    if (quebradas.length)
+      a.push({
+        nivel: "erro",
+        texto: `${quebradas.length} imagem(ns) com endereço inválido (precisa começar com https://)`,
+      });
+    const semDescricao = imgs.filter((l) => /^\s*!\[(\|\d+%)?\]/.test(l));
+    if (semDescricao.length)
+      a.push({
+        nivel: "atencao",
+        texto: `${semDescricao.length} imagem(ns) sem descrição: quem bloqueia imagens não vê nada no lugar`,
+      });
+    if (
+      imgs.length > 0 &&
+      c.corpo
+        .replace(/^\s*!\[.*$/gm, "")
+        .replace(/\s+/g, " ")
+        .trim().length < 80
+    )
+      a.push({
+        nivel: "atencao",
+        texto: "Quase só imagem: e-mail sem texto tende a cair no spam",
+      });
+    const abertas = (c.corpo.match(/\{(cor|fundo):/g) ?? []).length;
+    const fechadas = (c.corpo.match(/\{\/(cor|fundo)\}/g) ?? []).length;
+    if (abertas !== fechadas)
+      a.push({ nivel: "atencao", texto: "Tem marcação de cor sem fechar ({/cor} ou {/fundo})" });
+  }
+  // Imagem sem link não conta: o endereço dela não é clicável.
+  const semImagens = c.corpo.replace(/^\s*!\[[^\]]*\]\([^)]*\)(?!\()/gm, "");
+  if (!/https?:\/\//.test(c.formato === "html" ? c.corpo.replace(/src="[^"]*"/g, "") : semImagens))
+    a.push({ nivel: "atencao", texto: "Nenhum link ou botão: não vai dar para medir cliques" });
+  return a;
 }
