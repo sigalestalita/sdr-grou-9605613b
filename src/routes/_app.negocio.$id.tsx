@@ -444,6 +444,23 @@ function NegocioPage() {
               </div>
             </div>
 
+            <div className="space-y-1">
+              <Label className="text-[11px]">Reunião marcada</Label>
+              <Input
+                type="datetime-local"
+                key={String(n.reuniao_em ?? "")}
+                defaultValue={n.reuniao_em ? paraLocal(new Date(String(n.reuniao_em))) : ""}
+                onBlur={(e) => {
+                  const v = e.target.value ? new Date(e.target.value).toISOString() : null;
+                  const atual = n.reuniao_em ? new Date(String(n.reuniao_em)).toISOString() : null;
+                  if (v !== atual) salvarCampo.mutate({ reuniao_em: v });
+                }}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Aparece no seu Início e na agenda comercial.
+              </p>
+            </div>
+
             <dl className="space-y-1 text-[11px] text-muted-foreground">
               {etapaAtual && (
                 <div className="flex justify-between gap-2">

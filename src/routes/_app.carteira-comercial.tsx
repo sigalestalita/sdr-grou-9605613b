@@ -35,6 +35,8 @@ function CarteiraPage() {
   const moverFn = useServerFn(moverNaCarteira);
   const donoFn = useServerFn(definirDonoDaConta);
   const [dono, setDono] = useState<string>("todos");
+  // Renovação (licença PDA): janela escolhida em dias, "vencidas" ou todas.
+  const [renovacao, setRenovacao] = useState<string>("todas");
 
   const { data, isLoading } = useQuery({
     queryKey: ["carteira-comercial"],
@@ -59,9 +61,16 @@ function CarteiraPage() {
   const { ocultas: etapasOcultas } = useEtapasOcultas("carteira-comercial");
   const nomeDe = new Map((data?.executivos ?? []).map((p) => [p.id, p.nome]));
   const hoje = new Date().toISOString().slice(0, 10);
-  const cards = (data?.cards ?? []).filter((c) =>
-    dono === "todos" ? true : dono === SEM_DONO ? !c.ownerId : c.ownerId === dono,
-  );
+  const limiteRenovacao = (dias: number) =>
+    new Date(Date.now() + dias * 86400_000).toISOString().slice(0, 10);
+  const cards = (data?.cards ?? [])
+    .filter((c) => (dono === "todos" ? true : dono === SEM_DONO ? !c.ownerId : c.ownerId === dono))
+    .filter((c) => {
+      if (renovacao === "todas") return true;
+      if (!c.licencaVenceEm) return false;
+      if (renovacao === "vencidas") return c.licencaVenceEm < hoje;
+      return c.licencaVenceEm >= hoje && c.licencaVenceEm <= limiteRenovacao(Number(renovacao));
+    });
   const semDono = (data?.cards ?? []).filter((c) => !c.ownerId).length;
   const stages = (data?.stages ?? []).filter((s) => s.kind === "open");
   const semEtapa = cards.filter((c) => !stages.some((s) => s.id === c.stageId));
@@ -93,6 +102,20 @@ function CarteiraPage() {
                 {p.nome}
               </SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+        <Select value={renovacao} onValueChange={setRenovacao}>
+          <SelectTrigger className="h-8 w-52 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todas">Qualquer renovação</SelectItem>
+            {[15, 30, 45, 60, 90, 120, 180, 365].map((d) => (
+              <SelectItem key={d} value={String(d)}>
+                Renova nos próximos {d} dias
+              </SelectItem>
+            ))}
+            <SelectItem value="vencidas">Licença já vencida</SelectItem>
           </SelectContent>
         </Select>
         <EtapasVisiveis

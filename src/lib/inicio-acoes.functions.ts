@@ -13,6 +13,7 @@ import { hojeSP, inicioDoDiaSP } from "./datas-sp";
  */
 type LeadRow = {
   id: string;
+  deal_id: string | null;
   name: string | null;
   company_name: string | null;
   company_size: string | null;
@@ -30,7 +31,7 @@ type LeadRow = {
 };
 
 const COLUNAS =
-  "id, name, company_name, company_size, source, campaign, created_at, score, meeting_at, meeting_booked_at, executivo_id, assigned_to, next_follow_up_at, next_action, last_touch_channel";
+  "id, deal_id, name, company_name, company_size, source, campaign, created_at, score, meeting_at, meeting_booked_at, executivo_id, assigned_to, next_follow_up_at, next_action, last_touch_channel";
 
 // Fora do trabalho de SDR: já agendado, no-show (volta pela cadência) e desqualificado.
 const ETAPAS_FORA = ["agendado", "no_show", "desqualificado"];
@@ -120,6 +121,76 @@ export const getInicioAcoes = createServerFn({ method: "GET" })
       enviados.set(e.lead_id, [...(enviados.get(e.lead_id) ?? []), e.passo]);
     }
 
+    /*
+     * Reuniões que o executivo marca direto: as do negócio (reuniao_em, quando
+     * não vieram de um lead do SDR já listado) e as da Google Agenda ligada,
+     * com convidado de fora da Grou. Antes só contava a reunião do SDR.
+     */
+    const dealsJaListados = new Set(
+      ((reunioes.data ?? []) as LeadRow[]).map((l) => l.deal_id).filter(Boolean) as string[],
+    );
+    const [{ data: negocios }, { data: agenda }] = await Promise.all([
+      supabase
+        .from("deals")
+        .select("id, nome, reuniao_em, companies:company_id(nome)")
+        .eq("executivo_user_id", alvo)
+        .gte("reuniao_em", inicioHoje)
+        .lt("reuniao_em", fimHoje)
+        .order("reuniao_em")
+        .limit(8),
+      supabase
+        .from("cs_calendly_events")
+        .select("id, name, status, start_time, invitee_name, invitee_email")
+        .eq("user_id", alvo)
+        .gte("start_time", inicioHoje)
+        .lt("start_time", fimHoje)
+        .order("start_time")
+        .limit(12),
+    ]);
+    const doExecutivo = [
+      ...(
+        (negocios ?? []) as Array<{
+          id: string;
+          nome: string | null;
+          reuniao_em: string;
+          companies: { nome: string | null } | null;
+        }>
+      )
+        .filter((n) => !dealsJaListados.has(n.id))
+        .map((n) => ({
+          id: n.id,
+          link: "negocio" as const,
+          nome: n.nome,
+          empresa: n.companies?.nome ?? null,
+          em: n.reuniao_em,
+          origem: "Negócio",
+        })),
+      ...(
+        (agenda ?? []) as Array<{
+          id: string;
+          name: string | null;
+          status: string | null;
+          start_time: string;
+          invitee_name: string | null;
+          invitee_email: string | null;
+        }>
+      )
+        .filter(
+          (e) =>
+            e.status !== "canceled" &&
+            !!e.invitee_email &&
+            !/@grougp\.com\.br$/i.test(e.invitee_email),
+        )
+        .map((e) => ({
+          id: e.id,
+          link: "agenda" as const,
+          nome: e.name,
+          empresa: e.invitee_name || e.invitee_email,
+          em: e.start_time,
+          origem: "Google Agenda",
+        })),
+    ];
+
     const idsExec = [...new Set(reunioesHoje.map((l) => l.executivo_id).filter(Boolean))];
     const { data: perfis } = idsExec.length
       ? await supabase
@@ -139,14 +210,19 @@ export const getInicioAcoes = createServerFn({ method: "GET" })
         origem: l.campaign || l.source,
         desde: l.created_at,
       })),
-      reunioesHoje: reunioesHoje.map((l) => ({
-        id: l.id,
-        nome: l.name,
-        empresa: l.company_name,
-        em: l.meeting_at!,
-        executivo: l.executivo_id ? (nome.get(l.executivo_id) ?? null) : null,
-        jornada: enviados.get(l.id) ?? [],
-      })),
+      reunioesHoje: [
+        ...reunioesHoje.map((l) => ({
+          id: l.id,
+          link: "lead" as "lead" | "negocio" | "agenda",
+          nome: l.name,
+          empresa: l.company_name,
+          em: l.meeting_at!,
+          executivo: l.executivo_id ? (nome.get(l.executivo_id) ?? null) : null,
+          jornada: enviados.get(l.id) ?? [],
+          origem: null as string | null,
+        })),
+        ...doExecutivo.map((r) => ({ ...r, executivo: null, jornada: [] as string[] })),
+      ].sort((a, b) => a.em.localeCompare(b.em)),
       quentes: ((quentes.data ?? []) as LeadRow[]).map((l) => ({
         id: l.id,
         nome: l.name,

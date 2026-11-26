@@ -14,7 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -58,7 +64,10 @@ const OPCOES_DE_LEAD: Array<{ value: CriarLead; label: string; ajuda: string }> 
 type PhoneEntry = { phone: string; name?: string; company?: string };
 
 function parseCsv(text: string): PhoneEntry[] {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   if (lines.length === 0) return [];
   // detecta header
   const first = lines[0].toLowerCase();
@@ -117,6 +126,8 @@ function CampaignsPage() {
   const [templateId, setTemplateId] = useState<string>("");
   const [source, setSource] = useState<AudienceSource>("filters");
   const [stageIds, setStageIds] = useState<string[]>([]);
+  // Carteira do executivo: os clientes dele (carteira de CS ou dono no RD).
+  const [carteiras, setCarteiras] = useState<string[]>([]);
   const [priorities, setPriorities] = useState<Priority[]>([]);
   const [demoFree, setDemoFree] = useState<DemoFreeF>("any");
   const [leadTypes, setLeadTypes] = useState<string[]>([]);
@@ -142,7 +153,11 @@ function CampaignsPage() {
   });
 
   const emailDomains = useMemo(
-    () => emailDomainsText.split(/[\s,;]+/).map((d) => d.trim()).filter(Boolean),
+    () =>
+      emailDomainsText
+        .split(/[\s,;]+/)
+        .map((d) => d.trim())
+        .filter(Boolean),
     [emailDomainsText],
   );
 
@@ -170,6 +185,7 @@ function CampaignsPage() {
       source: "filters" as const,
       filters: {
         stageIds: stageIds.length ? stageIds : undefined,
+        carteiras: carteiras.length ? carteiras : undefined,
         priorities: priorities.length ? priorities : undefined,
         demoFree: demoFree === "any" ? undefined : demoFree,
         leadType: leadTypes.length ? leadTypes : undefined,
@@ -186,6 +202,7 @@ function CampaignsPage() {
     phoneEntries,
     criarLead,
     stageIds,
+    carteiras,
     priorities,
     demoFree,
     leadTypes,
@@ -239,11 +256,15 @@ function CampaignsPage() {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-lg font-semibold">Campanhas em massa</h2>
-          <p className="text-xs text-muted-foreground">Dispare templates para audiências segmentadas de leads.</p>
+          <p className="text-xs text-muted-foreground">
+            Dispare templates para audiências segmentadas de leads.
+          </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button size="sm"><Plus className="h-4 w-4 mr-1" /> Nova campanha</Button>
+            <Button size="sm">
+              <Plus className="h-4 w-4 mr-1" /> Nova campanha
+            </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -253,15 +274,23 @@ function CampaignsPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-muted-foreground">Nome</label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="ex: Reativação fev/26" />
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="ex: Reativação fev/26"
+                  />
                 </div>
                 <div>
                   <label className="text-xs text-muted-foreground">Template</label>
                   <Select value={templateId} onValueChange={setTemplateId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
                     <SelectContent>
                       {(tmpls?.templates ?? []).map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -291,162 +320,208 @@ function CampaignsPage() {
 
                 {source === "filters" && (
                   <>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Período de entrada no Kanban</p>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="date"
-                      value={createdFrom}
-                      onChange={(e) => setCreatedFrom(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    <span className="text-xs text-muted-foreground">até</span>
-                    <Input
-                      type="date"
-                      value={createdTo}
-                      onChange={(e) => setCreatedTo(e.target.value)}
-                      className="h-8 text-xs"
-                    />
-                    {(createdFrom || createdTo) && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setCreatedFrom("");
-                          setCreatedTo("");
-                        }}
-                        className="text-[11px] text-muted-foreground hover:text-foreground underline shrink-0"
-                      >
-                        limpar
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Estágios</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(meta?.stages ?? []).map((s) => {
-                      const active = stageIds.includes(s.id);
-                      return (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => setStageIds(toggle(stageIds, s.id))}
-                          className={`text-xs px-2 py-1 rounded border ${
-                            active ? "bg-primary/15 border-primary/40 text-primary" : "border-white/10 text-muted-foreground hover:bg-white/5"
-                          }`}
-                        >
-                          {s.name}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Prioridade</p>
-                  <div className="flex gap-1.5">
-                    {(["alta", "media", "baixa"] as Priority[]).map((p) => {
-                      const active = priorities.includes(p);
-                      return (
-                        <button
-                          key={p}
-                          type="button"
-                          onClick={() => setPriorities(toggle(priorities, p))}
-                          className={`text-xs px-2 py-1 rounded border capitalize ${
-                            active ? "bg-primary/15 border-primary/40 text-primary" : "border-white/10 text-muted-foreground hover:bg-white/5"
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Demo Free</p>
-                    <Select value={demoFree} onValueChange={(v) => setDemoFree(v as DemoFreeF)}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="any">Qualquer</SelectItem>
-                        <SelectItem value="yes">Sim</SelectItem>
-                        <SelectItem value="no">Não</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {(meta?.leadTypes ?? []).length > 0 && (
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Tipo de lead</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Período de entrada no Kanban
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="date"
+                          value={createdFrom}
+                          onChange={(e) => setCreatedFrom(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                        <span className="text-xs text-muted-foreground">até</span>
+                        <Input
+                          type="date"
+                          value={createdTo}
+                          onChange={(e) => setCreatedTo(e.target.value)}
+                          className="h-8 text-xs"
+                        />
+                        {(createdFrom || createdTo) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCreatedFrom("");
+                              setCreatedTo("");
+                            }}
+                            className="text-[11px] text-muted-foreground hover:text-foreground underline shrink-0"
+                          >
+                            limpar
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {(meta?.executivos ?? []).length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Carteira do executivo{" "}
+                          <span className="opacity-70">
+                            (clientes dele: carteira de CS ou dono no RD)
+                          </span>
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(meta?.executivos ?? []).map((p) => {
+                            const active = carteiras.includes(p.id);
+                            return (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => setCarteiras(toggle(carteiras, p.id))}
+                                className={`text-xs px-2 py-1 rounded border ${
+                                  active
+                                    ? "bg-primary/15 border-primary/40 text-primary"
+                                    : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                }`}
+                              >
+                                {p.nome}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Estágios</p>
                       <div className="flex flex-wrap gap-1.5">
-                        {(meta?.leadTypes ?? []).map((lt) => {
-                          const active = leadTypes.includes(lt);
+                        {(meta?.stages ?? []).map((s) => {
+                          const active = stageIds.includes(s.id);
                           return (
                             <button
-                              key={lt}
+                              key={s.id}
                               type="button"
-                              onClick={() => setLeadTypes(toggle(leadTypes, lt))}
+                              onClick={() => setStageIds(toggle(stageIds, s.id))}
                               className={`text-xs px-2 py-1 rounded border ${
-                                active ? "bg-primary/15 border-primary/40 text-primary" : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                active
+                                  ? "bg-primary/15 border-primary/40 text-primary"
+                                  : "border-white/10 text-muted-foreground hover:bg-white/5"
                               }`}
                             >
-                              {lt}
+                              {s.name}
                             </button>
                           );
                         })}
                       </div>
                     </div>
-                  )}
-                </div>
 
-                {(meta?.companySizes ?? []).length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Porte (company size)</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(meta?.companySizes ?? []).map((cs) => {
-                        const active = companySizes.includes(cs);
-                        return (
-                          <button
-                            key={cs}
-                            type="button"
-                            onClick={() => setCompanySizes(toggle(companySizes, cs))}
-                            className={`text-xs px-2 py-1 rounded border ${
-                              active ? "bg-primary/15 border-primary/40 text-primary" : "border-white/10 text-muted-foreground hover:bg-white/5"
-                            }`}
-                          >
-                            {cs}
-                          </button>
-                        );
-                      })}
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">Prioridade</p>
+                      <div className="flex gap-1.5">
+                        {(["alta", "media", "baixa"] as Priority[]).map((p) => {
+                          const active = priorities.includes(p);
+                          return (
+                            <button
+                              key={p}
+                              type="button"
+                              onClick={() => setPriorities(toggle(priorities, p))}
+                              className={`text-xs px-2 py-1 rounded border capitalize ${
+                                active
+                                  ? "bg-primary/15 border-primary/40 text-primary"
+                                  : "border-white/10 text-muted-foreground hover:bg-white/5"
+                              }`}
+                            >
+                              {p}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
 
-                {((meta?.lostReasons ?? []).length > 0) && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Motivo de desqualificação</p>
-                    <LostReasonFilter
-                      options={meta?.lostReasons ?? []}
-                      showWithoutReason
-                      value={lostReasons}
-                      onChange={setLostReasons}
-                    />
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      Útil para reengajar quem foi descartado por um motivo específico.
-                    </p>
-                  </div>
-                )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Demo Free</p>
+                        <Select value={demoFree} onValueChange={(v) => setDemoFree(v as DemoFreeF)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="any">Qualquer</SelectItem>
+                            <SelectItem value="yes">Sim</SelectItem>
+                            <SelectItem value="no">Não</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {(meta?.leadTypes ?? []).length > 0 && (
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1">Tipo de lead</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(meta?.leadTypes ?? []).map((lt) => {
+                              const active = leadTypes.includes(lt);
+                              return (
+                                <button
+                                  key={lt}
+                                  type="button"
+                                  onClick={() => setLeadTypes(toggle(leadTypes, lt))}
+                                  className={`text-xs px-2 py-1 rounded border ${
+                                    active
+                                      ? "bg-primary/15 border-primary/40 text-primary"
+                                      : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                  }`}
+                                >
+                                  {lt}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
 
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Domínios de email (separados por vírgula)</p>
-                  <Input
-                    value={emailDomainsText}
-                    onChange={(e) => setEmailDomainsText(e.target.value)}
-                    placeholder="ex: empresa.com, @consultoria.com.br"
-                    className="h-8 text-xs"
-                  />
-                </div>
+                    {(meta?.companySizes ?? []).length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">Porte (company size)</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {(meta?.companySizes ?? []).map((cs) => {
+                            const active = companySizes.includes(cs);
+                            return (
+                              <button
+                                key={cs}
+                                type="button"
+                                onClick={() => setCompanySizes(toggle(companySizes, cs))}
+                                className={`text-xs px-2 py-1 rounded border ${
+                                  active
+                                    ? "bg-primary/15 border-primary/40 text-primary"
+                                    : "border-white/10 text-muted-foreground hover:bg-white/5"
+                                }`}
+                              >
+                                {cs}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {(meta?.lostReasons ?? []).length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1">
+                          Motivo de desqualificação
+                        </p>
+                        <LostReasonFilter
+                          options={meta?.lostReasons ?? []}
+                          showWithoutReason
+                          value={lostReasons}
+                          onChange={setLostReasons}
+                        />
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Útil para reengajar quem foi descartado por um motivo específico.
+                        </p>
+                      </div>
+                    )}
+
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Domínios de email (separados por vírgula)
+                      </p>
+                      <Input
+                        value={emailDomainsText}
+                        onChange={(e) => setEmailDomainsText(e.target.value)}
+                        placeholder="ex: empresa.com, @consultoria.com.br"
+                        className="h-8 text-xs"
+                      />
+                    </div>
                   </>
                 )}
 
@@ -496,15 +571,20 @@ function CampaignsPage() {
                       <Textarea
                         value={csvText}
                         onChange={(e) => setCsvText(e.target.value)}
-                        placeholder={"phone,name,company\n11999998888,Maria,Acme\n5511988887777,João,Beta"}
+                        placeholder={
+                          "phone,name,company\n11999998888,Maria,Acme\n5511988887777,João,Beta"
+                        }
                         className="text-xs font-mono min-h-[90px]"
                       />
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Header opcional. Colunas suportadas: phone/telefone, name/nome, company/empresa. Separadores: vírgula, ponto-e-vírgula ou tab.
+                        Header opcional. Colunas suportadas: phone/telefone, name/nome,
+                        company/empresa. Separadores: vírgula, ponto-e-vírgula ou tab.
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground mb-1">Ou cole números manualmente</p>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Ou cole números manualmente
+                      </p>
                       <Textarea
                         value={manualText}
                         onChange={(e) => setManualText(e.target.value)}
@@ -512,7 +592,8 @@ function CampaignsPage() {
                         className="text-xs font-mono min-h-[70px]"
                       />
                       <p className="text-[10px] text-muted-foreground mt-1">
-                        Um número por linha (ou separado por vírgula/espaço). Números BR sem DDI 55 recebem o prefixo automaticamente.
+                        Um número por linha (ou separado por vírgula/espaço). Números BR sem DDI 55
+                        recebem o prefixo automaticamente.
                       </p>
                     </div>
                   </div>
@@ -524,7 +605,9 @@ function CampaignsPage() {
                     {exclusionCount > 0 && (
                       <p className="text-[10px] text-muted-foreground mt-0.5">
                         {exclusionCount} regra(s) de exclusão aplicadas
-                        {typeof preview?.excluded === "number" ? ` · ${preview.excluded} lead(s) removidos` : ""}
+                        {typeof preview?.excluded === "number"
+                          ? ` · ${preview.excluded} lead(s) removidos`
+                          : ""}
                       </p>
                     )}
                   </div>
@@ -533,7 +616,9 @@ function CampaignsPage() {
               </div>
 
               <div className="border border-white/5 rounded-lg p-3">
-                <p className="text-xs font-medium text-muted-foreground uppercase mb-1">Excluir do disparo</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase mb-1">
+                  Excluir do disparo
+                </p>
                 <Textarea
                   value={exclusionText}
                   onChange={(e) => setExclusionText(e.target.value)}
@@ -541,8 +626,8 @@ function CampaignsPage() {
                   className="text-xs font-mono min-h-[70px]"
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Um por linha (ou separados por vírgula/ponto-e-vírgula). Números comparam os últimos 8 dígitos; nomes
-                  comparam por trecho no nome do lead ou da empresa.
+                  Um por linha (ou separados por vírgula/ponto-e-vírgula). Números comparam os
+                  últimos 8 dígitos; nomes comparam por trecho no nome do lead ou da empresa.
                 </p>
               </div>
 
@@ -551,7 +636,9 @@ function CampaignsPage() {
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancelar
+              </Button>
               <Button
                 onClick={() => create.mutate()}
                 disabled={create.isPending || !name || !templateId}
@@ -593,7 +680,9 @@ function CampaignsPage() {
                 </div>
               </Link>
               <div className="flex items-center gap-2 shrink-0">
-                <Badge variant="outline" className="text-[10px] capitalize">{c.status}</Badge>
+                <Badge variant="outline" className="text-[10px] capitalize">
+                  {c.status}
+                </Badge>
                 {canLaunch && (
                   <Button
                     size="sm"
