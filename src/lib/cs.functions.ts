@@ -1561,5 +1561,9 @@ export const listCsConsultorias = createServerFn({ method: "GET" })
       aVencer: naJanela.filter((l) => (l.diasParaVencer ?? 0) >= 0),
       totalConsultorias: linhas.length,
       semDataRenovacao: linhas.filter((l) => !l.dataRenovacao).length,
+      // Visão geral: todas as ativas, por renovação (sem data no fim).
+      todas: [...linhas].sort((a, b) =>
+        (a.dataRenovacao ?? "9999").localeCompare(b.dataRenovacao ?? "9999"),
+      ),
     };
   });
