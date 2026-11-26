@@ -128,19 +128,19 @@ export const TELAS: TelaDoGuia[] = [
     rota: "/comercial-pipeline",
     nome: "Pipeline de negócios",
     area: "Comercial",
-    texto: `Kanban dos negócios do comercial, por funil e etapa. Escolha o funil e o executivo ("Todos os executivos"), use "Mostrar fechados"/"Ocultar fechados" e escolha quais etapas ficam visíveis. Clique no card para abrir a página do negócio, onde se muda a etapa e se registra venda ou perda. "Ver funil e metas" leva à visão geral do comercial. Usado por executivos e gestão.`,
+    texto: `Kanban dos negócios do comercial, por funil e etapa. "Novo negócio" abre um negócio do zero (prospecção, indicação, evento), sem depender do SDR. Escolha o funil e o executivo ("Todos os executivos"), use "Mostrar fechados"/"Ocultar fechados" e escolha quais etapas ficam visíveis. Clique no card para abrir a página do negócio, onde se muda a etapa e se registra venda ou perda. "Ver funil e metas" leva à visão geral do comercial. Usado por executivos e gestão.`,
   },
   {
     rota: "/negocio/$id",
     nome: "Página do negócio",
     area: "Comercial",
-    texto: `Ficha de um negócio do comercial. No topo: "Voltar para o pipeline", "Registrar venda" e "Marcar perda" (pede motivo), e a etapa do funil. Registre contatos em "Registrar o que foi feito" com próximo passo e data; o "Histórico" guarda tudo. Em "Dados do negócio" ficam valor, temperatura, produtos e origem. "Itens da proposta" puxa itens do catálogo, descontos e impostos; em "Propostas" use "Gerar proposta", copie o link ou "Enviar por e-mail". Na venda informe ordem de compra, CNPJ, parcelas, forma e prazo de pagamento e quem recebe a nota. Também aparecem a política de faturamento do cliente, a ficha cadastral, o card "Faturamento" (pendências do ADM, "Pedir liberação das licenças PDA do negócio"), "Abrir requerimento de serviço", "Contrato" ("Pedir minuta / aditivo") e "Inscrever em turma".`,
+    texto: `Ficha de um negócio do comercial. No topo: "Voltar para o pipeline", "Registrar venda" e "Marcar perda" (pede motivo), e a etapa do funil. Registre contatos em "Registrar o que foi feito" com próximo passo e data; o "Histórico" guarda tudo. Em "Dados do negócio" ficam valor, temperatura, "Reunião marcada" (vai para o Início e a agenda), produtos e origem. "Itens da proposta" puxa itens do catálogo, descontos e impostos; em "Propostas" use "Gerar proposta", copie o link ou "Enviar por e-mail". Na venda informe ordem de compra, CNPJ, parcelas, forma e prazo de pagamento e quem recebe a nota. Também aparecem a política de faturamento do cliente, a ficha cadastral, o card "Faturamento" (pendências do ADM, "Pedir liberação das licenças PDA do negócio"), "Abrir requerimento de serviço", "Contrato" ("Pedir minuta / aditivo") e "Inscrever em turma".`,
   },
   {
     rota: "/carteira-comercial",
     nome: "Carteira comercial",
     area: "Comercial",
-    texto: `Quadro das empresas clientes do comercial: a conta entra na primeira venda ganha, sem dono, e a gestão distribui. Filtre por dono ("Todos os donos", "Sem dono"), defina o dono de cada card e mova o card entre etapas ("Mover para…"). Venda nova para a conta nasce como negócio no funil de recompra/cross sell. Usado por executivos e gestão.`,
+    texto: `Quadro das empresas clientes do comercial: a conta entra na primeira venda ganha, sem dono, e a gestão distribui. Filtre por dono ("Todos os donos", "Sem dono") e por renovação da licença PDA ("Renova nos próximos N dias" ou "Licença já vencida"), defina o dono de cada card e mova o card entre etapas ("Mover para…"). Venda nova para a conta nasce como negócio no funil de recompra/cross sell. Usado por executivos e gestão.`,
   },
   {
     rota: "/comercial-agenda",
@@ -178,7 +178,7 @@ export const TELAS: TelaDoGuia[] = [
     rota: "/cs",
     nome: "Empresas",
     area: "CS",
-    texto: `Carteira de empresas do Customer Success, em "Lista" ou "Funil". Visões prontas: Minha carteira, Vermelhos 5+ semanas, Renovação ≤ 60 d e Todas as empresas, com contagem por cor da sinaleira. Filtre por responsável CS, executivo, alertas, tags, tipo, etapa, uso do PDA e status, ou pesquise. Botões: "Adicionar empresa" ("Nova empresa", com roteamento automático do responsável), "Gerar alertas", "Exportar" e "Limpar". Clique na empresa para abrir a ficha. Usado pelo CS e por executivos.`,
+    texto: `Carteira de empresas do Customer Success, em "Lista" ou "Funil". Visões prontas: Minha carteira, Vermelhos 5+ semanas, Renovação ≤ 60 d e Todas as empresas, com contagem por cor da sinaleira. Filtre por responsável CS, executivo, alertas, "Renovação" (próximos 15 a 365 dias), tags, tipo, etapa, uso do PDA e status, ou pesquise. Botões: "Adicionar empresa" ("Nova empresa", com roteamento automático do responsável), "Gerar alertas", "Exportar" e "Limpar". Clique na empresa para abrir a ficha. Usado pelo CS e por executivos.`,
   },
   {
     rota: "/empresas/$uid",
@@ -284,7 +284,7 @@ export const TELAS: TelaDoGuia[] = [
     rota: "/email-marketing",
     nome: "E-mail marketing",
     area: "Marketing",
-    texto: `Campanhas de e-mail para a base (leads do kanban e a base de marketing vinda do RD). Aba "Segmentações": monte quem recebe com regras (base, origem, tipo de lead, etapa, prioridade, responsável, cliente ou não, sinaleira, evento de conversão, datas, domínio do e-mail), escolha "Empresas específicas" pelo nome e adicione condições em "Campos do lead, do contato e da empresa" (ex.: Cargo contém "RH", Segmento da empresa é "Indústria", Estado da empresa é "RS", Nº de funcionários ≥ 200; o campo de valor sugere os valores existentes); a contagem e uma amostra aparecem na hora; "Salvar". Aba "Campanhas": "Nova campanha", escolha a segmentação, o remetente (@grougp.com.br), escreva assunto e corpo (texto simples: # título, - lista, **negrito**, [texto](link), [[Texto do botão|link]], {{primeiro_nome|tudo bem}}, {{empresa}}) ou peça "Escrever com IA"; a prévia mostra o e-mail. "Enviar teste" manda para você; "Enviar agora" ou "Agendar" disparam. O envio sai em lotes a cada minuto, sem limite diário (a gestão pode definir um em "alterar", no topo); se o provedor barrar por cota, o restante fica na fila; "Pausar"/"Retomar"/"Cancelar". Depois do envio, a campanha mostra enviados, aberturas, cliques e descadastros, e o histórico de cada lead registra "Recebeu/Abriu/Clicou no e-mail". Todo e-mail tem link de descadastro; quem sai fica na aba "Descadastros" (dá para incluir e-mails à mão) e não recebe mais nenhuma campanha.`,
+    texto: `Campanhas de e-mail para a base (leads do kanban e a base de marketing vinda do RD). Aba "Segmentações": monte quem recebe com regras (base, origem, tipo de lead, etapa, prioridade, "Carteira do executivo" (os clientes de um executivo: carteira de CS ou dono no RD), "Responsável pelo lead", cliente ou não, sinaleira, evento de conversão, datas, domínio do e-mail), escolha "Empresas específicas" pelo nome e adicione condições em "Campos do lead, do contato e da empresa" (ex.: Cargo contém "RH", Segmento da empresa é "Indústria", Estado da empresa é "RS", Nº de funcionários ≥ 200; o campo de valor sugere os valores existentes); a contagem e uma amostra aparecem na hora; "Salvar". Para uma lista pronta, "Subir lista": cole as colunas da planilha (e-mail e, se tiver, nome e empresa) ou escolha um .csv (Excel: copie e cole), confira os lidos, repetidos e linhas sem e-mail válido e "Salvar"; depois dá para juntar mais e-mails ou trocar a lista inteira, e ela é escolhida na campanha como qualquer segmentação. Aba "Campanhas": "Nova campanha", escolha a segmentação, o remetente (@grougp.com.br), escreva assunto e corpo (texto simples: # título, - lista, **negrito**, [texto](link), [[Texto do botão|link]], {{primeiro_nome|tudo bem}}, {{empresa}}) ou peça "Escrever com IA"; a prévia mostra o e-mail. "Enviar teste" manda para você; "Enviar agora" ou "Agendar" disparam. O envio sai em lotes a cada minuto, sem limite diário (a gestão pode definir um em "alterar", no topo); se o provedor barrar por cota, o restante fica na fila; "Pausar"/"Retomar"/"Cancelar". Depois do envio, a campanha mostra enviados, aberturas, cliques e descadastros, e o histórico de cada lead registra "Recebeu/Abriu/Clicou no e-mail". Todo e-mail tem link de descadastro; quem sai fica na aba "Descadastros" (dá para incluir e-mails à mão) e não recebe mais nenhuma campanha.`,
   },
   {
     rota: "/relatorios",
@@ -368,6 +368,29 @@ export const TELAS: TelaDoGuia[] = [
   },
 ];
 
+/**
+ * Passo a passo das tarefas que mais geram dúvida, para o assistente responder
+ * "como faço…" em ordem, com os rótulos da tela.
+ */
+export const PASSO_A_PASSO: Array<{ tarefa: string; passos: string[] }> = [
+  {
+    tarefa: "Criar e enviar uma proposta comercial",
+    passos: [
+      `A proposta nasce de um negócio. Se ainda não há negócio (prospecção sua, indicação, evento), crie em [Pipeline comercial](/comercial-pipeline) ou em [Comercial](/comercial) com "Novo negócio": empresa (busque ou digite uma nova), contato principal, funil, origem, valor estimado e produtos. Ao criar, abre a página do negócio. Se o lead veio do SDR, o negócio já existe: abra pelo pipeline.`,
+      `Na página do negócio, em "Itens da proposta": "Escolha do catálogo", informe "Quantidade" e "Valor unitário", desconto se houver e "Salvar itens". Se precisar, use "Calcular pelas regras de retenção" para os impostos retidos.`,
+      `Em "Propostas", clique em "Gerar proposta". Escolha o modelo (o primeiro dá o cabeçalho; os outros somam seções), o contato em "A/C (contato)", "Forma de pagamento", "Validade (dias)" e "Observações (aparecem na proposta)", e clique em "Gerar e ver".`,
+      `Para anexar a apresentação: "Anexar apresentação" → aba "Da apresentação comercial" e marque os serviços (ou slide a slide); já vêm marcados o institucional e os serviços dos itens. Para um arquivo próprio, aba "PDF próprio" → "Escolher PDF da apresentação".`,
+      `Confira com "Ver como o cliente vê" e envie por "E-mail" (Para, Assunto, Mensagem → "Enviar"), "WhatsApp" ou "Copiar link".`,
+      `Depois de enviada, a abertura e o aceite aparecem no negócio e em [Propostas](/propostas). Para mudar algo, "Nova versão"; o link antigo avisa que foi substituído. "Avisar por e-mail" define quem recebe os avisos de abertura e aceite.`,
+      `Se a proposta não sai: confira se há itens salvos no negócio e se existe modelo ativo do produto em [Propostas](/propostas) (a gestão cria em "Novo do zero" ou "Importar de print, arquivo ou texto").`,
+    ],
+  },
+];
+
 export function guiaComoTexto(): string {
-  return TELAS.map((t) => `## ${t.nome} (${t.rota}) — ${t.area}\n${t.texto}`).join("\n\n");
+  const telas = TELAS.map((t) => `## ${t.nome} (${t.rota}) — ${t.area}\n${t.texto}`).join("\n\n");
+  const passos = PASSO_A_PASSO.map(
+    (p) => `## Passo a passo: ${p.tarefa}\n${p.passos.map((x, i) => `${i + 1}. ${x}`).join("\n")}`,
+  ).join("\n\n");
+  return `${telas}\n\n${passos}`;
 }

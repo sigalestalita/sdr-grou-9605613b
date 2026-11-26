@@ -186,6 +186,8 @@ export const salvarNegocio = createServerFn({ method: "POST" })
         produtos_texto: z.string().max(1000).nullable().optional(),
         proximo_passo: z.string().max(300).nullable().optional(),
         proximo_passo_em: z.string().datetime().nullable().optional(),
+        // Reunião que o próprio executivo marcou (vai para o Início e a agenda).
+        reuniao_em: z.string().datetime().nullable().optional(),
       })
       .parse(d),
   )
@@ -481,4 +483,242 @@ export const congelarNegocio = createServerFn({ method: "POST" })
       author_id: userId,
     } as never);
     return { ok: true };
+  });
+
+/** Texto literal para ilike (sem % e _ virarem curinga). */
+const semCuringa = (t: string) => t.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+/** Fontes que o executivo escolhe ao abrir um negócio por conta própria. */
+export const FONTES_NEGOCIO_DO_EXECUTIVO = [
+  "Prospecção do executivo",
+  "Carteira ativa",
+  "Carteira receptiva",
+  "Relacionamento",
+  "Indicação",
+  "Evento",
+  "Outro",
+] as const;
+
+/**
+ * O executivo abre um negócio do zero (prospecção própria, indicação, evento),
+ * sem depender do SDR, do CS ou do RD. É o que libera a proposta: ela só nasce
+ * de um negócio. Mesma forma do negócio que nasce na passagem do SDR
+ * (passar_lead_para_executivo): funil, primeira etapa aberta, Cliente novo ou
+ * Recompra, contato principal e uma nota no histórico.
+ */
+export const criarNegocio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        empresaId: z.string().uuid().nullable(),
+        empresaNome: z.string().trim().max(200).default(""),
+        tipoEmpresa: z.enum(["empresa", "pessoa_fisica", "consultoria"]).default("empresa"),
+        contato: z
+          .object({
+            nome: z.string().trim().min(1).max(200),
+            email: z.string().trim().toLowerCase().email().max(254).nullable(),
+            telefone: z.string().trim().max(40).nullable(),
+            cargo: z.string().trim().max(120).nullable(),
+          })
+          .nullable(),
+        nome: z.string().trim().max(200).default(""),
+        pipelineId: z.string().uuid().nullable(),
+        valor: z.number().min(0).max(100_000_000).default(0),
+        produtos: z.string().trim().max(1000).nullable(),
+        fonte: z.string().trim().max(120).nullable(),
+        executivoId: z.string().uuid().nullable(),
+        proximoPasso: z.string().trim().max(300).nullable(),
+        proximoPassoEm: z.string().datetime().nullable(),
+      })
+      .refine((d) => d.empresaId || d.empresaNome, "Escolha ou digite a empresa")
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
+    const { data: pode } = await db.rpc("is_manager", { _user_id: userId });
+    const { data: comercial } = await db.rpc("has_team", { _user_id: userId, _team: "comercial" });
+    if (!pode && !comercial) throw new Error("Só o comercial abre negócio");
+    // Só a gestão abre negócio no nome de outra pessoa.
+    const executivo = pode && data.executivoId ? data.executivoId : userId;
+
+    // Empresa: a escolhida ou uma nova (sem duplicar pelo nome exato).
+    let companyId = data.empresaId;
+    if (!companyId) {
+      const { data: mesma } = await db
+        .from("companies")
+        .select("id")
+        .ilike("nome", semCuringa(data.empresaNome))
+        .limit(1)
+        .maybeSingle();
+      if (mesma) companyId = (mesma as { id: string }).id;
+      else {
+        const { data: nova, error } = await db
+          .from("companies")
+          .insert({
+            nome: data.empresaNome,
+            tipo_lead: data.tipoEmpresa,
+            owner_user_id: executivo,
+            provenance: { origem: "negocio_do_executivo" },
+          })
+          .select("id")
+          .single();
+        if (error) throw new Error(`Empresa: ${error.message}`);
+        companyId = (nova as { id: string }).id;
+      }
+    }
+    const { data: empresa } = await db
+      .from("companies")
+      .select("nome")
+      .eq("id", companyId)
+      .single();
+    const nomeEmpresa = (empresa as { nome: string } | null)?.nome ?? data.empresaNome;
+
+    // Contato: o de mesmo e-mail, se já existe; senão, um novo na empresa.
+    let contactId: string | null = null;
+    if (data.contato) {
+      const c = data.contato;
+      if (c.email) {
+        const { data: existe } = await db
+          .from("contacts")
+          .select("id, company_id")
+          .ilike("email", semCuringa(c.email))
+          .limit(1)
+          .maybeSingle();
+        if (existe) {
+          contactId = (existe as { id: string }).id;
+          if (!(existe as { company_id: string | null }).company_id)
+            await db.from("contacts").update({ company_id: companyId }).eq("id", contactId);
+        }
+      }
+      if (!contactId) {
+        const { data: novo, error } = await db
+          .from("contacts")
+          .insert({
+            nome: c.nome,
+            email: c.email,
+            emails: c.email ? [c.email] : [],
+            telefone: c.telefone,
+            phones: c.telefone ? [c.telefone] : [],
+            cargo: c.cargo,
+            company_id: companyId,
+            provenance: { origem: "negocio_do_executivo" },
+          })
+          .select("id")
+          .single();
+        if (error) throw new Error(`Contato: ${error.message}`);
+        contactId = (novo as { id: string }).id;
+      }
+      await db
+        .from("company_contacts")
+        .upsert(
+          { company_id: companyId, contact_id: contactId, principal: true },
+          { onConflict: "company_id,contact_id", ignoreDuplicates: true },
+        );
+    }
+
+    // Funil: o escolhido ou Novos Negócios; entra na primeira etapa aberta.
+    let pipelineId = data.pipelineId;
+    if (!pipelineId) {
+      const { data: p } = await db
+        .from("pipelines")
+        .select("id")
+        .eq("slug", "novos-negocios")
+        .maybeSingle();
+      pipelineId = (p as { id: string } | null)?.id ?? null;
+    }
+    if (!pipelineId) throw new Error("Funil não encontrado");
+    const { data: etapa } = await db
+      .from("pipeline_stages")
+      .select("id")
+      .eq("pipeline_id", pipelineId)
+      .eq("kind", "open")
+      .order("ordem")
+      .limit(1)
+      .maybeSingle();
+    const { count: ganhos } = await db
+      .from("deals")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .eq("status", "won");
+
+    const { data: negocio, error } = await db
+      .from("deals")
+      .insert({
+        nome: data.nome || nomeEmpresa,
+        company_id: companyId,
+        contact_id: contactId,
+        pipeline_id: pipelineId,
+        stage_id: (etapa as { id: string } | null)?.id ?? null,
+        status: "open",
+        amount: data.valor,
+        executivo_user_id: executivo,
+        owner_user_id: executivo,
+        fonte: data.fonte || "Prospecção do executivo",
+        tipo_venda: (ganhos ?? 0) > 0 ? "Recompra" : "Cliente novo",
+        produtos_texto: data.produtos,
+        proximo_passo: data.proximoPasso,
+        proximo_passo_em: data.proximoPassoEm,
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    const dealId = (negocio as { id: string }).id;
+
+    if (contactId)
+      await db
+        .from("deal_contacts")
+        .upsert(
+          { deal_id: dealId, contact_id: contactId, principal: true },
+          { onConflict: "deal_id,contact_id", ignoreDuplicates: true },
+        );
+    await db.from("deal_activities").insert({
+      deal_id: dealId,
+      tipo: "nota",
+      descricao: "Negócio aberto pelo executivo no Compass.",
+      author_id: userId,
+      occurred_at: new Date().toISOString(),
+    });
+    if (executivo !== userId)
+      await db.rpc("notificar_usuarios", {
+        _users: [executivo],
+        _tipo: "mencao",
+        _titulo: `Novo negócio para você: ${data.nome || nomeEmpresa}`,
+        _corpo: "Aberto pela gestão comercial.",
+        _link: `/negocio/${dealId}`,
+        _deal_id: dealId,
+      });
+    return { dealId };
+  });
+
+/** O que o formulário de novo negócio precisa: funis, executivos e se é gestão. */
+export const opcoesNovoNegocio = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
+    const [{ data: isManager }, { data: pipelines }] = await Promise.all([
+      db.rpc("is_manager", { _user_id: userId }),
+      db.from("pipelines").select("id, nome, slug").eq("ativo", true).order("ordem"),
+    ]);
+    let executivos: Array<{ id: string; nome: string }> = [];
+    if (isManager) {
+      const { executivosDaAgenda } = await import("@/lib/sdr/executivos-da-agenda");
+      const ids = [...new Set([...(await executivosDaAgenda(db)), userId])];
+      const { data } = await db.from("profiles").select("id, full_name, email").in("id", ids);
+      executivos = (
+        (data ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>
+      )
+        .map((p) => ({ id: p.id, nome: p.full_name || p.email || p.id }))
+        .sort((a, b) => a.nome.localeCompare(b.nome));
+    }
+    return {
+      isManager: !!isManager,
+      meuId: userId,
+      pipelines: (pipelines ?? []) as Array<{ id: string; nome: string; slug: string }>,
+      executivos,
+    };
   });

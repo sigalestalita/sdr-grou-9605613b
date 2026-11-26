@@ -533,6 +533,15 @@ function CsPage() {
             onChange={(v) => set("stage", v)}
           />
           <FilterChip
+            label="Renovação"
+            value={filters.renewalDays ? String(filters.renewalDays) : ""}
+            options={[15, 30, 45, 60, 90, 120, 180, 365].map((d) => ({
+              value: String(d),
+              label: `Nos próximos ${d} dias`,
+            }))}
+            onChange={(v) => set("renewalDays", Number(v) || 0)}
+          />
+          <FilterChip
             label="Tag"
             value={filters.tag}
             options={tagOptions.map((t) => ({ value: t, label: CS_AGENDA_TYPE_LABEL[t] ?? t }))}

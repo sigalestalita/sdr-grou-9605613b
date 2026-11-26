@@ -26,6 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { EtapasVisiveis, useEtapasOcultas } from "@/components/kanban/etapas-ocultas";
+import { NovoNegocioButton } from "@/components/comercial/novo-negocio";
 
 export const Route = createFileRoute("/_app/comercial-pipeline")({
   component: PipelinePage,
@@ -129,6 +130,7 @@ function PipelinePage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <NovoNegocioButton />
           <Select
             value={pipelineId ?? data?.pipelineId ?? ""}
             onValueChange={(v) => setPipelineId(v)}

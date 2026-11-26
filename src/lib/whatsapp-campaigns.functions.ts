@@ -15,6 +15,8 @@ const AudienceFilters = z
     emailDomains: z.array(z.string()).optional(),
     /** Motivos de desqualificação (use "__nd" para "sem motivo informado"). */
     lostReasons: z.array(z.string().max(200)).max(200).optional(),
+    /** Carteira do executivo: leads das empresas dele (carteira de CS, dono no RD). */
+    carteiras: z.array(z.string().uuid()).max(20).optional(),
     /** Data de entrada do lead (created_at) — formato YYYY-MM-DD. */
     createdFrom: z.string().optional(),
     createdTo: z.string().optional(),
@@ -114,6 +116,66 @@ function dayEndIso(d: string): string | null {
 }
 
 /** Lista campanhas com contagem de mensagens. */
+/**
+ * Leads da audiência por filtros (com telefone). Com "carteira do executivo",
+ * os ids vêm de leads_da_carteira (empresas do executivo na carteira de CS ou
+ * como dono no RD) e os outros filtros valem em cima deles, em lotes.
+ */
+async function leadsDaAudiencia(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  f: AudienceFiltersT,
+  userId: string | null,
+  colunas: string,
+  limite: number,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any[]> {
+  const filtrar = () => {
+    let q = supabase.from("leads").select(colunas);
+    if (f.stageIds?.length) q = q.in("stage_id", f.stageIds);
+    if (f.priorities?.length) q = q.in("priority", f.priorities);
+    if (f.demoFree === "yes") q = q.eq("demo_free", true);
+    if (f.demoFree === "no") q = q.eq("demo_free", false);
+    if (f.assignedToMe && userId) q = q.eq("assigned_to", userId);
+    if (f.leadType?.length) q = q.in("lead_type", f.leadType);
+    if (f.companySizes?.length) q = q.in("company_size", f.companySizes);
+    if (f.emailDomains?.length) {
+      const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
+      q = q.or(ors);
+    }
+    if (f.lostReasons?.length) {
+      const ors = lostReasonOr(f.lostReasons);
+      if (ors) q = q.or(ors);
+    }
+    if (f.createdFrom) {
+      const iso = dayStartIso(f.createdFrom);
+      if (iso) q = q.gte("created_at", iso);
+    }
+    if (f.createdTo) {
+      const iso = dayEndIso(f.createdTo);
+      if (iso) q = q.lte("created_at", iso);
+    }
+    return q.not("phone", "is", null);
+  };
+
+  if (!f.carteiras?.length) {
+    const { data, error } = await filtrar().limit(limite);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  }
+  const { data: ids, error } = await supabase.rpc("leads_da_carteira", { _execs: f.carteiras });
+  if (error) throw new Error(error.message);
+  const todos = ((ids as string[] | null) ?? []).slice(0, 20_000);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const out: any[] = [];
+  for (let i = 0; i < todos.length && out.length < limite; i += 300) {
+    const { data, error: e } = await filtrar().in("id", todos.slice(i, i + 300));
+    if (e) throw new Error(e.message);
+    out.push(...(data ?? []));
+  }
+  return out.slice(0, limite);
+}
+
 export const listCampaigns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -283,34 +345,13 @@ export const previewAudience = createServerFn({ method: "POST" })
     }
 
     const f = audience.filters ?? {};
-    let q = supabase.from("leads").select("id, name, company_name, phone, priority, stage_id");
-    if (f.stageIds?.length) q = q.in("stage_id", f.stageIds);
-    if (f.priorities?.length) q = q.in("priority", f.priorities);
-    if (f.demoFree === "yes") q = q.eq("demo_free", true);
-    if (f.demoFree === "no") q = q.eq("demo_free", false);
-    if (f.assignedToMe) q = q.eq("assigned_to", userId);
-    if (f.leadType?.length) q = q.in("lead_type", f.leadType);
-    if (f.companySizes?.length) q = q.in("company_size", f.companySizes);
-    if (f.emailDomains?.length) {
-      const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
-      q = q.or(ors);
-    }
-    if (f.lostReasons?.length) {
-      const ors = lostReasonOr(f.lostReasons);
-      if (ors) q = q.or(ors);
-    }
-    if (f.createdFrom) {
-      const iso = dayStartIso(f.createdFrom);
-      if (iso) q = q.gte("created_at", iso);
-    }
-    if (f.createdTo) {
-      const iso = dayEndIso(f.createdTo);
-      if (iso) q = q.lte("created_at", iso);
-    }
-    q = q.not("phone", "is", null).limit(5000);
-
-    const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
+    const rows = await leadsDaAudiencia(
+      supabase,
+      f,
+      userId,
+      "id, name, company_name, phone, priority, stage_id",
+      5000,
+    );
     const isExcluded = makeExclusionMatcher(audience.exclusions);
     const all = rows ?? [];
     const kept = all.filter((r) => !isExcluded(r));
@@ -509,33 +550,13 @@ export async function executarCampanha(
     }
   } else {
     const f = audience.filters ?? {};
-    let q = supabase.from("leads").select("id, name, company_name, phone, assigned_to");
-    if (f.stageIds?.length) q = q.in("stage_id", f.stageIds);
-    if (f.priorities?.length) q = q.in("priority", f.priorities);
-    if (f.demoFree === "yes") q = q.eq("demo_free", true);
-    if (f.demoFree === "no") q = q.eq("demo_free", false);
-    if (f.assignedToMe) q = q.eq("assigned_to", actorUserId);
-    if (f.leadType?.length) q = q.in("lead_type", f.leadType);
-    if (f.companySizes?.length) q = q.in("company_size", f.companySizes);
-    if (f.emailDomains?.length) {
-      const ors = f.emailDomains.map((d) => `email.ilike.%@${normDomain(d)}`).join(",");
-      q = q.or(ors);
-    }
-    if (f.lostReasons?.length) {
-      const ors = lostReasonOr(f.lostReasons);
-      if (ors) q = q.or(ors);
-    }
-    if (f.createdFrom) {
-      const iso = dayStartIso(f.createdFrom);
-      if (iso) q = q.gte("created_at", iso);
-    }
-    if (f.createdTo) {
-      const iso = dayEndIso(f.createdTo);
-      if (iso) q = q.lte("created_at", iso);
-    }
-    q = q.not("phone", "is", null).limit(Math.min(5000, limit + 2000));
-    const { data: leads, error: lErr } = await q;
-    if (lErr) throw new Error(lErr.message);
+    const leads = await leadsDaAudiencia(
+      supabase,
+      f,
+      actorUserId,
+      "id, name, company_name, phone, assigned_to",
+      Math.min(5000, limit + 2000),
+    );
     const isExcludedLead = makeExclusionMatcher(audience.exclusions);
     const pendentes = ((leads ?? []) as Target[]).filter(
       (l) => !isExcludedLead(l) && !jaPassou.has(l.id),
@@ -816,5 +837,20 @@ export const getCampaignFilterMeta = createServerFn({ method: "GET" })
     const lostReasons = Array.from(lostCounts.entries())
       .map(([reason, count]) => ({ reason, count }))
       .sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason));
-    return { stages: stages ?? [], leadTypes, companySizes, lostReasons };
+    const { data: comercial } = await supabase
+      .from("user_teams")
+      .select("user_id")
+      .eq("team", "comercial");
+    const idsComercial = [
+      ...new Set(((comercial ?? []) as Array<{ user_id: string }>).map((r) => r.user_id)),
+    ];
+    const { data: pessoas } = idsComercial.length
+      ? await supabase.from("profiles").select("id, full_name, email").in("id", idsComercial)
+      : { data: [] };
+    const executivos = (
+      (pessoas ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>
+    )
+      .map((p) => ({ id: p.id, nome: p.full_name || p.email || p.id }))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+    return { stages: stages ?? [], leadTypes, companySizes, lostReasons, executivos };
   });

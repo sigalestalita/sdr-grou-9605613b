@@ -27,6 +27,7 @@ import {
 } from "@/lib/comercial/metas";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { NovoNegocioButton } from "@/components/comercial/novo-negocio";
 import { toast } from "sonner";
 import {
   Select,
@@ -120,6 +121,7 @@ function ComercialPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <NovoNegocioButton />
           {d?.isManager && (
             <Select value={executivo} onValueChange={setExecutivo}>
               <SelectTrigger className="h-8 w-48 text-xs">

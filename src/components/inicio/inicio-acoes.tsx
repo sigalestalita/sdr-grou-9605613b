@@ -52,7 +52,7 @@ export function InicioAcoes({ userId, agendasNoPeriodo, periodo, slaDentroPct }:
         <Numero
           rotulo="Reuniões hoje"
           valor={d?.reunioesHoje.length ?? "—"}
-          detalhe="marcadas por você ou com você"
+          detalhe="do SDR, dos seus negócios e da sua agenda"
         />
         <Numero rotulo="Agendas marcadas" valor={agendasNoPeriodo} detalhe={periodo} />
         <Numero
@@ -85,28 +85,35 @@ export function InicioAcoes({ userId, agendasNoPeriodo, periodo, slaDentroPct }:
 
         <Bloco
           titulo="Reuniões de hoje"
-          subtitulo="E o que a jornada da agenda já mandou ao lead."
+          subtitulo="Do SDR (com o que a jornada já mandou ao lead), dos seus negócios e da Google Agenda."
           vazio="Nenhuma reunião hoje."
           itens={d?.reunioesHoje.length ?? 0}
           carregando={q.isLoading}
         >
           {d?.reunioesHoje.map((r) => (
             <Linha
-              key={r.id}
+              key={`${r.link}:${r.id}`}
               id={r.id}
+              para={r.link}
               nome={r.empresa || r.nome}
-              sub={[r.executivo ? `com ${r.executivo}` : "executivo a definir"]}
+              sub={
+                r.link === "lead"
+                  ? [r.executivo ? `com ${r.executivo}` : "executivo a definir"]
+                  : [r.origem, r.empresa ? r.nome : null]
+              }
               antes={
                 <span className="w-16 shrink-0 text-lg font-bold text-primary">
                   {format(new Date(r.em), "HH'h'mm", { locale: ptBR }).replace("h00", "h")}
                 </span>
               }
             >
-              <Selo tom={r.jornada.length ? "ok" : "neutro"}>
-                {r.jornada.length
-                  ? [...new Set(r.jornada.map((p) => PASSO_ROTULO[p] ?? p))].join(" · ")
-                  : "sem jornada"}
-              </Selo>
+              {r.link === "lead" && (
+                <Selo tom={r.jornada.length ? "ok" : "neutro"}>
+                  {r.jornada.length
+                    ? [...new Set(r.jornada.map((p) => PASSO_ROTULO[p] ?? p))].join(" · ")
+                    : "sem jornada"}
+                </Selo>
+              )}
             </Linha>
           ))}
         </Bloco>
@@ -237,8 +244,11 @@ function Bloco({
   );
 }
 
+const LINHA = "flex items-center gap-4 py-3 transition-colors hover:text-primary";
+
 function Linha({
   id,
+  para = "lead",
   nome,
   sub,
   antes,
@@ -246,30 +256,42 @@ function Linha({
   children,
 }: {
   id: string;
+  para?: "lead" | "negocio" | "agenda";
   nome: string | null;
   sub: Array<string | null | undefined>;
   antes?: React.ReactNode;
   destaque?: boolean;
   children?: React.ReactNode;
 }) {
+  const conteudo = (
+    <>
+      {antes}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className={`truncate text-[15px] font-semibold ${destaque ? "text-primary" : ""}`}>
+          {nome || "Sem nome"}
+        </span>
+        <span className="truncate text-[13px] text-muted-foreground">
+          {sub.filter(Boolean).join(" · ") || "—"}
+        </span>
+      </div>
+      {children}
+    </>
+  );
   return (
     <li>
-      <Link
-        to="/lead/$id"
-        params={{ id }}
-        className="flex items-center gap-4 py-3 transition-colors hover:text-primary"
-      >
-        {antes}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <span className={`truncate text-[15px] font-semibold ${destaque ? "text-primary" : ""}`}>
-            {nome || "Sem nome"}
-          </span>
-          <span className="truncate text-[13px] text-muted-foreground">
-            {sub.filter(Boolean).join(" · ") || "—"}
-          </span>
-        </div>
-        {children}
-      </Link>
+      {para === "negocio" ? (
+        <Link to="/negocio/$id" params={{ id }} className={LINHA}>
+          {conteudo}
+        </Link>
+      ) : para === "agenda" ? (
+        <Link to="/comercial-agenda" className={LINHA}>
+          {conteudo}
+        </Link>
+      ) : (
+        <Link to="/lead/$id" params={{ id }} className={LINHA}>
+          {conteudo}
+        </Link>
+      )}
     </li>
   );
 }
