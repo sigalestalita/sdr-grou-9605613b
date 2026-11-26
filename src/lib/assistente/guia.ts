@@ -400,6 +400,7 @@ PASSO_A_PASSO.push({
     `Abra a assistente (botão no canto da tela) e peça em texto. Ex.: "gere uma proposta de 2 turmas de NR-1 para a Gerdau, pagamento em 3x", "monte um relatório de vendas ganhas por executivo por mês em 2026", "crie uma segmentação com os clientes do Maicon em SP".`,
     `Ela mostra o resumo (empresa, itens e valores, modelo, filtros) e pergunta "Posso criar?". Só cria depois do seu sim.`,
     `No fim ela manda o link: a proposta fica em rascunho na página do negócio (você revisa e envia), o relatório abre em [Relatórios](/relatorios) e a segmentação em [Segmentações](/email-marketing/segmentos).`,
+    `Tarefas, CS e negócios também: "cria uma tarefa de ligação para a Acme amanhã às 10h", "conclui a tarefa de e-mail da Gerdau", "registra que liguei para o Sicredi e ficou de responder", "agenda reunião de acompanhamento com a Ambev dia 3 às 15h", "move a Acme para renovação", "passa o negócio da Vale para Proposta enviada", "congela o negócio da Natura até março", "marca o negócio da Oi como perdido por preço". Ela não apaga tarefas e não envia nada ao cliente.`,
     `Ela também responde qualquer pergunta sobre a base (negócios, leads, empresas, carteira, tarefas, faturas, turmas, campanhas…), sempre com o seu acesso: o que você não vê nas telas ela também não vê.`,
   ],
 });

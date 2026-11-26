@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { CtxNucleo } from "@/lib/nucleo";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   CS_AGENDA_TYPES,
@@ -534,60 +535,70 @@ export const saveCsClient = createServerFn({ method: "POST" })
   });
 
 /** Move o cliente entre etapas da jornada, registrando na timeline. */
+export const moveCsStageSchema = z.object({
+  clientUid: z.string().min(1),
+  stage: z.enum(CS_STAGES),
+});
+
+/** Núcleo de moveCsStage: a mesma regra para a tela e para a assistente. */
+export async function moveCsStageNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof moveCsStageSchema>,
+) {
+  const { supabase, userId } = context;
+  const { logTimeline } = await import("@/lib/cs/cs-core.server");
+  const { CS_STAGE_LABEL } = await import("@/lib/cs-types");
+  const { error } = await supabase
+    .from("cs_clients")
+    .update({ journey_stage: data.stage, stage_entered_at: new Date().toISOString() })
+    .eq("client_uid", data.clientUid);
+  if (error) throw new Error(error.message);
+  await logTimeline(supabase, {
+    client_uid: data.clientUid,
+    author_id: userId,
+    event_type: "etapa_alterada",
+    title: `Etapa alterada para ${CS_STAGE_LABEL[data.stage]}`,
+  });
+  return { ok: true };
+}
+
 export const moveCsStage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ clientUid: z.string().min(1), stage: z.enum(CS_STAGES) }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { logTimeline } = await import("@/lib/cs/cs-core.server");
-    const { CS_STAGE_LABEL } = await import("@/lib/cs-types");
-    const { error } = await supabase
-      .from("cs_clients")
-      .update({ journey_stage: data.stage, stage_entered_at: new Date().toISOString() })
-      .eq("client_uid", data.clientUid);
-    if (error) throw new Error(error.message);
-    await logTimeline(supabase, {
-      client_uid: data.clientUid,
-      author_id: userId,
-      event_type: "etapa_alterada",
-      title: `Etapa alterada para ${CS_STAGE_LABEL[data.stage]}`,
-    });
-    return { ok: true };
+  .inputValidator((d) => moveCsStageSchema.parse(d))
+  .handler(async ({ data, context }) => moveCsStageNucleo(context, data));
+
+export const setCsOwnerSchema = z.object({
+  clientUid: z.string().min(1),
+  field: z.enum(["cs_responsavel_id", "comercial_responsavel_id"]),
+  userId: z.string().uuid().nullable(),
+});
+
+/** Núcleo de setCsOwner: a mesma regra para a tela e para a assistente. */
+export async function setCsOwnerNucleo(context: CtxNucleo, data: z.infer<typeof setCsOwnerSchema>) {
+  const { supabase, userId } = context;
+  const { logTimeline } = await import("@/lib/cs/cs-core.server");
+  const { error } = await supabase
+    .from("cs_clients")
+    .update({ [data.field]: data.userId } as never)
+    .eq("client_uid", data.clientUid);
+  if (error) throw new Error(error.message);
+  await logTimeline(supabase, {
+    client_uid: data.clientUid,
+    author_id: userId,
+    event_type: "responsavel_alterado",
+    title:
+      data.field === "cs_responsavel_id"
+        ? "Responsável de CS alterado"
+        : "Responsável comercial alterado",
+    metadata: { novo_responsavel: data.userId },
   });
+  return { ok: true };
+}
 
 export const setCsOwner = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        clientUid: z.string().min(1),
-        field: z.enum(["cs_responsavel_id", "comercial_responsavel_id"]),
-        userId: z.string().uuid().nullable(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { logTimeline } = await import("@/lib/cs/cs-core.server");
-    const { error } = await supabase
-      .from("cs_clients")
-      .update({ [data.field]: data.userId } as never)
-      .eq("client_uid", data.clientUid);
-    if (error) throw new Error(error.message);
-    await logTimeline(supabase, {
-      client_uid: data.clientUid,
-      author_id: userId,
-      event_type: "responsavel_alterado",
-      title:
-        data.field === "cs_responsavel_id"
-          ? "Responsável de CS alterado"
-          : "Responsável comercial alterado",
-      metadata: { novo_responsavel: data.userId },
-    });
-    return { ok: true };
-  });
+  .inputValidator((d) => setCsOwnerSchema.parse(d))
+  .handler(async ({ data, context }) => setCsOwnerNucleo(context, data));
 
 export const saveCsContact = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -637,20 +648,23 @@ export const deleteCsContact = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const addCsTagSchema = z.object({ clientUid: z.string().min(1), tag: z.string().min(1) });
+
+/** Núcleo de addCsTag: a mesma regra para a tela e para a assistente. */
+export async function addCsTagNucleo(context: CtxNucleo, data: z.infer<typeof addCsTagSchema>) {
+  const { addClientTag } = await import("@/lib/cs/cs-core.server");
+  await addClientTag(context.supabase, {
+    client_uid: data.clientUid,
+    tag: data.tag.trim().toLowerCase().replace(/\s+/g, "_"),
+    created_by: context.userId,
+  });
+  return { ok: true };
+}
+
 export const addCsTag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ clientUid: z.string().min(1), tag: z.string().min(1) }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { addClientTag } = await import("@/lib/cs/cs-core.server");
-    await addClientTag(context.supabase, {
-      client_uid: data.clientUid,
-      tag: data.tag.trim().toLowerCase().replace(/\s+/g, "_"),
-      created_by: context.userId,
-    });
-    return { ok: true };
-  });
+  .inputValidator((d) => addCsTagSchema.parse(d))
+  .handler(async ({ data, context }) => addCsTagNucleo(context, data));
 
 /** Tags de um contato do cliente: acrescenta ou tira uma. */
 export const tagDoContato = createServerFn({ method: "POST" })
@@ -682,14 +696,22 @@ export const tagDoContato = createServerFn({ method: "POST" })
     return { tags };
   });
 
+export const removeCsTagSchema = z.object({ id: z.string().uuid() });
+
+/** Núcleo de removeCsTag: a mesma regra para a tela e para a assistente. */
+export async function removeCsTagNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof removeCsTagSchema>,
+) {
+  const { error } = await context.supabase.from("cs_client_tags").delete().eq("id", data.id);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
 export const removeCsTag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("cs_client_tags").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
+  .inputValidator((d) => removeCsTagSchema.parse(d))
+  .handler(async ({ data, context }) => removeCsTagNucleo(context, data));
 
 export const addCsRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -714,100 +736,104 @@ export const addCsRecord = createServerFn({ method: "POST" })
   });
 
 /** Resolve o alerta do Kanban (modal obrigatório): registra contato, tag e follow-up. */
+export const resolveCsAlertSchema = z.object({
+  alertId: z.string().uuid(),
+  contact_type: z.enum(CS_CONTACT_TYPES),
+  whatsapp_answered: z.boolean().nullish(),
+  agenda_type: z.enum(CS_AGENDA_TYPES).nullish(),
+  observation: z.string().nullish(),
+  cliente_autossuficiente: z.boolean().default(false),
+});
+
+/** Núcleo de resolveCsAlert: a mesma regra para a tela e para a assistente. */
+export async function resolveCsAlertNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof resolveCsAlertSchema>,
+) {
+  const { supabase, userId } = context;
+  const { addClientTag, logTimeline, recomputeHealth, tagForAgenda } =
+    await import("@/lib/cs/cs-core.server");
+  const { CS_AGENDA_TYPE_LABEL, CS_CONTACT_TYPE_LABEL } = await import("@/lib/cs-types");
+
+  const { data: alert, error: alertErr } = await supabase
+    .from("cs_alerts")
+    .select("*")
+    .eq("id", data.alertId)
+    .maybeSingle();
+  if (alertErr) throw new Error(alertErr.message);
+  if (!alert) throw new Error("Alerta não encontrado");
+
+  if (data.contact_type === "agenda" && !data.agenda_type) {
+    throw new Error("Informe o tipo de agenda");
+  }
+  if (data.contact_type === "whatsapp" && data.whatsapp_answered == null) {
+    throw new Error("Informe se o WhatsApp foi respondido");
+  }
+
+  const now = new Date();
+  const needsFollowUp = data.contact_type === "whatsapp" && data.whatsapp_answered === false;
+  const followUpAt = needsFollowUp ? new Date(now.getTime() + 2 * 86400000).toISOString() : null;
+  const engajou =
+    data.cliente_autossuficiente ||
+    data.whatsapp_answered === true ||
+    data.contact_type === "agenda";
+
+  const { error } = await supabase
+    .from("cs_alerts")
+    .update({
+      status: needsFollowUp ? "follow_up" : "resolved",
+      contact_type: data.contact_type,
+      whatsapp_answered: data.whatsapp_answered ?? null,
+      agenda_type: data.agenda_type ?? null,
+      observation: data.observation ?? null,
+      resolved_by: userId,
+      resolved_at: now.toISOString(),
+      follow_up_at: followUpAt,
+    })
+    .eq("id", data.alertId);
+  if (error) throw new Error(error.message);
+
+  if (data.agenda_type) {
+    await addClientTag(supabase, {
+      client_uid: alert.client_uid,
+      tag: tagForAgenda(data.agenda_type),
+      origem_agenda_id: data.alertId,
+      created_by: userId,
+    });
+  }
+
+  await logTimeline(supabase, {
+    client_uid: alert.client_uid,
+    author_id: userId,
+    event_type: data.contact_type === "agenda" ? "agenda" : "contato",
+    channel: data.contact_type === "ligacao" ? "ligacao" : data.contact_type,
+    title:
+      data.contact_type === "agenda"
+        ? `Agenda: ${CS_AGENDA_TYPE_LABEL[data.agenda_type ?? ""] ?? "—"}`
+        : `Contato por ${CS_CONTACT_TYPE_LABEL[data.contact_type]}`,
+    description: data.observation ?? alert.reason,
+    metadata: {
+      alert_id: data.alertId,
+      alert_type: alert.alert_type,
+      answered: data.whatsapp_answered === true,
+      engajamento: engajou,
+      autossuficiente: data.cliente_autossuficiente,
+    },
+  });
+
+  await supabase
+    .from("cs_clients")
+    .update({ last_contact_at: now.toISOString() })
+    .eq("client_uid", alert.client_uid);
+  await recomputeHealth(supabase, alert.client_uid);
+
+  return { ok: true, followUpAt };
+}
+
 export const resolveCsAlert = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        alertId: z.string().uuid(),
-        contact_type: z.enum(CS_CONTACT_TYPES),
-        whatsapp_answered: z.boolean().nullish(),
-        agenda_type: z.enum(CS_AGENDA_TYPES).nullish(),
-        observation: z.string().nullish(),
-        cliente_autossuficiente: z.boolean().default(false),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { addClientTag, logTimeline, recomputeHealth, tagForAgenda } =
-      await import("@/lib/cs/cs-core.server");
-    const { CS_AGENDA_TYPE_LABEL, CS_CONTACT_TYPE_LABEL } = await import("@/lib/cs-types");
-
-    const { data: alert, error: alertErr } = await supabase
-      .from("cs_alerts")
-      .select("*")
-      .eq("id", data.alertId)
-      .maybeSingle();
-    if (alertErr) throw new Error(alertErr.message);
-    if (!alert) throw new Error("Alerta não encontrado");
-
-    if (data.contact_type === "agenda" && !data.agenda_type) {
-      throw new Error("Informe o tipo de agenda");
-    }
-    if (data.contact_type === "whatsapp" && data.whatsapp_answered == null) {
-      throw new Error("Informe se o WhatsApp foi respondido");
-    }
-
-    const now = new Date();
-    const needsFollowUp = data.contact_type === "whatsapp" && data.whatsapp_answered === false;
-    const followUpAt = needsFollowUp ? new Date(now.getTime() + 2 * 86400000).toISOString() : null;
-    const engajou =
-      data.cliente_autossuficiente ||
-      data.whatsapp_answered === true ||
-      data.contact_type === "agenda";
-
-    const { error } = await supabase
-      .from("cs_alerts")
-      .update({
-        status: needsFollowUp ? "follow_up" : "resolved",
-        contact_type: data.contact_type,
-        whatsapp_answered: data.whatsapp_answered ?? null,
-        agenda_type: data.agenda_type ?? null,
-        observation: data.observation ?? null,
-        resolved_by: userId,
-        resolved_at: now.toISOString(),
-        follow_up_at: followUpAt,
-      })
-      .eq("id", data.alertId);
-    if (error) throw new Error(error.message);
-
-    if (data.agenda_type) {
-      await addClientTag(supabase, {
-        client_uid: alert.client_uid,
-        tag: tagForAgenda(data.agenda_type),
-        origem_agenda_id: data.alertId,
-        created_by: userId,
-      });
-    }
-
-    await logTimeline(supabase, {
-      client_uid: alert.client_uid,
-      author_id: userId,
-      event_type: data.contact_type === "agenda" ? "agenda" : "contato",
-      channel: data.contact_type === "ligacao" ? "ligacao" : data.contact_type,
-      title:
-        data.contact_type === "agenda"
-          ? `Agenda: ${CS_AGENDA_TYPE_LABEL[data.agenda_type ?? ""] ?? "—"}`
-          : `Contato por ${CS_CONTACT_TYPE_LABEL[data.contact_type]}`,
-      description: data.observation ?? alert.reason,
-      metadata: {
-        alert_id: data.alertId,
-        alert_type: alert.alert_type,
-        answered: data.whatsapp_answered === true,
-        engajamento: engajou,
-        autossuficiente: data.cliente_autossuficiente,
-      },
-    });
-
-    await supabase
-      .from("cs_clients")
-      .update({ last_contact_at: now.toISOString() })
-      .eq("client_uid", alert.client_uid);
-    await recomputeHealth(supabase, alert.client_uid);
-
-    return { ok: true, followUpAt };
-  });
+  .inputValidator((d) => resolveCsAlertSchema.parse(d))
+  .handler(async ({ data, context }) => resolveCsAlertNucleo(context, data));
 
 /** Varre a carteira e cria os alertas pendentes. */
 export const runCsAlertScan = createServerFn({ method: "POST" })
@@ -1133,147 +1159,151 @@ export const listCsMeetings = createServerFn({ method: "GET" })
   });
 
 /** Cria/edita uma reunião e espelha na timeline do cliente. */
-export const saveCsMeeting = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        id: z.string().uuid().optional(),
-        clientUid: z.string().min(1),
-        title: z.string().min(1),
-        // Obrigatório: é o tipo que decide se a reunião vira tag de masterclass.
-        categoryId: z.string().uuid({ message: "Escolha o tipo da reunião" }),
-        occurredAt: z.string().min(1),
-        durationMinutes: z.number().int().positive().nullable().optional(),
-        status: z.enum(["realizada", "agendada", "cancelada", "no_show"]).default("realizada"),
-        // Pessoa do cliente com quem é a reunião (cs_contacts).
-        contactId: z.string().uuid().nullable().optional(),
-        attendees: z.string().nullable().optional(),
-        meetingUrl: z.string().nullable().optional(),
-        summary: z.string().nullable().optional(),
-        nextStep: z.string().nullable().optional(),
-        nextStepAt: z.string().nullable().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const row = {
-      client_uid: data.clientUid,
-      title: data.title,
-      category_id: data.categoryId,
-      occurred_at: new Date(data.occurredAt).toISOString(),
-      duration_minutes: data.durationMinutes ?? null,
-      status: data.status,
-      attendees: data.attendees || null,
-      meeting_url: data.meetingUrl || null,
-      summary: data.summary || null,
-      next_step: data.nextStep || null,
-      next_step_at: data.nextStepAt ? new Date(data.nextStepAt).toISOString() : null,
-      ...(data.contactId !== undefined ? { contact_id: data.contactId } : {}),
-    };
+export const saveCsMeetingSchema = z.object({
+  id: z.string().uuid().optional(),
+  clientUid: z.string().min(1),
+  title: z.string().min(1),
+  // Obrigatório: é o tipo que decide se a reunião vira tag de masterclass.
+  categoryId: z.string().uuid({ message: "Escolha o tipo da reunião" }),
+  occurredAt: z.string().min(1),
+  durationMinutes: z.number().int().positive().nullable().optional(),
+  status: z.enum(["realizada", "agendada", "cancelada", "no_show"]).default("realizada"),
+  // Pessoa do cliente com quem é a reunião (cs_contacts).
+  contactId: z.string().uuid().nullable().optional(),
+  attendees: z.string().nullable().optional(),
+  meetingUrl: z.string().nullable().optional(),
+  summary: z.string().nullable().optional(),
+  nextStep: z.string().nullable().optional(),
+  nextStepAt: z.string().nullable().optional(),
+});
 
-    let meetingId = data.id ?? null;
-    if (data.id) {
-      // Editar (ex.: a agendada virou realizada) mantém o dono da reunião.
-      const { error } = await supabase
-        .from("cs_meetings")
-        .update(row as never)
-        .eq("id", data.id);
-      if (error) throw new Error(error.message);
-    } else {
-      const { data: created, error } = await supabase
-        .from("cs_meetings")
-        .insert({ ...row, owner_user_id: userId, created_by: userId, source: "manual" } as never)
-        .select("id")
-        .single();
-      if (error) throw new Error(error.message);
-      meetingId = (created as { id: string }).id;
-    }
+/** Núcleo de saveCsMeeting: a mesma regra para a tela e para a assistente. */
+export async function saveCsMeetingNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof saveCsMeetingSchema>,
+) {
+  const { supabase, userId } = context;
+  const row = {
+    client_uid: data.clientUid,
+    title: data.title,
+    category_id: data.categoryId,
+    occurred_at: new Date(data.occurredAt).toISOString(),
+    duration_minutes: data.durationMinutes ?? null,
+    status: data.status,
+    attendees: data.attendees || null,
+    meeting_url: data.meetingUrl || null,
+    summary: data.summary || null,
+    next_step: data.nextStep || null,
+    next_step_at: data.nextStepAt ? new Date(data.nextStepAt).toISOString() : null,
+    ...(data.contactId !== undefined ? { contact_id: data.contactId } : {}),
+  };
 
-    // Uma entrada por reunião na linha do tempo: ao editar, atualiza a mesma.
-    const evento = {
-      title: data.title,
-      description: data.summary || null,
-      occurred_at: row.occurred_at,
-      metadata: { meeting_id: meetingId, status: data.status, category_id: row.category_id },
-    };
-    const { data: jaTem } = data.id
-      ? await supabase
-          .from("cs_timeline_events")
-          .select("id")
-          .eq("client_uid", data.clientUid)
-          .eq("event_type", "reuniao")
-          .eq("metadata->>meeting_id", data.id)
-          .limit(1)
-      : { data: [] };
-    const existente = ((jaTem ?? []) as Array<{ id: string }>)[0];
-    if (existente)
-      await supabase
+  let meetingId = data.id ?? null;
+  if (data.id) {
+    // Editar (ex.: a agendada virou realizada) mantém o dono da reunião.
+    const { error } = await supabase
+      .from("cs_meetings")
+      .update(row as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { data: created, error } = await supabase
+      .from("cs_meetings")
+      .insert({ ...row, owner_user_id: userId, created_by: userId, source: "manual" } as never)
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    meetingId = (created as { id: string }).id;
+  }
+
+  // Uma entrada por reunião na linha do tempo: ao editar, atualiza a mesma.
+  const evento = {
+    title: data.title,
+    description: data.summary || null,
+    occurred_at: row.occurred_at,
+    metadata: { meeting_id: meetingId, status: data.status, category_id: row.category_id },
+  };
+  const { data: jaTem } = data.id
+    ? await supabase
         .from("cs_timeline_events")
-        .update(evento as never)
-        .eq("id", existente.id);
-    else
-      await supabase.from("cs_timeline_events").insert({
-        ...evento,
+        .select("id")
+        .eq("client_uid", data.clientUid)
+        .eq("event_type", "reuniao")
+        .eq("metadata->>meeting_id", data.id)
+        .limit(1)
+    : { data: [] };
+  const existente = ((jaTem ?? []) as Array<{ id: string }>)[0];
+  if (existente)
+    await supabase
+      .from("cs_timeline_events")
+      .update(evento as never)
+      .eq("id", existente.id);
+  else
+    await supabase.from("cs_timeline_events").insert({
+      ...evento,
+      client_uid: data.clientUid,
+      author_id: userId,
+      event_type: "reuniao",
+      channel: "reuniao",
+    } as never);
+
+  if (data.status === "realizada") {
+    await supabase
+      .from("cs_clients")
+      .update({ last_contact_at: row.occurred_at } as never)
+      .eq("client_uid", data.clientUid);
+
+    /*
+     * Reunião de masterclass registrada vira tag na empresa, com a agenda
+     * que a originou. É por isso que o tipo é obrigatório: sem ele não dá
+     * para saber se a reunião conta como masterclass.
+     */
+    const { data: categoria } = await supabase
+      .from("cs_meeting_categories")
+      .select("name, slug")
+      .eq("id", data.categoryId)
+      .maybeSingle();
+    const rotulo = `${categoria?.slug ?? ""} ${categoria?.name ?? ""}`;
+    if (/masterclass/i.test(rotulo)) {
+      const { addClientTag } = await import("@/lib/cs/cs-core.server");
+      await addClientTag(supabase, {
         client_uid: data.clientUid,
-        author_id: userId,
-        event_type: "reuniao",
-        channel: "reuniao",
-      } as never);
-
-    if (data.status === "realizada") {
-      await supabase
-        .from("cs_clients")
-        .update({ last_contact_at: row.occurred_at } as never)
-        .eq("client_uid", data.clientUid);
-
-      /*
-       * Reunião de masterclass registrada vira tag na empresa, com a agenda
-       * que a originou. É por isso que o tipo é obrigatório: sem ele não dá
-       * para saber se a reunião conta como masterclass.
-       */
-      const { data: categoria } = await supabase
-        .from("cs_meeting_categories")
-        .select("name, slug")
-        .eq("id", data.categoryId)
-        .maybeSingle();
-      const rotulo = `${categoria?.slug ?? ""} ${categoria?.name ?? ""}`;
-      if (/masterclass/i.test(rotulo)) {
-        const { addClientTag } = await import("@/lib/cs/cs-core.server");
-        await addClientTag(supabase, {
-          client_uid: data.clientUid,
-          tag: (categoria?.slug || categoria?.name || "masterclass")
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, "_"),
-          origem_agenda_id: meetingId,
-          created_by: userId,
-        });
-        // A pessoa da reunião também leva a tag.
-        if (data.contactId) {
-          const tagContato = (categoria?.slug || categoria?.name || "masterclass")
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, "_");
-          const dbc = supabase as unknown as import("@supabase/supabase-js").SupabaseClient;
-          const { data: ct } = await dbc
+        tag: (categoria?.slug || categoria?.name || "masterclass")
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "_"),
+        origem_agenda_id: meetingId,
+        created_by: userId,
+      });
+      // A pessoa da reunião também leva a tag.
+      if (data.contactId) {
+        const tagContato = (categoria?.slug || categoria?.name || "masterclass")
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, "_");
+        const dbc = supabase as unknown as import("@supabase/supabase-js").SupabaseClient;
+        const { data: ct } = await dbc
+          .from("cs_contacts")
+          .select("tags")
+          .eq("id", data.contactId)
+          .maybeSingle();
+        const atuais = ((ct as { tags: string[] | null } | null)?.tags ?? []).filter(Boolean);
+        if (!atuais.includes(tagContato))
+          await dbc
             .from("cs_contacts")
-            .select("tags")
-            .eq("id", data.contactId)
-            .maybeSingle();
-          const atuais = ((ct as { tags: string[] | null } | null)?.tags ?? []).filter(Boolean);
-          if (!atuais.includes(tagContato))
-            await dbc
-              .from("cs_contacts")
-              .update({ tags: [...atuais, tagContato] })
-              .eq("id", data.contactId);
-        }
+            .update({ tags: [...atuais, tagContato] })
+            .eq("id", data.contactId);
       }
     }
+  }
 
-    return { ok: true, id: meetingId };
-  });
+  return { ok: true, id: meetingId };
+}
+
+export const saveCsMeeting = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => saveCsMeetingSchema.parse(d))
+  .handler(async ({ data, context }) => saveCsMeetingNucleo(context, data));
 
 export const deleteCsMeeting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -1307,138 +1337,142 @@ export const saveCsMeetingCategory = createServerFn({ method: "POST" })
   });
 
 /** Registro manual de atendimento direto na timeline (ligação, observação, etc). */
-export const addCsTimelineEntry = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        clientUid: z.string().min(1),
-        channel: z.enum(["ligacao", "whatsapp", "email", "reuniao", "presencial", "observacao"]),
-        title: z.string().min(1),
-        description: z.string().nullable().optional(),
-        occurredAt: z.string().optional(),
-        countsAsContact: z.boolean().default(true),
-        /** Bloco 10: as cinco perguntas do diagnóstico do vermelho + causa principal. */
-        diagnostico: z
-          .object({
-            respostas: z.record(z.string(), z.enum(["sim", "nao", "na"])),
-            causa: z.enum(["analista_novo", "falta_projeto", "nao_ve_valor", "outro"]).nullable(),
-            observacao: z.string().max(2000).nullable().optional(),
-          })
-          .optional(),
-        /** Bloco 8/10: acionar o Executivo com contexto (vira tarefa para ele). */
-        executivo: z
-          .object({
-            projeto: z.string().min(1).max(300),
-            contato: z.string().max(200).nullable().optional(),
-            resumo: z.string().max(2000).nullable().optional(),
-          })
-          .optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const occurredAt = data.occurredAt
-      ? new Date(data.occurredAt).toISOString()
-      : new Date().toISOString();
-    const DIAG_Q: Record<string, string> = {
-      q1: "Sabe que está usando pouco",
-      q2: "Há projeto parado",
-      q3: "Mudança de equipe / saiu o analista",
-      q4: "Dúvida técnica acumulada",
-      q5: "Ainda acredita no valor",
-    };
-    let description = data.description || null;
-    if (data.diagnostico) {
-      const linhas = Object.entries(data.diagnostico.respostas)
-        .filter(([, v]) => v !== "na")
-        .map(([k, v]) => `${DIAG_Q[k] ?? k}: ${v === "sim" ? "sim" : "não"}`);
-      const { DIAG_CAUSE_LABEL } = await import("@/lib/cs/masterclass");
-      const causa = data.diagnostico.causa ? DIAG_CAUSE_LABEL[data.diagnostico.causa] : null;
-      description = [
-        description,
-        `Diagnóstico do vermelho — ${linhas.join(" · ") || "sem respostas"}${causa ? ` · Causa principal: ${causa}` : ""}`,
-        data.diagnostico.observacao?.trim() || null,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      if (data.diagnostico.causa)
-        await supabase
-          .from("cs_clients")
-          .update({ diagnostico_causa: data.diagnostico.causa })
-          .eq("client_uid", data.clientUid);
-    }
-    const { error } = await supabase.from("cs_timeline_events").insert({
-      client_uid: data.clientUid,
-      author_id: userId,
-      event_type: "contato_manual",
-      channel: data.channel,
-      title: data.title,
+export const addCsTimelineEntrySchema = z.object({
+  clientUid: z.string().min(1),
+  channel: z.enum(["ligacao", "whatsapp", "email", "reuniao", "presencial", "observacao"]),
+  title: z.string().min(1),
+  description: z.string().nullable().optional(),
+  occurredAt: z.string().optional(),
+  countsAsContact: z.boolean().default(true),
+  /** Bloco 10: as cinco perguntas do diagnóstico do vermelho + causa principal. */
+  diagnostico: z
+    .object({
+      respostas: z.record(z.string(), z.enum(["sim", "nao", "na"])),
+      causa: z.enum(["analista_novo", "falta_projeto", "nao_ve_valor", "outro"]).nullable(),
+      observacao: z.string().max(2000).nullable().optional(),
+    })
+    .optional(),
+  /** Bloco 8/10: acionar o Executivo com contexto (vira tarefa para ele). */
+  executivo: z
+    .object({
+      projeto: z.string().min(1).max(300),
+      contato: z.string().max(200).nullable().optional(),
+      resumo: z.string().max(2000).nullable().optional(),
+    })
+    .optional(),
+});
+
+/** Núcleo de addCsTimelineEntry: a mesma regra para a tela e para a assistente. */
+export async function addCsTimelineEntryNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof addCsTimelineEntrySchema>,
+) {
+  const { supabase, userId } = context;
+  const occurredAt = data.occurredAt
+    ? new Date(data.occurredAt).toISOString()
+    : new Date().toISOString();
+  const DIAG_Q: Record<string, string> = {
+    q1: "Sabe que está usando pouco",
+    q2: "Há projeto parado",
+    q3: "Mudança de equipe / saiu o analista",
+    q4: "Dúvida técnica acumulada",
+    q5: "Ainda acredita no valor",
+  };
+  let description = data.description || null;
+  if (data.diagnostico) {
+    const linhas = Object.entries(data.diagnostico.respostas)
+      .filter(([, v]) => v !== "na")
+      .map(([k, v]) => `${DIAG_Q[k] ?? k}: ${v === "sim" ? "sim" : "não"}`);
+    const { DIAG_CAUSE_LABEL } = await import("@/lib/cs/masterclass");
+    const causa = data.diagnostico.causa ? DIAG_CAUSE_LABEL[data.diagnostico.causa] : null;
+    description = [
       description,
-      occurred_at: occurredAt,
-      metadata: {
-        manual: true,
-        ...(data.diagnostico ? { diagnostico: data.diagnostico } : {}),
-      },
-    } as never);
-    if (error) throw new Error(error.message);
-
-    if (data.executivo) {
-      const { data: client } = await supabase
-        .from("cs_clients")
-        .select("nome_empresa, comercial_responsavel_id")
-        .eq("client_uid", data.clientUid)
-        .maybeSingle();
-      const notes = [
-        `Projeto/oportunidade: ${data.executivo.projeto}`,
-        data.executivo.contato ? `Contato no cliente: ${data.executivo.contato}` : null,
-        data.executivo.resumo ? `Última conversa: ${data.executivo.resumo}` : null,
-      ]
-        .filter(Boolean)
-        .join("\n");
-      const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
-      const prazo = await ajustarDataDaTarefa(
-        supabase,
-        client?.comercial_responsavel_id ?? null,
-        new Date(Date.now() + 2 * 86400000).toISOString(),
-      );
-      await supabase.from("cs_tasks").insert({
-        client_uid: data.clientUid,
-        owner_id: client?.comercial_responsavel_id ?? null,
-        title:
-          `Acionamento do CS — ${client?.nome_empresa ?? data.clientUid}: ${data.executivo.projeto}`.slice(
-            0,
-            200,
-          ),
-        task_type: "outro",
-        due_at: prazo.iso,
-        notes,
-        created_by: userId,
-        source: "acionamento_executivo",
-      });
-      await supabase.from("cs_timeline_events").insert({
-        client_uid: data.clientUid,
-        author_id: userId,
-        event_type: "acionamento_executivo",
-        channel: "observacao",
-        title: `Executivo acionado: ${data.executivo.projeto}`.slice(0, 180),
-        description: notes,
-        occurred_at: occurredAt,
-        metadata: { executivo_id: client?.comercial_responsavel_id ?? null },
-      } as never);
-    }
-
-    // Registro com data futura é agendamento (aparece em Follow-ups CS), não contato feito.
-    const isFuture = occurredAt > new Date().toISOString();
-    if (data.countsAsContact && data.channel !== "observacao" && !isFuture) {
+      `Diagnóstico do vermelho — ${linhas.join(" · ") || "sem respostas"}${causa ? ` · Causa principal: ${causa}` : ""}`,
+      data.diagnostico.observacao?.trim() || null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    if (data.diagnostico.causa)
       await supabase
         .from("cs_clients")
-        .update({ last_contact_at: occurredAt } as never)
+        .update({ diagnostico_causa: data.diagnostico.causa })
         .eq("client_uid", data.clientUid);
-    }
-    return { ok: true };
-  });
+  }
+  const { error } = await supabase.from("cs_timeline_events").insert({
+    client_uid: data.clientUid,
+    author_id: userId,
+    event_type: "contato_manual",
+    channel: data.channel,
+    title: data.title,
+    description,
+    occurred_at: occurredAt,
+    metadata: {
+      manual: true,
+      ...(data.diagnostico ? { diagnostico: data.diagnostico } : {}),
+    },
+  } as never);
+  if (error) throw new Error(error.message);
+
+  if (data.executivo) {
+    const { data: client } = await supabase
+      .from("cs_clients")
+      .select("nome_empresa, comercial_responsavel_id")
+      .eq("client_uid", data.clientUid)
+      .maybeSingle();
+    const notes = [
+      `Projeto/oportunidade: ${data.executivo.projeto}`,
+      data.executivo.contato ? `Contato no cliente: ${data.executivo.contato}` : null,
+      data.executivo.resumo ? `Última conversa: ${data.executivo.resumo}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
+    const prazo = await ajustarDataDaTarefa(
+      supabase,
+      client?.comercial_responsavel_id ?? null,
+      new Date(Date.now() + 2 * 86400000).toISOString(),
+    );
+    await supabase.from("cs_tasks").insert({
+      client_uid: data.clientUid,
+      owner_id: client?.comercial_responsavel_id ?? null,
+      title:
+        `Acionamento do CS — ${client?.nome_empresa ?? data.clientUid}: ${data.executivo.projeto}`.slice(
+          0,
+          200,
+        ),
+      task_type: "outro",
+      due_at: prazo.iso,
+      notes,
+      created_by: userId,
+      source: "acionamento_executivo",
+    });
+    await supabase.from("cs_timeline_events").insert({
+      client_uid: data.clientUid,
+      author_id: userId,
+      event_type: "acionamento_executivo",
+      channel: "observacao",
+      title: `Executivo acionado: ${data.executivo.projeto}`.slice(0, 180),
+      description: notes,
+      occurred_at: occurredAt,
+      metadata: { executivo_id: client?.comercial_responsavel_id ?? null },
+    } as never);
+  }
+
+  // Registro com data futura é agendamento (aparece em Follow-ups CS), não contato feito.
+  const isFuture = occurredAt > new Date().toISOString();
+  if (data.countsAsContact && data.channel !== "observacao" && !isFuture) {
+    await supabase
+      .from("cs_clients")
+      .update({ last_contact_at: occurredAt } as never)
+      .eq("client_uid", data.clientUid);
+  }
+  return { ok: true };
+}
+
+export const addCsTimelineEntry = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => addCsTimelineEntrySchema.parse(d))
+  .handler(async ({ data, context }) => addCsTimelineEntryNucleo(context, data));
 
 /** Dados da página Início: quem sou, minha carteira, alertas abertos e atividade recente. */
 export const getCsHome = createServerFn({ method: "GET" })

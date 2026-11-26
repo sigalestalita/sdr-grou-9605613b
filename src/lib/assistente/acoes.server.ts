@@ -38,6 +38,7 @@ export const TABELAS_DA_BASE: Record<string, string> = {
   cs_contacts: "Contatos da carteira do CS",
   cs_tasks: "Tarefas do CS",
   cs_meetings: "Reuniões do CS",
+  cs_meeting_categories: "Tipos de reunião do CS (categoryId para agendar)",
   cs_timeline_events: "Linha do tempo dos clientes do CS",
   cs_alerts: "Alertas do CS",
   cs_signal_snapshots: "Histórico da sinaleira",

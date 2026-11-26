@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { CtxNucleo } from "@/lib/nucleo";
 import { filtroDoResponsavel } from "@/lib/comercial/responsavel";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { conferirGanho, resolverPolitica, soDigitos } from "@/lib/faturamento/politica";
@@ -91,120 +92,131 @@ export const getNegocio = createServerFn({ method: "GET" })
  * Registra o que foi feito e, no mesmo gesto, combina o próximo passo. Juntar
  * as duas coisas é o que evita negócio parado sem ninguém perceber.
  */
+export const registrarAtividadeSchema = z.object({
+  dealId: z.string().uuid(),
+  tipo: z.enum(["ligacao", "email", "reuniao", "whatsapp", "proposta", "nota"]),
+  descricao: z.string().max(2000).optional(),
+  occurredAt: z.string().datetime().optional(),
+  proximoPasso: z.string().max(300).nullable().optional(),
+  proximoPassoEm: z.string().datetime().nullable().optional(),
+  // Pessoas marcadas no registro: recebem notificação com o link do negócio.
+  mencionados: z.array(z.string().uuid()).max(10).optional(),
+});
+
+/** Núcleo de registrarAtividade: a mesma regra para a tela e para a assistente. */
+export async function registrarAtividadeNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof registrarAtividadeSchema>,
+) {
+  const { supabase, userId } = context;
+
+  const { error } = await supabase.from("deal_activities").insert({
+    deal_id: data.dealId,
+    tipo: data.tipo,
+    descricao: data.descricao?.trim() || null,
+    occurred_at: data.occurredAt ?? new Date().toISOString(),
+    author_id: userId,
+  } as never);
+  if (error) throw new Error(error.message);
+
+  // Próximo passo só é tocado quando veio no formulário.
+  if (data.proximoPasso !== undefined || data.proximoPassoEm !== undefined) {
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (data.proximoPasso !== undefined) patch.proximo_passo = data.proximoPasso || null;
+    if (data.proximoPassoEm !== undefined) patch.proximo_passo_em = data.proximoPassoEm || null;
+    const { error: upErr } = await supabase
+      .from("deals")
+      .update(patch as never)
+      .eq("id", data.dealId);
+    if (upErr) throw new Error(upErr.message);
+  }
+
+  if (data.mencionados?.length) {
+    const [{ data: deal }, { data: autor }] = await Promise.all([
+      supabase.from("deals").select("nome").eq("id", data.dealId).maybeSingle(),
+      supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle(),
+    ]);
+    await notificar(supabase as unknown as Db, userId, {
+      para: data.mencionados,
+      tipo: "mencao",
+      titulo: `${autor?.full_name || autor?.email || "Alguém"} mencionou você em ${deal?.nome ?? "um negócio"}`,
+      corpo: data.descricao ?? null,
+      link: `/negocio/${data.dealId}`,
+      dealId: data.dealId,
+    });
+  }
+
+  // Reunião registrada alimenta a métrica de agendas da meta.
+  if (data.tipo === "reuniao") {
+    await supabase
+      .from("deals")
+      .update({ reuniao_em: data.occurredAt ?? new Date().toISOString() } as never)
+      .eq("id", data.dealId)
+      .is("reuniao_em", null);
+  }
+
+  return { ok: true };
+}
+
 export const registrarAtividade = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        dealId: z.string().uuid(),
-        tipo: z.enum(["ligacao", "email", "reuniao", "whatsapp", "proposta", "nota"]),
-        descricao: z.string().max(2000).optional(),
-        occurredAt: z.string().datetime().optional(),
-        proximoPasso: z.string().max(300).nullable().optional(),
-        proximoPassoEm: z.string().datetime().nullable().optional(),
-        // Pessoas marcadas no registro: recebem notificação com o link do negócio.
-        mencionados: z.array(z.string().uuid()).max(10).optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+  .inputValidator((d) => registrarAtividadeSchema.parse(d))
+  .handler(async ({ data, context }) => registrarAtividadeNucleo(context, data));
 
-    const { error } = await supabase.from("deal_activities").insert({
-      deal_id: data.dealId,
-      tipo: data.tipo,
-      descricao: data.descricao?.trim() || null,
-      occurred_at: data.occurredAt ?? new Date().toISOString(),
-      author_id: userId,
-    } as never);
-    if (error) throw new Error(error.message);
+export const moverEtapaSchema = z.object({ dealId: z.string().uuid(), stageId: z.string().uuid() });
 
-    // Próximo passo só é tocado quando veio no formulário.
-    if (data.proximoPasso !== undefined || data.proximoPassoEm !== undefined) {
-      const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (data.proximoPasso !== undefined) patch.proximo_passo = data.proximoPasso || null;
-      if (data.proximoPassoEm !== undefined) patch.proximo_passo_em = data.proximoPassoEm || null;
-      const { error: upErr } = await supabase
-        .from("deals")
-        .update(patch as never)
-        .eq("id", data.dealId);
-      if (upErr) throw new Error(upErr.message);
-    }
-
-    if (data.mencionados?.length) {
-      const [{ data: deal }, { data: autor }] = await Promise.all([
-        supabase.from("deals").select("nome").eq("id", data.dealId).maybeSingle(),
-        supabase.from("profiles").select("full_name, email").eq("id", userId).maybeSingle(),
-      ]);
-      await notificar(supabase as unknown as Db, userId, {
-        para: data.mencionados,
-        tipo: "mencao",
-        titulo: `${autor?.full_name || autor?.email || "Alguém"} mencionou você em ${deal?.nome ?? "um negócio"}`,
-        corpo: data.descricao ?? null,
-        link: `/negocio/${data.dealId}`,
-        dealId: data.dealId,
-      });
-    }
-
-    // Reunião registrada alimenta a métrica de agendas da meta.
-    if (data.tipo === "reuniao") {
-      await supabase
-        .from("deals")
-        .update({ reuniao_em: data.occurredAt ?? new Date().toISOString() } as never)
-        .eq("id", data.dealId)
-        .is("reuniao_em", null);
-    }
-
-    return { ok: true };
-  });
+/** Núcleo de moverEtapa: a mesma regra para a tela e para a assistente. */
+export async function moverEtapaNucleo(context: CtxNucleo, data: z.infer<typeof moverEtapaSchema>) {
+  const { supabase } = context;
+  // A mudança vira atividade sozinha, por trigger no banco.
+  const { error } = await supabase
+    .from("deals")
+    .update({ stage_id: data.stageId, updated_at: new Date().toISOString() } as never)
+    .eq("id", data.dealId);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
 
 export const moverEtapa = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ dealId: z.string().uuid(), stageId: z.string().uuid() }).parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    // A mudança vira atividade sozinha, por trigger no banco.
-    const { error } = await supabase
-      .from("deals")
-      .update({ stage_id: data.stageId, updated_at: new Date().toISOString() } as never)
-      .eq("id", data.dealId);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
+  .inputValidator((d) => moverEtapaSchema.parse(d))
+  .handler(async ({ data, context }) => moverEtapaNucleo(context, data));
 
 /** Edita os campos que o executivo mexe com frequência. */
+export const salvarNegocioSchema = z.object({
+  id: z.string().uuid(),
+  nome: z.string().min(1).max(200).optional(),
+  amount: z.number().min(0).max(100_000_000).optional(),
+  temperatura: z.enum(["quente", "morno", "frio"]).nullable().optional(),
+  tipo_venda: z.string().max(120).nullable().optional(),
+  produtos_texto: z.string().max(1000).nullable().optional(),
+  proximo_passo: z.string().max(300).nullable().optional(),
+  proximo_passo_em: z.string().datetime().nullable().optional(),
+  // Reunião que o próprio executivo marcou (vai para o Início e a agenda).
+  reuniao_em: z.string().datetime().nullable().optional(),
+});
+
+/** Núcleo de salvarNegocio: a mesma regra para a tela e para a assistente. */
+export async function salvarNegocioNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof salvarNegocioSchema>,
+) {
+  const { supabase } = context;
+  const { id, ...campos } = data;
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  for (const [k, v] of Object.entries(campos)) if (v !== undefined) patch[k] = v;
+  const { error } = await supabase
+    .from("deals")
+    .update(patch as never)
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
 export const salvarNegocio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        nome: z.string().min(1).max(200).optional(),
-        amount: z.number().min(0).max(100_000_000).optional(),
-        temperatura: z.enum(["quente", "morno", "frio"]).nullable().optional(),
-        tipo_venda: z.string().max(120).nullable().optional(),
-        produtos_texto: z.string().max(1000).nullable().optional(),
-        proximo_passo: z.string().max(300).nullable().optional(),
-        proximo_passo_em: z.string().datetime().nullable().optional(),
-        // Reunião que o próprio executivo marcou (vai para o Início e a agenda).
-        reuniao_em: z.string().datetime().nullable().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { id, ...campos } = data;
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    for (const [k, v] of Object.entries(campos)) if (v !== undefined) patch[k] = v;
-    const { error } = await supabase
-      .from("deals")
-      .update(patch as never)
-      .eq("id", id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
+  .inputValidator((d) => salvarNegocioSchema.parse(d))
+  .handler(async ({ data, context }) => salvarNegocioNucleo(context, data));
 
 /**
  * Fecha o negócio. Ganho exige a data da ordem de compra, que é a regra da
@@ -216,131 +228,134 @@ export const salvarNegocio = createServerFn({ method: "POST" })
  * exige OC e ela não veio, ou se só paga à vista e veio parcelado, o ganho não
  * passa — é a nota que voltaria 60 dias depois.
  */
+export const fecharNegocioSchema = z.discriminatedUnion("resultado", [
+  z.object({
+    resultado: z.literal("ganho"),
+    dealId: z.string().uuid(),
+    ordemCompraEm: z.string().datetime(),
+    // "numero" (padrão), "nao_tem" (cliente não emite OC) ou "anexo".
+    ocSituacao: z.enum(["numero", "nao_tem", "anexo"]).default("numero"),
+    ordemCompraNumero: z.string().trim().max(60).optional(),
+    ocAnexoUrl: z.string().trim().url().max(500).optional(),
+    contratoAssinadoEm: z.string().datetime().nullable().optional(),
+    amount: z.number().min(0).max(100_000_000).optional(),
+    observacaoAdm: z.string().max(4000).optional(),
+    cnpjFaturamento: z.string().max(20).optional(),
+    emissaoPrevistaEm: z.string().date().optional(),
+    prazoPagamento: z.string().trim().max(120).optional(),
+    formaPagamento: z.string().trim().max(60).optional(),
+    parcelas: z.number().int().min(1).max(24).optional(),
+    contatoFaturamentoId: z.string().uuid().optional(),
+  }),
+  z.object({
+    resultado: z.literal("perdido"),
+    dealId: z.string().uuid(),
+    motivo: z.string().min(2).max(300),
+  }),
+]);
+
+/** Núcleo de fecharNegocio: a mesma regra para a tela e para a assistente. */
+export async function fecharNegocioNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof fecharNegocioSchema>,
+) {
+  const { supabase, userId } = context;
+  const agora = new Date().toISOString();
+
+  const { data: etapas } = await supabase
+    .from("pipeline_stages")
+    .select("id, kind, pipeline_id")
+    .eq("kind", data.resultado === "ganho" ? "won" : "lost");
+  const { data: negocio } = await supabase
+    .from("deals")
+    .select("pipeline_id, company_id, amount, tipo_venda")
+    .eq("id", data.dealId)
+    .maybeSingle();
+
+  if (data.resultado === "ganho") {
+    const companyId = (negocio as { company_id?: string | null } | null)?.company_id ?? null;
+    const pol = companyId ? await carregarPolitica(supabase as unknown as Db, companyId) : null;
+    const bloqueios = conferirGanho(
+      {
+        ocSituacao: data.ocSituacao,
+        ocNumero: data.ordemCompraNumero ?? null,
+        ocAnexoUrl: data.ocAnexoUrl ?? null,
+        cnpjFaturamento: data.cnpjFaturamento || pol?.empresa?.cnpj || null,
+        emissaoPrevistaEm: data.emissaoPrevistaEm ?? null,
+        parcelas: data.parcelas ?? null,
+        valor: data.amount ?? Number((negocio as { amount?: number } | null)?.amount ?? 0),
+        contatoFaturamento: true,
+        clienteNovo: false,
+      },
+      pol?.efetiva ?? resolverPolitica(null),
+    ).filter((p) => p.bloqueia);
+    if (bloqueios.length > 0) throw new Error(bloqueios.map((p) => p.mensagem).join(" · "));
+  }
+  const etapaFinal =
+    ((etapas ?? []) as Array<{ id: string; pipeline_id: string }>).find(
+      (e) => e.pipeline_id === negocio?.pipeline_id,
+    )?.id ?? null;
+
+  const patch: Record<string, unknown> =
+    data.resultado === "ganho"
+      ? {
+          status: "won",
+          ordem_compra_em: data.ordemCompraEm,
+          oc_situacao: data.ocSituacao,
+          ordem_compra_numero: data.ocSituacao === "numero" ? data.ordemCompraNumero || null : null,
+          oc_anexo_url: data.ocSituacao === "anexo" ? data.ocAnexoUrl || null : null,
+          cnpj_faturamento: soDigitos(data.cnpjFaturamento) || null,
+          emissao_prevista_em: data.emissaoPrevistaEm ?? null,
+          prazo_pagamento: data.prazoPagamento || null,
+          forma_pagamento: data.formaPagamento || null,
+          parcelas: data.parcelas ?? null,
+          contato_faturamento_id: data.contatoFaturamentoId ?? null,
+          contrato_assinado_em: data.contratoAssinadoEm ?? null,
+          closed_at: data.ordemCompraEm,
+          ...(data.amount !== undefined ? { amount: data.amount } : {}),
+          ...(data.observacaoAdm ? { observacao_adm: data.observacaoAdm } : {}),
+          proximo_passo: null,
+          proximo_passo_em: null,
+        }
+      : {
+          status: "lost",
+          lost_reason: data.motivo,
+          closed_at: agora,
+          proximo_passo: null,
+          proximo_passo_em: null,
+        };
+  if (etapaFinal) patch.stage_id = etapaFinal;
+  patch.updated_at = agora;
+
+  const { error } = await supabase
+    .from("deals")
+    .update(patch as never)
+    .eq("id", data.dealId);
+  if (error) throw new Error(error.message);
+
+  await supabase.from("deal_activities").insert({
+    deal_id: data.dealId,
+    tipo: "nota",
+    descricao:
+      data.resultado === "ganho"
+        ? `Venda ganha — ${
+            data.ocSituacao === "nao_tem"
+              ? "cliente não emite ordem de compra"
+              : data.ocSituacao === "anexo"
+                ? "ordem de compra anexada"
+                : `ordem de compra ${data.ordemCompraNumero}`
+          }. Segue para o ADM.`
+        : `Negócio perdido — ${data.motivo}`,
+    author_id: userId,
+  } as never);
+
+  return { ok: true };
+}
+
 export const fecharNegocio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .discriminatedUnion("resultado", [
-        z.object({
-          resultado: z.literal("ganho"),
-          dealId: z.string().uuid(),
-          ordemCompraEm: z.string().datetime(),
-          // "numero" (padrão), "nao_tem" (cliente não emite OC) ou "anexo".
-          ocSituacao: z.enum(["numero", "nao_tem", "anexo"]).default("numero"),
-          ordemCompraNumero: z.string().trim().max(60).optional(),
-          ocAnexoUrl: z.string().trim().url().max(500).optional(),
-          contratoAssinadoEm: z.string().datetime().nullable().optional(),
-          amount: z.number().min(0).max(100_000_000).optional(),
-          observacaoAdm: z.string().max(4000).optional(),
-          cnpjFaturamento: z.string().max(20).optional(),
-          emissaoPrevistaEm: z.string().date().optional(),
-          prazoPagamento: z.string().trim().max(120).optional(),
-          formaPagamento: z.string().trim().max(60).optional(),
-          parcelas: z.number().int().min(1).max(24).optional(),
-          contatoFaturamentoId: z.string().uuid().optional(),
-        }),
-        z.object({
-          resultado: z.literal("perdido"),
-          dealId: z.string().uuid(),
-          motivo: z.string().min(2).max(300),
-        }),
-      ])
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const agora = new Date().toISOString();
-
-    const { data: etapas } = await supabase
-      .from("pipeline_stages")
-      .select("id, kind, pipeline_id")
-      .eq("kind", data.resultado === "ganho" ? "won" : "lost");
-    const { data: negocio } = await supabase
-      .from("deals")
-      .select("pipeline_id, company_id, amount, tipo_venda")
-      .eq("id", data.dealId)
-      .maybeSingle();
-
-    if (data.resultado === "ganho") {
-      const companyId = (negocio as { company_id?: string | null } | null)?.company_id ?? null;
-      const pol = companyId ? await carregarPolitica(supabase as unknown as Db, companyId) : null;
-      const bloqueios = conferirGanho(
-        {
-          ocSituacao: data.ocSituacao,
-          ocNumero: data.ordemCompraNumero ?? null,
-          ocAnexoUrl: data.ocAnexoUrl ?? null,
-          cnpjFaturamento: data.cnpjFaturamento || pol?.empresa?.cnpj || null,
-          emissaoPrevistaEm: data.emissaoPrevistaEm ?? null,
-          parcelas: data.parcelas ?? null,
-          valor: data.amount ?? Number((negocio as { amount?: number } | null)?.amount ?? 0),
-          contatoFaturamento: true,
-          clienteNovo: false,
-        },
-        pol?.efetiva ?? resolverPolitica(null),
-      ).filter((p) => p.bloqueia);
-      if (bloqueios.length > 0) throw new Error(bloqueios.map((p) => p.mensagem).join(" · "));
-    }
-    const etapaFinal =
-      ((etapas ?? []) as Array<{ id: string; pipeline_id: string }>).find(
-        (e) => e.pipeline_id === negocio?.pipeline_id,
-      )?.id ?? null;
-
-    const patch: Record<string, unknown> =
-      data.resultado === "ganho"
-        ? {
-            status: "won",
-            ordem_compra_em: data.ordemCompraEm,
-            oc_situacao: data.ocSituacao,
-            ordem_compra_numero:
-              data.ocSituacao === "numero" ? data.ordemCompraNumero || null : null,
-            oc_anexo_url: data.ocSituacao === "anexo" ? data.ocAnexoUrl || null : null,
-            cnpj_faturamento: soDigitos(data.cnpjFaturamento) || null,
-            emissao_prevista_em: data.emissaoPrevistaEm ?? null,
-            prazo_pagamento: data.prazoPagamento || null,
-            forma_pagamento: data.formaPagamento || null,
-            parcelas: data.parcelas ?? null,
-            contato_faturamento_id: data.contatoFaturamentoId ?? null,
-            contrato_assinado_em: data.contratoAssinadoEm ?? null,
-            closed_at: data.ordemCompraEm,
-            ...(data.amount !== undefined ? { amount: data.amount } : {}),
-            ...(data.observacaoAdm ? { observacao_adm: data.observacaoAdm } : {}),
-            proximo_passo: null,
-            proximo_passo_em: null,
-          }
-        : {
-            status: "lost",
-            lost_reason: data.motivo,
-            closed_at: agora,
-            proximo_passo: null,
-            proximo_passo_em: null,
-          };
-    if (etapaFinal) patch.stage_id = etapaFinal;
-    patch.updated_at = agora;
-
-    const { error } = await supabase
-      .from("deals")
-      .update(patch as never)
-      .eq("id", data.dealId);
-    if (error) throw new Error(error.message);
-
-    await supabase.from("deal_activities").insert({
-      deal_id: data.dealId,
-      tipo: "nota",
-      descricao:
-        data.resultado === "ganho"
-          ? `Venda ganha — ${
-              data.ocSituacao === "nao_tem"
-                ? "cliente não emite ordem de compra"
-                : data.ocSituacao === "anexo"
-                  ? "ordem de compra anexada"
-                  : `ordem de compra ${data.ordemCompraNumero}`
-            }. Segue para o ADM.`
-          : `Negócio perdido — ${data.motivo}`,
-      author_id: userId,
-    } as never);
-
-    return { ok: true };
-  });
+  .inputValidator((d) => fecharNegocioSchema.parse(d))
+  .handler(async ({ data, context }) => fecharNegocioNucleo(context, data));
 
 /**
  * A fila do executivo: o que ele combinou de fazer e ainda não fez, atrasado
@@ -424,68 +439,72 @@ export const MOTIVOS_CONGELAR = [
  * negócio sai do funil ativo e da previsão, e volta sozinho na data, com o
  * próximo passo marcado e aviso para o executivo. `ate` null descongela agora.
  */
+export const congelarNegocioSchema = z.object({
+  dealId: z.string().uuid(),
+  ate: z.string().date().nullable(),
+  motivo: z.string().trim().min(3).max(300).optional(),
+});
+
+/** Núcleo de congelarNegocio: a mesma regra para a tela e para a assistente. */
+export async function congelarNegocioNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof congelarNegocioSchema>,
+) {
+  const { supabase, userId } = context;
+  const { data: atual, error: e1 } = await supabase
+    .from("deals")
+    .select("status, vezes_congelado")
+    .eq("id", data.dealId)
+    .maybeSingle();
+  if (e1) throw new Error(e1.message);
+  if (!atual) throw new Error("Negócio não encontrado");
+  const a = atual as unknown as { status: string; vezes_congelado: number | null };
+  if (a.status !== "open") throw new Error("Só dá para congelar negócio em aberto");
+  const agora = new Date().toISOString();
+
+  let patch: Record<string, unknown>;
+  let nota: string;
+  if (data.ate) {
+    const hoje = new Date().toISOString().slice(0, 10);
+    const limite = new Date(Date.now() + 548 * 864e5).toISOString().slice(0, 10);
+    if (data.ate <= hoje) throw new Error("A data de retomada precisa ser depois de hoje");
+    if (data.ate > limite) throw new Error("Congele por no máximo 18 meses");
+    if (!data.motivo) throw new Error("Diga o motivo de congelar");
+    const dataBr = data.ate.split("-").reverse().join("/");
+    patch = {
+      congelado_ate: data.ate,
+      congelado_motivo: data.motivo,
+      congelado_em: agora,
+      congelado_por: userId,
+      vezes_congelado: (a.vezes_congelado ?? 0) + 1,
+      proximo_passo: `Retomar a negociação (congelado: ${data.motivo})`.slice(0, 500),
+      proximo_passo_em: new Date(`${data.ate}T09:00:00-03:00`).toISOString(),
+      updated_at: agora,
+    };
+    nota = `Negócio congelado até ${dataBr} — ${data.motivo}`;
+  } else {
+    patch = { congelado_ate: null, updated_at: agora };
+    nota = "Negócio descongelado antes da data.";
+  }
+  const { error } = await supabase
+    .from("deals")
+    .update(patch as never)
+    .eq("id", data.dealId);
+  if (error) throw new Error(error.message);
+  await supabase.from("deal_activities").insert({
+    deal_id: data.dealId,
+    tipo: "nota",
+    descricao: nota,
+    occurred_at: agora,
+    author_id: userId,
+  } as never);
+  return { ok: true };
+}
+
 export const congelarNegocio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        dealId: z.string().uuid(),
-        ate: z.string().date().nullable(),
-        motivo: z.string().trim().min(3).max(300).optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: atual, error: e1 } = await supabase
-      .from("deals")
-      .select("status, vezes_congelado")
-      .eq("id", data.dealId)
-      .maybeSingle();
-    if (e1) throw new Error(e1.message);
-    if (!atual) throw new Error("Negócio não encontrado");
-    const a = atual as unknown as { status: string; vezes_congelado: number | null };
-    if (a.status !== "open") throw new Error("Só dá para congelar negócio em aberto");
-    const agora = new Date().toISOString();
-
-    let patch: Record<string, unknown>;
-    let nota: string;
-    if (data.ate) {
-      const hoje = new Date().toISOString().slice(0, 10);
-      const limite = new Date(Date.now() + 548 * 864e5).toISOString().slice(0, 10);
-      if (data.ate <= hoje) throw new Error("A data de retomada precisa ser depois de hoje");
-      if (data.ate > limite) throw new Error("Congele por no máximo 18 meses");
-      if (!data.motivo) throw new Error("Diga o motivo de congelar");
-      const dataBr = data.ate.split("-").reverse().join("/");
-      patch = {
-        congelado_ate: data.ate,
-        congelado_motivo: data.motivo,
-        congelado_em: agora,
-        congelado_por: userId,
-        vezes_congelado: (a.vezes_congelado ?? 0) + 1,
-        proximo_passo: `Retomar a negociação (congelado: ${data.motivo})`.slice(0, 500),
-        proximo_passo_em: new Date(`${data.ate}T09:00:00-03:00`).toISOString(),
-        updated_at: agora,
-      };
-      nota = `Negócio congelado até ${dataBr} — ${data.motivo}`;
-    } else {
-      patch = { congelado_ate: null, updated_at: agora };
-      nota = "Negócio descongelado antes da data.";
-    }
-    const { error } = await supabase
-      .from("deals")
-      .update(patch as never)
-      .eq("id", data.dealId);
-    if (error) throw new Error(error.message);
-    await supabase.from("deal_activities").insert({
-      deal_id: data.dealId,
-      tipo: "nota",
-      descricao: nota,
-      occurred_at: agora,
-      author_id: userId,
-    } as never);
-    return { ok: true };
-  });
+  .inputValidator((d) => congelarNegocioSchema.parse(d))
+  .handler(async ({ data, context }) => congelarNegocioNucleo(context, data));
 
 /** Texto literal para ilike (sem % e _ virarem curinga). */
 const semCuringa = (t: string) => t.replace(/[\\%_]/g, (c) => `\\${c}`);

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { CtxNucleo } from "@/lib/nucleo";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { CS_TASK_TYPES, type CsTaskType } from "@/lib/cs-types";
 
@@ -165,146 +166,155 @@ export const getCsTaskOptions = createServerFn({ method: "GET" })
   });
 
 /** Cria ou edita uma tarefa (título, tipo, prazo, responsável, contato). */
+export const saveCsTaskSchema = z.object({
+  id: z.string().uuid().optional(),
+  clientUid: z.string().min(1),
+  contactId: z.string().uuid().nullable().optional(),
+  ownerId: z.string().uuid().nullable().optional(),
+  title: z.string().min(1).max(200),
+  taskType: z.enum(CS_TASK_TYPES),
+  dueAt: z.string().min(1),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
+/** Núcleo de saveCsTask: a mesma regra para a tela e para a assistente. */
+export async function saveCsTaskNucleo(context: CtxNucleo, data: z.infer<typeof saveCsTaskSchema>) {
+  const { supabase, userId } = context;
+  const dono = data.ownerId === undefined ? userId : data.ownerId;
+  // Agenda de tarefas: feriado, dia que não trabalha ou ausência → próximo dia disponível.
+  const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
+  const ajuste = await ajustarDataDaTarefa(supabase, dono, new Date(data.dueAt).toISOString());
+  const row = {
+    client_uid: data.clientUid,
+    contact_id: data.contactId ?? null,
+    owner_id: dono,
+    title: data.title.trim(),
+    task_type: data.taskType,
+    due_at: ajuste.iso,
+    notes: data.notes ?? null,
+  };
+  if (data.id) {
+    const { error } = await supabase.from("cs_tasks").update(row).eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return {
+      ok: true,
+      id: data.id,
+      movidaPara: ajuste.movida ? ajuste.iso : null,
+      motivo: ajuste.motivo,
+    };
+  }
+  const { data: created, error } = await supabase
+    .from("cs_tasks")
+    .insert({ ...row, created_by: userId, source: "manual" })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return { ok: true, id: created.id as string };
+}
+
 export const saveCsTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        id: z.string().uuid().optional(),
-        clientUid: z.string().min(1),
-        contactId: z.string().uuid().nullable().optional(),
-        ownerId: z.string().uuid().nullable().optional(),
-        title: z.string().min(1).max(200),
-        taskType: z.enum(CS_TASK_TYPES),
-        dueAt: z.string().min(1),
-        notes: z.string().max(2000).nullable().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const dono = data.ownerId === undefined ? userId : data.ownerId;
-    // Agenda de tarefas: feriado, dia que não trabalha ou ausência → próximo dia disponível.
-    const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
-    const ajuste = await ajustarDataDaTarefa(supabase, dono, new Date(data.dueAt).toISOString());
-    const row = {
-      client_uid: data.clientUid,
-      contact_id: data.contactId ?? null,
-      owner_id: dono,
-      title: data.title.trim(),
-      task_type: data.taskType,
-      due_at: ajuste.iso,
-      notes: data.notes ?? null,
-    };
-    if (data.id) {
-      const { error } = await supabase.from("cs_tasks").update(row).eq("id", data.id);
-      if (error) throw new Error(error.message);
-      return {
-        ok: true,
-        id: data.id,
-        movidaPara: ajuste.movida ? ajuste.iso : null,
-        motivo: ajuste.motivo,
-      };
-    }
-    const { data: created, error } = await supabase
-      .from("cs_tasks")
-      .insert({ ...row, created_by: userId, source: "manual" })
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    return { ok: true, id: created.id as string };
-  });
+  .inputValidator((d) => saveCsTaskSchema.parse(d))
+  .handler(async ({ data, context }) => saveCsTaskNucleo(context, data));
 
 /**
  * Conclui à mão. Para tarefa de canal exigido (e-mail/WhatsApp) o banco recusa,
  * a não ser que a gestão conclua com justificativa (asManager + notes).
  */
+export const completeCsTaskSchema = z.object({
+  id: z.string().uuid(),
+  notes: z.string().max(2000).nullable().optional(),
+  asManager: z.boolean().optional(),
+});
+
+/** Núcleo de completeCsTask: a mesma regra para a tela e para a assistente. */
+export async function completeCsTaskNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof completeCsTaskSchema>,
+) {
+  const { supabase, userId } = context;
+  const { data: task, error: readErr } = await supabase
+    .from("cs_tasks")
+    .select("id, client_uid, title, task_type, notes")
+    .eq("id", data.id)
+    .maybeSingle();
+  if (readErr) throw new Error(readErr.message);
+  if (!task) throw new Error("Tarefa não encontrada");
+  const now = new Date().toISOString();
+  const notes = data.notes?.trim() || task.notes || null;
+  const { error } = await supabase
+    .from("cs_tasks")
+    .update({
+      status: "concluida",
+      done_at: now,
+      done_by: userId,
+      completed_via: data.asManager ? "gestor" : "manual",
+      notes,
+    })
+    .eq("id", data.id);
+  if (error) throw new Error(friendlyGuard(error.message));
+
+  await supabase.from("cs_timeline_events").insert({
+    client_uid: task.client_uid,
+    author_id: userId,
+    event_type: "tarefa_concluida",
+    channel: task.task_type,
+    title: `Tarefa concluída: ${task.title}`,
+    description: data.asManager ? `Concluída pela gestão — ${notes ?? ""}`.trim() : notes,
+    occurred_at: now,
+    metadata: { task_id: task.id, completed_via: data.asManager ? "gestor" : "manual" },
+  });
+  if (task.task_type === "ligacao" || task.task_type === "reuniao") {
+    await supabase
+      .from("cs_clients")
+      .update({ last_contact_at: now })
+      .eq("client_uid", task.client_uid);
+  }
+  return { ok: true };
+}
+
 export const completeCsTask = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        notes: z.string().max(2000).nullable().optional(),
-        asManager: z.boolean().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: task, error: readErr } = await supabase
-      .from("cs_tasks")
-      .select("id, client_uid, title, task_type, notes")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (readErr) throw new Error(readErr.message);
-    if (!task) throw new Error("Tarefa não encontrada");
-    const now = new Date().toISOString();
-    const notes = data.notes?.trim() || task.notes || null;
-    const { error } = await supabase
-      .from("cs_tasks")
-      .update({
-        status: "concluida",
-        done_at: now,
-        done_by: userId,
-        completed_via: data.asManager ? "gestor" : "manual",
-        notes,
-      })
-      .eq("id", data.id);
-    if (error) throw new Error(friendlyGuard(error.message));
-
-    await supabase.from("cs_timeline_events").insert({
-      client_uid: task.client_uid,
-      author_id: userId,
-      event_type: "tarefa_concluida",
-      channel: task.task_type,
-      title: `Tarefa concluída: ${task.title}`,
-      description: data.asManager ? `Concluída pela gestão — ${notes ?? ""}`.trim() : notes,
-      occurred_at: now,
-      metadata: { task_id: task.id, completed_via: data.asManager ? "gestor" : "manual" },
-    });
-    if (task.task_type === "ligacao" || task.task_type === "reuniao") {
-      await supabase
-        .from("cs_clients")
-        .update({ last_contact_at: now })
-        .eq("client_uid", task.client_uid);
-    }
-    return { ok: true };
-  });
+  .inputValidator((d) => completeCsTaskSchema.parse(d))
+  .handler(async ({ data, context }) => completeCsTaskNucleo(context, data));
 
 /** Reabre, cancela ou apaga uma tarefa. */
-export const setCsTaskStatus = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        action: z.enum(["reabrir", "cancelar", "apagar"]),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    if (data.action === "apagar") {
-      const { error } = await supabase.from("cs_tasks").delete().eq("id", data.id);
-      if (error) throw new Error(error.message);
-      return { ok: true };
-    }
-    const patch =
-      data.action === "reabrir"
-        ? {
-            status: "pendente",
-            done_at: null,
-            done_by: null,
-            completed_via: null,
-            evidence_event_id: null,
-            evidence_at: null,
-          }
-        : { status: "cancelada" };
-    const { error } = await supabase.from("cs_tasks").update(patch).eq("id", data.id);
+export const setCsTaskStatusSchema = z.object({
+  id: z.string().uuid(),
+  action: z.enum(["reabrir", "cancelar", "apagar"]),
+});
+
+/** Núcleo de setCsTaskStatus: a mesma regra para a tela e para a assistente. */
+export async function setCsTaskStatusNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof setCsTaskStatusSchema>,
+) {
+  const { supabase } = context;
+  if (data.action === "apagar") {
+    const { error } = await supabase.from("cs_tasks").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
-  });
+  }
+  const patch =
+    data.action === "reabrir"
+      ? {
+          status: "pendente",
+          done_at: null,
+          done_by: null,
+          completed_via: null,
+          evidence_event_id: null,
+          evidence_at: null,
+        }
+      : { status: "cancelada" };
+  const { error } = await supabase.from("cs_tasks").update(patch).eq("id", data.id);
+  if (error) throw new Error(error.message);
+  return { ok: true };
+}
+
+export const setCsTaskStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => setCsTaskStatusSchema.parse(d))
+  .handler(async ({ data, context }) => setCsTaskStatusNucleo(context, data));
 
 /** Mensagem do trigger de bloqueio sem o prefixo técnico do Postgres. */
 export function friendlyGuard(message: string) {
