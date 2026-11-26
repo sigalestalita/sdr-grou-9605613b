@@ -97,6 +97,7 @@ import { Route as ApiPublicHooksMirrorRdRouteImport } from './routes/api/public/
 import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/api/public/hooks/notify-escalations'
 import { Route as ApiPublicHooksNotifyRedListRouteImport } from './routes/api/public/hooks/notify-red-list'
 import { Route as ApiPublicHooksRdMigracaoRouteImport } from './routes/api/public/hooks/rd-migracao'
+import { Route as ApiPublicHooksRecalcularSaudeRouteImport } from './routes/api/public/hooks/recalcular-saude'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
 import { Route as ApiPublicHooksSendJourneyEmailsRouteImport } from './routes/api/public/hooks/send-journey-emails'
 import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api/public/hooks/send-weekly-digest'
@@ -568,6 +569,12 @@ const ApiPublicHooksRdMigracaoRoute =
     path: '/api/public/hooks/rd-migracao',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksRecalcularSaudeRoute =
+  ApiPublicHooksRecalcularSaudeRouteImport.update({
+    id: '/api/public/hooks/recalcular-saude',
+    path: '/api/public/hooks/recalcular-saude',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRunFupsRoute = ApiPublicHooksRunFupsRouteImport.update({
   id: '/api/public/hooks/run-fups',
   path: '/api/public/hooks/run-fups',
@@ -765,6 +772,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
+  '/api/public/hooks/recalcular-saude': typeof ApiPublicHooksRecalcularSaudeRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
@@ -871,6 +879,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
+  '/api/public/hooks/recalcular-saude': typeof ApiPublicHooksRecalcularSaudeRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
@@ -981,6 +990,7 @@ export interface FileRoutesById {
   '/api/public/hooks/notify-escalations': typeof ApiPublicHooksNotifyEscalationsRoute
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
+  '/api/public/hooks/recalcular-saude': typeof ApiPublicHooksRecalcularSaudeRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
   '/api/public/hooks/send-weekly-digest': typeof ApiPublicHooksSendWeeklyDigestRoute
@@ -1091,6 +1101,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/rd-migracao'
+    | '/api/public/hooks/recalcular-saude'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
@@ -1197,6 +1208,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/rd-migracao'
+    | '/api/public/hooks/recalcular-saude'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
@@ -1306,6 +1318,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-escalations'
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/rd-migracao'
+    | '/api/public/hooks/recalcular-saude'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
     | '/api/public/hooks/send-weekly-digest'
@@ -1348,6 +1361,7 @@ export interface RootRouteChildren {
   ApiPublicHooksNotifyEscalationsRoute: typeof ApiPublicHooksNotifyEscalationsRoute
   ApiPublicHooksNotifyRedListRoute: typeof ApiPublicHooksNotifyRedListRoute
   ApiPublicHooksRdMigracaoRoute: typeof ApiPublicHooksRdMigracaoRoute
+  ApiPublicHooksRecalcularSaudeRoute: typeof ApiPublicHooksRecalcularSaudeRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
   ApiPublicHooksSendJourneyEmailsRoute: typeof ApiPublicHooksSendJourneyEmailsRoute
   ApiPublicHooksSendWeeklyDigestRoute: typeof ApiPublicHooksSendWeeklyDigestRoute
@@ -1987,6 +2001,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRdMigracaoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/recalcular-saude': {
+      id: '/api/public/hooks/recalcular-saude'
+      path: '/api/public/hooks/recalcular-saude'
+      fullPath: '/api/public/hooks/recalcular-saude'
+      preLoaderRoute: typeof ApiPublicHooksRecalcularSaudeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/run-fups': {
       id: '/api/public/hooks/run-fups'
       path: '/api/public/hooks/run-fups'
@@ -2325,6 +2346,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksNotifyEscalationsRoute: ApiPublicHooksNotifyEscalationsRoute,
   ApiPublicHooksNotifyRedListRoute: ApiPublicHooksNotifyRedListRoute,
   ApiPublicHooksRdMigracaoRoute: ApiPublicHooksRdMigracaoRoute,
+  ApiPublicHooksRecalcularSaudeRoute: ApiPublicHooksRecalcularSaudeRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
   ApiPublicHooksSendJourneyEmailsRoute: ApiPublicHooksSendJourneyEmailsRoute,
   ApiPublicHooksSendWeeklyDigestRoute: ApiPublicHooksSendWeeklyDigestRoute,
