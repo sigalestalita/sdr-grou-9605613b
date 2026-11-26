@@ -45,6 +45,7 @@ import { Route as AppCsWhatsappRouteImport } from './routes/_app.cs-whatsapp'
 import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
 import { Route as AppDiagnosticoRouteImport } from './routes/_app.diagnostico'
 import { Route as AppEmailMarketingRouteImport } from './routes/_app.email-marketing'
+import { Route as AppEmpresasParecidasRouteImport } from './routes/_app.empresas-parecidas'
 import { Route as AppFaturamentoRouteImport } from './routes/_app.faturamento'
 import { Route as AppFunilSdrRouteImport } from './routes/_app.funil-sdr'
 import { Route as AppImportarRdRouteImport } from './routes/_app.importar-rd'
@@ -297,6 +298,11 @@ const AppDiagnosticoRoute = AppDiagnosticoRouteImport.update({
 const AppEmailMarketingRoute = AppEmailMarketingRouteImport.update({
   id: '/email-marketing',
   path: '/email-marketing',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEmpresasParecidasRoute = AppEmpresasParecidasRouteImport.update({
+  id: '/empresas-parecidas',
+  path: '/empresas-parecidas',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFaturamentoRoute = AppFaturamentoRouteImport.update({
@@ -734,6 +740,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
   '/email-marketing': typeof AppEmailMarketingRouteWithChildren
+  '/empresas-parecidas': typeof AppEmpresasParecidasRoute
   '/faturamento': typeof AppFaturamentoRoute
   '/funil-sdr': typeof AppFunilSdrRoute
   '/importar-rd': typeof AppImportarRdRoute
@@ -844,6 +851,7 @@ export interface FileRoutesByTo {
   '/cs-whatsapp': typeof AppCsWhatsappRoute
   '/dashboard': typeof AppDashboardRoute
   '/diagnostico': typeof AppDiagnosticoRoute
+  '/empresas-parecidas': typeof AppEmpresasParecidasRoute
   '/faturamento': typeof AppFaturamentoRoute
   '/funil-sdr': typeof AppFunilSdrRoute
   '/importar-rd': typeof AppImportarRdRoute
@@ -956,6 +964,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/diagnostico': typeof AppDiagnosticoRoute
   '/_app/email-marketing': typeof AppEmailMarketingRouteWithChildren
+  '/_app/empresas-parecidas': typeof AppEmpresasParecidasRoute
   '/_app/faturamento': typeof AppFaturamentoRoute
   '/_app/funil-sdr': typeof AppFunilSdrRoute
   '/_app/importar-rd': typeof AppImportarRdRoute
@@ -1069,6 +1078,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/diagnostico'
     | '/email-marketing'
+    | '/empresas-parecidas'
     | '/faturamento'
     | '/funil-sdr'
     | '/importar-rd'
@@ -1179,6 +1189,7 @@ export interface FileRouteTypes {
     | '/cs-whatsapp'
     | '/dashboard'
     | '/diagnostico'
+    | '/empresas-parecidas'
     | '/faturamento'
     | '/funil-sdr'
     | '/importar-rd'
@@ -1290,6 +1301,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/diagnostico'
     | '/_app/email-marketing'
+    | '/_app/empresas-parecidas'
     | '/_app/faturamento'
     | '/_app/funil-sdr'
     | '/_app/importar-rd'
@@ -1663,6 +1675,13 @@ declare module '@tanstack/react-router' {
       path: '/email-marketing'
       fullPath: '/email-marketing'
       preLoaderRoute: typeof AppEmailMarketingRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/empresas-parecidas': {
+      id: '/_app/empresas-parecidas'
+      path: '/empresas-parecidas'
+      fullPath: '/empresas-parecidas'
+      preLoaderRoute: typeof AppEmpresasParecidasRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/faturamento': {
@@ -2287,6 +2306,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppDiagnosticoRoute: typeof AppDiagnosticoRoute
   AppEmailMarketingRoute: typeof AppEmailMarketingRouteWithChildren
+  AppEmpresasParecidasRoute: typeof AppEmpresasParecidasRoute
   AppFaturamentoRoute: typeof AppFaturamentoRoute
   AppFunilSdrRoute: typeof AppFunilSdrRoute
   AppImportarRdRoute: typeof AppImportarRdRoute
@@ -2341,6 +2361,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppDiagnosticoRoute: AppDiagnosticoRoute,
   AppEmailMarketingRoute: AppEmailMarketingRouteWithChildren,
+  AppEmpresasParecidasRoute: AppEmpresasParecidasRoute,
   AppFaturamentoRoute: AppFaturamentoRoute,
   AppFunilSdrRoute: AppFunilSdrRoute,
   AppImportarRdRoute: AppImportarRdRoute,

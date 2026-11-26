@@ -59,6 +59,7 @@ import {
   Search,
   Settings2,
   X,
+  Combine,
 } from "lucide-react";
 import { EtapasVisiveis, useEtapasOcultas } from "@/components/kanban/etapas-ocultas";
 
@@ -472,6 +473,14 @@ function CsPage() {
             onClick={() => navigate({ to: "/cs-configuracoes" })}
           >
             <Settings2 className="h-4 w-4" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            title="Empresas com o mesmo CNPJ, domínio ou nome parecido"
+            onClick={() => navigate({ to: "/empresas-parecidas" })}
+          >
+            <Combine className="mr-1 h-4 w-4" /> Empresas parecidas
           </Button>
           <Button size="sm" onClick={() => setNewOpen(true)}>
             <Plus className="mr-1 h-4 w-4" /> Adicionar empresa
