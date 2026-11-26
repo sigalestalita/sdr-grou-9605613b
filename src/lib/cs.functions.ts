@@ -1109,6 +1109,8 @@ export const saveCsMeeting = createServerFn({ method: "POST" })
         occurredAt: z.string().min(1),
         durationMinutes: z.number().int().positive().nullable().optional(),
         status: z.enum(["realizada", "agendada", "cancelada", "no_show"]).default("realizada"),
+        // Pessoa do cliente com quem é a reunião (cs_contacts).
+        contactId: z.string().uuid().nullable().optional(),
         attendees: z.string().nullable().optional(),
         meetingUrl: z.string().nullable().optional(),
         summary: z.string().nullable().optional(),
@@ -1131,11 +1133,12 @@ export const saveCsMeeting = createServerFn({ method: "POST" })
       summary: data.summary || null,
       next_step: data.nextStep || null,
       next_step_at: data.nextStepAt ? new Date(data.nextStepAt).toISOString() : null,
-      owner_user_id: userId,
+      ...(data.contactId !== undefined ? { contact_id: data.contactId } : {}),
     };
 
     let meetingId = data.id ?? null;
     if (data.id) {
+      // Editar (ex.: a agendada virou realizada) mantém o dono da reunião.
       const { error } = await supabase
         .from("cs_meetings")
         .update(row as never)
@@ -1144,23 +1147,43 @@ export const saveCsMeeting = createServerFn({ method: "POST" })
     } else {
       const { data: created, error } = await supabase
         .from("cs_meetings")
-        .insert({ ...row, created_by: userId, source: "manual" } as never)
+        .insert({ ...row, owner_user_id: userId, created_by: userId, source: "manual" } as never)
         .select("id")
         .single();
       if (error) throw new Error(error.message);
       meetingId = (created as { id: string }).id;
     }
 
-    await supabase.from("cs_timeline_events").insert({
-      client_uid: data.clientUid,
-      author_id: userId,
-      event_type: "reuniao",
-      channel: "reuniao",
+    // Uma entrada por reunião na linha do tempo: ao editar, atualiza a mesma.
+    const evento = {
       title: data.title,
       description: data.summary || null,
       occurred_at: row.occurred_at,
       metadata: { meeting_id: meetingId, status: data.status, category_id: row.category_id },
-    } as never);
+    };
+    const { data: jaTem } = data.id
+      ? await supabase
+          .from("cs_timeline_events")
+          .select("id")
+          .eq("client_uid", data.clientUid)
+          .eq("event_type", "reuniao")
+          .eq("metadata->>meeting_id", data.id)
+          .limit(1)
+      : { data: [] };
+    const existente = ((jaTem ?? []) as Array<{ id: string }>)[0];
+    if (existente)
+      await supabase
+        .from("cs_timeline_events")
+        .update(evento as never)
+        .eq("id", existente.id);
+    else
+      await supabase.from("cs_timeline_events").insert({
+        ...evento,
+        client_uid: data.clientUid,
+        author_id: userId,
+        event_type: "reuniao",
+        channel: "reuniao",
+      } as never);
 
     if (data.status === "realizada") {
       await supabase

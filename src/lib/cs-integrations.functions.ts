@@ -133,7 +133,7 @@ export const listCsAgenda = createServerFn({ method: "GET" })
     const { supabase } = context;
     let q = supabase
       .from("cs_calendly_events")
-      .select("*")
+      .select("*, cs_clients:client_uid(nome_empresa), cs_contacts:contact_id(nome)")
       .gte("start_time", data.from)
       .lte("start_time", data.to)
       .order("start_time");
@@ -141,6 +141,47 @@ export const listCsAgenda = createServerFn({ method: "GET" })
     else if (data.userId) q = q.eq("user_id", data.userId);
     const { data: events, error } = await q;
     if (error) throw new Error(error.message);
+
+    // Reuniões marcadas no Compass (pela ficha ou pela agenda).
+    let qr = (supabase as unknown as import("@supabase/supabase-js").SupabaseClient)
+      .from("cs_meetings")
+      .select(
+        "id, client_uid, title, occurred_at, duration_minutes, status, owner_user_id, meeting_url, contact_id, cs_clients:client_uid(nome_empresa), cs_contacts:contact_id(nome, email)",
+      )
+      .gte("occurred_at", data.from)
+      .lte("occurred_at", data.to)
+      .order("occurred_at");
+    if (!access.isManager) qr = qr.eq("owner_user_id", context.userId);
+    else if (data.userId) qr = qr.eq("owner_user_id", data.userId);
+    const { data: reunioesRaw, error: errR } = await qr;
+    if (errR) throw new Error(errR.message);
+    const reunioes = (
+      (reunioesRaw ?? []) as unknown as Array<{
+        id: string;
+        client_uid: string;
+        title: string;
+        occurred_at: string;
+        duration_minutes: number | null;
+        status: string | null;
+        owner_user_id: string | null;
+        meeting_url: string | null;
+        contact_id: string | null;
+        cs_clients: { nome_empresa: string | null } | null;
+        cs_contacts: { nome: string | null; email: string | null } | null;
+      }>
+    ).map((r) => ({
+      id: r.id,
+      clientUid: r.client_uid,
+      clienteNome: r.cs_clients?.nome_empresa ?? null,
+      contatoNome: r.cs_contacts?.nome ?? null,
+      contatoEmail: r.cs_contacts?.email ?? null,
+      titulo: r.title,
+      inicio: r.occurred_at,
+      duracao: r.duration_minutes,
+      status: r.status ?? "realizada",
+      ownerId: r.owner_user_id,
+      meetingUrl: r.meeting_url,
+    }));
 
     // Donos de agenda: quem tem eventos registrados (Calendly ou simulados) + integrações vinculadas.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -151,7 +192,12 @@ export const listCsAgenda = createServerFn({ method: "GET" })
     const nameById = new Map(
       (profiles ?? []).map((p) => [p.id as string, (p.full_name || p.email || p.id) as string]),
     );
-    const ownerIds = Array.from(new Set((ownerRows ?? []).map((r) => r.user_id as string)));
+    const ownerIds = Array.from(
+      new Set([
+        ...(ownerRows ?? []).map((r) => r.user_id as string),
+        ...reunioes.map((r) => r.ownerId).filter((x): x is string => !!x),
+      ]),
+    );
     const owners = ownerIds
       .map((id) => ({ userId: id, name: nameById.get(id) ?? id }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -159,6 +205,7 @@ export const listCsAgenda = createServerFn({ method: "GET" })
     return {
       isManager: access.isManager,
       events: events ?? [],
+      reunioes,
       users: await listIntegrationStatus(),
       owners,
     };
