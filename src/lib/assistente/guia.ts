@@ -184,7 +184,7 @@ export const TELAS: TelaDoGuia[] = [
     rota: "/empresas/$uid",
     nome: "Ficha da empresa (CS)",
     area: "CS",
-    texto: `Registro completo de um cliente. À esquerda, "Sobre esta empresa" com etapa, responsável CS, executivo, tipo, uso do PDA, CNPJ, contrato, aporte, renovação e último contato ("Editar"), mais contatos, tags, empresas atendidas e alertas. No topo, "Registrar contato" e a "Sinaleira PDA · 8 semanas". Abas: Atividades, Reuniões ("Nova reunião"), Vendas ("Nova venda") e Registros. Há também "Saúde do cliente", "Oportunidade comercial" ("Sinalizar oportunidade", que vira card no funil do executivo), Masterclasses ("Oferecer agora", "Registrar"), Jornadas Reais (e-mails por marco), Tarefas e a política de faturamento.`,
+    texto: `Registro completo de um cliente. À esquerda, "Sobre esta empresa" com etapa, responsável CS, executivo, tipo, uso do PDA, CNPJ, contrato, aporte, renovação e último contato ("Editar"), mais contatos, tags, empresas atendidas e alertas. No topo, "Registrar contato" e a "Sinaleira PDA · 8 semanas". Abas: Atividades, Reuniões ("Nova reunião"), Vendas ("Nova venda") e Registros. Há também "Saúde do cliente", "Oportunidade comercial" ("Sinalizar oportunidade", que vira card no funil do executivo), Masterclasses ("Oferecer agora", "Registrar"), Jornadas Reais (e-mails por marco), Tarefas e a política de faturamento. Abas do centro: Atividades, Reuniões ("Agendar reunião" com um contato, várias por dia; "Registrar reunião feita"), Vendas, "Analistas PDA" (os analistas certificados ligados à empresa, importados nas Configurações CS ou marcados no contato) e Registros. Contatos sem e-mail ficam ocultos na ficha; cada contato tem "+ tag".`,
   },
   {
     rota: "/cs-follow-ups",
@@ -256,7 +256,7 @@ export const TELAS: TelaDoGuia[] = [
     rota: "/cs-configuracoes",
     nome: "Configurações CS",
     area: "CS",
-    texto: `Parâmetros do playbook de CS, editáveis sem deploy; só a gestão salva. Inclui pesos e pontos por cor da sinaleira, exigência de evidência do canal para concluir tarefas (antecedência, retroativo, justificativa da gestão), regras de escalação ao gestor, quem assume cada cliente novo (roteamento por porte, consultoria, renovação), delegações de carteira (férias, afastamento) com "Delegar", jornadas e masterclasses.`,
+    texto: `Parâmetros do playbook de CS, editáveis sem deploy; só a gestão salva. Inclui pesos e pontos por cor da sinaleira, exigência de evidência do canal para concluir tarefas (antecedência, retroativo, justificativa da gestão), regras de escalação ao gestor, quem assume cada cliente novo (roteamento por porte, consultoria, renovação), delegações de carteira (férias, afastamento) com "Delegar", jornadas e masterclasses. Em "Analistas PDA", importe o CSV (ou cole da planilha) dos analistas certificados: colunas nome, e-mail, telefone, cargo, empresa, CNPJ e data de certificação; a empresa é ligada pelo CNPJ, e-mail de contato, domínio ou nome, e os "Sem empresa" podem ser ligados à mão ("ligar empresa").`,
   },
 
   // ───────────── Administrativo ─────────────

@@ -19,7 +19,12 @@ export const MAX_CONTATOS_NA_LISTA = 20_000;
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-const normal = (t: string) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+export const normal = (t: string) =>
+  t
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 /** E-mail limpo (minúsculas, sem espaços, sem <> nem aspas) ou null. */
 export function limparEmail(bruto: string): string | null {
@@ -30,7 +35,7 @@ export function limparEmail(bruto: string): string | null {
   return EMAIL.test(e) && e.length <= 254 ? e : null;
 }
 
-function separadorDe(linhas: string[]): string {
+export function separadorDe(linhas: string[]): string {
   const amostra = linhas.slice(0, 20).join("\n");
   const conta = (s: string) => amostra.split(s).length - 1;
   if (conta("\t") > 0) return "\t";
@@ -38,7 +43,7 @@ function separadorDe(linhas: string[]): string {
 }
 
 /** Divide uma linha de CSV respeitando aspas. */
-function colunas(linha: string, sep: string): string[] {
+export function colunas(linha: string, sep: string): string[] {
   if (sep === "\t") return linha.split("\t").map((c) => c.trim());
   const out: string[] = [];
   let atual = "";

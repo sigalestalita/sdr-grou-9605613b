@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/use-auth";
 import { CsSettingsPanel } from "@/components/cs/cs-settings-panel";
+import { AnalistasPdaConfig } from "@/components/cs/analistas-pda-config";
 import { listCsBoard } from "@/lib/cs.functions";
 
 export const Route = createFileRoute("/_app/cs-configuracoes")({
@@ -55,6 +56,7 @@ function CsSettingsPage() {
           onSaved={() => qc.invalidateQueries({ queryKey: ["cs-board"] })}
         />
       )}
+      <AnalistasPdaConfig />
     </div>
   );
 }
