@@ -33,6 +33,7 @@ import {
   Megaphone,
   Bot,
   Activity,
+  ScrollText,
   CalendarDays,
   Search,
   Users,
@@ -63,6 +64,8 @@ import { AssistenteFlutuante } from "@/components/app-shell/assistente-flutuante
 import { NotificacoesBell } from "@/components/app-shell/notificacoes-bell";
 import { CsFollowUpNotifier } from "@/components/app-shell/cs-followup-notifier";
 import { useCurrentRole } from "@/lib/use-role";
+import { useRegistroDeUso } from "@/lib/use-registro-uso";
+import { ACESSO_LOGS_USO } from "@/lib/uso";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { TEAM_LABEL, teamForPath, type AppRole, type AppTeam } from "@/lib/teams";
 
@@ -79,6 +82,8 @@ type NavItem = {
   /** Papéis que também veem o item, mesmo fora do time (ex.: executivo). */
   roles?: AppRole[];
   managerOnly?: boolean;
+  /** Só para os e-mails desta lista (ex.: logs de uso). */
+  emails?: readonly string[];
   /** Outros prefixos de rota que mantêm o item ativo (ex.: página de registro). */
   also?: string[];
 };
@@ -293,6 +298,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/usuarios", label: "Usuários", icon: Users, managerOnly: true },
       { to: "/configuracoes", label: "Configurações", icon: SettingsIcon, managerOnly: true },
+      { to: "/uso", label: "Logs de uso", icon: ScrollText, emails: ACESSO_LOGS_USO },
       {
         to: "/migracao-rd",
         label: "Migração do RD",
@@ -326,6 +332,7 @@ function AppShell() {
    * menu continuava marcando a página anterior até outro motivo redesenhar.
    */
   const currentPath = useRouterState({ select: (s) => s.location.pathname });
+  useRegistroDeUso(user?.id, currentPath);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(() => {
     if (typeof window === "undefined") return {};
     try {
@@ -401,7 +408,10 @@ function AppShell() {
 
   const initials = (user.email ?? "?").slice(0, 2).toUpperCase();
 
-  const canSee = (item: NavItem) => role.canSee(item);
+  const canSee = (item: NavItem) =>
+    item.emails
+      ? !!user.email && item.emails.includes(user.email.toLowerCase())
+      : role.canSee(item);
 
   // Um item por rota: quem vê dois módulos (gestão) não vê "Inbox" e
   // "Caixa de entrada" apontando para o mesmo lugar.

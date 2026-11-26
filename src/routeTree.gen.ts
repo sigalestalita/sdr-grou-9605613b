@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as DescadastroRouteImport } from './routes/descadastro'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ManualRouteImport } from './routes/manual'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AppAgendaRouteImport } from './routes/_app.agenda'
@@ -58,6 +59,7 @@ import { Route as AppPropostasRouteImport } from './routes/_app.propostas'
 import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
 import { Route as AppRequerimentosRouteImport } from './routes/_app.requerimentos'
 import { Route as AppTurmasRouteImport } from './routes/_app.turmas'
+import { Route as AppUsoRouteImport } from './routes/_app.uso'
 import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
 import { Route as PropostaTokenRouteImport } from './routes/proposta.$token'
@@ -132,6 +134,11 @@ const DescadastroRoute = DescadastroRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ManualRoute = ManualRouteImport.update({
+  id: '/manual',
+  path: '/manual',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
@@ -357,6 +364,11 @@ const AppRequerimentosRoute = AppRequerimentosRouteImport.update({
 const AppTurmasRoute = AppTurmasRouteImport.update({
   id: '/turmas',
   path: '/turmas',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsoRoute = AppUsoRouteImport.update({
+  id: '/uso',
+  path: '/uso',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUsuariosRoute = AppUsuariosRouteImport.update({
@@ -669,6 +681,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
+  '/manual': typeof ManualRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/agenda': typeof AppAgendaRoute
@@ -714,6 +727,7 @@ export interface FileRoutesByFullPath {
   '/relatorios': typeof AppRelatoriosRoute
   '/requerimentos': typeof AppRequerimentosRoute
   '/turmas': typeof AppTurmasRoute
+  '/uso': typeof AppUsoRoute
   '/usuarios': typeof AppUsuariosRoute
   '/whatsapp': typeof AppWhatsappRouteWithChildren
   '/proposta/$token': typeof PropostaTokenRoute
@@ -775,6 +789,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
+  '/manual': typeof ManualRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/agenda': typeof AppAgendaRoute
@@ -819,6 +834,7 @@ export interface FileRoutesByTo {
   '/relatorios': typeof AppRelatoriosRoute
   '/requerimentos': typeof AppRequerimentosRoute
   '/turmas': typeof AppTurmasRoute
+  '/uso': typeof AppUsoRoute
   '/usuarios': typeof AppUsuariosRoute
   '/proposta/$token': typeof PropostaTokenRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
@@ -881,6 +897,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/descadastro': typeof DescadastroRoute
   '/login': typeof LoginRoute
+  '/manual': typeof ManualRoute
   '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/_app/agenda': typeof AppAgendaRoute
@@ -926,6 +943,7 @@ export interface FileRoutesById {
   '/_app/relatorios': typeof AppRelatoriosRoute
   '/_app/requerimentos': typeof AppRequerimentosRoute
   '/_app/turmas': typeof AppTurmasRoute
+  '/_app/uso': typeof AppUsoRoute
   '/_app/usuarios': typeof AppUsuariosRoute
   '/_app/whatsapp': typeof AppWhatsappRouteWithChildren
   '/proposta/$token': typeof PropostaTokenRoute
@@ -989,6 +1007,7 @@ export interface FileRouteTypes {
     | '/'
     | '/descadastro'
     | '/login'
+    | '/manual'
     | '/privacidade'
     | '/reset-password'
     | '/agenda'
@@ -1034,6 +1053,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/requerimentos'
     | '/turmas'
+    | '/uso'
     | '/usuarios'
     | '/whatsapp'
     | '/proposta/$token'
@@ -1095,6 +1115,7 @@ export interface FileRouteTypes {
     | '/'
     | '/descadastro'
     | '/login'
+    | '/manual'
     | '/privacidade'
     | '/reset-password'
     | '/agenda'
@@ -1139,6 +1160,7 @@ export interface FileRouteTypes {
     | '/relatorios'
     | '/requerimentos'
     | '/turmas'
+    | '/uso'
     | '/usuarios'
     | '/proposta/$token'
     | '/analytics-chat/$threadId'
@@ -1200,6 +1222,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/descadastro'
     | '/login'
+    | '/manual'
     | '/privacidade'
     | '/reset-password'
     | '/_app/agenda'
@@ -1245,6 +1268,7 @@ export interface FileRouteTypes {
     | '/_app/relatorios'
     | '/_app/requerimentos'
     | '/_app/turmas'
+    | '/_app/uso'
     | '/_app/usuarios'
     | '/_app/whatsapp'
     | '/proposta/$token'
@@ -1308,6 +1332,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   DescadastroRoute: typeof DescadastroRoute
   LoginRoute: typeof LoginRoute
+  ManualRoute: typeof ManualRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   PropostaTokenRoute: typeof PropostaTokenRoute
@@ -1372,6 +1397,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/manual': {
+      id: '/manual'
+      path: '/manual'
+      fullPath: '/manual'
+      preLoaderRoute: typeof ManualRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacidade': {
@@ -1687,6 +1719,13 @@ declare module '@tanstack/react-router' {
       path: '/turmas'
       fullPath: '/turmas'
       preLoaderRoute: typeof AppTurmasRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/uso': {
+      id: '/_app/uso'
+      path: '/uso'
+      fullPath: '/uso'
+      preLoaderRoute: typeof AppUsoRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/usuarios': {
@@ -2199,6 +2238,7 @@ interface AppRouteChildren {
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppRequerimentosRoute: typeof AppRequerimentosRoute
   AppTurmasRoute: typeof AppTurmasRoute
+  AppUsoRoute: typeof AppUsoRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
   AppWhatsappRoute: typeof AppWhatsappRouteWithChildren
   AppEmpresasUidRoute: typeof AppEmpresasUidRoute
@@ -2252,6 +2292,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppRequerimentosRoute: AppRequerimentosRoute,
   AppTurmasRoute: AppTurmasRoute,
+  AppUsoRoute: AppUsoRoute,
   AppUsuariosRoute: AppUsuariosRoute,
   AppWhatsappRoute: AppWhatsappRouteWithChildren,
   AppEmpresasUidRoute: AppEmpresasUidRoute,
@@ -2268,6 +2309,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   DescadastroRoute: DescadastroRoute,
   LoginRoute: LoginRoute,
+  ManualRoute: ManualRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   PropostaTokenRoute: PropostaTokenRoute,

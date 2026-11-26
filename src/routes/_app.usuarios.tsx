@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   KeyRound,
+  Mail,
   Pencil,
   Plus,
   ShieldCheck,
@@ -20,6 +21,7 @@ import {
   removeUser,
   saveTeam,
   sendUserPasswordReset,
+  sendWelcomeEmail,
   setSuperAdmin,
   setCaixaPrivada,
   setUserAccess,
@@ -37,6 +39,7 @@ import {
   type Team,
 } from "@/lib/teams";
 import { useCurrentRole } from "@/lib/use-role";
+import { montarHtmlBoasVindas, rascunhoBoasVindas } from "@/lib/boas-vindas";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -112,6 +115,7 @@ function UsersPage() {
   const [accessTarget, setAccessTarget] = useState<UserRow | null>(null);
   const [newUserOpen, setNewUserOpen] = useState(false);
   const [pwdTarget, setPwdTarget] = useState<{ id: string; email: string } | null>(null);
+  const [welcomeTarget, setWelcomeTarget] = useState<UserRow | null>(null);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["users-list"] });
@@ -176,6 +180,7 @@ function UsersPage() {
   for (const u of data?.users ?? [])
     for (const m of u.memberships) membersByTeam.set(m.team, (membersByTeam.get(m.team) ?? 0) + 1);
   const teamBySlug = new Map(teams.map((t) => [t.slug, t]));
+  const myName = data?.users.find((u) => u.id === data.currentUserId)?.full_name ?? null;
 
   return (
     <div className="max-w-6xl space-y-6 p-6">
@@ -389,6 +394,17 @@ function UsersPage() {
                               variant="outline"
                               size="sm"
                               className="mr-2"
+                              title="Revisar e enviar o e-mail de boas-vindas"
+                              onClick={() => setWelcomeTarget(u)}
+                            >
+                              <Mail className="mr-1 h-3 w-3" /> Boas-vindas
+                            </Button>
+                          )}
+                          {canEdit && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="mr-2"
                               onClick={() => setPwdTarget({ id: u.id, email: u.email })}
                             >
                               <KeyRound className="mr-1 h-3 w-3" /> Senha
@@ -435,9 +451,31 @@ function UsersPage() {
       {newUserOpen && (
         <NewUserDialog
           teams={activeTeams}
+          allTeams={teams}
+          remetente={myName}
           onClose={() => setNewUserOpen(false)}
           onSaved={invalidate}
         />
+      )}
+      {welcomeTarget && (
+        <Dialog open onOpenChange={(o) => !o && setWelcomeTarget(null)}>
+          <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>E-mail de boas-vindas</DialogTitle>
+              <DialogDescription>
+                Revise o texto antes de enviar para {welcomeTarget.email}.
+              </DialogDescription>
+            </DialogHeader>
+            <WelcomeEmailForm
+              user={welcomeTarget}
+              teams={teams}
+              remetente={myName}
+              comLinkPadrao
+              onDone={() => setWelcomeTarget(null)}
+              cancelLabel="Cancelar"
+            />
+          </DialogContent>
+        </Dialog>
       )}
       <PasswordDialog target={pwdTarget} onClose={() => setPwdTarget(null)} />
     </div>
@@ -559,10 +597,14 @@ function AccessDialog({
 // ---------------------------------------------------------------------------
 function NewUserDialog({
   teams,
+  allTeams,
+  remetente,
   onClose,
   onSaved,
 }: {
   teams: Team[];
+  allTeams: Team[];
+  remetente: string | null;
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -571,6 +613,11 @@ function NewUserDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [memberships, setMemberships] = useState<Membership[]>([]);
+  // Conta criada: o diálogo passa para o e-mail de boas-vindas.
+  const [criado, setCriado] = useState<{
+    user: Pick<UserRow, "id" | "email" | "full_name" | "memberships">;
+    semSenha: boolean;
+  } | null>(null);
   const save = useMutation({
     mutationFn: () =>
       fn({
@@ -579,17 +626,15 @@ function NewUserDialog({
           email,
           password: password || undefined,
           memberships,
-          redirectTo: `${window.location.origin}/reset-password`,
         },
       }),
     onSuccess: (r) => {
-      toast.success(
-        r.inviteSent
-          ? "Conta criada — enviamos o e-mail para a pessoa definir a senha"
-          : "Conta criada",
-      );
+      toast.success("Conta criada — revise o e-mail de boas-vindas");
       onSaved();
-      onClose();
+      setCriado({
+        user: { id: r.userId, email: r.email, full_name: fullName.trim(), memberships },
+        semSenha: r.semSenha,
+      });
     },
     onError: (e) => toast.error(errMsg(e)),
   });
@@ -597,13 +642,50 @@ function NewUserDialog({
     fullName.trim().length >= 2 &&
     /\S+@\S+\.\S+/.test(email) &&
     (password === "" || password.length >= 8);
+
+  if (criado) {
+    return (
+      <Dialog
+        open
+        onOpenChange={(o) => {
+          if (
+            !o &&
+            confirm("Fechar sem enviar o e-mail de boas-vindas? Dá para enviar depois pela lista.")
+          )
+            onClose();
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>E-mail de boas-vindas</DialogTitle>
+            <DialogDescription>
+              Conta de {criado.user.email} criada. Edite o texto como quiser e envie.
+              {criado.semSenha
+                ? " Sem senha definida: o e-mail leva o botão para a pessoa criar a dela."
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <WelcomeEmailForm
+            user={criado.user}
+            teams={allTeams}
+            remetente={remetente}
+            comLinkPadrao={criado.semSenha}
+            onDone={onClose}
+            cancelLabel="Agora não"
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Novo usuário</DialogTitle>
           <DialogDescription>
-            A conta nasce confirmada. Sem senha, a pessoa recebe um e-mail para definir a dela.
+            A conta nasce confirmada. Depois de criar, você revisa e envia o e-mail de boas-vindas,
+            com os manuais do time e, sem senha, o link para a pessoa definir a dela.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
@@ -631,7 +713,7 @@ function NewUserDialog({
               minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Mínimo 8 caracteres — ou deixe em branco para enviar o e-mail"
+              placeholder="Mínimo 8 caracteres — ou deixe em branco para a pessoa definir"
             />
           </div>
           <div className="space-y-1">
@@ -649,6 +731,165 @@ function NewUserDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// E-mail de boas-vindas (logo depois de criar a conta, ou pela lista)
+// ---------------------------------------------------------------------------
+function WelcomeEmailForm({
+  user,
+  teams,
+  remetente,
+  comLinkPadrao,
+  onDone,
+  cancelLabel,
+}: {
+  user: Pick<UserRow, "id" | "email" | "full_name" | "memberships">;
+  teams: Team[];
+  remetente: string | null;
+  comLinkPadrao: boolean;
+  onDone: () => void;
+  cancelLabel: string;
+}) {
+  const sendFn = useServerFn(sendWelcomeEmail);
+  const padrao = (comLink: boolean) =>
+    rascunhoBoasVindas({
+      nome: user.full_name,
+      email: user.email,
+      memberships: user.memberships,
+      teams,
+      comLinkDeSenha: comLink,
+      remetente,
+    });
+  const [comLink, setComLink] = useState(comLinkPadrao);
+  const [assunto, setAssunto] = useState(() => padrao(comLinkPadrao).assunto);
+  const [corpo, setCorpo] = useState(() => padrao(comLinkPadrao).corpo);
+  const [preview, setPreview] = useState(false);
+
+  const trocarLink = (on: boolean) => {
+    // texto ainda no padrão acompanha o botão; texto editado fica como está
+    if (corpo === padrao(comLink).corpo) setCorpo(padrao(on).corpo);
+    setComLink(on);
+  };
+
+  const send = useMutation({
+    mutationFn: () =>
+      sendFn({
+        data: {
+          userId: user.id,
+          assunto,
+          corpo,
+          comLinkDeSenha: comLink,
+          redirectTo: `${window.location.origin}/reset-password`,
+        },
+      }),
+    onSuccess: (r) => {
+      toast.success(`Boas-vindas enviadas para ${r.email}`);
+      onDone();
+    },
+    onError: (e) => toast.error(errMsg(e)),
+  });
+
+  const previewHtml = useMemo(
+    () =>
+      preview
+        ? montarHtmlBoasVindas(corpo, {
+            texto: comLink ? "Definir minha senha" : "Entrar no Compass",
+            url: "#",
+          }).html
+        : "",
+    [preview, corpo, comLink],
+  );
+
+  return (
+    <>
+      <div className="space-y-3">
+        <div className="space-y-1">
+          <Label htmlFor="bv-assunto">Assunto</Label>
+          <Input
+            id="bv-assunto"
+            value={assunto}
+            maxLength={200}
+            onChange={(e) => setAssunto(e.target.value)}
+          />
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="bv-corpo">Mensagem</Label>
+            <div className="flex gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => setPreview((p) => !p)}
+              >
+                {preview ? "Editar texto" : "Ver como fica"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() => {
+                  const p = padrao(comLink);
+                  setAssunto(p.assunto);
+                  setCorpo(p.corpo);
+                }}
+              >
+                Restaurar padrão
+              </Button>
+            </div>
+          </div>
+          {preview ? (
+            <iframe
+              title="Prévia do e-mail"
+              srcDoc={previewHtml}
+              sandbox=""
+              className="h-[420px] w-full rounded-md border border-border bg-white"
+            />
+          ) : (
+            <Textarea
+              id="bv-corpo"
+              value={corpo}
+              rows={16}
+              maxLength={8000}
+              onChange={(e) => setCorpo(e.target.value)}
+              className="font-mono text-xs leading-relaxed"
+            />
+          )}
+          <p className="text-[11px] text-muted-foreground">
+            Links colados no texto viram clicáveis. Linha em branco separa parágrafos.
+          </p>
+        </div>
+        <label className="flex items-start gap-2 text-sm">
+          <Checkbox
+            checked={comLink}
+            onCheckedChange={(v) => trocarLink(v === true)}
+            className="mt-0.5"
+          />
+          <span>
+            Incluir o botão <strong>Definir minha senha</strong>
+            <span className="block text-xs text-muted-foreground">
+              Gera um link de uso único na hora do envio. Desmarcado, o botão é “Entrar no Compass”.
+            </span>
+          </span>
+        </label>
+      </div>
+      <DialogFooter>
+        <Button variant="outline" onClick={onDone}>
+          {cancelLabel}
+        </Button>
+        <Button
+          onClick={() => send.mutate()}
+          disabled={send.isPending || assunto.trim().length < 3 || corpo.trim().length < 10}
+        >
+          <Mail className="mr-1 h-3.5 w-3.5" />
+          {send.isPending ? "Enviando…" : "Enviar boas-vindas"}
+        </Button>
+      </DialogFooter>
+    </>
   );
 }
 
