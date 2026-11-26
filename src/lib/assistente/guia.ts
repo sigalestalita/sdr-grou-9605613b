@@ -229,6 +229,12 @@ export const TELAS: TelaDoGuia[] = [
     texto: `Acompanhamento de renovação das consultorias, que não entram na carteira de atendimento nem na sinaleira. Escolha a janela (15, 30 ou 60 dias para cada lado da data de renovação) e veja quem está para renovar, ou "Todas as consultorias" para a lista completa das ativas, inclusive as sem data de renovação (que ficam no fim).`,
   },
   {
+    rota: "/empresas-parecidas",
+    nome: "Empresas parecidas",
+    area: "CS",
+    texto: `Empresas com o mesmo CNPJ, o mesmo domínio ou o nome parecido (menu Customer Success → Empresas parecidas, ou o botão no topo de Empresas). Para cada grupo: Mesclar (é a mesma empresa: tudo vai para a que fica e a outra sai), São filiais (unidades de uma rede, ligadas à empresa-mãe sem mesclar), Excluir (desativa: some das listas, o histórico fica) ou Não são a mesma. Também dá para mesclar duas empresas quaisquer ou excluir uma pela busca. Só a gestão executa; quem não é gestão usa "Pedir mescla", "Pedir exclusão" ou "Pedir: são filiais", escreve o motivo, e a gestão aprova ou recusa na aba "Pedidos" (aprovar já executa). Quem pediu recebe o aviso no sino e por e-mail e acompanha em "Meus pedidos".`,
+  },
+  {
     rota: "/cs-whatsapp",
     nome: "WhatsApp CS",
     area: "CS",

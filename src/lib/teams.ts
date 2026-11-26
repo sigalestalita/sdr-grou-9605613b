@@ -198,6 +198,8 @@ type RouteAccess = { prefix: string; teams: AppTeam[]; roles?: AppRole[] };
 const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/cs", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/empresas", teams: ["cs"], roles: ["executivo"] },
+  // Parecidas: a gestão decide; CS e comercial pedem (mesclar, excluir, filiais).
+  { prefix: "/empresas-parecidas", teams: ["cs", "comercial"], roles: ["executivo"] },
   { prefix: "/cs-follow-ups", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/cs-consultorias", teams: ["cs"] },
   { prefix: "/cs-whatsapp", teams: ["cs"] },
