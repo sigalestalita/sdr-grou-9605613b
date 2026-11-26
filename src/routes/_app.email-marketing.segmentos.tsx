@@ -4,6 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
+  Download,
   FileUp,
   Filter,
   List,
@@ -19,6 +20,7 @@ import {
 import {
   apagarSegmento,
   buscarEmpresasSegmento,
+  exportarSegmento,
   importarListaDeEmails,
   listarSegmentos,
   opcoesDeSegmentacao,
@@ -29,6 +31,7 @@ import {
 } from "@/lib/email-marketing.functions";
 import { CAMPOS_SEGMENTO, OPERADORES } from "@/lib/email-marketing/campos";
 import { lerListaDeEmails, MAX_CONTATOS_NA_LISTA } from "@/lib/email-marketing/lista";
+import { downloadCsv } from "@/lib/export-csv";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +100,7 @@ function SegmentosPage() {
   const opcoesFn = useServerFn(opcoesDeSegmentacao);
   const salvarFn = useServerFn(salvarSegmento);
   const importarFn = useServerFn(importarListaDeEmails);
+  const exportarFn = useServerFn(exportarSegmento);
   const apagarFn = useServerFn(apagarSegmento);
 
   const { data: segmentos, isLoading } = useQuery({
@@ -173,6 +177,36 @@ function SegmentosPage() {
       qc.invalidateQueries({ queryKey: ["email-mkt", "segmentos"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  // Baixa quem entra (todos, não só a amostra), já sem descadastrados.
+  const baixar = useMutation({
+    mutationFn: async () => {
+      const lidosSemSalvar = ed.tipo === "lista" && (!ed.id || lista.texto.trim());
+      if (lidosSemSalvar) return leitura.contatos;
+      const regras = ed.tipo === "lista" ? { ...REGRAS_VAZIAS, lista: ed.id } : ed.regras;
+      return exportarFn({ data: { regras } });
+    },
+    onSuccess: (linhas) => {
+      if (!linhas.length) {
+        toast.info("Ninguém nesta segmentação para baixar");
+        return;
+      }
+      const nome =
+        (ed.nome.trim() || "segmentacao")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^\w-]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .toLowerCase() || "segmentacao";
+      downloadCsv(
+        `${nome}-${new Date().toISOString().slice(0, 10)}.csv`,
+        linhas.map((l) => ({ "E-mail": l.email, Nome: l.nome ?? "", Empresa: l.empresa ?? "" })),
+        ["E-mail", "Nome", "Empresa"],
+      );
+      toast.success(`${linhas.length.toLocaleString("pt-BR")} contatos baixados`);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao baixar"),
   });
 
   const apagar = useMutation({
@@ -273,6 +307,20 @@ function SegmentosPage() {
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setEd(NOVA)}>
                   <Plus className="mr-1 h-3.5 w-3.5" /> Nova
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => baixar.mutate()}
+                  disabled={baixar.isPending}
+                  title="Baixar todos os contatos desta segmentação em CSV (abre no Excel)"
+                >
+                  {baixar.isPending ? (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Download className="mr-1 h-3.5 w-3.5" />
+                  )}
+                  Baixar lista
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setEd(NOVA_LISTA)}>
                   <Upload className="mr-1 h-3.5 w-3.5" /> Subir lista
