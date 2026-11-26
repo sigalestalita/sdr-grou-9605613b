@@ -58,6 +58,7 @@ type Resumo = {
   minutos_ativos: number;
   primeiro: string;
   ultimo: string;
+  reconstruidos: number;
 };
 
 export const resumoDeUso = createServerFn({ method: "GET" })
@@ -113,6 +114,8 @@ export const resumoDeUso = createServerFn({ method: "GET" })
         diasAtivos: Number(r?.dias_ativos ?? 0),
         paginas: Number(r?.paginas ?? 0),
         minutosAtivos: Number(r?.minutos_ativos ?? 0),
+        /** Eventos do período que vieram da reconstrução (antes do registro existir). */
+        reconstruidos: Number(r?.reconstruidos ?? 0),
         ultimoAcesso: ultimoDe.get(id) ?? null,
         telas: [...(telasDe.get(id) ?? new Map<string, number>())]
           .map(([nome, n]) => ({ nome, n }))
@@ -130,7 +133,10 @@ export const resumoDeUso = createServerFn({ method: "GET" })
 
 const PAGINA = 200;
 
-/** Linha do tempo: entradas e telas abertas (o sinal de "ativo" fica de fora). */
+/**
+ * Linha do tempo: entradas, telas abertas e, no período reconstruído, as ações
+ * e as renovações de login (o sinal de "ativo" fica de fora).
+ */
 export const eventosDeUso = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
@@ -147,8 +153,8 @@ export const eventosDeUso = createServerFn({ method: "GET" })
     await exigirAcesso(context.userId);
     let q = db()
       .from("uso_eventos")
-      .select("id, user_id, sessao, tipo, rota, created_at")
-      .in("tipo", ["entrada", "pagina"])
+      .select("id, user_id, sessao, tipo, rota, created_at, reconstruido, detalhe")
+      .in("tipo", ["entrada", "pagina", "acao", "aberto"])
       .gte("created_at", data.de)
       .lt("created_at", data.ate)
       .order("id", { ascending: false })
@@ -162,9 +168,11 @@ export const eventosDeUso = createServerFn({ method: "GET" })
         id: number;
         user_id: string;
         sessao: string;
-        tipo: "entrada" | "pagina";
+        tipo: "entrada" | "pagina" | "acao" | "aberto";
         rota: string | null;
         created_at: string;
+        reconstruido: boolean;
+        detalhe: string | null;
       }>
     ).map((e) => ({ ...e, tela: rotuloDaRota(e.rota) }));
     return {
