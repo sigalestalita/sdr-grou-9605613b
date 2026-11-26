@@ -382,6 +382,7 @@ export const PASSO_A_PASSO: Array<{ tarefa: string; passos: string[] }> = [
   {
     tarefa: "Criar e enviar uma proposta comercial",
     passos: [
+      `Atalho: em [Propostas](/propostas), "Nova proposta" → escolha o negócio aberto (os seus aparecem primeiro) e o gerador já abre nele; sem negócio, "Novo negócio" ali mesmo. Ou peça à assistente ("monte uma proposta de 10 licenças PDA para a Acme"): ela abre o negócio se preciso, põe os itens e gera a proposta em rascunho, sempre pedindo confirmação antes.`,
       `A proposta nasce de um negócio. Se ainda não há negócio (prospecção sua, indicação, evento), crie em [Pipeline comercial](/comercial-pipeline) ou em [Comercial](/comercial) com "Novo negócio": empresa (busque ou digite uma nova), contato principal, funil, origem, valor estimado e produtos. Ao criar, abre a página do negócio. Se o lead veio do SDR, o negócio já existe: abra pelo pipeline.`,
       `Na página do negócio, em "Itens da proposta": "Escolha do catálogo", informe "Quantidade" e "Valor unitário", desconto se houver e "Salvar itens". Se precisar, use "Calcular pelas regras de retenção" para os impostos retidos.`,
       `Em "Propostas", clique em "Gerar proposta". Escolha o modelo (o primeiro dá o cabeçalho; os outros somam seções), o contato em "A/C (contato)", "Forma de pagamento", "Validade (dias)" e "Observações (aparecem na proposta)", e clique em "Gerar e ver".`,
@@ -392,6 +393,16 @@ export const PASSO_A_PASSO: Array<{ tarefa: string; passos: string[] }> = [
     ],
   },
 ];
+
+PASSO_A_PASSO.push({
+  tarefa: "Pedir para a assistente fazer (proposta, relatório, segmentação)",
+  passos: [
+    `Abra a assistente (botão no canto da tela) e peça em texto. Ex.: "gere uma proposta de 2 turmas de NR-1 para a Gerdau, pagamento em 3x", "monte um relatório de vendas ganhas por executivo por mês em 2026", "crie uma segmentação com os clientes do Maicon em SP".`,
+    `Ela mostra o resumo (empresa, itens e valores, modelo, filtros) e pergunta "Posso criar?". Só cria depois do seu sim.`,
+    `No fim ela manda o link: a proposta fica em rascunho na página do negócio (você revisa e envia), o relatório abre em [Relatórios](/relatorios) e a segmentação em [Segmentações](/email-marketing/segmentos).`,
+    `Ela também responde qualquer pergunta sobre a base (negócios, leads, empresas, carteira, tarefas, faturas, turmas, campanhas…), sempre com o seu acesso: o que você não vê nas telas ela também não vê.`,
+  ],
+});
 
 export function guiaComoTexto(): string {
   const telas = TELAS.map((t) => `## ${t.nome} (${t.rota}) — ${t.area}\n${t.texto}`).join("\n\n");

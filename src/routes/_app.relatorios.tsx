@@ -43,6 +43,9 @@ import {
 import type { DetalheRelatorio } from "@/lib/relatorios/executar.server";
 
 export const Route = createFileRoute("/_app/relatorios")({
+  // ?r=<id> abre o relatório salvo (link que a assistente manda depois de criar).
+  validateSearch: (s: Record<string, unknown>): { r?: string } =>
+    typeof s.r === "string" && /^[0-9a-f-]{36}$/i.test(s.r) ? { r: s.r } : {},
   component: RelatoriosPage,
   head: () => ({ meta: [{ title: "Relatórios | Grou Compass" }] }),
 });
@@ -141,6 +144,15 @@ function RelatoriosPage() {
     setExplicacao(r.pergunta ? `Pedido original: ${r.pergunta}` : null);
     rodar.mutate(r.spec);
   };
+  const { r: abrirId } = Route.useSearch();
+  const [abertoPeloLink, setAbertoPeloLink] = useState<string | null>(null);
+  useEffect(() => {
+    const alvo = abrirId ? salvos.data?.find((x) => x.id === abrirId) : null;
+    if (!alvo || abertoPeloLink === alvo.id) return;
+    setAbertoPeloLink(alvo.id);
+    abrir(alvo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirId, salvos.data]);
   const novo = () => {
     setAberto(null);
     setSpec(specVazio());

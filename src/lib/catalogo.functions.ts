@@ -144,80 +144,78 @@ export const getItensNegocio = createServerFn({ method: "GET" })
     };
   });
 
+export const SalvarItensSchema = z.object({
+  dealId: z.string().uuid(),
+  itens: z
+    .array(
+      z.object({
+        product_id: z.string().uuid().nullable(),
+        nome: z.string().trim().min(1).max(160),
+        quantidade: z.number().min(0.01).max(1_000_000),
+        valor_unitario: z.number().min(0).max(100_000_000),
+        desconto_tipo: z.enum(["pct", "valor"]).default("pct"),
+        desconto: z.number().min(0).max(100_000_000).default(0),
+        recorrencia: z.enum(["unico", "mensal", "anual"]).default("unico"),
+      }),
+    )
+    .max(60),
+  valorImpostos: z.number().min(0).max(100_000_000).nullable(),
+});
+export type SalvarItensInput = z.infer<typeof SalvarItensSchema>;
+
+/** Núcleo (também usado pela assistente, com o acesso de quem pede). */
+export async function salvarItensNucleo(db: SupabaseClient, data: SalvarItensInput) {
+  const total = totalItens(data.itens);
+  const p = proposta(total, data.valorImpostos);
+
+  // Grava os novos antes de apagar os antigos: se a gravação falhar, o
+  // negócio não fica sem itens.
+  const { data: antigos } = await db.from("deal_products").select("id").eq("deal_id", data.dealId);
+  if (data.itens.length > 0) {
+    const { error } = await db.from("deal_products").insert(
+      data.itens.map((i, idx) => ({
+        deal_id: data.dealId,
+        product_id: i.product_id,
+        nome: i.nome,
+        quantidade: i.quantidade,
+        valor_unitario: i.valor_unitario,
+        desconto_tipo: i.desconto_tipo,
+        desconto: i.desconto_tipo === "pct" ? Math.min(i.desconto, 100) : i.desconto,
+        recorrencia: i.recorrencia,
+        total: totalItem(i),
+        ordem: idx,
+      })),
+    );
+    if (error) throw new Error(error.message);
+  }
+  const idsAntigos = ((antigos ?? []) as Array<{ id: string }>).map((a) => a.id);
+  if (idsAntigos.length > 0) {
+    const { error: delErr } = await db.from("deal_products").delete().in("id", idsAntigos);
+    if (delErr) throw new Error(delErr.message);
+  }
+  const patch: Record<string, unknown> = {
+    valor_impostos: data.valorImpostos == null ? null : p.impostos,
+    valor_liquido: data.itens.length > 0 ? p.final : null,
+    updated_at: new Date().toISOString(),
+  };
+  // Com itens, o valor do negócio é a soma deles.
+  if (data.itens.length > 0) {
+    patch.amount = total;
+    patch.produtos_texto = data.itens.map((i) => `${i.quantidade}× ${i.nome}`).join(", ");
+  }
+  const { error } = await db.from("deals").update(patch).eq("id", data.dealId);
+  if (error) throw new Error(error.message);
+  return { ok: true, ...p };
+}
+
 /**
  * Substitui os itens do negócio e recalcula o valor (soma dos itens), os
  * impostos e o valor final da proposta.
  */
 export const salvarItensNegocio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        dealId: z.string().uuid(),
-        itens: z
-          .array(
-            z.object({
-              product_id: z.string().uuid().nullable(),
-              nome: z.string().trim().min(1).max(160),
-              quantidade: z.number().min(0.01).max(1_000_000),
-              valor_unitario: z.number().min(0).max(100_000_000),
-              desconto_tipo: z.enum(["pct", "valor"]).default("pct"),
-              desconto: z.number().min(0).max(100_000_000).default(0),
-              recorrencia: z.enum(["unico", "mensal", "anual"]).default("unico"),
-            }),
-          )
-          .max(60),
-        valorImpostos: z.number().min(0).max(100_000_000).nullable(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const db = solto(context.supabase);
-    const total = totalItens(data.itens);
-    const p = proposta(total, data.valorImpostos);
-
-    // Grava os novos antes de apagar os antigos: se a gravação falhar, o
-    // negócio não fica sem itens.
-    const { data: antigos } = await db
-      .from("deal_products")
-      .select("id")
-      .eq("deal_id", data.dealId);
-    if (data.itens.length > 0) {
-      const { error } = await db.from("deal_products").insert(
-        data.itens.map((i, idx) => ({
-          deal_id: data.dealId,
-          product_id: i.product_id,
-          nome: i.nome,
-          quantidade: i.quantidade,
-          valor_unitario: i.valor_unitario,
-          desconto_tipo: i.desconto_tipo,
-          desconto: i.desconto_tipo === "pct" ? Math.min(i.desconto, 100) : i.desconto,
-          recorrencia: i.recorrencia,
-          total: totalItem(i),
-          ordem: idx,
-        })),
-      );
-      if (error) throw new Error(error.message);
-    }
-    const idsAntigos = ((antigos ?? []) as Array<{ id: string }>).map((a) => a.id);
-    if (idsAntigos.length > 0) {
-      const { error: delErr } = await db.from("deal_products").delete().in("id", idsAntigos);
-      if (delErr) throw new Error(delErr.message);
-    }
-    const patch: Record<string, unknown> = {
-      valor_impostos: data.valorImpostos == null ? null : p.impostos,
-      valor_liquido: data.itens.length > 0 ? p.final : null,
-      updated_at: new Date().toISOString(),
-    };
-    // Com itens, o valor do negócio é a soma deles.
-    if (data.itens.length > 0) {
-      patch.amount = total;
-      patch.produtos_texto = data.itens.map((i) => `${i.quantidade}× ${i.nome}`).join(", ");
-    }
-    const { error } = await db.from("deals").update(patch).eq("id", data.dealId);
-    if (error) throw new Error(error.message);
-    return { ok: true, ...p };
-  });
+  .inputValidator((d) => SalvarItensSchema.parse(d))
+  .handler(async ({ data, context }) => salvarItensNucleo(solto(context.supabase), data));
 
 // ---------------------------------------------------------------------------
 // Realizado dividido (tela de metas)

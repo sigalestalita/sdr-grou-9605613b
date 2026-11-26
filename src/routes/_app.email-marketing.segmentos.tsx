@@ -38,6 +38,9 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 
 export const Route = createFileRoute("/_app/email-marketing/segmentos")({
+  // ?s=<id> abre a segmentação (link que a assistente manda depois de criar).
+  validateSearch: (s: Record<string, unknown>): { s?: string } =>
+    typeof s.s === "string" && /^[0-9a-f-]{36}$/i.test(s.s) ? { s: s.s } : {},
   component: SegmentosPage,
   head: () => ({ meta: [{ title: "Segmentações | Grou Compass" }] }),
 });
@@ -135,6 +138,15 @@ function SegmentosPage() {
       regras: { ...REGRAS_VAZIAS, ...(s.regras ?? {}) },
     });
   };
+
+  const { s: abrirId } = Route.useSearch();
+  const [abertoPeloLink, setAbertoPeloLink] = useState<string | null>(null);
+  useEffect(() => {
+    if (!abrirId || abertoPeloLink === abrirId || !segmentos) return;
+    setAbertoPeloLink(abrirId);
+    abrir(abrirId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abrirId, segmentos]);
 
   const salvar = useMutation({
     mutationFn: () => {
