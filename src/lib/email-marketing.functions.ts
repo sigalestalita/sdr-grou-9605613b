@@ -170,6 +170,33 @@ export const previaSegmento = createServerFn({ method: "POST" })
     };
   });
 
+/**
+ * Todos os contatos de uma segmentação (para baixar em CSV). O banco devolve
+ * no máximo 1.000 linhas por chamada: vem em páginas.
+ */
+export const exportarSegmento = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ regras: RegrasSchema }).parse(d))
+  .handler(async ({ data, context }) => {
+    const linhas: Array<{ email: string; nome: string | null; empresa: string | null }> = [];
+    const PAGINA = 1000;
+    for (let de = 0; de < 200_000; de += PAGINA) {
+      const { data: pagina, error } = await context.supabase
+        .rpc("email_segmento_leads" as never, { regras: data.regras, limite: null } as never)
+        .range(de, de + PAGINA - 1);
+      if (error) throw new Error(error.message);
+      const rows = (pagina ?? []) as Row[];
+      for (const r of rows)
+        linhas.push({
+          email: String(r.email),
+          nome: (r.nome as string) ?? null,
+          empresa: (r.empresa as string) ?? null,
+        });
+      if (rows.length < PAGINA) break;
+    }
+    return linhas;
+  });
+
 export const salvarSegmento = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
