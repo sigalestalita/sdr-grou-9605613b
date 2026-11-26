@@ -28,7 +28,8 @@ import {
   salvarAvisosEmails,
   type PropostaLista,
 } from "@/lib/propostas.functions";
-import { dataBr, moedaBr, STATUS_PROPOSTA } from "@/lib/propostas/render";
+import { dataBr, moedaBr, STATUS_PROPOSTA, type Apresentacao } from "@/lib/propostas/render";
+import { EscolherDoAcervo } from "@/components/propostas/acervo-slides";
 import { duracao, type Rastreio } from "@/lib/propostas/visitas";
 import { PUBLIC_SITE_URL } from "@/lib/propostas/site";
 import { lerEmailsDigitados, MAX_AVISOS_EMAILS } from "@/lib/propostas/avisos-email";
@@ -190,7 +191,11 @@ function LinhaProposta({
         {p.status === "rascunho" && (
           <Acao
             icon={Presentation}
-            rotulo={p.conteudo.apresentacao?.slides?.length ? "Trocar apresentação" : "Anexar apresentação"}
+            rotulo={
+              p.conteudo.apresentacao?.slides?.length
+                ? "Trocar apresentação"
+                : "Anexar apresentação"
+            }
             onClick={() => setApresentando(true)}
           />
         )}
@@ -261,11 +266,19 @@ function HistoricoVisitas({ p }: { p: PropostaLista }) {
   return (
     <ul className="mt-1.5 divide-y rounded-md border text-[11.5px]">
       {p.visitas.map((v, i) => (
-        <li key={i} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 px-2 py-1.5">
+        <li
+          key={i}
+          className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 px-2 py-1.5"
+        >
           <span className="tabular-nums">{dataHora(v.iniciadaEm)}</span>
           <span className="text-muted-foreground">
             {duracao(v.segundos)}
-            {total > 0 && <> · até o slide {v.maiorSlide || "—"} de {total}</>}
+            {total > 0 && (
+              <>
+                {" "}
+                · até o slide {v.maiorSlide || "—"} de {total}
+              </>
+            )}
             {" · "}
             {v.dispositivo}
           </span>
@@ -301,7 +314,9 @@ function AvisarPorEmail({ p, onFeito }: { p: PropostaLista; onFeito: () => void 
     setSalvando(true);
     try {
       await salvar({ data: { id: p.id, emails: validos } });
-      toast.success(validos.length ? "Lista de avisos salva" : "Avisos irão para quem enviou a proposta");
+      toast.success(
+        validos.length ? "Lista de avisos salva" : "Avisos irão para quem enviou a proposta",
+      );
       setEditando(false);
       onFeito();
     } catch (e) {
@@ -360,9 +375,8 @@ function useAnexarApresentacao() {
   const salvar = useServerFn(salvarApresentacao);
   const [progresso, setProgresso] = useState<string | null>(null);
   const anexar = async (propostaId: string, arquivo: File) => {
-    const { enviarApresentacaoPdf, apagarArquivosDaProposta, pastaDaApresentacao } = await import(
-      "@/lib/propostas/apresentacao-arquivos"
-    );
+    const { enviarApresentacaoPdf, apagarArquivosDaProposta, pastaDaApresentacao } =
+      await import("@/lib/propostas/apresentacao-arquivos");
     setProgresso("Lendo o PDF…");
     try {
       const ap = await enviarApresentacaoPdf(propostaId, arquivo, (feito, total, etapa) =>
@@ -396,10 +410,30 @@ function ApresentacaoDialog({
   onFeito: () => void;
 }) {
   const remover = useServerFn(removerApresentacao);
+  const salvarFn = useServerFn(salvarApresentacao);
   const { anexar, progresso } = useAnexarApresentacao();
   const [arquivo, setArquivo] = useState<File | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  // Padrão: escolher do acervo da apresentação comercial; PDF próprio é a exceção.
+  const [modo, setModo] = useState<"acervo" | "pdf">("acervo");
   const atual = p.conteudo.apresentacao;
+
+  const usarDoAcervo = async (ap: Apresentacao) => {
+    setOcupado(true);
+    try {
+      await salvarFn({ data: { id: p.id, apresentacao: ap } });
+      // Saindo de um PDF próprio: apaga os arquivos dele (o acervo fica em outra pasta).
+      const { apagarArquivosDaProposta } = await import("@/lib/propostas/apresentacao-arquivos");
+      await apagarArquivosDaProposta(p.id).catch(() => undefined);
+      toast.success(`Apresentação montada · ${ap.slides.length} slides`);
+      onFeito();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao salvar");
+    } finally {
+      setOcupado(false);
+    }
+  };
 
   const enviar = async () => {
     if (!arquivo) return;
@@ -434,11 +468,12 @@ function ApresentacaoDialog({
 
   return (
     <Dialog open onOpenChange={(o) => !o && !ocupado && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className={modo === "acervo" ? "sm:max-w-2xl" : "sm:max-w-md"}>
         <DialogHeader>
           <DialogTitle>Apresentação em slides</DialogTitle>
           <DialogDescription>
-            Aparece no topo da página do cliente. Envie um PDF: cada página vira um slide.
+            Aparece no topo da página do cliente. Escolha os serviços da apresentação comercial ou
+            envie um PDF próprio.
           </DialogDescription>
         </DialogHeader>
         {atual?.slides?.length ? (
@@ -446,8 +481,36 @@ function ApresentacaoDialog({
             Atual: <strong>{atual.titulo}</strong> · {atual.slides.length} slides
           </p>
         ) : null}
-        <EscolherPdf arquivo={arquivo} onArquivo={setArquivo} desabilitado={ocupado} />
-        {progresso && <p className="text-[12px] text-muted-foreground">{progresso}</p>}
+        <div className="flex rounded-full bg-muted p-1 text-[12.5px]">
+          {(
+            [
+              ["acervo", "Da apresentação comercial"],
+              ["pdf", "PDF próprio"],
+            ] as const
+          ).map(([m, rotulo]) => (
+            <button
+              key={m}
+              type="button"
+              disabled={ocupado}
+              onClick={() => setModo(m)}
+              className={`flex-1 rounded-full px-3 py-1 ${modo === m ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}
+            >
+              {rotulo}
+            </button>
+          ))}
+        </div>
+        {modo === "acervo" ? (
+          <EscolherDoAcervo
+            itens={(p.conteudo.itens ?? []).map((i) => i.nome)}
+            ocupado={ocupado}
+            onUsar={usarDoAcervo}
+          />
+        ) : (
+          <>
+            <EscolherPdf arquivo={arquivo} onArquivo={setArquivo} desabilitado={ocupado} />
+            {progresso && <p className="text-[12px] text-muted-foreground">{progresso}</p>}
+          </>
+        )}
         <DialogFooter className="gap-2 sm:justify-between">
           {atual?.slides?.length ? (
             <Button variant="ghost" className="text-destructive" disabled={ocupado} onClick={tirar}>
@@ -460,9 +523,11 @@ function ApresentacaoDialog({
             <Button variant="ghost" disabled={ocupado} onClick={onClose}>
               Fechar
             </Button>
-            <Button disabled={!arquivo || ocupado} onClick={enviar}>
-              {ocupado ? "Enviando…" : atual?.slides?.length ? "Trocar" : "Anexar"}
-            </Button>
+            {modo === "pdf" && (
+              <Button disabled={!arquivo || ocupado} onClick={enviar}>
+                {ocupado ? "Enviando…" : atual?.slides?.length ? "Trocar" : "Anexar"}
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>
