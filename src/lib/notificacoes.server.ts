@@ -40,7 +40,15 @@ export async function notificar(
     _link: n.link ?? null,
     _deal_id: n.dealId ?? null,
   });
-  if (error) console.error("[notificar]", error.message);
+  if (error) {
+    console.error("[notificar]", error.message);
+    return;
+  }
+  // Menção também chega por e-mail (o sino pode passar despercebido).
+  if (n.tipo === "mencao") {
+    const { enviarMencaoPorEmail } = await import("./notificacoes-email.server");
+    await enviarMencaoPorEmail({ para: destinos, titulo: n.titulo, corpo: n.corpo, link: n.link });
+  }
 }
 
 /** Avisa o time de faturamento (função no banco, porque lê os vínculos de todos). */
