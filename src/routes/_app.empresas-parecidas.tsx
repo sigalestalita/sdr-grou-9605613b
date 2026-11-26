@@ -12,26 +12,40 @@ import {
   Loader2,
   RotateCcw,
   Search,
+  Send,
+  Trash2,
   X,
 } from "lucide-react";
 import {
   buscarEmpresasParaMesclar,
+  decidirPedidoDeEmpresa,
+  desativarEmpresas,
   ignorarGrupoDeParecidas,
   ligarFiliais,
   listarEmpresasParecidas,
+  listarPedidosDeEmpresas,
   listarRevisoesDeParecidas,
   mesclarEmpresas,
+  pedirAcaoEmpresa,
   reabrirGrupoDeParecidas,
+  souGestaoDeEmpresas,
+  ROTULO_PEDIDO,
   type EmpresaParecida,
   type GrupoDeParecidas,
+  type PedidoEmpresa,
 } from "@/lib/empresas-mescla.functions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { pareceFiliais, sugerirNomeDaMae } from "@/lib/empresas-parecidas";
 
+type Aba = "pendentes" | "pedidos" | "revisadas";
+
 export const Route = createFileRoute("/_app/empresas-parecidas")({
+  validateSearch: (s: Record<string, unknown>): { aba?: Aba } =>
+    s.aba === "pedidos" || s.aba === "revisadas" ? { aba: s.aba } : {},
   component: EmpresasParecidasPage,
   head: () => ({ meta: [{ title: "Empresas parecidas | Grou Compass" }] }),
 });
@@ -51,9 +65,23 @@ function sugerirQueFica(empresas: EmpresaParecida[]): string {
 
 const POR_PAGINA = 30;
 
+/** Quem é gestão decide; os outros pedem (com o motivo) e a gestão aprova. */
+function useGestao() {
+  const fn = useServerFn(souGestaoDeEmpresas);
+  const { data } = useQuery({
+    queryKey: ["empresas-gestao"],
+    queryFn: () => fn(),
+    staleTime: 300_000,
+  });
+  return data?.gestao ?? false;
+}
+
 function EmpresasParecidasPage() {
   const listarFn = useServerFn(listarEmpresasParecidas);
-  const [aba, setAba] = useState<"pendentes" | "revisadas">("pendentes");
+  const pedidosFn = useServerFn(listarPedidosDeEmpresas);
+  const busca0 = Route.useSearch();
+  const gestao = useGestao();
+  const [aba, setAba] = useState<Aba>(busca0.aba ?? "pendentes");
   const [motivo, setMotivo] = useState<
     "" | "Mesmo CNPJ" | "Mesmo domínio" | "Nome parecido" | "Possíveis filiais"
   >("");
@@ -64,6 +92,11 @@ function EmpresasParecidasPage() {
     queryFn: () => listarFn({ data: { limite: 2000 } }),
     staleTime: 60_000,
   });
+  const { data: pedidos } = useQuery({
+    queryKey: ["empresas-pedidos"],
+    queryFn: () => pedidosFn(),
+  });
+  const pendentes = (pedidos ?? []).filter((p) => p.status === "pendente").length;
   const grupos = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return (data ?? []).filter(
@@ -95,20 +128,33 @@ function EmpresasParecidasPage() {
           <Combine className="h-5 w-5 text-muted-foreground" /> Empresas parecidas
         </h1>
         <p className="mt-1 max-w-3xl text-[13px] text-muted-foreground">
-          Revisão da gestão: empresas com o mesmo CNPJ, o mesmo domínio ou o nome parecido. Para
-          cada grupo, decida: <strong>Mesclar</strong> (é a mesma empresa — tudo vai para a que fica
-          e a outra sai), <strong>São filiais</strong> (unidades de uma rede, como Sicredi, Gerdau,
-          Ambev — ficam ligadas à empresa-mãe, sem mesclar) ou <strong>Não são a mesma</strong>.
-          Cada decisão fica registrada em “Revisadas”.
+          Empresas com o mesmo CNPJ, o mesmo domínio ou o nome parecido. Para cada grupo:{" "}
+          <strong>Mesclar</strong> (é a mesma empresa — tudo vai para a que fica e a outra sai),{" "}
+          <strong>São filiais</strong> (unidades de uma rede, como Sicredi, Gerdau, Ambev — ficam
+          ligadas à empresa-mãe, sem mesclar), <strong>Excluir</strong> (desativa: some das listas,
+          o histórico fica) ou <strong>Não são a mesma</strong>.
         </p>
+        {!gestao && (
+          <p className="mt-2 max-w-3xl rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-[12px]">
+            Mesclar, excluir e ligar filiais é decisão da gestão: aqui você <strong>pede</strong>,
+            contando o motivo. A gestão aprova ou recusa, e você recebe o aviso. Acompanhe em “Meus
+            pedidos”.
+          </p>
+        )}
       </header>
 
       <div className="flex gap-1 border-b">
         {(
           [
             ["pendentes", `Para revisar${data ? ` (${data.length})` : ""}`],
-            ["revisadas", "Revisadas"],
-          ] as const
+            [
+              "pedidos",
+              gestao
+                ? `Pedidos${pendentes ? ` (${pendentes} para decidir)` : ""}`
+                : `Meus pedidos${pendentes ? ` (${pendentes} aguardando)` : ""}`,
+            ],
+            ...(gestao ? ([["revisadas", "Revisadas"]] as const) : []),
+          ] as Array<readonly [Aba, string]>
         ).map(([v, l]) => (
           <button
             key={v}
@@ -125,11 +171,16 @@ function EmpresasParecidasPage() {
         ))}
       </div>
 
-      {aba === "revisadas" ? (
+      {aba === "revisadas" && gestao ? (
         <Revisadas />
+      ) : aba === "pedidos" ? (
+        <Pedidos gestao={gestao} pedidos={pedidos} />
       ) : (
         <>
-          <MesclaManual />
+          <div className="grid gap-3 lg:grid-cols-2">
+            <MesclaManual gestao={gestao} />
+            <ExcluirManual gestao={gestao} />
+          </div>
 
           <div className="flex flex-wrap items-center gap-2">
             {(
@@ -173,7 +224,7 @@ function EmpresasParecidasPage() {
           )}
           <div className="space-y-3">
             {grupos.slice(0, mostrar).map((g) => (
-              <CartaoGrupo key={g.grupo} g={g} />
+              <CartaoGrupo key={g.grupo} g={g} gestao={gestao} />
             ))}
           </div>
           {grupos.length > mostrar && (
@@ -191,10 +242,19 @@ function EmpresasParecidasPage() {
   );
 }
 
-function CartaoGrupo({ g }: { g: GrupoDeParecidas }) {
+function invalidar(qc: ReturnType<typeof useQueryClient>) {
+  qc.invalidateQueries({ queryKey: ["empresas-parecidas"] });
+  qc.invalidateQueries({ queryKey: ["empresas-parecidas-revisadas"] });
+  qc.invalidateQueries({ queryKey: ["empresas-pedidos"] });
+}
+
+function CartaoGrupo({ g, gestao }: { g: GrupoDeParecidas; gestao: boolean }) {
   const qc = useQueryClient();
   const mesclarFn = useServerFn(mesclarEmpresas);
   const ignorarFn = useServerFn(ignorarGrupoDeParecidas);
+  const desativarFn = useServerFn(desativarEmpresas);
+  const pedirFn = useServerFn(pedirAcaoEmpresa);
+  const [pedindo, setPedindo] = useState<null | "mesclar" | "excluir">(null);
   const [fica, setFica] = useState(() => sugerirQueFica(g.empresas));
   const [saem, setSaem] = useState<Set<string>>(
     () => new Set(g.empresas.map((e) => e.id).filter((id) => id !== sugerirQueFica(g.empresas))),
@@ -227,6 +287,34 @@ function CartaoGrupo({ g }: { g: GrupoDeParecidas }) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
   const nSaem = [...saem].filter((id) => id !== fica).length;
+  const marcadas = [...saem].filter((id) => id !== fica);
+  const nomesMarcadas = g.empresas.filter((e) => marcadas.includes(e.id)).map((e) => e.nome);
+  const desativar = useMutation({
+    mutationFn: () => desativarFn({ data: { ids: marcadas, ativo: false } }),
+    onSuccess: (r) => {
+      toast.success(`${r.alteradas} empresa(s) excluídas (desativadas)`);
+      invalidar(qc);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"),
+  });
+  const pedir = useMutation({
+    mutationFn: (motivo: string) =>
+      pedirFn({
+        data: {
+          tipo: pedindo!,
+          ficaId: pedindo === "mesclar" ? fica : null,
+          alvoIds: marcadas,
+          grupo: g.grupo,
+          motivo,
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Pedido enviado para a gestão");
+      setPedindo(null);
+      invalidar(qc);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao pedir"),
+  });
 
   return (
     <Card className="space-y-2 p-3">
@@ -330,49 +418,166 @@ function CartaoGrupo({ g }: { g: GrupoDeParecidas }) {
         <OrganizarFiliais
           g={g}
           principal={fica}
-          selecionadas={[...saem].filter((id) => id !== fica)}
+          selecionadas={marcadas}
+          gestao={gestao}
           onFechar={() => setOrganizando(false)}
         />
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          disabled={ignorar.isPending}
-          onClick={() => ignorar.mutate()}
-        >
-          Não são a mesma
-        </Button>
-        <Button
-          size="sm"
-          variant={filiaisProvavel ? "default" : "outline"}
-          disabled={organizando}
-          onClick={() => setOrganizando(true)}
-        >
-          <GitBranch className="mr-1 h-3.5 w-3.5" /> São filiais
-        </Button>
-        <Button
-          size="sm"
-          variant={filiaisProvavel ? "outline" : "default"}
-          disabled={nSaem === 0 || mesclar.isPending}
-          onClick={() => {
-            if (
-              window.confirm(
-                `Mesclar ${nSaem} empresa(s) em “${nomeFica}”? Tudo o que está ligado a elas passa para “${nomeFica}”, e elas deixam de existir.`,
+      {pedindo && (
+        <MotivoDoPedido
+          titulo={
+            pedindo === "mesclar"
+              ? `Pedir para mesclar ${nSaem} empresa(s) em “${nomeFica}”`
+              : `Pedir para excluir (desativar): ${nomesMarcadas.join(", ")}`
+          }
+          enviando={pedir.isPending}
+          onEnviar={(m) => pedir.mutate(m)}
+          onFechar={() => setPedindo(null)}
+        />
+      )}
+      {gestao ? (
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={ignorar.isPending}
+            onClick={() => ignorar.mutate()}
+          >
+            Não são a mesma
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive"
+            disabled={nSaem === 0 || desativar.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Excluir (desativar) ${nomesMarcadas.join(", ")}? Elas somem das listas; o histórico fica e dá para reativar.`,
+                )
               )
-            )
-              mesclar.mutate();
-          }}
-        >
-          {mesclar.isPending ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <Combine className="mr-1 h-3.5 w-3.5" />
-          )}
-          Mesclar {nSaem > 0 ? `(${nSaem})` : ""}
-        </Button>
-      </div>
+                desativar.mutate();
+            }}
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" /> Excluir {nSaem > 0 ? `(${nSaem})` : ""}
+          </Button>
+          <Button
+            size="sm"
+            variant={filiaisProvavel ? "default" : "outline"}
+            disabled={organizando}
+            onClick={() => setOrganizando(true)}
+          >
+            <GitBranch className="mr-1 h-3.5 w-3.5" /> São filiais
+          </Button>
+          <Button
+            size="sm"
+            variant={filiaisProvavel ? "outline" : "default"}
+            disabled={nSaem === 0 || mesclar.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  `Mesclar ${nSaem} empresa(s) em “${nomeFica}”? Tudo o que está ligado a elas passa para “${nomeFica}”, e elas deixam de existir.`,
+                )
+              )
+                mesclar.mutate();
+            }}
+          >
+            {mesclar.isPending ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Combine className="mr-1 h-3.5 w-3.5" />
+            )}
+            Mesclar {nSaem > 0 ? `(${nSaem})` : ""}
+          </Button>
+        </div>
+      ) : (
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-destructive hover:text-destructive"
+            disabled={nSaem === 0 || !!pedindo}
+            onClick={() => {
+              setOrganizando(false);
+              setPedindo("excluir");
+            }}
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" /> Pedir exclusão {nSaem > 0 ? `(${nSaem})` : ""}
+          </Button>
+          <Button
+            size="sm"
+            variant={filiaisProvavel ? "default" : "outline"}
+            disabled={organizando}
+            onClick={() => {
+              setPedindo(null);
+              setOrganizando(true);
+            }}
+          >
+            <GitBranch className="mr-1 h-3.5 w-3.5" /> Pedir: são filiais
+          </Button>
+          <Button
+            size="sm"
+            variant={filiaisProvavel ? "outline" : "default"}
+            disabled={nSaem === 0 || !!pedindo}
+            onClick={() => {
+              setOrganizando(false);
+              setPedindo("mesclar");
+            }}
+          >
+            <Combine className="mr-1 h-3.5 w-3.5" /> Pedir mescla {nSaem > 0 ? `(${nSaem})` : ""}
+          </Button>
+        </div>
+      )}
     </Card>
+  );
+}
+
+/** O motivo do pedido (obrigatório): é o que a gestão lê para decidir. */
+function MotivoDoPedido({
+  titulo,
+  enviando,
+  onEnviar,
+  onFechar,
+}: {
+  titulo: string;
+  enviando: boolean;
+  onEnviar: (motivo: string) => void;
+  onFechar: () => void;
+}) {
+  const [motivo, setMotivo] = useState("");
+  return (
+    <div className="space-y-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-[12px]">
+      <p className="font-semibold">{titulo}</p>
+      <Textarea
+        value={motivo}
+        onChange={(e) => setMotivo(e.target.value)}
+        placeholder="Por que? Ex.: é o mesmo cliente, cadastrado duas vezes pelo RD com o CNPJ errado."
+        className="min-h-[70px] text-[13px]"
+        autoFocus
+      />
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-muted-foreground">
+          A gestão aprova ou recusa; você recebe o aviso.
+        </span>
+        <div className="flex gap-2">
+          <Button size="sm" variant="ghost" onClick={onFechar}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            disabled={motivo.trim().length < 5 || enviando}
+            onClick={() => onEnviar(motivo.trim())}
+          >
+            {enviando ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="mr-1 h-3.5 w-3.5" />
+            )}
+            Enviar pedido
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -384,15 +589,19 @@ function OrganizarFiliais({
   g,
   principal,
   selecionadas,
+  gestao,
   onFechar,
 }: {
   g: GrupoDeParecidas;
   principal: string;
   selecionadas: string[];
+  gestao: boolean;
   onFechar: () => void;
 }) {
   const qc = useQueryClient();
   const fn = useServerFn(ligarFiliais);
+  const pedirFn = useServerFn(pedirAcaoEmpresa);
+  const [motivo, setMotivo] = useState("");
   const sugestao = sugerirNomeDaMae(g.empresas.map((e) => e.nome));
   const [modo, setModo] = useState<"grupo" | "outra" | "nova">(sugestao ? "nova" : "grupo");
   const [outra, setOutra] = useState<Achada | null>(null);
@@ -412,10 +621,29 @@ function OrganizarFiliais({
       }),
     onSuccess: (r) => {
       toast.success(`${r.ligadas} filial(is) ligadas à empresa-mãe`);
-      qc.invalidateQueries({ queryKey: ["empresas-parecidas"] });
-      qc.invalidateQueries({ queryKey: ["empresas-parecidas-revisadas"] });
+      invalidar(qc);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao ligar filiais"),
+  });
+  const maeEscolhida = modo === "grupo" ? principal : modo === "outra" ? (outra?.id ?? null) : null;
+  const pedir = useMutation({
+    mutationFn: () =>
+      pedirFn({
+        data: {
+          tipo: "filiais",
+          ficaId: maeEscolhida,
+          novaMaeNome: modo === "nova" ? nova.trim() : "",
+          alvoIds: filhas.filter((id) => id !== maeEscolhida),
+          grupo: g.grupo,
+          motivo: motivo.trim(),
+        },
+      }),
+    onSuccess: () => {
+      toast.success("Pedido enviado para a gestão");
+      onFechar();
+      invalidar(qc);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao pedir"),
   });
   const pronto =
     filhas.length > 0 &&
@@ -459,14 +687,37 @@ function OrganizarFiliais({
         Vão ficar ligadas como filiais: {filhas.length} empresa(s). Nada é apagado nem mesclado; dá
         para desfazer em “Revisadas”.
       </p>
+      {!gestao && (
+        <Textarea
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          placeholder="Motivo do pedido (a gestão lê para decidir). Ex.: são as cooperativas regionais do Sicredi."
+          className="min-h-[60px] text-[13px]"
+        />
+      )}
       <div className="flex justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={onFechar}>
           Cancelar
         </Button>
-        <Button size="sm" disabled={!pronto || ligar.isPending} onClick={() => ligar.mutate()}>
-          {ligar.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
-          Ligar como filiais
-        </Button>
+        {gestao ? (
+          <Button size="sm" disabled={!pronto || ligar.isPending} onClick={() => ligar.mutate()}>
+            {ligar.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+            Ligar como filiais
+          </Button>
+        ) : (
+          <Button
+            size="sm"
+            disabled={!pronto || motivo.trim().length < 5 || pedir.isPending}
+            onClick={() => pedir.mutate()}
+          >
+            {pedir.isPending ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="mr-1 h-3.5 w-3.5" />
+            )}
+            Pedir à gestão
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -670,42 +921,266 @@ function BuscaEmpresa({
 }
 
 /** Duas empresas quaisquer (quando a lista não as juntou). */
-function MesclaManual() {
+function MesclaManual({ gestao }: { gestao: boolean }) {
   const qc = useQueryClient();
   const fn = useServerFn(mesclarEmpresas);
+  const pedirFn = useServerFn(pedirAcaoEmpresa);
   const [fica, setFica] = useState<Achada | null>(null);
   const [sai, setSai] = useState<Achada | null>(null);
+  const [pedindo, setPedindo] = useState(false);
   const mesclar = useMutation({
     mutationFn: () => fn({ data: { ficaId: fica!.id, saiIds: [sai!.id] } }),
     onSuccess: () => {
       toast.success(`“${sai?.nome}” mesclada em “${fica?.nome}”`);
       setSai(null);
-      qc.invalidateQueries({ queryKey: ["empresas-parecidas"] });
+      invalidar(qc);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao mesclar"),
   });
+  const pedir = useMutation({
+    mutationFn: (motivo: string) =>
+      pedirFn({ data: { tipo: "mesclar", ficaId: fica!.id, alvoIds: [sai!.id], motivo } }),
+    onSuccess: () => {
+      toast.success("Pedido enviado para a gestão");
+      setSai(null);
+      setPedindo(false);
+      invalidar(qc);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao pedir"),
+  });
+  const pronto = !!fica && !!sai && fica.id !== sai.id;
   return (
     <Card className="space-y-2 p-3">
-      <p className="text-[12px] font-semibold">Mesclar duas empresas</p>
+      <p className="text-[12px] font-semibold">
+        {gestao ? "Mesclar duas empresas" : "Pedir para mesclar duas empresas"}
+      </p>
       <div className="flex flex-wrap items-start gap-3">
         <BuscaEmpresa rotulo="Fica" valor={fica} onChange={setFica} />
         <BuscaEmpresa rotulo="Sai (entra na que fica)" valor={sai} onChange={setSai} />
-        <Button
-          size="sm"
-          className="mt-5"
-          disabled={!fica || !sai || fica.id === sai.id || mesclar.isPending}
-          onClick={() => {
-            if (
-              window.confirm(
-                `Mesclar “${sai!.nome}” em “${fica!.nome}”? Tudo o que está ligado a ela passa para “${fica!.nome}”, e ela deixa de existir.`,
-              )
-            )
-              mesclar.mutate();
-          }}
-        >
-          <Combine className="mr-1 h-3.5 w-3.5" /> Mesclar
-        </Button>
       </div>
+      {pedindo && pronto ? (
+        <MotivoDoPedido
+          titulo={`Pedir para mesclar “${sai!.nome}” em “${fica!.nome}”`}
+          enviando={pedir.isPending}
+          onEnviar={(m) => pedir.mutate(m)}
+          onFechar={() => setPedindo(false)}
+        />
+      ) : (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            disabled={!pronto || mesclar.isPending}
+            onClick={() => {
+              if (!gestao) return setPedindo(true);
+              if (
+                window.confirm(
+                  `Mesclar “${sai!.nome}” em “${fica!.nome}”? Tudo o que está ligado a ela passa para “${fica!.nome}”, e ela deixa de existir.`,
+                )
+              )
+                mesclar.mutate();
+            }}
+          >
+            <Combine className="mr-1 h-3.5 w-3.5" /> {gestao ? "Mesclar" : "Pedir mescla"}
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+/** Excluir = desativar: some das listas, o histórico fica e dá para reativar. */
+function ExcluirManual({ gestao }: { gestao: boolean }) {
+  const qc = useQueryClient();
+  const fn = useServerFn(desativarEmpresas);
+  const pedirFn = useServerFn(pedirAcaoEmpresa);
+  const [alvo, setAlvo] = useState<Achada | null>(null);
+  const [pedindo, setPedindo] = useState(false);
+  const desativar = useMutation({
+    mutationFn: () => fn({ data: { ids: [alvo!.id], ativo: false } }),
+    onSuccess: () => {
+      toast.success(`“${alvo?.nome}” excluída (desativada)`);
+      setAlvo(null);
+      invalidar(qc);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao excluir"),
+  });
+  const pedir = useMutation({
+    mutationFn: (motivo: string) =>
+      pedirFn({ data: { tipo: "excluir", alvoIds: [alvo!.id], motivo } }),
+    onSuccess: () => {
+      toast.success("Pedido enviado para a gestão");
+      setAlvo(null);
+      setPedindo(false);
+      invalidar(qc);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao pedir"),
+  });
+  return (
+    <Card className="space-y-2 p-3">
+      <p className="text-[12px] font-semibold">
+        {gestao ? "Excluir uma empresa" : "Pedir para excluir uma empresa"}
+      </p>
+      <BuscaEmpresa rotulo="Empresa" valor={alvo} onChange={setAlvo} />
+      {pedindo && alvo ? (
+        <MotivoDoPedido
+          titulo={`Pedir para excluir (desativar) “${alvo.nome}”`}
+          enviando={pedir.isPending}
+          onEnviar={(m) => pedir.mutate(m)}
+          onFechar={() => setPedindo(false)}
+        />
+      ) : (
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] text-muted-foreground">
+            Desativa: some das listas, o histórico fica.
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-destructive hover:text-destructive"
+            disabled={!alvo || desativar.isPending}
+            onClick={() => {
+              if (!gestao) return setPedindo(true);
+              if (
+                window.confirm(
+                  `Excluir (desativar) “${alvo!.nome}”? Ela some das listas; o histórico fica e dá para reativar.`,
+                )
+              )
+                desativar.mutate();
+            }}
+          >
+            <Trash2 className="mr-1 h-3.5 w-3.5" /> {gestao ? "Excluir" : "Pedir exclusão"}
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+const STATUS_PEDIDO: Record<PedidoEmpresa["status"], { rotulo: string; cls: string }> = {
+  pendente: {
+    rotulo: "aguardando",
+    cls: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-400",
+  },
+  aprovada: {
+    rotulo: "aprovado",
+    cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+  },
+  recusada: {
+    rotulo: "recusado",
+    cls: "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400",
+  },
+};
+
+/** Gestão: decide os pedidos. Os outros: acompanham os próprios. */
+function Pedidos({ gestao, pedidos }: { gestao: boolean; pedidos: PedidoEmpresa[] | undefined }) {
+  const [filtro, setFiltro] = useState<"pendente" | "todos">("pendente");
+  if (!pedidos) return <p className="text-[13px] text-muted-foreground">Carregando…</p>;
+  const lista = filtro === "pendente" ? pedidos.filter((p) => p.status === "pendente") : pedidos;
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {(
+          [
+            ["pendente", "Aguardando decisão"],
+            ["todos", "Todos"],
+          ] as const
+        ).map(([v, l]) => (
+          <Button
+            key={v}
+            size="sm"
+            variant={filtro === v ? "default" : "outline"}
+            className="h-8 text-xs"
+            onClick={() => setFiltro(v)}
+          >
+            {l}
+          </Button>
+        ))}
+      </div>
+      {lista.length === 0 ? (
+        <p className="text-[13px] text-muted-foreground">
+          {filtro === "pendente" ? "Nenhum pedido aguardando." : "Nenhum pedido ainda."}
+        </p>
+      ) : (
+        lista.map((p) => <CartaoPedido key={p.id} p={p} gestao={gestao} />)
+      )}
+    </div>
+  );
+}
+
+function CartaoPedido({ p, gestao }: { p: PedidoEmpresa; gestao: boolean }) {
+  const qc = useQueryClient();
+  const fn = useServerFn(decidirPedidoDeEmpresa);
+  const [obs, setObs] = useState("");
+  const decidir = useMutation({
+    mutationFn: (aprovar: boolean) => fn({ data: { id: p.id, aprovar, observacao: obs.trim() } }),
+    onSuccess: (_r, aprovar) => {
+      toast.success(aprovar ? "Aprovado e executado" : "Pedido recusado");
+      invalidar(qc);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+  const dt = (v: string) => format(new Date(v), "dd/MM/yyyy HH:mm");
+  const st = STATUS_PEDIDO[p.status];
+  return (
+    <Card className="space-y-2 p-3 text-[13px]">
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className="text-[10px]">
+          {ROTULO_PEDIDO[p.tipo]}
+        </Badge>
+        <Badge className={`text-[10px] ${st.cls}`}>{st.rotulo}</Badge>
+        <span className="ml-auto text-[11px] text-muted-foreground">
+          {p.meu ? "Você" : p.solicitante} · {dt(p.solicitadoEm)}
+        </span>
+      </div>
+      <p className="font-medium first-letter:uppercase">{p.resumo}</p>
+      <p className="rounded-md bg-muted/50 px-2 py-1.5 text-[12px]">
+        <span className="text-muted-foreground">Motivo: </span>
+        {p.motivo}
+      </p>
+      {p.status !== "pendente" && (
+        <p className="text-[12px] text-muted-foreground">
+          {p.status === "aprovada" ? "Aprovado" : "Recusado"} por {p.decisor ?? "—"}
+          {p.decididoEm ? ` em ${dt(p.decididoEm)}` : ""}
+          {p.observacao ? ` · “${p.observacao}”` : ""}
+        </p>
+      )}
+      {gestao && p.status === "pendente" && (
+        <div className="space-y-2 border-t pt-2">
+          <Input
+            value={obs}
+            onChange={(e) => setObs(e.target.value)}
+            placeholder="Observação para quem pediu (obrigatória ao recusar)"
+            className="h-8 text-[12px]"
+          />
+          <div className="flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive hover:text-destructive"
+              disabled={decidir.isPending || obs.trim().length < 3}
+              onClick={() => decidir.mutate(false)}
+            >
+              Recusar
+            </Button>
+            <Button
+              size="sm"
+              disabled={decidir.isPending}
+              onClick={() => {
+                const aviso =
+                  p.tipo === "mesclar"
+                    ? "Tudo o que está ligado às que saem passa para a que fica, e elas deixam de existir."
+                    : p.tipo === "excluir"
+                      ? "Elas somem das listas; o histórico fica e dá para reativar."
+                      : "Ficam ligadas à empresa-mãe, sem mesclar.";
+                if (window.confirm(`Aprovar e ${p.resumo}? ${aviso}`)) decidir.mutate(true);
+              }}
+            >
+              {decidir.isPending && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+              Aprovar e executar
+            </Button>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }

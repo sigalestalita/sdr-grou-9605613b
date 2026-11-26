@@ -27,6 +27,7 @@ import {
   Home,
   SlidersHorizontal,
   Building2,
+  Combine,
   Handshake,
   ListChecks,
   LineChart,
@@ -199,6 +200,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { to: "/cs-kanban", label: "Kanban semanal", icon: KanbanIcon, team: "cs" },
       { to: "/cs-cadencia", label: "Cadência e sinaleira", icon: Activity, team: "cs" },
       { to: "/cs-consultorias", label: "Consultorias", icon: Handshake, team: "cs" },
+      {
+        to: "/empresas-parecidas",
+        label: "Empresas parecidas",
+        icon: Combine,
+        team: "cs",
+        roles: ["executivo"],
+      },
       { to: "/cs-whatsapp", label: "WhatsApp CS", icon: MessageCircle, team: "cs" },
       { to: "/cs-tickets", label: "Tickets", icon: Ticket, team: "cs" },
       {
