@@ -288,12 +288,17 @@ export function ContactsPanel({
   pending,
   onSave,
   onDelete,
+  onTag,
 }: {
   contacts: Array<Record<string, unknown> & { id: string; nome: string }>;
   pending: boolean;
   onSave: (v: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
+  /** Tags da pessoa (além das tags da empresa). */
+  onTag?: (contactId: string, tag: string, acao: "adicionar" | "remover") => void;
 }) {
+  const [tagEm, setTagEm] = useState<string | null>(null);
+  const [novaTag, setNovaTag] = useState("");
   const empty = {
     nome: "",
     email: "",
@@ -355,6 +360,60 @@ export function ContactsPanel({
                   {CS_CONTACT_ORIGIN_LABEL[(c.origem_detecao as string) ?? "manual"]}
                 </Badge>
               </div>
+              {onTag && (
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  {((c.tags as string[] | null) ?? []).map((t) => (
+                    <span
+                      key={t}
+                      className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px]"
+                    >
+                      <TagIcon className="h-2.5 w-2.5" />
+                      {CS_AGENDA_TYPE_LABEL[t] ?? t}
+                      <button
+                        type="button"
+                        title="Tirar tag"
+                        onClick={() => onTag(c.id, t, "remover")}
+                        className="hover:text-destructive"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </span>
+                  ))}
+                  {tagEm === c.id ? (
+                    <form
+                      className="inline-flex items-center gap-1"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        if (novaTag.trim()) onTag(c.id, novaTag.trim(), "adicionar");
+                        setNovaTag("");
+                        setTagEm(null);
+                      }}
+                    >
+                      <Input
+                        autoFocus
+                        value={novaTag}
+                        onChange={(e) => setNovaTag(e.target.value)}
+                        onBlur={() => {
+                          if (!novaTag.trim()) setTagEm(null);
+                        }}
+                        placeholder="tag"
+                        className="h-6 w-24 px-1.5 text-[11px]"
+                      />
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTagEm(c.id);
+                        setNovaTag("");
+                      }}
+                      className="rounded-full border border-dashed px-1.5 py-0.5 text-[10px] text-muted-foreground hover:text-foreground"
+                    >
+                      + tag
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
             <button
               type="button"
