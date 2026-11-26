@@ -62,6 +62,30 @@ function haQuanto(iso: string | null): string {
   return d === 1 ? "ontem" : `há ${d} dias`;
 }
 
+type EventoDeUso = {
+  tipo: "entrada" | "pagina" | "acao" | "aberto";
+  detalhe: string | null;
+};
+
+/** O que aconteceu, em palavras: no reconstruído, o detalhe gravado na carga. */
+function rotuloDoEvento(e: EventoDeUso): string {
+  if (e.tipo === "entrada") return "Entrou no Compass";
+  if (e.tipo === "aberto") return "Compass aberto";
+  return e.detalhe ?? (e.tipo === "pagina" ? "Abriu tela" : "Ação");
+}
+
+function SeloReconstruido() {
+  return (
+    <Badge
+      variant="outline"
+      className="border-amber-500/40 text-[10px] font-normal text-amber-500"
+      title="Reconstruído a partir do que o banco já guardava, antes do registro de uso existir"
+    >
+      reconstruído
+    </Badge>
+  );
+}
+
 function UsoPage() {
   const podeFn = useServerFn(podeVerUso);
   const resumoFn = useServerFn(resumoDeUso);
@@ -115,6 +139,8 @@ function UsoPage() {
       (!p.ultimoAcesso || Date.now() - new Date(p.ultimoAcesso).getTime() > 7 * 86400000),
   );
   const linhas = eventos.data?.pages.flatMap((pg) => pg.eventos) ?? [];
+  const temReconstruido =
+    visiveis.some((p) => p.reconstruidos > 0) || linhas.some((e) => e.reconstruido);
   const periodoLabel = PERIODOS.find((p) => p.id === periodo)?.label ?? "";
 
   const exportarResumo = () =>
@@ -128,6 +154,7 @@ function UsoPage() {
         Sessões: p.sessoes,
         "Telas abertas": p.paginas,
         "Tempo ativo (min)": p.minutosAtivos,
+        "Eventos reconstruídos": p.reconstruidos,
         "Telas mais usadas": p.telas
           .slice(0, 5)
           .map((t) => `${t.nome} (${t.n})`)
@@ -140,7 +167,8 @@ function UsoPage() {
       linhas.map((e) => ({
         Quando: dataHora(e.created_at),
         Pessoa: nomeDe.get(e.user_id) ?? e.user_id,
-        Evento: e.tipo === "entrada" ? "Entrou no Compass" : "Abriu tela",
+        Evento: rotuloDoEvento(e),
+        Reconstruído: e.reconstruido ? "sim" : "não",
         Tela: e.tela,
         Rota: e.rota ?? "",
         Sessão: e.sessao,
@@ -160,6 +188,15 @@ function UsoPage() {
             conta blocos de 5 minutos com a aba aberta e a pessoa usando: uma tela esquecida aberta
             não soma.
           </p>
+          {temReconstruido && (
+            <p className="mt-2 max-w-2xl rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground">
+              <SeloReconstruido /> O registro de uso começou em 25/11 às 21:15. De 23/11 até ali, o
+              uso foi reconstruído do que o banco já guardava: as renovações de login (“Compass
+              aberto”, inclusive com a aba parada, que não contam como tempo ativo), os cards de
+              lead abertos e as ações feitas — mudança de etapa, toque, WhatsApp digitado, tarefa e
+              registro do CS, nota. Telas consultadas sem nenhuma ação não aparecem nesse trecho.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-md border border-border p-0.5">
@@ -276,6 +313,7 @@ function UsoPage() {
                             removido
                           </Badge>
                         )}
+                        {p.reconstruidos > 0 && <SeloReconstruido />}
                       </p>
                       <p className="text-xs text-muted-foreground">{p.email}</p>
                     </td>
@@ -367,11 +405,18 @@ function UsoPage() {
                       {e.tipo === "entrada" ? (
                         <Badge variant="outline">Entrou no Compass</Badge>
                       ) : (
-                        "Abriu tela"
+                        <span className={e.tipo === "aberto" ? "text-muted-foreground" : ""}>
+                          {rotuloDoEvento(e)}
+                        </span>
+                      )}
+                      {e.reconstruido && (
+                        <span className="ml-1.5">
+                          <SeloReconstruido />
+                        </span>
                       )}
                     </td>
                     <td className="p-3">
-                      <span>{e.tela}</span>
+                      <span>{e.tipo === "aberto" ? "—" : e.tela}</span>
                       {e.rota && e.tela !== e.rota && (
                         <span className="ml-2 text-xs text-muted-foreground">{e.rota}</span>
                       )}
