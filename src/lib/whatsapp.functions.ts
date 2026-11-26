@@ -1029,6 +1029,11 @@ export const assumeConversation = createServerFn({ method: "POST" })
           source: "whatsapp_manual_assume",
         },
       });
+
+      // Assumir é a primeira abordagem humana: o card sai de "Novo lead" ou
+      // "Em qualificação" e vai para "Em contato", como na passagem da IA.
+      const { moverEtapaDoLead } = await import("./whatsapp/automations-engine.server");
+      await moverEtapaDoLead(leadId, "em_contato");
     }
 
     return { ok: true, assumedAt };
@@ -1049,6 +1054,17 @@ async function marcarComoAssumida(db: any, conversationId: string, userId: strin
     .update({ assumed_by_user_id: userId, assumed_at: new Date().toISOString() })
     .eq("id", conversationId)
     .is("assumed_at", null);
+  // Escrever também move o card para "Em contato" (só para frente): antes a
+  // conversa ficava "Com a SDR" e o card parado em "Novo lead".
+  const { data: conversa } = await db
+    .from("whatsapp_conversations")
+    .select("lead_id")
+    .eq("id", conversationId)
+    .maybeSingle();
+  if (conversa?.lead_id) {
+    const { moverEtapaDoLead } = await import("./whatsapp/automations-engine.server");
+    await moverEtapaDoLead(conversa.lead_id as string, "em_contato");
+  }
 }
 
 /**
