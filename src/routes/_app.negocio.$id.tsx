@@ -64,6 +64,8 @@ import {
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/_app/negocio/$id")({
+  validateSearch: (s: Record<string, unknown>): { proposta?: "nova" } =>
+    s.proposta === "nova" ? { proposta: "nova" } : {},
   component: NegocioPage,
   head: () => ({ meta: [{ title: "Negócio | Grou Compass" }] }),
 });
@@ -97,6 +99,7 @@ function paraLocal(d: Date) {
  */
 function NegocioPage() {
   const { id } = useParams({ from: "/_app/negocio/$id" });
+  const { proposta: abrirProposta } = Route.useSearch();
   const qc = useQueryClient();
   const fn = useServerFn(getNegocio);
   const atividadeFn = useServerFn(registrarAtividade);
@@ -492,7 +495,7 @@ function NegocioPage() {
           {/* depois de faturado, o valor é o da nota: itens só para consulta */}
           <ItensNegocio dealId={id} editavel={!n.faturado_em} />
 
-          <PropostasDoNegocio dealId={id} />
+          <PropostasDoNegocio dealId={id} abrirGerar={abrirProposta === "nova"} />
 
           {n.status === "won" && <FaturamentoDoNegocio dealId={id} />}
 

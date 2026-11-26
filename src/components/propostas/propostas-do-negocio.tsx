@@ -53,13 +53,20 @@ export const linkDaProposta = (token: string) => `${PUBLIC_SITE_URL}/proposta/${
  * (e-mail, WhatsApp ou copiar) e acompanhar se o cliente abriu ou aceitou.
  * Cada nova versão substitui as anteriores ainda sem resposta.
  */
-export function PropostasDoNegocio({ dealId }: { dealId: string }) {
+export function PropostasDoNegocio({
+  dealId,
+  abrirGerar = false,
+}: {
+  dealId: string;
+  /** Vindo de "Nova proposta" (tela de Propostas): já abre o gerador. */
+  abrirGerar?: boolean;
+}) {
   const fn = useServerFn(listarPropostas);
   const { data } = useQuery({
     queryKey: ["propostas", dealId],
     queryFn: () => fn({ data: { dealId } }),
   });
-  const [gerando, setGerando] = useState(false);
+  const [gerando, setGerando] = useState(abrirGerar);
   const [email, setEmail] = useState<PropostaLista | null>(null);
   const lista = data ?? [];
   const vigentes = lista.filter((p) => !["substituida", "cancelada"].includes(p.status));

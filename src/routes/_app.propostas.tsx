@@ -1,10 +1,11 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Copy, FilePlus2, FileText, Pencil, Sparkles, Upload } from "lucide-react";
+import { Copy, FilePlus2, FileText, Pencil, Plus, Search, Sparkles, Upload } from "lucide-react";
 import {
+  buscarNegociosParaProposta,
   duplicarModelo,
   importarModelo,
   listarModelos,
@@ -18,6 +19,8 @@ import { EditorModelo, MODELO_VAZIO } from "@/components/propostas/editor-modelo
 import { ListaFichas } from "@/components/fichas/lista-fichas";
 import { GerirAcervo } from "@/components/propostas/acervo-slides";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { NovoNegocioButton } from "@/components/comercial/novo-negocio";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -65,23 +68,26 @@ function PropostasPage() {
             e dá o aceite.
           </p>
         </div>
-        <div className="flex rounded-full bg-muted p-1 text-[13px]">
-          {(["propostas", "modelos", "apresentacao", "fichas"] as const).map((a) => (
-            <button
-              key={a}
-              type="button"
-              onClick={() => setAba(a)}
-              className={`rounded-full px-4 py-1.5 ${aba === a ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}
-            >
-              {a === "propostas"
-                ? "Propostas"
-                : a === "modelos"
-                  ? "Modelos"
-                  : a === "apresentacao"
-                    ? "Apresentação"
-                    : "Fichas cadastrais"}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <NovaProposta />
+          <div className="flex rounded-full bg-muted p-1 text-[13px]">
+            {(["propostas", "modelos", "apresentacao", "fichas"] as const).map((a) => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => setAba(a)}
+                className={`rounded-full px-4 py-1.5 ${aba === a ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}
+              >
+                {a === "propostas"
+                  ? "Propostas"
+                  : a === "modelos"
+                    ? "Modelos"
+                    : a === "apresentacao"
+                      ? "Apresentação"
+                      : "Fichas cadastrais"}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
       {aba === "propostas" ? (
@@ -94,6 +100,97 @@ function PropostasPage() {
         <ListaFichas abrirId={fichaUrl} />
       )}
     </div>
+  );
+}
+
+/**
+ * A proposta nasce do negócio (itens, valores e modelo de cada produto):
+ * escolhe-se o negócio aberto e o gerador já abre nele. Sem negócio ainda,
+ * "Novo negócio" cria e leva para ele.
+ */
+function NovaProposta() {
+  const [aberto, setAberto] = useState(false);
+  const fn = useServerFn(buscarNegociosParaProposta);
+  const navigate = useNavigate();
+  const [termo, setTermo] = useState("");
+  const [atrasado, setAtrasado] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setAtrasado(termo.trim()), 300);
+    return () => clearTimeout(t);
+  }, [termo]);
+  const { data, isFetching } = useQuery({
+    queryKey: ["negocios-para-proposta", atrasado],
+    queryFn: () => fn({ data: { q: atrasado } }),
+    enabled: aberto,
+  });
+  return (
+    <>
+      <Button size="sm" onClick={() => setAberto(true)}>
+        <Plus className="mr-1 h-3.5 w-3.5" /> Nova proposta
+      </Button>
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nova proposta</DialogTitle>
+            <DialogDescription>
+              A proposta sai dos itens do negócio. Escolha o negócio (os seus aparecem primeiro) e o
+              gerador abre nele.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="relative">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={termo}
+              onChange={(e) => setTermo(e.target.value)}
+              placeholder="Buscar pelo negócio ou pela empresa"
+              className="pl-8"
+              autoFocus
+            />
+          </div>
+          <div className="max-h-80 overflow-y-auto rounded-md border">
+            {isFetching && !data ? (
+              <p className="p-3 text-[12px] text-muted-foreground">Buscando…</p>
+            ) : !data?.length ? (
+              <p className="p-3 text-[12px] text-muted-foreground">
+                {atrasado.length >= 2
+                  ? "Nenhum negócio aberto com esse nome."
+                  : "Você não tem negócios abertos. Busque pelo nome ou crie um negócio."}
+              </p>
+            ) : (
+              data.map((n) => (
+                <button
+                  key={n.id}
+                  type="button"
+                  onClick={() => {
+                    setAberto(false);
+                    navigate({
+                      to: "/negocio/$id",
+                      params: { id: n.id },
+                      search: { proposta: "nova" },
+                    });
+                  }}
+                  className="block w-full border-b px-3 py-2 text-left text-[13px] last:border-0 hover:bg-muted/50"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate font-medium">{n.nome}</span>
+                    {n.valor ? (
+                      <span className="shrink-0 text-[12px] tabular-nums">{moedaBr(n.valor)}</span>
+                    ) : null}
+                  </span>
+                  <span className="block truncate text-[11px] text-muted-foreground">
+                    {[n.empresa, n.etapa, n.meu ? "seu" : null].filter(Boolean).join(" · ")}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+          <DialogFooter className="items-center sm:justify-between">
+            <span className="text-[12px] text-muted-foreground">Ainda não tem o negócio?</span>
+            <NovoNegocioButton />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
