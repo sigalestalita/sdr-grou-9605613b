@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import { filtroDoResponsavel } from "@/lib/comercial/responsavel";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -500,6 +501,190 @@ export const FONTES_NEGOCIO_DO_EXECUTIVO = [
   "Outro",
 ] as const;
 
+export const CriarNegocioSchema = z
+  .object({
+    empresaId: z.string().uuid().nullable(),
+    empresaNome: z.string().trim().max(200).default(""),
+    tipoEmpresa: z.enum(["empresa", "pessoa_fisica", "consultoria"]).default("empresa"),
+    contato: z
+      .object({
+        nome: z.string().trim().min(1).max(200),
+        email: z.string().trim().toLowerCase().email().max(254).nullable(),
+        telefone: z.string().trim().max(40).nullable(),
+        cargo: z.string().trim().max(120).nullable(),
+      })
+      .nullable(),
+    nome: z.string().trim().max(200).default(""),
+    pipelineId: z.string().uuid().nullable(),
+    valor: z.number().min(0).max(100_000_000).default(0),
+    produtos: z.string().trim().max(1000).nullable(),
+    fonte: z.string().trim().max(120).nullable(),
+    executivoId: z.string().uuid().nullable(),
+    proximoPasso: z.string().trim().max(300).nullable(),
+    proximoPassoEm: z.string().datetime().nullable(),
+  })
+  .refine((d) => d.empresaId || d.empresaNome, "Escolha ou digite a empresa");
+export type CriarNegocioInput = z.infer<typeof CriarNegocioSchema>;
+
+/** Núcleo (também usado pela assistente, com o acesso de quem pede). */
+export async function criarNegocioNucleo(
+  supabase: SupabaseClient,
+  userId: string,
+  data: CriarNegocioInput,
+) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const db = supabase as any;
+  const { data: pode } = await db.rpc("is_manager", { _user_id: userId });
+  const { data: comercial } = await db.rpc("has_team", { _user_id: userId, _team: "comercial" });
+  if (!pode && !comercial) throw new Error("Só o comercial abre negócio");
+  // Só a gestão abre negócio no nome de outra pessoa.
+  const executivo = pode && data.executivoId ? data.executivoId : userId;
+
+  // Empresa: a escolhida ou uma nova (sem duplicar pelo nome exato).
+  let companyId = data.empresaId;
+  if (!companyId) {
+    const { data: mesma } = await db
+      .from("companies")
+      .select("id")
+      .ilike("nome", semCuringa(data.empresaNome))
+      .limit(1)
+      .maybeSingle();
+    if (mesma) companyId = (mesma as { id: string }).id;
+    else {
+      const { data: nova, error } = await db
+        .from("companies")
+        .insert({
+          nome: data.empresaNome,
+          tipo_lead: data.tipoEmpresa,
+          owner_user_id: executivo,
+          provenance: { origem: "negocio_do_executivo" },
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(`Empresa: ${error.message}`);
+      companyId = (nova as { id: string }).id;
+    }
+  }
+  const { data: empresa } = await db.from("companies").select("nome").eq("id", companyId).single();
+  const nomeEmpresa = (empresa as { nome: string } | null)?.nome ?? data.empresaNome;
+
+  // Contato: o de mesmo e-mail, se já existe; senão, um novo na empresa.
+  let contactId: string | null = null;
+  if (data.contato) {
+    const c = data.contato;
+    if (c.email) {
+      const { data: existe } = await db
+        .from("contacts")
+        .select("id, company_id")
+        .ilike("email", semCuringa(c.email))
+        .limit(1)
+        .maybeSingle();
+      if (existe) {
+        contactId = (existe as { id: string }).id;
+        if (!(existe as { company_id: string | null }).company_id)
+          await db.from("contacts").update({ company_id: companyId }).eq("id", contactId);
+      }
+    }
+    if (!contactId) {
+      const { data: novo, error } = await db
+        .from("contacts")
+        .insert({
+          nome: c.nome,
+          email: c.email,
+          emails: c.email ? [c.email] : [],
+          telefone: c.telefone,
+          phones: c.telefone ? [c.telefone] : [],
+          cargo: c.cargo,
+          company_id: companyId,
+          provenance: { origem: "negocio_do_executivo" },
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(`Contato: ${error.message}`);
+      contactId = (novo as { id: string }).id;
+    }
+    await db
+      .from("company_contacts")
+      .upsert(
+        { company_id: companyId, contact_id: contactId, principal: true },
+        { onConflict: "company_id,contact_id", ignoreDuplicates: true },
+      );
+  }
+
+  // Funil: o escolhido ou Novos Negócios; entra na primeira etapa aberta.
+  let pipelineId = data.pipelineId;
+  if (!pipelineId) {
+    const { data: p } = await db
+      .from("pipelines")
+      .select("id")
+      .eq("slug", "novos-negocios")
+      .maybeSingle();
+    pipelineId = (p as { id: string } | null)?.id ?? null;
+  }
+  if (!pipelineId) throw new Error("Funil não encontrado");
+  const { data: etapa } = await db
+    .from("pipeline_stages")
+    .select("id")
+    .eq("pipeline_id", pipelineId)
+    .eq("kind", "open")
+    .order("ordem")
+    .limit(1)
+    .maybeSingle();
+  const { count: ganhos } = await db
+    .from("deals")
+    .select("id", { count: "exact", head: true })
+    .eq("company_id", companyId)
+    .eq("status", "won");
+
+  const { data: negocio, error } = await db
+    .from("deals")
+    .insert({
+      nome: data.nome || nomeEmpresa,
+      company_id: companyId,
+      contact_id: contactId,
+      pipeline_id: pipelineId,
+      stage_id: (etapa as { id: string } | null)?.id ?? null,
+      status: "open",
+      amount: data.valor,
+      executivo_user_id: executivo,
+      owner_user_id: executivo,
+      fonte: data.fonte || "Prospecção do executivo",
+      tipo_venda: (ganhos ?? 0) > 0 ? "Recompra" : "Cliente novo",
+      produtos_texto: data.produtos,
+      proximo_passo: data.proximoPasso,
+      proximo_passo_em: data.proximoPassoEm,
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  const dealId = (negocio as { id: string }).id;
+
+  if (contactId)
+    await db
+      .from("deal_contacts")
+      .upsert(
+        { deal_id: dealId, contact_id: contactId, principal: true },
+        { onConflict: "deal_id,contact_id", ignoreDuplicates: true },
+      );
+  await db.from("deal_activities").insert({
+    deal_id: dealId,
+    tipo: "nota",
+    descricao: "Negócio aberto pelo executivo no Compass.",
+    author_id: userId,
+    occurred_at: new Date().toISOString(),
+  });
+  if (executivo !== userId)
+    await notificar(db as Db, userId, {
+      para: [executivo],
+      tipo: "mencao",
+      titulo: `Novo negócio para você: ${data.nome || nomeEmpresa}`,
+      corpo: "Aberto pela gestão comercial.",
+      link: `/negocio/${dealId}`,
+      dealId,
+    });
+  return { dealId };
+}
+
 /**
  * O executivo abre um negócio do zero (prospecção própria, indicação, evento),
  * sem depender do SDR, do CS ou do RD. É o que libera a proposta: ela só nasce
@@ -509,190 +694,10 @@ export const FONTES_NEGOCIO_DO_EXECUTIVO = [
  */
 export const criarNegocio = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        empresaId: z.string().uuid().nullable(),
-        empresaNome: z.string().trim().max(200).default(""),
-        tipoEmpresa: z.enum(["empresa", "pessoa_fisica", "consultoria"]).default("empresa"),
-        contato: z
-          .object({
-            nome: z.string().trim().min(1).max(200),
-            email: z.string().trim().toLowerCase().email().max(254).nullable(),
-            telefone: z.string().trim().max(40).nullable(),
-            cargo: z.string().trim().max(120).nullable(),
-          })
-          .nullable(),
-        nome: z.string().trim().max(200).default(""),
-        pipelineId: z.string().uuid().nullable(),
-        valor: z.number().min(0).max(100_000_000).default(0),
-        produtos: z.string().trim().max(1000).nullable(),
-        fonte: z.string().trim().max(120).nullable(),
-        executivoId: z.string().uuid().nullable(),
-        proximoPasso: z.string().trim().max(300).nullable(),
-        proximoPassoEm: z.string().datetime().nullable(),
-      })
-      .refine((d) => d.empresaId || d.empresaNome, "Escolha ou digite a empresa")
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const db = supabase as any;
-    const { data: pode } = await db.rpc("is_manager", { _user_id: userId });
-    const { data: comercial } = await db.rpc("has_team", { _user_id: userId, _team: "comercial" });
-    if (!pode && !comercial) throw new Error("Só o comercial abre negócio");
-    // Só a gestão abre negócio no nome de outra pessoa.
-    const executivo = pode && data.executivoId ? data.executivoId : userId;
-
-    // Empresa: a escolhida ou uma nova (sem duplicar pelo nome exato).
-    let companyId = data.empresaId;
-    if (!companyId) {
-      const { data: mesma } = await db
-        .from("companies")
-        .select("id")
-        .ilike("nome", semCuringa(data.empresaNome))
-        .limit(1)
-        .maybeSingle();
-      if (mesma) companyId = (mesma as { id: string }).id;
-      else {
-        const { data: nova, error } = await db
-          .from("companies")
-          .insert({
-            nome: data.empresaNome,
-            tipo_lead: data.tipoEmpresa,
-            owner_user_id: executivo,
-            provenance: { origem: "negocio_do_executivo" },
-          })
-          .select("id")
-          .single();
-        if (error) throw new Error(`Empresa: ${error.message}`);
-        companyId = (nova as { id: string }).id;
-      }
-    }
-    const { data: empresa } = await db
-      .from("companies")
-      .select("nome")
-      .eq("id", companyId)
-      .single();
-    const nomeEmpresa = (empresa as { nome: string } | null)?.nome ?? data.empresaNome;
-
-    // Contato: o de mesmo e-mail, se já existe; senão, um novo na empresa.
-    let contactId: string | null = null;
-    if (data.contato) {
-      const c = data.contato;
-      if (c.email) {
-        const { data: existe } = await db
-          .from("contacts")
-          .select("id, company_id")
-          .ilike("email", semCuringa(c.email))
-          .limit(1)
-          .maybeSingle();
-        if (existe) {
-          contactId = (existe as { id: string }).id;
-          if (!(existe as { company_id: string | null }).company_id)
-            await db.from("contacts").update({ company_id: companyId }).eq("id", contactId);
-        }
-      }
-      if (!contactId) {
-        const { data: novo, error } = await db
-          .from("contacts")
-          .insert({
-            nome: c.nome,
-            email: c.email,
-            emails: c.email ? [c.email] : [],
-            telefone: c.telefone,
-            phones: c.telefone ? [c.telefone] : [],
-            cargo: c.cargo,
-            company_id: companyId,
-            provenance: { origem: "negocio_do_executivo" },
-          })
-          .select("id")
-          .single();
-        if (error) throw new Error(`Contato: ${error.message}`);
-        contactId = (novo as { id: string }).id;
-      }
-      await db
-        .from("company_contacts")
-        .upsert(
-          { company_id: companyId, contact_id: contactId, principal: true },
-          { onConflict: "company_id,contact_id", ignoreDuplicates: true },
-        );
-    }
-
-    // Funil: o escolhido ou Novos Negócios; entra na primeira etapa aberta.
-    let pipelineId = data.pipelineId;
-    if (!pipelineId) {
-      const { data: p } = await db
-        .from("pipelines")
-        .select("id")
-        .eq("slug", "novos-negocios")
-        .maybeSingle();
-      pipelineId = (p as { id: string } | null)?.id ?? null;
-    }
-    if (!pipelineId) throw new Error("Funil não encontrado");
-    const { data: etapa } = await db
-      .from("pipeline_stages")
-      .select("id")
-      .eq("pipeline_id", pipelineId)
-      .eq("kind", "open")
-      .order("ordem")
-      .limit(1)
-      .maybeSingle();
-    const { count: ganhos } = await db
-      .from("deals")
-      .select("id", { count: "exact", head: true })
-      .eq("company_id", companyId)
-      .eq("status", "won");
-
-    const { data: negocio, error } = await db
-      .from("deals")
-      .insert({
-        nome: data.nome || nomeEmpresa,
-        company_id: companyId,
-        contact_id: contactId,
-        pipeline_id: pipelineId,
-        stage_id: (etapa as { id: string } | null)?.id ?? null,
-        status: "open",
-        amount: data.valor,
-        executivo_user_id: executivo,
-        owner_user_id: executivo,
-        fonte: data.fonte || "Prospecção do executivo",
-        tipo_venda: (ganhos ?? 0) > 0 ? "Recompra" : "Cliente novo",
-        produtos_texto: data.produtos,
-        proximo_passo: data.proximoPasso,
-        proximo_passo_em: data.proximoPassoEm,
-      })
-      .select("id")
-      .single();
-    if (error) throw new Error(error.message);
-    const dealId = (negocio as { id: string }).id;
-
-    if (contactId)
-      await db
-        .from("deal_contacts")
-        .upsert(
-          { deal_id: dealId, contact_id: contactId, principal: true },
-          { onConflict: "deal_id,contact_id", ignoreDuplicates: true },
-        );
-    await db.from("deal_activities").insert({
-      deal_id: dealId,
-      tipo: "nota",
-      descricao: "Negócio aberto pelo executivo no Compass.",
-      author_id: userId,
-      occurred_at: new Date().toISOString(),
-    });
-    if (executivo !== userId)
-      await notificar(db as Db, userId, {
-        para: [executivo],
-        tipo: "mencao",
-        titulo: `Novo negócio para você: ${data.nome || nomeEmpresa}`,
-        corpo: "Aberto pela gestão comercial.",
-        link: `/negocio/${dealId}`,
-        dealId,
-      });
-    return { dealId };
-  });
+  .inputValidator((d) => CriarNegocioSchema.parse(d))
+  .handler(async ({ data, context }) =>
+    criarNegocioNucleo(context.supabase as unknown as SupabaseClient, context.userId, data),
+  );
 
 /** O que o formulário de novo negócio precisa: funis, executivos e se é gestão. */
 export const opcoesNovoNegocio = createServerFn({ method: "GET" })

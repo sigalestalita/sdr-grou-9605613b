@@ -400,6 +400,126 @@ Responda SÓ com JSON: {"nome": string, "descricao": string, "titulo": string, "
 const COLS_PROPOSTA =
   "id, numero, versao, status, token, deal_id, modelo_id, valor_total, valor_desconto, valor_impostos, valor_final, validade_ate, enviada_em, enviada_para, visualizada_em, visualizacoes, aceita_em, aceite, recusada_em, recusa_motivo, created_at, created_by, conteudo, avisos_emails";
 
+export const GerarPropostaSchema = z.object({
+  dealId: z.string().uuid(),
+  modeloIds: z.array(z.string().uuid()).min(1).max(6),
+  contactId: z.string().uuid().nullable(),
+  pagamento: z.string().trim().max(400),
+  validadeDias: z.number().int().min(1).max(365),
+  observacoes: z.string().max(4000).default(""),
+});
+export type GerarPropostaInput = z.infer<typeof GerarPropostaSchema>;
+
+/** Núcleo (também usado pela assistente, com o acesso de quem pede). */
+export async function gerarPropostaNucleo(
+  db: SupabaseClient,
+  userId: string,
+  data: GerarPropostaInput,
+) {
+  const [{ data: deal }, { data: itens }, { data: modelos }, { data: eu }, contato] =
+    await Promise.all([
+      db
+        .from("deals")
+        .select("id, nome, company_id, valor_impostos, companies:company_id(nome, cnpj)")
+        .eq("id", data.dealId)
+        .maybeSingle(),
+      db
+        .from("deal_products")
+        .select("nome, quantidade, valor_unitario, desconto_tipo, desconto, recorrencia")
+        .eq("deal_id", data.dealId)
+        .order("ordem"),
+      db.from("proposta_modelos").select(COLS_MODELO).in("id", data.modeloIds),
+      db.from("profiles").select("full_name, email").eq("id", userId).maybeSingle(),
+      data.contactId
+        ? db.from("contacts").select("id, nome, cargo").eq("id", data.contactId).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+  if (!deal) throw new Error("Negócio não encontrado");
+  const linhas = (itens ?? []) as Array<Record<string, unknown>>;
+  if (linhas.length === 0)
+    throw new Error("Adicione os itens do negócio antes de gerar a proposta");
+  const porId = new Map(((modelos ?? []) as ModeloRow[]).map((m) => [m.id, m]));
+  const escolhidos = data.modeloIds.map((id) => porId.get(id)).filter((m): m is ModeloRow => !!m);
+  if (escolhidos.length === 0) throw new Error("Modelo não encontrado");
+
+  const d = deal as Record<string, unknown>;
+  const emp = d.companies as { nome: string; cnpj: string | null } | null;
+  const c = (contato as { data: { nome: string | null; cargo: string | null } | null }).data;
+  const perfil = eu as { full_name: string | null; email: string | null } | null;
+  const hoje = hojeSP(new Date());
+  const conteudo = montarConteudo(escolhidos.map(paraTexto), {
+    hoje,
+    validadeDias: data.validadeDias,
+    pagamento: data.pagamento,
+    observacoes: data.observacoes,
+    impostos: Number(d.valor_impostos ?? 0),
+    negocio: String(d.nome ?? ""),
+    cliente: {
+      empresa: emp?.nome ?? String(d.nome ?? ""),
+      contato: c?.nome ?? "",
+      cargo: c?.cargo ?? null,
+      cnpj: emp?.cnpj ?? null,
+    },
+    executivo: { nome: perfil?.full_name ?? "Grou", email: perfil?.email ?? null },
+    itens: linhas.map((i) => ({
+      nome: String(i.nome),
+      quantidade: Number(i.quantidade ?? 1),
+      valor_unitario: Number(i.valor_unitario ?? 0),
+      desconto_tipo: i.desconto_tipo === "valor" ? "valor" : "pct",
+      desconto: Number(i.desconto ?? 0),
+      recorrencia: (i.recorrencia as "unico" | "mensal" | "anual") ?? "unico",
+    })),
+  });
+
+  const { data: ult } = await db
+    .from("propostas")
+    .select("versao, avisos_emails, apresentacao:conteudo->apresentacao")
+    .eq("deal_id", data.dealId)
+    .order("versao", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const anterior = ult as {
+    versao: number;
+    avisos_emails: string[] | null;
+    apresentacao: ConteudoProposta["apresentacao"] | null;
+  } | null;
+  const versao = (anterior?.versao ?? 0) + 1;
+  // A nova versão herda a apresentação em slides da anterior (dá para trocar no rascunho).
+  if (anterior?.apresentacao?.slides?.length) conteudo.apresentacao = anterior.apresentacao;
+
+  const { data: nova, error } = await db
+    .from("propostas")
+    .insert({
+      deal_id: data.dealId,
+      company_id: d.company_id ?? null,
+      contact_id: data.contactId,
+      modelo_id: escolhidos[0].id,
+      modelo_versao: escolhidos[0].versao,
+      versao,
+      status: "rascunho",
+      conteudo,
+      valor_total: conteudo.totais.total,
+      valor_desconto: conteudo.totais.desconto,
+      valor_impostos: conteudo.totais.impostos,
+      valor_final: conteudo.totais.final,
+      validade_ate: conteudo.validadeAte,
+      created_by: userId,
+      // Quem recebe os avisos por e-mail continua o mesmo da versão anterior.
+      avisos_emails: anterior?.avisos_emails ?? [],
+    })
+    .select("id, token, numero")
+    .single();
+  if (error) throw new Error(error.message);
+  // A versão nova substitui as anteriores que ainda não foram respondidas.
+  await db
+    .from("propostas")
+    .update({ status: "substituida", updated_at: new Date().toISOString() })
+    .eq("deal_id", data.dealId)
+    .lt("versao", versao)
+    .in("status", ["rascunho", "enviada", "visualizada"]);
+  return nova as { id: string; token: string; numero: number };
+}
+
 /** O que o diálogo "Gerar proposta" precisa: contatos, modelos sugeridos, pagamento. */
 export const dadosParaProposta = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -484,123 +604,10 @@ export const dadosParaProposta = createServerFn({ method: "GET" })
 
 export const gerarProposta = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        dealId: z.string().uuid(),
-        modeloIds: z.array(z.string().uuid()).min(1).max(6),
-        contactId: z.string().uuid().nullable(),
-        pagamento: z.string().trim().max(400),
-        validadeDias: z.number().int().min(1).max(365),
-        observacoes: z.string().max(4000).default(""),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const db = solto(context.supabase);
-    const [{ data: deal }, { data: itens }, { data: modelos }, { data: eu }, contato] =
-      await Promise.all([
-        db
-          .from("deals")
-          .select("id, nome, company_id, valor_impostos, companies:company_id(nome, cnpj)")
-          .eq("id", data.dealId)
-          .maybeSingle(),
-        db
-          .from("deal_products")
-          .select("nome, quantidade, valor_unitario, desconto_tipo, desconto, recorrencia")
-          .eq("deal_id", data.dealId)
-          .order("ordem"),
-        db.from("proposta_modelos").select(COLS_MODELO).in("id", data.modeloIds),
-        db.from("profiles").select("full_name, email").eq("id", context.userId).maybeSingle(),
-        data.contactId
-          ? db.from("contacts").select("id, nome, cargo").eq("id", data.contactId).maybeSingle()
-          : Promise.resolve({ data: null }),
-      ]);
-    if (!deal) throw new Error("Negócio não encontrado");
-    const linhas = (itens ?? []) as Array<Record<string, unknown>>;
-    if (linhas.length === 0)
-      throw new Error("Adicione os itens do negócio antes de gerar a proposta");
-    const porId = new Map(((modelos ?? []) as ModeloRow[]).map((m) => [m.id, m]));
-    const escolhidos = data.modeloIds.map((id) => porId.get(id)).filter((m): m is ModeloRow => !!m);
-    if (escolhidos.length === 0) throw new Error("Modelo não encontrado");
-
-    const d = deal as Record<string, unknown>;
-    const emp = d.companies as { nome: string; cnpj: string | null } | null;
-    const c = (contato as { data: { nome: string | null; cargo: string | null } | null }).data;
-    const perfil = eu as { full_name: string | null; email: string | null } | null;
-    const hoje = hojeSP(new Date());
-    const conteudo = montarConteudo(escolhidos.map(paraTexto), {
-      hoje,
-      validadeDias: data.validadeDias,
-      pagamento: data.pagamento,
-      observacoes: data.observacoes,
-      impostos: Number(d.valor_impostos ?? 0),
-      negocio: String(d.nome ?? ""),
-      cliente: {
-        empresa: emp?.nome ?? String(d.nome ?? ""),
-        contato: c?.nome ?? "",
-        cargo: c?.cargo ?? null,
-        cnpj: emp?.cnpj ?? null,
-      },
-      executivo: { nome: perfil?.full_name ?? "Grou", email: perfil?.email ?? null },
-      itens: linhas.map((i) => ({
-        nome: String(i.nome),
-        quantidade: Number(i.quantidade ?? 1),
-        valor_unitario: Number(i.valor_unitario ?? 0),
-        desconto_tipo: i.desconto_tipo === "valor" ? "valor" : "pct",
-        desconto: Number(i.desconto ?? 0),
-        recorrencia: (i.recorrencia as "unico" | "mensal" | "anual") ?? "unico",
-      })),
-    });
-
-    const { data: ult } = await db
-      .from("propostas")
-      .select("versao, avisos_emails, apresentacao:conteudo->apresentacao")
-      .eq("deal_id", data.dealId)
-      .order("versao", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    const anterior = ult as {
-      versao: number;
-      avisos_emails: string[] | null;
-      apresentacao: ConteudoProposta["apresentacao"] | null;
-    } | null;
-    const versao = (anterior?.versao ?? 0) + 1;
-    // A nova versão herda a apresentação em slides da anterior (dá para trocar no rascunho).
-    if (anterior?.apresentacao?.slides?.length) conteudo.apresentacao = anterior.apresentacao;
-
-    const { data: nova, error } = await db
-      .from("propostas")
-      .insert({
-        deal_id: data.dealId,
-        company_id: d.company_id ?? null,
-        contact_id: data.contactId,
-        modelo_id: escolhidos[0].id,
-        modelo_versao: escolhidos[0].versao,
-        versao,
-        status: "rascunho",
-        conteudo,
-        valor_total: conteudo.totais.total,
-        valor_desconto: conteudo.totais.desconto,
-        valor_impostos: conteudo.totais.impostos,
-        valor_final: conteudo.totais.final,
-        validade_ate: conteudo.validadeAte,
-        created_by: context.userId,
-        // Quem recebe os avisos por e-mail continua o mesmo da versão anterior.
-        avisos_emails: anterior?.avisos_emails ?? [],
-      })
-      .select("id, token, numero")
-      .single();
-    if (error) throw new Error(error.message);
-    // A versão nova substitui as anteriores que ainda não foram respondidas.
-    await db
-      .from("propostas")
-      .update({ status: "substituida", updated_at: new Date().toISOString() })
-      .eq("deal_id", data.dealId)
-      .lt("versao", versao)
-      .in("status", ["rascunho", "enviada", "visualizada"]);
-    return nova as { id: string; token: string; numero: number };
-  });
+  .inputValidator((d) => GerarPropostaSchema.parse(d))
+  .handler(async ({ data, context }) =>
+    gerarPropostaNucleo(solto(context.supabase), context.userId, data),
+  );
 
 export type PropostaLista = {
   id: string;
