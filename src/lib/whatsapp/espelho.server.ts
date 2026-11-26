@@ -213,6 +213,23 @@ async function registrarDoContato(
       .update({ last_message_at: ultimaEm })
       .eq("id", contato.id);
   }
+
+  /*
+   * A SDR respondeu pelo celular: a conversa é dela e o card vai para "Em
+   * contato", como quando ela escreve pelo Compass. Antes o selo virava "Com a
+   * SDR" e o card ficava parado em "Novo lead". Histórico importado não conta.
+   */
+  if (leadId && novas.some((m) => m.origem === "echo" && m.fromBusiness)) {
+    if (conta.owner_user_id) {
+      await admin
+        .from("whatsapp_conversations")
+        .update({ assumed_by_user_id: conta.owner_user_id, assumed_at: ultimaEm })
+        .eq("id", conversa.id)
+        .is("assumed_at", null);
+    }
+    const { moverEtapaDoLead } = await import("./automations-engine.server");
+    await moverEtapaDoLead(leadId, "em_contato");
+  }
 }
 
 /**
