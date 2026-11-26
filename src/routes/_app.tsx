@@ -429,7 +429,7 @@ function AppShell() {
         (g) => g.items.length > 0,
       );
 
-  // No celular a gaveta abre sempre por extenso: recolher para 52px só faz
+  // No celular a gaveta abre sempre por extenso: recolher para 96px só faz
   // sentido quando o menu divide a tela com o conteúdo.
   const menuRecolhido = !isMobile && collapsed;
 
@@ -455,8 +455,10 @@ function AppShell() {
         to={n.to}
         title={menuRecolhido ? n.label : undefined}
         data-active={active || undefined}
-        className={`group flex h-9 items-center gap-3 rounded-xl text-[14px] transition-colors ${
-          menuRecolhido ? "justify-center px-0" : "px-3"
+        className={`group flex items-center rounded-xl transition-colors ${
+          menuRecolhido
+            ? "min-h-[46px] flex-col justify-center gap-1 px-1 py-1.5 text-[10px]"
+            : "h-9 gap-3 px-3 text-[14px]"
         } ${
           active
             ? glass
@@ -466,7 +468,14 @@ function AppShell() {
         }`}
       >
         <Icon className="h-4 w-4 shrink-0" strokeWidth={1.75} />
-        {!menuRecolhido && <span className="truncate">{n.label}</span>}
+        {/* Recolhido, o nome continua embaixo do ícone: o time pediu para não ficar só com os ícones. */}
+        {menuRecolhido ? (
+          <span className="line-clamp-2 w-full text-center leading-tight hyphens-auto">
+            {n.label}
+          </span>
+        ) : (
+          <span className="truncate">{n.label}</span>
+        )}
       </Link>
     );
   };
@@ -486,7 +495,7 @@ function AppShell() {
         />
       )}
       <aside
-        className={`${collapsed ? "w-[248px] md:w-[60px]" : "w-[248px]"} shrink-0 text-sidebar-foreground flex flex-col fixed inset-y-0 left-0 z-50 border-r border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:pt-0 md:pb-0 md:shadow-none md:transition-[width] md:duration-150 ${
+        className={`${collapsed ? "w-[248px] md:w-[96px]" : "w-[248px]"} shrink-0 text-sidebar-foreground flex flex-col fixed inset-y-0 left-0 z-50 border-r border-sidebar-border bg-sidebar pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] shadow-2xl transition-transform duration-200 md:static md:z-auto md:translate-x-0 md:pt-0 md:pb-0 md:shadow-none md:transition-[width] md:duration-150 ${
           drawer ? "translate-x-0" : "-translate-x-full"
         } ${glass ? "md:glass-nav md:m-4 md:mr-0 md:h-[calc(100dvh-2rem)] md:rounded-[24px]" : ""}`}
       >
