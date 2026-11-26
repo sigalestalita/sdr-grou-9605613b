@@ -78,6 +78,28 @@ function TicketsPage() {
         </p>
       </header>
 
+      {/* Contagem por status, como numa caixa de entrada; clicar filtra. */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_TICKET.filter((s) => s.valor in (data?.contagem ?? {})).map((s) => {
+          const n = data?.contagem?.[s.valor] ?? 0;
+          const ativo = status === s.valor;
+          return (
+            <button
+              key={s.valor}
+              type="button"
+              onClick={() => setStatus(ativo ? "abertos" : s.valor)}
+              title={s.ajuda}
+              className={`surface-panel flex min-w-[130px] flex-col items-start rounded-lg px-3 py-2 text-left transition-colors ${
+                ativo ? "ring-1 ring-primary" : "hover:bg-white/[0.03]"
+              }`}
+            >
+              <span className="text-xl font-semibold tabular-nums">{n}</span>
+              <span className="text-[11px] text-muted-foreground">{s.rotulo}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={status}
@@ -123,6 +145,15 @@ function TicketsPage() {
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
+                {t.diasParado !== null && (
+                  <Badge
+                    variant="outline"
+                    className="border-amber-500/50 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
+                    title="Sem movimento há 72 horas ou mais: o responsável recebe um aviso no sino"
+                  >
+                    parado há {t.diasParado} dias
+                  </Badge>
+                )}
                 {t.abertoPelaIa && (
                   <Badge variant="outline" className="gap-1 text-[10px]" title="Aberto pela IA">
                     <Bot className="h-3 w-3" /> IA

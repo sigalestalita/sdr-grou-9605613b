@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { diasParado, STATUS_EM_ABERTO } from "@/lib/cs/tickets-parados";
 
 /*
  * Tickets do CS.
@@ -63,6 +64,18 @@ export const listarTickets = createServerFn({ method: "GET" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
 
+    // Quantos há em cada status em aberto (com o mesmo "só os meus"), para a
+    // fila mostrar a contagem como uma caixa de entrada.
+    let qc = (supabase as unknown as ClienteSolto)
+      .from("cs_tickets")
+      .select("status")
+      .in("status", [...STATUS_EM_ABERTO]);
+    if (data?.meus) qc = qc.eq("responsavel_id", userId);
+    const { data: abertos } = await qc;
+    const contagem: Record<string, number> = { aberto: 0, em_andamento: 0, aguardando_cliente: 0 };
+    for (const r of (abertos ?? []) as Array<{ status: string }>)
+      contagem[r.status] = (contagem[r.status] ?? 0) + 1;
+
     const { data: perfis } = await supabase.from("profiles").select("id, full_name, email");
     const nomeDe = new Map(
       (perfis ?? []).map((p) => [p.id as string, (p.full_name || p.email || p.id) as string]),
@@ -88,7 +101,12 @@ export const listarTickets = createServerFn({ method: "GET" })
         abertoPelaIa: t.aberto_pela_ia === true,
         criadoEm: t.created_at as string,
         resolvidoEm: (t.resolvido_em as string | null) ?? null,
+        diasParado: diasParado({
+          status: t.status as string,
+          updatedAt: (t.updated_at ?? t.created_at) as string,
+        }),
       })),
+      contagem,
       pessoas: [...nomeDe].map(([id, nome]) => ({ id, nome })),
     };
   });

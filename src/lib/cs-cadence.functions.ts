@@ -321,6 +321,33 @@ export const listCsPlaybook = createServerFn({ method: "GET" })
     return (data ?? []) as CsPlaybookBlock[];
   });
 
+/**
+ * Os e-mails das Jornadas Reais, só para leitura, para o time de CS saber o
+ * que o cliente recebe em cada marco (pedido no treinamento). Editar continua
+ * nas Configurações CS, com a gestão.
+ */
+export const listarEmailsDaJornada = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { getJourneyConfigDb } = await import("@/lib/cs/cs-core.server");
+    const cfg = await getJourneyConfigDb(context.supabase);
+    return {
+      modo: cfg.modo,
+      assinatura: cfg.assinatura,
+      emails: cfg.emails
+        .filter((e) => e.ativo)
+        .sort((a, b) => a.dia - b.dia)
+        .map((e) => ({
+          id: e.id,
+          dia: e.dia,
+          titulo: e.titulo,
+          assunto: e.assunto,
+          paraQuem: e.para_quem,
+          corpo: e.corpo,
+        })),
+    };
+  });
+
 /** Apaga um bloco do playbook (somente gestão pelas policies). */
 export const deleteCsPlaybookBlock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

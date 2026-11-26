@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import {
   deleteCsPlaybookBlock,
   listCsPlaybook,
+  listarEmailsDaJornada,
   saveCsPlaybookBlock,
   type CsPlaybookBlock,
 } from "@/lib/cs-cadence.functions";
@@ -563,6 +564,68 @@ function CsPlaybookPage() {
           )}
         </div>
       )}
+
+      <EmailsDaJornada />
     </div>
+  );
+}
+
+/**
+ * Os e-mails das Jornadas Reais, só leitura: o time de CS vê o que o cliente
+ * recebe em cada marco. Editar fica em Configurações CS, com a gestão.
+ */
+function EmailsDaJornada() {
+  const fetchFn = useServerFn(listarEmailsDaJornada);
+  const { data } = useQuery({ queryKey: ["cs-jornada-emails"], queryFn: () => fetchFn() });
+  const [aberto, setAberto] = useState<string | null>(null);
+  if (!data?.emails.length) return null;
+  return (
+    <section className="space-y-2">
+      <div>
+        <h2 className="flex items-center gap-2 text-base font-semibold">
+          <Megaphone className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
+          E-mails das Jornadas Reais
+        </h2>
+        <p className="text-xs text-muted-foreground">
+          O que o cliente recebe em cada marco da licença (
+          {data.modo === "automatico"
+            ? "enviado sozinho no dia"
+            : "o analista envia com um clique no dia"}
+          ; assinatura: {data.assinatura}). Para mudar o texto, fale com a gestão: ele é editado em
+          Configurações CS.
+        </p>
+      </div>
+      <div className="space-y-2">
+        {data.emails.map((e) => {
+          const open = aberto === e.id;
+          return (
+            <Card key={e.id} className="p-3">
+              <button
+                type="button"
+                className="flex w-full items-start justify-between gap-3 text-left"
+                onClick={() => setAberto(open ? null : e.id)}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{e.titulo}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Assunto: {e.assunto} · {e.paraQuem}
+                  </p>
+                </div>
+                {open ? (
+                  <ChevronDown className="mt-0.5 h-4 w-4 shrink-0" />
+                ) : (
+                  <ChevronRight className="mt-0.5 h-4 w-4 shrink-0" />
+                )}
+              </button>
+              {open && (
+                <p className="mt-3 whitespace-pre-wrap border-t border-border pt-3 text-xs leading-relaxed">
+                  {e.corpo}
+                </p>
+              )}
+            </Card>
+          );
+        })}
+      </div>
+    </section>
   );
 }
