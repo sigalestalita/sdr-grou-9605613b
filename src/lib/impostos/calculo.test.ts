@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   brutoParaLiquido,
+  fatorParaLiquido,
   calcular,
   calcularItem,
   ehPortoAlegre,
@@ -99,5 +100,23 @@ describe("total e auxiliares", () => {
     expect(regimeDaReceita({ opcao_pelo_mei: true, opcao_pelo_simples: true })).toBe("MEI");
     expect(regimeDaReceita({ opcao_pelo_simples: true })).toBe("Simples Nacional");
     expect(regimeDaReceita({})).toBe("Lucro Presumido");
+  });
+});
+
+describe("fatorParaLiquido", () => {
+  it("acha o bruto dos itens que deixa o líquido pedido", () => {
+    const c = {
+      tipoPessoa: "CNPJ" as const,
+      regime: "Lucro Real" as const,
+      municipio: "Canoas",
+      categoriaEspecialIss: false,
+    };
+    const itens = [
+      { nome: "A", classificacao: "treinamento" as const, bruto: 600 },
+      { nome: "B", classificacao: "treinamento" as const, bruto: 400 },
+    ];
+    const { fator, resultado } = fatorParaLiquido(itens, c, 2000);
+    expect(Math.abs(resultado.liquido - 2000)).toBeLessThan(0.05);
+    expect(fator).toBeGreaterThan(2);
   });
 });
