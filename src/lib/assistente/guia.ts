@@ -226,7 +226,7 @@ export const TELAS: TelaDoGuia[] = [
     rota: "/cs-consultorias",
     nome: "Consultorias",
     area: "CS",
-    texto: `Acompanhamento de renovação das consultorias, que não entram na carteira de atendimento nem na sinaleira. Escolha a janela (15, 30 ou 60 dias para cada lado da data de renovação) e veja quem está para renovar.`,
+    texto: `Acompanhamento de renovação das consultorias, que não entram na carteira de atendimento nem na sinaleira. Escolha a janela (15, 30 ou 60 dias para cada lado da data de renovação) e veja quem está para renovar, ou "Todas as consultorias" para a lista completa das ativas, inclusive as sem data de renovação (que ficam no fim).`,
   },
   {
     rota: "/cs-whatsapp",

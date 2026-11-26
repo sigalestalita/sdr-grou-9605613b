@@ -49,11 +49,14 @@ type Linha = {
  */
 function ConsultoriasPage() {
   const fn = useServerFn(listCsConsultorias);
+  // "todas": visão geral de todas as consultorias ativas, com ou sem data.
   const [janela, setJanela] = useState("15");
+  const todas = janela === "todas";
+  const dias = todas ? 15 : Number(janela);
 
   const q = useQuery({
-    queryKey: ["cs-consultorias", janela],
-    queryFn: () => fn({ data: { diasAntes: Number(janela), diasDepois: Number(janela) } }),
+    queryKey: ["cs-consultorias", dias],
+    queryFn: () => fn({ data: { diasAntes: dias, diasDepois: dias } }),
     staleTime: 60_000,
   });
   const d = q.data;
@@ -80,6 +83,7 @@ function ConsultoriasPage() {
             <SelectItem value="15">15 dias para cada lado</SelectItem>
             <SelectItem value="30">30 dias para cada lado</SelectItem>
             <SelectItem value="60">60 dias para cada lado</SelectItem>
+            <SelectItem value="todas">Todas as consultorias</SelectItem>
           </SelectContent>
         </Select>
       </header>
@@ -94,8 +98,12 @@ function ConsultoriasPage() {
       {d && (
         <>
           <p className="text-[12px] text-muted-foreground">
-            Janela de {format(new Date(`${d.janela.de}T12:00:00`), "dd/MM", { locale: ptBR })} a{" "}
-            {format(new Date(`${d.janela.ate}T12:00:00`), "dd/MM", { locale: ptBR })} ·{" "}
+            {!todas && (
+              <>
+                Janela de {format(new Date(`${d.janela.de}T12:00:00`), "dd/MM", { locale: ptBR })} a{" "}
+                {format(new Date(`${d.janela.ate}T12:00:00`), "dd/MM", { locale: ptBR })} ·{" "}
+              </>
+            )}
             {d.totalConsultorias} consultorias ativas
             {d.semDataRenovacao > 0 && (
               <span className="text-amber-600 dark:text-amber-400">
@@ -105,18 +113,42 @@ function ConsultoriasPage() {
             )}
           </p>
 
-          <Secao
-            titulo="Venceram"
-            sub="Passaram da data e continuam ativas."
-            linhas={d.vencidas}
-            tom="vencida"
-          />
-          <Secao
-            titulo="A vencer"
-            sub="Dá tempo de agir antes do prazo."
-            linhas={d.aVencer}
-            tom="aVencer"
-          />
+          {todas ? (
+            <Secao
+              titulo="Todas as consultorias"
+              sub="Ativas, pela data de renovação; as sem data ficam no fim (cadastre na ficha da empresa)."
+              linhas={d.todas}
+              tom="todas"
+            />
+          ) : (
+            <>
+              <Secao
+                titulo="Venceram"
+                sub="Passaram da data e continuam ativas."
+                linhas={d.vencidas}
+                tom="vencida"
+              />
+              <Secao
+                titulo="A vencer"
+                sub="Dá tempo de agir antes do prazo."
+                linhas={d.aVencer}
+                tom="aVencer"
+              />
+              {d.vencidas.length + d.aVencer.length === 0 && (
+                <p className="text-[12px] text-muted-foreground">
+                  Nenhuma renovação nesta janela. Para ver todas,{" "}
+                  <button
+                    type="button"
+                    className="text-primary hover:underline"
+                    onClick={() => setJanela("todas")}
+                  >
+                    mostrar todas as consultorias
+                  </button>
+                  .
+                </p>
+              )}
+            </>
+          )}
         </>
       )}
     </div>
@@ -132,7 +164,7 @@ function Secao({
   titulo: string;
   sub: string;
   linhas: Linha[];
-  tom: "vencida" | "aVencer";
+  tom: "vencida" | "aVencer" | "todas";
 }) {
   return (
     <section className="surface-panel p-4">
@@ -177,9 +209,9 @@ function Secao({
               <Badge
                 variant="outline"
                 className={
-                  tom === "vencida"
+                  tom === "vencida" || (l.diasParaVencer ?? 0) < 0
                     ? "border-red-500/40 bg-red-500/10 text-[10px] text-red-600 dark:text-red-400"
-                    : (l.diasParaVencer ?? 99) <= 7
+                    : l.diasParaVencer !== null && l.diasParaVencer <= 7
                       ? "border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-600 dark:text-amber-400"
                       : "text-[10px]"
                 }
