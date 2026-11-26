@@ -457,7 +457,13 @@ export async function syncGoogleCalendars(userIds: string[] | null, days = 60, p
       events += prepared.length;
       await supabaseAdmin
         .from("cs_user_integrations")
-        .update({ gcal_last_sync_at: new Date().toISOString(), gcal_last_error: null })
+        .update({
+          gcal_last_sync_at: new Date().toISOString(),
+          // Endereço público sincroniza, mas só traz "Busy": avisa para trocar.
+          gcal_last_error: /\/public\/basic\.ics/i.test(String(row.gcal_ics_url ?? ""))
+            ? "Agenda ligada pelo endereço público: os eventos chegam só como “Busy”. Troque pelo “Endereço secreto no formato iCal”."
+            : null,
+        })
         .eq("user_id", row.user_id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Erro desconhecido";

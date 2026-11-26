@@ -33,6 +33,11 @@ export function validateIcsUrl(url: string): string {
     throw new Error(
       "Endereço inválido. Use o “endereço secreto em formato iCal” da Google Agenda (termina em basic.ics).",
     );
+  // O endereço público só traz "ocupado" (Busy), sem título, convidado nem link.
+  if (/\/public\/basic\.ics/i.test(u))
+    throw new Error(
+      "Esse é o endereço público da agenda: ele só mostra “Busy”. Na Google Agenda, em Configurações da agenda → Integrar agenda, copie o “Endereço secreto no formato iCal” (tem “private-” no meio).",
+    );
   return u;
 }
 
