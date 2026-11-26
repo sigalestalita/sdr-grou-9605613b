@@ -7,7 +7,35 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { listCsAgenda, syncCsCalendly } from "@/lib/cs-integrations.functions";
-import { CalendarDays, ChevronLeft, ChevronRight, RefreshCw, Video } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  Link2,
+  Plus,
+  RefreshCw,
+  Video,
+} from "lucide-react";
+import { AgendarReuniaoDialog, VincularEventoDialog } from "@/components/cs/agendar-reuniao";
+
+/** Item da agenda: evento da Google Agenda ou reunião marcada no Compass. */
+type ItemAgenda = {
+  id: string;
+  origem: "google" | "compass";
+  inicio: string;
+  titulo: string;
+  userId: string | null;
+  cancelado: boolean;
+  status: string | null;
+  convidado: string | null;
+  clientUid: string | null;
+  clienteNome: string | null;
+  contactId: string | null;
+  contatoNome: string | null;
+  meetingUrl: string | null;
+};
 
 export const Route = createFileRoute("/_app/cs-agenda")({
   component: CsAgendaPage,
@@ -52,6 +80,8 @@ function CsAgendaPage() {
   const [view, setView] = useState<ViewMode>("week");
   const [offset, setOffset] = useState(0);
   const [owner, setOwner] = useState("");
+  const [agendarNoDia, setAgendarNoDia] = useState<Date | null>(null);
+  const [vinculando, setVinculando] = useState<ItemAgenda | null>(null);
 
   const { from, to, days, label } = useMemo(() => {
     const today = startOfDay(new Date());
@@ -64,7 +94,11 @@ function CsAgendaPage() {
         from: start.toISOString(),
         to: end.toISOString(),
         days: [start],
-        label: start.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" }),
+        label: start.toLocaleDateString("pt-BR", {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+        }),
       };
     }
     if (view === "week") {
@@ -131,26 +165,76 @@ function CsAgendaPage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
 
+  const itens = useMemo<ItemAgenda[]>(() => {
+    type Ev = {
+      id: string;
+      start_time: string;
+      name: string | null;
+      user_id: string;
+      status: string | null;
+      invitee_name: string | null;
+      invitee_email: string | null;
+      client_uid: string | null;
+      contact_id?: string | null;
+      meeting_url: string | null;
+      cs_clients?: { nome_empresa: string | null } | null;
+      cs_contacts?: { nome: string | null } | null;
+    };
+    const google = ((data?.events ?? []) as unknown as Ev[]).map((e) => ({
+      id: e.id,
+      origem: "google" as const,
+      inicio: e.start_time,
+      titulo: e.name ?? "Reunião",
+      userId: e.user_id,
+      cancelado: e.status === "canceled",
+      status: e.status,
+      convidado: e.invitee_name
+        ? `${e.invitee_name}${e.invitee_email ? ` · ${e.invitee_email}` : ""}`
+        : (e.invitee_email ?? null),
+      clientUid: e.client_uid,
+      clienteNome: e.cs_clients?.nome_empresa ?? null,
+      contactId: e.contact_id ?? null,
+      contatoNome: e.cs_contacts?.nome ?? null,
+      meetingUrl: e.meeting_url,
+    }));
+    const compass = (data?.reunioes ?? []).map((r) => ({
+      id: r.id,
+      origem: "compass" as const,
+      inicio: r.inicio,
+      titulo: r.titulo,
+      userId: r.ownerId,
+      cancelado: r.status === "cancelada",
+      status: r.status,
+      convidado: null,
+      clientUid: r.clientUid,
+      clienteNome: r.clienteNome,
+      contactId: null,
+      contatoNome: r.contatoNome,
+      meetingUrl: r.meetingUrl,
+    }));
+    return [...google, ...compass].sort((a, b) => a.inicio.localeCompare(b.inicio));
+  }, [data?.events, data?.reunioes]);
+
   const byDay = useMemo(() => {
-    const map = new Map<string, NonNullable<typeof data>["events"]>();
-    for (const e of data?.events ?? []) {
-      const key = new Date(e.start_time).toDateString();
+    const map = new Map<string, ItemAgenda[]>();
+    for (const e of itens) {
+      const key = new Date(e.inicio).toDateString();
       map.set(key, [...(map.get(key) ?? []), e]);
     }
     return map;
-  }, [data?.events]);
+  }, [itens]);
 
   const perOwner = useMemo(() => {
     const map = new Map<string, number>();
-    for (const e of data?.events ?? []) {
-      if (e.status === "canceled") continue;
-      map.set(e.user_id, (map.get(e.user_id) ?? 0) + 1);
+    for (const e of itens) {
+      if (e.cancelado || !e.userId) continue;
+      map.set(e.userId, (map.get(e.userId) ?? 0) + 1);
     }
     return Array.from(map, ([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count);
-  }, [data?.events]);
+  }, [itens]);
 
-  const total = data?.events.length ?? 0;
-  const canceled = (data?.events ?? []).filter((e) => e.status === "canceled").length;
+  const total = itens.length;
+  const canceled = itens.filter((e) => e.cancelado).length;
   const monthRef = useMemo(() => new Date(from).getMonth(), [from]);
 
   if (error) {
@@ -162,7 +246,11 @@ function CsAgendaPage() {
   }
 
   const gridCols =
-    view === "day" ? "grid-cols-1" : view === "week" ? "md:grid-cols-2 xl:grid-cols-4" : "grid-cols-7";
+    view === "day"
+      ? "grid-cols-1"
+      : view === "week"
+        ? "md:grid-cols-2 xl:grid-cols-4"
+        : "grid-cols-7";
 
   return (
     <div className="space-y-4 p-6">
@@ -191,8 +279,17 @@ function CsAgendaPage() {
               </option>
             ))}
           </select>
-          <Button size="sm" variant="outline" disabled={sync.isPending} onClick={() => sync.mutate()}>
-            <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} /> Sincronizar
+          <Button size="sm" onClick={() => setAgendarNoDia(new Date())}>
+            <CalendarPlus className="mr-1 h-4 w-4" /> Agendar reunião
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={sync.isPending}
+            onClick={() => sync.mutate()}
+          >
+            <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />{" "}
+            Sincronizar
           </Button>
         </div>
       </div>
@@ -260,63 +357,117 @@ function CsAgendaPage() {
               >
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-semibold capitalize">
-                    {d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}
+                    {d.toLocaleDateString("pt-BR", {
+                      weekday: "short",
+                      day: "2-digit",
+                      month: "2-digit",
+                    })}
                   </p>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {list.length}
-                  </Badge>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setAgendarNoDia(d)}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                      title="Agendar reunião neste dia"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                    <Badge variant="secondary" className="text-[10px]">
+                      {list.length}
+                    </Badge>
+                  </div>
                 </div>
-                {list.length === 0 && <p className="text-xs text-muted-foreground">Sem reuniões.</p>}
+                {list.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Sem reuniões.</p>
+                )}
                 {list.map((e) => (
                   <Card
-                    key={e.id}
-                    className={`space-y-1 p-2.5 text-xs ${e.status === "canceled" ? "opacity-60" : ""}`}
+                    key={`${e.origem}:${e.id}`}
+                    className={`space-y-1 p-2.5 text-xs ${e.cancelado ? "opacity-60" : ""} ${
+                      e.origem === "compass" ? "border-primary/30" : ""
+                    }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-semibold">
-                        {new Date(e.start_time).toLocaleTimeString("pt-BR", {
+                        {new Date(e.inicio).toLocaleTimeString("pt-BR", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </span>
-                      {e.status === "canceled" ? (
+                      {e.cancelado ? (
                         <Badge variant="outline" className="text-[9px]">
                           cancelada
                         </Badge>
                       ) : (
                         <Badge variant="secondary" className="text-[9px]">
-                          {nameOf(e.user_id)}
+                          {e.userId ? nameOf(e.userId) : "—"}
                         </Badge>
                       )}
                     </div>
-                    <p className="font-medium leading-tight">{e.name ?? "Reunião"}</p>
-                    {e.invitee_name && (
-                      <p className="text-muted-foreground">
-                        {e.invitee_name}
-                        {e.invitee_email ? ` · ${e.invitee_email}` : ""}
-                      </p>
+                    <p className="font-medium leading-tight">{e.titulo}</p>
+                    {e.contatoNome ? (
+                      <p className="text-muted-foreground">com {e.contatoNome}</p>
+                    ) : (
+                      e.convidado && <p className="text-muted-foreground">{e.convidado}</p>
                     )}
-                    {e.client_uid && (
-                      <Badge variant="outline" className="text-[9px]">
-                        {e.client_uid}
-                      </Badge>
-                    )}
-                    {e.meeting_url && (
-                      <a
-                        href={e.meeting_url}
-                        target="_blank"
-                        rel="noreferrer"
+                    {e.clientUid ? (
+                      <Link
+                        to="/empresas/$uid"
+                        params={{ uid: e.clientUid }}
                         className="inline-flex items-center gap-1 text-primary hover:underline"
                       >
-                        <Video className="h-3 w-3" /> Entrar
-                      </a>
-                    )}
+                        <Building2 className="h-3 w-3" /> {e.clienteNome ?? e.clientUid}
+                      </Link>
+                    ) : null}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {e.meetingUrl && (
+                        <a
+                          href={e.meetingUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-primary hover:underline"
+                        >
+                          <Video className="h-3 w-3" /> Entrar
+                        </a>
+                      )}
+                      {e.origem === "google" && (
+                        <button
+                          type="button"
+                          onClick={() => setVinculando(e)}
+                          className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:underline"
+                        >
+                          <Link2 className="h-3 w-3" />{" "}
+                          {e.clientUid ? "Trocar vínculo" : "Vincular a empresa/contato"}
+                        </button>
+                      )}
+                      {e.origem === "compass" && e.status === "agendada" && (
+                        <Badge variant="outline" className="text-[9px]">
+                          agendada no Compass
+                        </Badge>
+                      )}
+                    </div>
                   </Card>
                 ))}
               </div>
             );
           })}
         </div>
+      )}
+
+      {agendarNoDia && (
+        <AgendarReuniaoDialog dia={agendarNoDia} onClose={() => setAgendarNoDia(null)} />
+      )}
+      {vinculando && (
+        <VincularEventoDialog
+          evento={{
+            id: vinculando.id,
+            titulo: vinculando.titulo,
+            clientUid: vinculando.clientUid,
+            clienteNome: vinculando.clienteNome,
+            contactId: vinculando.contactId,
+          }}
+          onClose={() => setVinculando(null)}
+        />
       )}
     </div>
   );

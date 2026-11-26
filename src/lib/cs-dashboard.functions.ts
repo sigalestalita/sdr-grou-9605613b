@@ -346,8 +346,11 @@ export const getCsDashboard = createServerFn({ method: "GET" })
       const owner =
         (m["owner_user_id"] as string | null) ?? ownerOfClient.get(String(m["client_uid"])) ?? null;
       const b = ensure(owner);
-      if (m["status"] === "canceled" || m["status"] === "cancelled") {
+      const st = String(m["status"] ?? "realizada");
+      if (st === "canceled" || st === "cancelled" || st === "cancelada") {
         b.meetingsCanceled++;
+      } else if (st === "agendada" || st === "no_show") {
+        // Agendada ainda não aconteceu e no-show não houve: não contam como feitas.
       } else {
         b.meetingsHeld++;
         totals.meetingsHeld++;
