@@ -52,6 +52,7 @@ export function montarEntradaDeSaude(d: {
   temParticipacaoMasterclass: boolean;
   tags: string[];
   analistaPda: boolean;
+  usaPlataforma?: boolean;
 }): HealthInput {
   return {
     signal: d.signal,
@@ -62,5 +63,6 @@ export function montarEntradaDeSaude(d: {
     // participação registrada (a tag antiga de masterclass ainda vale)
     masterclass: d.temParticipacaoMasterclass || d.tags.some((t) => /masterclass/i.test(t)),
     analistaPda: d.analistaPda,
+    usaPlataforma: d.usaPlataforma ?? false,
   };
 }

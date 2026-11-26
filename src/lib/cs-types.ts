@@ -177,16 +177,24 @@ export type HealthWeights = {
   proposta_aberta: number;
   masterclass: number;
   analista_pda: number;
+  /** Algum usuário da empresa usou a Plataforma de CS nos últimos 90 dias. */
+  plataforma_cs: number;
 };
 
-/** Fórmula da Marcela: 40 sinaleira · 20 agenda realizada · 10 WhatsApp · 10 proposta · 10 masterclass · 10 analista = 100. */
+/**
+ * Fórmula da Marcela: 40 sinaleira · 20 agenda realizada · 10 WhatsApp · 10
+ * masterclass · 10 analista · 10 plataforma de CS = 100. "Proposta em aberto"
+ * saiu no treinamento de 25/11 (dependia do comercial e quase nunca pontuava)
+ * e ficou com peso 0, ajustável pela gestão.
+ */
 export const DEFAULT_HEALTH_WEIGHTS: HealthWeights = {
   sinaleira: 40,
   agenda: 20,
   whatsapp: 10,
-  proposta_aberta: 10,
+  proposta_aberta: 0,
   masterclass: 10,
   analista_pda: 10,
+  plataforma_cs: 10,
 };
 
 /** Pontos absolutos por cor dentro do peso da sinaleira (verde 40 · amarelo 20 · vermelho 0). */
@@ -282,6 +290,8 @@ export type HealthInput = {
   propostaAberta: boolean;
   masterclass: boolean;
   analistaPda: boolean;
+  /** Alguém da empresa usou a Plataforma de CS nos últimos 90 dias. */
+  usaPlataforma?: boolean;
 };
 
 export type HealthBreakdown = {
@@ -299,6 +309,7 @@ export const HEALTH_CRITERIA_LABEL: Record<keyof HealthWeights, string> = {
   proposta_aberta: "Proposta em aberto",
   masterclass: "Masterclass realizada",
   analista_pda: "Analista PDA certificado",
+  plataforma_cs: "Uso da plataforma de CS (90 d)",
 };
 
 /**
@@ -359,6 +370,13 @@ export function computeHealthBreakdown(
       label: HEALTH_CRITERIA_LABEL.analista_pda,
       points: (input.analistaPda ? 1 : 0) * weights.analista_pda,
       max: weights.analista_pda,
+      applies: true,
+    },
+    {
+      key: "plataforma_cs",
+      label: HEALTH_CRITERIA_LABEL.plataforma_cs,
+      points: (input.usaPlataforma ? 1 : 0) * (weights.plataforma_cs ?? 0),
+      max: weights.plataforma_cs ?? 0,
       applies: true,
     },
   ];

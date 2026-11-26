@@ -95,6 +95,7 @@ describe("CS — health score e sinaleira", () => {
       propostaAberta: true,
       masterclass: true,
       analistaPda: true,
+      usaPlataforma: true,
     };
     const top = computeHealthScore({ signal: "verde", ...full }, DEFAULT_HEALTH_WEIGHTS);
     const bottom = computeHealthScore(

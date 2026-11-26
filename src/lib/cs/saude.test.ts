@@ -14,6 +14,7 @@ const PESOS: HealthWeights = {
   proposta_aberta: 10,
   masterclass: 10,
   analista_pda: 10,
+  plataforma_cs: 0,
 };
 const vazio = {
   eventos90d: [],
@@ -82,5 +83,14 @@ describe("health score com as entradas novas", () => {
 
   it("vermelho sem nenhum engajamento continua zero", () => {
     expect(score({ ...vazio, cliente: { login_pda: "x" }, signal: "vermelho" })).toBe(0);
+  });
+
+  it("uso da plataforma de CS pontua o peso dele", () => {
+    const pesos = { ...PESOS, proposta_aberta: 0, plataforma_cs: 10 };
+    const base = { ...vazio, cliente: { login_pda: "x" }, signal: "vermelho" as const };
+    const sem = computeHealthScore(montarEntradaDeSaude(base), pesos);
+    const com = computeHealthScore(montarEntradaDeSaude({ ...base, usaPlataforma: true }), pesos);
+    expect(sem).toBe(0);
+    expect(com).toBe(10);
   });
 });

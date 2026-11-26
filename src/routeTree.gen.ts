@@ -104,6 +104,7 @@ import { Route as ApiPublicHooksSendWeeklyDigestRouteImport } from './routes/api
 import { Route as ApiPublicHooksSyncAgendaRouteImport } from './routes/api/public/hooks/sync-agenda'
 import { Route as ApiPublicHooksSyncContaAzulRouteImport } from './routes/api/public/hooks/sync-conta-azul'
 import { Route as ApiPublicHooksSyncPlanilhaRouteImport } from './routes/api/public/hooks/sync-planilha'
+import { Route as ApiPublicHooksSyncPlataformaCsRouteImport } from './routes/api/public/hooks/sync-plataforma-cs'
 import { Route as ApiPublicHooksSyncRdRouteImport } from './routes/api/public/hooks/sync-rd'
 import { Route as ApiPublicHooksSyncRdAllRouteImport } from './routes/api/public/hooks/sync-rd-all'
 import { Route as ApiPublicHooksSyncRdCsClientsRouteImport } from './routes/api/public/hooks/sync-rd-cs-clients'
@@ -611,6 +612,12 @@ const ApiPublicHooksSyncPlanilhaRoute =
     path: '/api/public/hooks/sync-planilha',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksSyncPlataformaCsRoute =
+  ApiPublicHooksSyncPlataformaCsRouteImport.update({
+    id: '/api/public/hooks/sync-plataforma-cs',
+    path: '/api/public/hooks/sync-plataforma-cs',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksSyncRdRoute = ApiPublicHooksSyncRdRouteImport.update({
   id: '/api/public/hooks/sync-rd',
   path: '/api/public/hooks/sync-rd',
@@ -786,6 +793,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-conta-azul': typeof ApiPublicHooksSyncContaAzulRoute
   '/api/public/hooks/sync-planilha': typeof ApiPublicHooksSyncPlanilhaRoute
+  '/api/public/hooks/sync-plataforma-cs': typeof ApiPublicHooksSyncPlataformaCsRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
@@ -894,6 +902,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-conta-azul': typeof ApiPublicHooksSyncContaAzulRoute
   '/api/public/hooks/sync-planilha': typeof ApiPublicHooksSyncPlanilhaRoute
+  '/api/public/hooks/sync-plataforma-cs': typeof ApiPublicHooksSyncPlataformaCsRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
@@ -1006,6 +1015,7 @@ export interface FileRoutesById {
   '/api/public/hooks/sync-agenda': typeof ApiPublicHooksSyncAgendaRoute
   '/api/public/hooks/sync-conta-azul': typeof ApiPublicHooksSyncContaAzulRoute
   '/api/public/hooks/sync-planilha': typeof ApiPublicHooksSyncPlanilhaRoute
+  '/api/public/hooks/sync-plataforma-cs': typeof ApiPublicHooksSyncPlataformaCsRoute
   '/api/public/hooks/sync-rd': typeof ApiPublicHooksSyncRdRoute
   '/api/public/hooks/sync-rd-all': typeof ApiPublicHooksSyncRdAllRoute
   '/api/public/hooks/sync-rd-cs-clients': typeof ApiPublicHooksSyncRdCsClientsRoute
@@ -1118,6 +1128,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-conta-azul'
     | '/api/public/hooks/sync-planilha'
+    | '/api/public/hooks/sync-plataforma-cs'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
@@ -1226,6 +1237,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-conta-azul'
     | '/api/public/hooks/sync-planilha'
+    | '/api/public/hooks/sync-plataforma-cs'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
@@ -1337,6 +1349,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/sync-agenda'
     | '/api/public/hooks/sync-conta-azul'
     | '/api/public/hooks/sync-planilha'
+    | '/api/public/hooks/sync-plataforma-cs'
     | '/api/public/hooks/sync-rd'
     | '/api/public/hooks/sync-rd-all'
     | '/api/public/hooks/sync-rd-cs-clients'
@@ -1381,6 +1394,7 @@ export interface RootRouteChildren {
   ApiPublicHooksSyncAgendaRoute: typeof ApiPublicHooksSyncAgendaRoute
   ApiPublicHooksSyncContaAzulRoute: typeof ApiPublicHooksSyncContaAzulRoute
   ApiPublicHooksSyncPlanilhaRoute: typeof ApiPublicHooksSyncPlanilhaRoute
+  ApiPublicHooksSyncPlataformaCsRoute: typeof ApiPublicHooksSyncPlataformaCsRoute
   ApiPublicHooksSyncRdRoute: typeof ApiPublicHooksSyncRdRoute
   ApiPublicHooksSyncRdAllRoute: typeof ApiPublicHooksSyncRdAllRoute
   ApiPublicHooksSyncRdCsClientsRoute: typeof ApiPublicHooksSyncRdCsClientsRoute
@@ -2064,6 +2078,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSyncPlanilhaRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/sync-plataforma-cs': {
+      id: '/api/public/hooks/sync-plataforma-cs'
+      path: '/api/public/hooks/sync-plataforma-cs'
+      fullPath: '/api/public/hooks/sync-plataforma-cs'
+      preLoaderRoute: typeof ApiPublicHooksSyncPlataformaCsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/sync-rd': {
       id: '/api/public/hooks/sync-rd'
       path: '/api/public/hooks/sync-rd'
@@ -2374,6 +2395,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksSyncAgendaRoute: ApiPublicHooksSyncAgendaRoute,
   ApiPublicHooksSyncContaAzulRoute: ApiPublicHooksSyncContaAzulRoute,
   ApiPublicHooksSyncPlanilhaRoute: ApiPublicHooksSyncPlanilhaRoute,
+  ApiPublicHooksSyncPlataformaCsRoute: ApiPublicHooksSyncPlataformaCsRoute,
   ApiPublicHooksSyncRdRoute: ApiPublicHooksSyncRdRoute,
   ApiPublicHooksSyncRdAllRoute: ApiPublicHooksSyncRdAllRoute,
   ApiPublicHooksSyncRdCsClientsRoute: ApiPublicHooksSyncRdCsClientsRoute,

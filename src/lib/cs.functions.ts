@@ -793,6 +793,7 @@ export const saveCsSettings = createServerFn({ method: "POST" })
             proposta_aberta: z.number().min(0).max(100),
             masterclass: z.number().min(0).max(100),
             analista_pda: z.number().min(0).max(100),
+            plataforma_cs: z.number().min(0).max(100).default(0),
           })
           .optional(),
         signalPoints: z
