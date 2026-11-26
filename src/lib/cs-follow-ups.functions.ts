@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import type { CtxNucleo } from "@/lib/nucleo";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   CS_FOLLOWUP_CHANNELS,
@@ -311,234 +312,241 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
   });
 
 /** Marca um follow-up de CS como feito, registrando o resultado na timeline do cliente. */
+export const completeCsFollowUpSchema = z.object({
+  kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato", "timeline", "tarefa"]),
+  refId: z.string().uuid().nullable().optional(),
+  clientUid: z.string().min(1),
+  title: z.string().min(1),
+  outcome: z.enum(CS_FOLLOWUP_OUTCOMES).optional(),
+  channel: z.enum(CS_FOLLOWUP_CHANNELS).optional(),
+  notes: z.string().max(2000).nullable().optional(),
+  /** Se informado, agenda um novo follow-up após registrar o resultado. */
+  nextAt: z.string().nullable().optional(),
+  /** Gestão concluindo tarefa de canal sem evidência — exige justificativa em notes. */
+  asManager: z.boolean().optional(),
+});
+
+/** Núcleo de completeCsFollowUp: a mesma regra para a tela e para a assistente. */
+export async function completeCsFollowUpNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof completeCsFollowUpSchema>,
+) {
+  const { supabase, userId } = context;
+  const now = new Date().toISOString();
+  const outcome = data.outcome ?? "atendimento_concluido";
+  // Próximo contato em dia indisponível (feriado, folga, férias) → próximo dia disponível.
+  const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
+  const nextAt = data.nextAt
+    ? (await ajustarDataDaTarefa(supabase, userId, new Date(data.nextAt).toISOString())).iso
+    : null;
+  const channel = data.channel ?? (data.kind === "reuniao" ? "reuniao" : "observacao");
+
+  // Canal com evidência obrigatória: só conclui se o canal vinculado registrou
+  // um envio recente para o cliente. Impede o "feito" sem o contato real.
+  const { getEvidenceConfig } = await import("@/lib/cs/cs-core.server");
+  const { requiresEvidence } = await import("@/lib/cs-types");
+  const evidenceCfg = await getEvidenceConfig(supabase);
+  let evidence: { id: string; occurred_at: string; title: string } | null = null;
+  if (requiresEvidence(evidenceCfg, channel) && outcome !== "sem_resposta") {
+    const since = new Date(Date.now() - evidenceCfg.retroativo_horas * 3600000).toISOString();
+    const { data: ev } = await supabase
+      .from("cs_timeline_events")
+      .select("id, occurred_at, title")
+      .eq("client_uid", data.clientUid)
+      .eq("event_type", `${channel}_enviado`)
+      .gte("occurred_at", since)
+      .order("occurred_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    evidence = ev ?? null;
+    let justified = false;
+    if (data.asManager && (data.notes?.trim().length ?? 0) >= 5) {
+      const { data: mgr } = await supabase.rpc("is_manager", { _user_id: userId });
+      justified = Boolean(mgr) && evidenceCfg.gestor_pode_concluir;
+    }
+    if (!evidence && !justified) {
+      const label = channel === "email" ? "e-mail" : "WhatsApp";
+      throw new Error(
+        `Nenhum ${label} enviado para este cliente nas últimas ${evidenceCfg.retroativo_horas}h pelo canal vinculado. Envie pelo ${label} do CS — a conclusão é automática.`,
+      );
+    }
+  }
+
+  if (data.kind === "tarefa" && data.refId) {
+    const { error } = await supabase
+      .from("cs_tasks")
+      .update({
+        status: "concluida",
+        done_at: evidence?.occurred_at ?? now,
+        done_by: userId,
+        completed_via: evidence ? "evidencia" : data.asManager ? "gestor" : "manual",
+        evidence_event_id: evidence?.id ?? null,
+        evidence_at: evidence?.occurred_at ?? null,
+        notes: data.notes?.trim() || null,
+      })
+      .eq("id", data.refId);
+    if (error) throw new Error(error.message.replace(/^.*?(Tarefa de|Ação de)/, "$1"));
+    if (nextAt) {
+      const { data: prev } = await supabase
+        .from("cs_tasks")
+        .select("client_uid, contact_id, owner_id, title, task_type")
+        .eq("id", data.refId)
+        .maybeSingle();
+      if (prev)
+        await supabase.from("cs_tasks").insert({
+          ...prev,
+          due_at: nextAt,
+          created_by: userId,
+          source: "reagendamento",
+          source_ref: data.refId,
+        });
+    }
+  }
+
+  if (data.kind === "reuniao" && data.refId) {
+    const { error } = await supabase
+      .from("cs_meetings")
+      .update({ next_step_at: nextAt } as never)
+      .eq("id", data.refId);
+    if (error) throw new Error(error.message);
+  }
+  if (data.kind === "alerta" && data.refId) {
+    const { error } = await supabase
+      .from("cs_alerts")
+      .update({
+        status: "resolved",
+        resolved_at: now,
+        resolved_by: userId,
+        follow_up_at: nextAt,
+        observation: data.notes ?? null,
+      } as never)
+      .eq("id", data.refId);
+    if (error) throw new Error(error.message);
+  }
+
+  if (data.kind === "timeline" && data.refId) {
+    await supabase
+      .from("cs_timeline_events")
+      .update({ occurred_at: now } as never)
+      .eq("id", data.refId);
+  }
+
+  // Reagendamento de checkpoints derivados vira um alerta com follow-up marcado.
+  if (nextAt && (data.kind === "jornada" || data.kind === "sem_contato")) {
+    await supabase.from("cs_alerts").insert({
+      client_uid: data.clientUid,
+      alert_type: data.kind === "jornada" ? "sla_estourado" : "sem_contato",
+      reason: data.title,
+      severity: "media",
+      status: "open",
+      follow_up_at: nextAt,
+    } as never);
+  }
+
+  const outcomeLabel = CS_FOLLOWUP_OUTCOME_LABEL[outcome] ?? outcome;
+  await supabase.from("cs_timeline_events").insert({
+    client_uid: data.clientUid,
+    author_id: userId,
+    event_type: "follow_up_concluido",
+    channel,
+    title: `Follow-up: ${data.title} — ${outcomeLabel}`,
+    description: data.notes?.trim() || null,
+    occurred_at: now,
+    metadata: {
+      kind: data.kind,
+      ref_id: data.refId ?? null,
+      outcome,
+      next_follow_up_at: nextAt,
+      evidence_event_id: evidence?.id ?? null,
+    },
+  } as never);
+
+  if (outcome !== "sem_resposta" && data.kind !== "alerta") {
+    await supabase
+      .from("cs_clients")
+      .update({ last_contact_at: now } as never)
+      .eq("client_uid", data.clientUid);
+  }
+
+  return { ok: true, nextAt };
+}
+
 export const completeCsFollowUp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato", "timeline", "tarefa"]),
-        refId: z.string().uuid().nullable().optional(),
-        clientUid: z.string().min(1),
-        title: z.string().min(1),
-        outcome: z.enum(CS_FOLLOWUP_OUTCOMES).optional(),
-        channel: z.enum(CS_FOLLOWUP_CHANNELS).optional(),
-        notes: z.string().max(2000).nullable().optional(),
-        /** Se informado, agenda um novo follow-up após registrar o resultado. */
-        nextAt: z.string().nullable().optional(),
-        /** Gestão concluindo tarefa de canal sem evidência — exige justificativa em notes. */
-        asManager: z.boolean().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const now = new Date().toISOString();
-    const outcome = data.outcome ?? "atendimento_concluido";
-    // Próximo contato em dia indisponível (feriado, folga, férias) → próximo dia disponível.
-    const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
-    const nextAt = data.nextAt
-      ? (await ajustarDataDaTarefa(supabase, userId, new Date(data.nextAt).toISOString())).iso
-      : null;
-    const channel = data.channel ?? (data.kind === "reuniao" ? "reuniao" : "observacao");
-
-    // Canal com evidência obrigatória: só conclui se o canal vinculado registrou
-    // um envio recente para o cliente. Impede o "feito" sem o contato real.
-    const { getEvidenceConfig } = await import("@/lib/cs/cs-core.server");
-    const { requiresEvidence } = await import("@/lib/cs-types");
-    const evidenceCfg = await getEvidenceConfig(supabase);
-    let evidence: { id: string; occurred_at: string; title: string } | null = null;
-    if (requiresEvidence(evidenceCfg, channel) && outcome !== "sem_resposta") {
-      const since = new Date(Date.now() - evidenceCfg.retroativo_horas * 3600000).toISOString();
-      const { data: ev } = await supabase
-        .from("cs_timeline_events")
-        .select("id, occurred_at, title")
-        .eq("client_uid", data.clientUid)
-        .eq("event_type", `${channel}_enviado`)
-        .gte("occurred_at", since)
-        .order("occurred_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      evidence = ev ?? null;
-      let justified = false;
-      if (data.asManager && (data.notes?.trim().length ?? 0) >= 5) {
-        const { data: mgr } = await supabase.rpc("is_manager", { _user_id: userId });
-        justified = Boolean(mgr) && evidenceCfg.gestor_pode_concluir;
-      }
-      if (!evidence && !justified) {
-        const label = channel === "email" ? "e-mail" : "WhatsApp";
-        throw new Error(
-          `Nenhum ${label} enviado para este cliente nas últimas ${evidenceCfg.retroativo_horas}h pelo canal vinculado. Envie pelo ${label} do CS — a conclusão é automática.`,
-        );
-      }
-    }
-
-    if (data.kind === "tarefa" && data.refId) {
-      const { error } = await supabase
-        .from("cs_tasks")
-        .update({
-          status: "concluida",
-          done_at: evidence?.occurred_at ?? now,
-          done_by: userId,
-          completed_via: evidence ? "evidencia" : data.asManager ? "gestor" : "manual",
-          evidence_event_id: evidence?.id ?? null,
-          evidence_at: evidence?.occurred_at ?? null,
-          notes: data.notes?.trim() || null,
-        })
-        .eq("id", data.refId);
-      if (error) throw new Error(error.message.replace(/^.*?(Tarefa de|Ação de)/, "$1"));
-      if (nextAt) {
-        const { data: prev } = await supabase
-          .from("cs_tasks")
-          .select("client_uid, contact_id, owner_id, title, task_type")
-          .eq("id", data.refId)
-          .maybeSingle();
-        if (prev)
-          await supabase.from("cs_tasks").insert({
-            ...prev,
-            due_at: nextAt,
-            created_by: userId,
-            source: "reagendamento",
-            source_ref: data.refId,
-          });
-      }
-    }
-
-    if (data.kind === "reuniao" && data.refId) {
-      const { error } = await supabase
-        .from("cs_meetings")
-        .update({ next_step_at: nextAt } as never)
-        .eq("id", data.refId);
-      if (error) throw new Error(error.message);
-    }
-    if (data.kind === "alerta" && data.refId) {
-      const { error } = await supabase
-        .from("cs_alerts")
-        .update({
-          status: "resolved",
-          resolved_at: now,
-          resolved_by: userId,
-          follow_up_at: nextAt,
-          observation: data.notes ?? null,
-        } as never)
-        .eq("id", data.refId);
-      if (error) throw new Error(error.message);
-    }
-
-    if (data.kind === "timeline" && data.refId) {
-      await supabase
-        .from("cs_timeline_events")
-        .update({ occurred_at: now } as never)
-        .eq("id", data.refId);
-    }
-
-    // Reagendamento de checkpoints derivados vira um alerta com follow-up marcado.
-    if (nextAt && (data.kind === "jornada" || data.kind === "sem_contato")) {
-      await supabase.from("cs_alerts").insert({
-        client_uid: data.clientUid,
-        alert_type: data.kind === "jornada" ? "sla_estourado" : "sem_contato",
-        reason: data.title,
-        severity: "media",
-        status: "open",
-        follow_up_at: nextAt,
-      } as never);
-    }
-
-    const outcomeLabel = CS_FOLLOWUP_OUTCOME_LABEL[outcome] ?? outcome;
-    await supabase.from("cs_timeline_events").insert({
-      client_uid: data.clientUid,
-      author_id: userId,
-      event_type: "follow_up_concluido",
-      channel,
-      title: `Follow-up: ${data.title} — ${outcomeLabel}`,
-      description: data.notes?.trim() || null,
-      occurred_at: now,
-      metadata: {
-        kind: data.kind,
-        ref_id: data.refId ?? null,
-        outcome,
-        next_follow_up_at: nextAt,
-        evidence_event_id: evidence?.id ?? null,
-      },
-    } as never);
-
-    if (outcome !== "sem_resposta" && data.kind !== "alerta") {
-      await supabase
-        .from("cs_clients")
-        .update({ last_contact_at: now } as never)
-        .eq("client_uid", data.clientUid);
-    }
-
-    return { ok: true, nextAt };
-  });
+  .inputValidator((d) => completeCsFollowUpSchema.parse(d))
+  .handler(async ({ data, context }) => completeCsFollowUpNucleo(context, data));
 
 /** Reagenda um follow-up de CS sem marcá-lo como concluído. */
+export const rescheduleCsFollowUpSchema = z.object({
+  kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato", "timeline", "tarefa"]),
+  refId: z.string().uuid().nullable().optional(),
+  clientUid: z.string().min(1),
+  title: z.string().min(1),
+  nextAt: z.string().min(1),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
+/** Núcleo de rescheduleCsFollowUp: a mesma regra para a tela e para a assistente. */
+export async function rescheduleCsFollowUpNucleo(
+  context: CtxNucleo,
+  data: z.infer<typeof rescheduleCsFollowUpSchema>,
+) {
+  const { supabase, userId } = context;
+  const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
+  const nextAt = (await ajustarDataDaTarefa(supabase, userId, new Date(data.nextAt).toISOString()))
+    .iso;
+
+  if (data.kind === "reuniao" && data.refId) {
+    const { error } = await supabase
+      .from("cs_meetings")
+      .update({ next_step_at: nextAt } as never)
+      .eq("id", data.refId);
+    if (error) throw new Error(error.message);
+  } else if (data.kind === "alerta" && data.refId) {
+    const { error } = await supabase
+      .from("cs_alerts")
+      .update({ follow_up_at: nextAt } as never)
+      .eq("id", data.refId);
+    if (error) throw new Error(error.message);
+  } else if (data.kind === "timeline" && data.refId) {
+    const { error } = await supabase
+      .from("cs_timeline_events")
+      .update({ occurred_at: nextAt } as never)
+      .eq("id", data.refId);
+    if (error) throw new Error(error.message);
+  } else if (data.kind === "tarefa" && data.refId) {
+    const { error } = await supabase
+      .from("cs_tasks")
+      .update({ due_at: nextAt })
+      .eq("id", data.refId);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("cs_alerts").insert({
+      client_uid: data.clientUid,
+      alert_type: data.kind === "jornada" ? "sla_estourado" : "sem_contato",
+      reason: data.title,
+      severity: "media",
+      status: "open",
+      follow_up_at: nextAt,
+    } as never);
+    if (error) throw new Error(error.message);
+  }
+
+  await supabase.from("cs_timeline_events").insert({
+    client_uid: data.clientUid,
+    author_id: userId,
+    event_type: "follow_up_reagendado",
+    channel: "observacao",
+    title: `Follow-up reagendado: ${data.title}`,
+    description: data.notes?.trim() || null,
+    occurred_at: new Date().toISOString(),
+    metadata: { kind: data.kind, ref_id: data.refId ?? null, next_follow_up_at: nextAt },
+  } as never);
+
+  return { ok: true, nextAt };
+}
+
 export const rescheduleCsFollowUp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        kind: z.enum(["reuniao", "alerta", "jornada", "sem_contato", "timeline", "tarefa"]),
-        refId: z.string().uuid().nullable().optional(),
-        clientUid: z.string().min(1),
-        title: z.string().min(1),
-        nextAt: z.string().min(1),
-        notes: z.string().max(2000).nullable().optional(),
-      })
-      .parse(d),
-  )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
-    const nextAt = (
-      await ajustarDataDaTarefa(supabase, userId, new Date(data.nextAt).toISOString())
-    ).iso;
-
-    if (data.kind === "reuniao" && data.refId) {
-      const { error } = await supabase
-        .from("cs_meetings")
-        .update({ next_step_at: nextAt } as never)
-        .eq("id", data.refId);
-      if (error) throw new Error(error.message);
-    } else if (data.kind === "alerta" && data.refId) {
-      const { error } = await supabase
-        .from("cs_alerts")
-        .update({ follow_up_at: nextAt } as never)
-        .eq("id", data.refId);
-      if (error) throw new Error(error.message);
-    } else if (data.kind === "timeline" && data.refId) {
-      const { error } = await supabase
-        .from("cs_timeline_events")
-        .update({ occurred_at: nextAt } as never)
-        .eq("id", data.refId);
-      if (error) throw new Error(error.message);
-    } else if (data.kind === "tarefa" && data.refId) {
-      const { error } = await supabase
-        .from("cs_tasks")
-        .update({ due_at: nextAt })
-        .eq("id", data.refId);
-      if (error) throw new Error(error.message);
-    } else {
-      const { error } = await supabase.from("cs_alerts").insert({
-        client_uid: data.clientUid,
-        alert_type: data.kind === "jornada" ? "sla_estourado" : "sem_contato",
-        reason: data.title,
-        severity: "media",
-        status: "open",
-        follow_up_at: nextAt,
-      } as never);
-      if (error) throw new Error(error.message);
-    }
-
-    await supabase.from("cs_timeline_events").insert({
-      client_uid: data.clientUid,
-      author_id: userId,
-      event_type: "follow_up_reagendado",
-      channel: "observacao",
-      title: `Follow-up reagendado: ${data.title}`,
-      description: data.notes?.trim() || null,
-      occurred_at: new Date().toISOString(),
-      metadata: { kind: data.kind, ref_id: data.refId ?? null, next_follow_up_at: nextAt },
-    } as never);
-
-    return { ok: true, nextAt };
-  });
+  .inputValidator((d) => rescheduleCsFollowUpSchema.parse(d))
+  .handler(async ({ data, context }) => rescheduleCsFollowUpNucleo(context, data));

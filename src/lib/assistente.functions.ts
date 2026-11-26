@@ -36,11 +36,13 @@ export const perguntarAoAssistente = createServerFn({ method: "POST" })
       { FERRAMENTAS_CRM, executarFerramentaCrm },
       { guiaComoTexto },
       { FERRAMENTAS_ACOES, executarAcao },
+      { FERRAMENTA_ACOES_CRM, executarAcaoCrm },
     ] = await Promise.all([
       import("@/lib/analytics-chat.functions"),
       import("@/lib/assistente/ferramentas.server"),
       import("@/lib/assistente/guia"),
       import("@/lib/assistente/acoes.server"),
+      import("@/lib/assistente/acoes-crm.server"),
     ]);
 
     const [{ data: perfil }, { data: papeis }, { data: times }] = await Promise.all([
@@ -63,7 +65,8 @@ Você faz três coisas:
    - Proposta: ache o negócio (buscar_registros/consultar_base em deals) ou abra um (criar_negocio); veja o catálogo (catalogo_produtos); defina os itens (definir_itens_negocio); gere a proposta (gerar_proposta). A proposta fica em rascunho: diga que ela revisa e envia pela tela do negócio.
    - Relatório: veja catalogo_relatorios, monte a spec e salve com criar_relatorio; mostre o resumo dos números e o link.
    - Segmentação de e-mail: veja opcoes_segmentacao, rode previa_segmentacao e salve com criar_segmentacao; diga quantos contatos entraram e dê o link.
-   REGRA DE OURO: antes de qualquer ferramenta que cria ou altera (criar_negocio, definir_itens_negocio, gerar_proposta, criar_relatorio, criar_segmentacao), mostre um resumo do que vai ser feito (empresa, itens com valores, modelo, filtros, nome) e pergunte "Posso criar?". Só chame com confirmado: true depois de um sim claro da pessoa. Se faltar informação (ex.: valor, condição de pagamento, contato), pergunte antes. Você não envia proposta, não apaga e não muda nada fora dessas ações.
+   - Tarefas, CS e negócios (executar_acao_crm): criar/concluir/reabrir/cancelar tarefa do CS, concluir ou remarcar follow-up, registrar contato na linha do tempo, agendar ou registrar reunião do CS, mudar etapa da jornada, trocar responsável, tags, resolver alerta; no negócio: registrar atividade e próximo passo, mover etapa, editar, congelar e fechar (ganho/perdido). Ache os ids antes com buscar_registros/consultar_base. Datas que a pessoa disser ("amanhã às 10h") viram ISO no fuso de Brasília (-03:00).
+   REGRA DE OURO: antes de qualquer ferramenta que cria ou altera (criar_negocio, definir_itens_negocio, gerar_proposta, criar_relatorio, criar_segmentacao, executar_acao_crm), mostre um resumo do que vai ser feito (empresa, itens com valores, modelo, filtros, nome) e pergunte "Posso criar?". Só chame com confirmado: true depois de um sim claro da pessoa. Se faltar informação (ex.: valor, condição de pagamento, contato), pergunte antes. Você não envia proposta nem e-mail/WhatsApp, não apaga nada e não muda nada fora dessas ações. Ao fechar negócio como ganho, avise que ele vai para o faturamento.
 
 Regras de resposta:
 - Português do Brasil, direto e curto. Markdown leve: listas, **negrito** nos números importantes.
@@ -74,20 +77,22 @@ Regras de resposta:
 
 - Depois de criar algo, sempre dê o link devolvido pela ferramenta.
 
-ferramentas: buscar_registros, consultar_negocios, consultar_carteira_cs, detalhar_empresa, detalhar_lead, consultar_propostas, descrever_base, consultar_base, catalogo_produtos, criar_negocio, definir_itens_negocio, gerar_proposta, catalogo_relatorios, criar_relatorio, opcoes_segmentacao, previa_segmentacao, criar_segmentacao, e para análise de leads/campanhas: get_analytics, query_leads, compare_dimensions, list_stages.
+ferramentas: buscar_registros, consultar_negocios, consultar_carteira_cs, detalhar_empresa, detalhar_lead, consultar_propostas, descrever_base, consultar_base, catalogo_produtos, criar_negocio, definir_itens_negocio, gerar_proposta, catalogo_relatorios, criar_relatorio, opcoes_segmentacao, previa_segmentacao, criar_segmentacao, executar_acao_crm, e para análise de leads/campanhas: get_analytics, query_leads, compare_dimensions, list_stages.
 
 # GUIA DO COMPASS
 ${guiaComoTexto()}`;
 
-    const ferramentas = [...FERRAMENTAS_CRM, ...FERRAMENTAS_ACOES, ...TOOLS];
+    const ferramentas = [...FERRAMENTAS_CRM, ...FERRAMENTAS_ACOES, FERRAMENTA_ACOES_CRM, ...TOOLS];
     const nomesCrm = new Set(FERRAMENTAS_CRM.map((f) => f.function.name));
     const nomesAcoes = new Set(FERRAMENTAS_ACOES.map((f) => f.function.name));
     const executar = (nome: string, args: Record<string, unknown>) =>
-      nomesAcoes.has(nome)
-        ? executarAcao(db, context.userId, nome, args)
-        : nomesCrm.has(nome)
-          ? executarFerramentaCrm(db, nome, args)
-          : execTool(db, nome, args);
+      nome === "executar_acao_crm"
+        ? executarAcaoCrm({ supabase: context.supabase, userId: context.userId }, args)
+        : nomesAcoes.has(nome)
+          ? executarAcao(db, context.userId, nome, args)
+          : nomesCrm.has(nome)
+            ? executarFerramentaCrm(db, nome, args)
+            : execTool(db, nome, args);
 
     // Com a chave da Anthropic configurada, responde com o Claude.
     const { temClaude, conversarComClaude } = await import("@/lib/assistente/claude.server");
