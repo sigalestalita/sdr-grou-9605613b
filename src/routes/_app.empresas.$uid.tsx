@@ -1,3 +1,4 @@
+import { AnalistasPdaTab } from "@/components/cs/analistas-pda-tab";
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -70,12 +71,13 @@ export const Route = createFileRoute("/_app/empresas/$uid")({
   component: CompanyPage,
 });
 
-const TABS = ["atividades", "reunioes", "vendas", "registros"] as const;
+const TABS = ["atividades", "reunioes", "vendas", "analistas", "registros"] as const;
 type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = {
   atividades: "Atividades",
   reunioes: "Reuniões",
   vendas: "Vendas",
+  analistas: "Analistas PDA",
   registros: "Registros",
 };
 
@@ -560,6 +562,7 @@ function CompanyPage() {
                 <CsMeetingsTab clientUid={clientUid} authorName={profileName} />
               )}
               {tab === "vendas" && <CsSalesTab clientUid={clientUid} authorName={profileName} />}
+              {tab === "analistas" && <AnalistasPdaTab clientUid={clientUid} />}
               {tab === "registros" && (
                 <RecordsPanel
                   records={data?.records ?? []}
