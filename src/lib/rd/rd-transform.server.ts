@@ -435,6 +435,18 @@ export async function transformRdToObjects(opts?: {
     ? await fatiaDo("rd_organizations", "rd_id, name, cnpj, site_url, segment, owner_name, raw")
     : [];
   const orgToCompany = new Map<string, string>(); // rd_org_id -> companies.id
+  // Empresas mescladas: a organização do RD da que saiu vai para a que ficou
+  // (sem isso, a próxima transformação recriaria a duplicata).
+  const mescladas = await fetchAll<{ sai_rd_org_id: string | null; fica_id: string }>(
+    "empresas_mescladas",
+    "sai_rd_org_id, fica_id",
+  );
+  const aliasRd = new Map(
+    mescladas
+      .filter((m) => m.sai_rd_org_id)
+      .map((m) => [String(m.sai_rd_org_id), String(m.fica_id)] as const),
+  );
+  for (const [org, empresa] of aliasRd) orgToCompany.set(org, empresa);
 
   if (only.has("companies")) {
     result.companies.total = rdOrgs.length;
@@ -504,6 +516,7 @@ export async function transformRdToObjects(opts?: {
       semUuidInvalido(fields);
 
       const key = String(o.rd_id);
+      if (!byRd.has(key) && aliasRd.has(key)) continue; // mesclada: já vai para a que ficou
       let existing = byRd.get(key) ?? null;
       if (!existing) {
         existing =
