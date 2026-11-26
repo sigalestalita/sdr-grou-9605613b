@@ -13,6 +13,7 @@ const dataHora = z
   .transform((v) => new Date(v).toISOString());
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { IDS_CAMPOS, IDS_OPERADORES } from "@/lib/email-marketing/campos";
+import { MAX_CONTATOS_NA_LISTA } from "@/lib/email-marketing/lista";
 
 /*
  * E-mail marketing: segmentações, campanhas, envio, métricas e descadastros.
@@ -30,6 +31,10 @@ export const RegrasSchema = z.object({
   etapas: z.array(z.string()).default([]),
   prioridades: z.array(z.string()).default([]),
   responsaveis: z.array(z.string().uuid()).default([]),
+  /** Carteira do executivo: empresas dele (carteira de CS ou dono no RD). */
+  carteiras: z.array(z.string().uuid()).default([]),
+  /** Segmentação por lista subida: o id da própria segmentação (ignora as outras regras). */
+  lista: z.string().uuid().nullable().default(null),
   sinaleiras: z.array(z.string()).default([]),
   cliente: z.enum(["", "sim", "nao"]).default(""),
   campanha_contem: z.string().max(120).default(""),
@@ -157,7 +162,7 @@ export const previaSegmento = createServerFn({ method: "POST" })
     return {
       total: Number(cont.data ?? 0),
       amostra: ((amostra.data ?? []) as Row[]).map((r) => ({
-        lead_id: String(r.lead_id),
+        lead_id: r.lead_id ? String(r.lead_id) : null,
         email: String(r.email),
         nome: (r.nome as string) ?? null,
         empresa: (r.empresa as string) ?? null,
@@ -200,6 +205,84 @@ export const salvarSegmento = createServerFn({ method: "POST" })
     const { data: r, error } = await q;
     if (error) throw new Error(error.message);
     return { id: String((r as Row).id), total: campos.ultima_contagem };
+  });
+
+/**
+ * Sobe (ou troca) a lista de e-mails de uma segmentação por lista. Cria a
+ * segmentação se for nova; "adicionar" junta à lista, "substituir" troca.
+ */
+export const importarListaDeEmails = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        id: z.string().uuid().nullable(),
+        nome: z.string().trim().min(1).max(160),
+        descricao: z.string().max(500).nullable(),
+        modo: z.enum(["substituir", "adicionar"]),
+        contatos: z
+          .array(
+            z.object({
+              email: z
+                .string()
+                .max(254)
+                .regex(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
+                .transform((e) => e.trim().toLowerCase()),
+              nome: z.string().max(200).nullable(),
+              empresa: z.string().max(200).nullable(),
+            }),
+          )
+          .max(MAX_CONTATOS_NA_LISTA),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    if (!data.id && !data.contatos.length) throw new Error("A lista está vazia");
+    let id = data.id;
+    if (!id) {
+      const { data: novo, error } = await t(context.supabase, "email_segmentos")
+        .insert({ nome: data.nome, descricao: data.descricao, regras: {} })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      id = String((novo as Row).id);
+    }
+    const membros = t(context.supabase, "email_segmento_membros");
+    if (data.modo === "substituir" && data.id) {
+      const { error } = await membros.delete().eq("segmento_id", id);
+      if (error) throw new Error(error.message);
+    }
+    const unicos = [...new Map(data.contatos.map((c) => [c.email, c])).values()];
+    for (let i = 0; i < unicos.length; i += 1000) {
+      const { error } = await t(context.supabase, "email_segmento_membros").upsert(
+        unicos.slice(i, i + 1000).map((c) => ({
+          segmento_id: id,
+          email: c.email,
+          nome: c.nome?.trim() || null,
+          empresa: c.empresa?.trim() || null,
+        })),
+        { onConflict: "segmento_id,email" },
+      );
+      if (error) throw new Error(error.message);
+    }
+    const regras = RegrasSchema.parse({ lista: id });
+    const { data: cont } = await context.supabase.rpc(
+      "email_segmento_contagem" as never,
+      { regras } as never,
+    );
+    const total = Number(cont ?? 0);
+    const { error } = await t(context.supabase, "email_segmentos")
+      .update({
+        nome: data.nome,
+        descricao: data.descricao,
+        regras,
+        ultima_contagem: total,
+        contado_em: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    return { id, total };
   });
 
 export const apagarSegmento = createServerFn({ method: "POST" })
