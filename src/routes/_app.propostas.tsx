@@ -16,6 +16,7 @@ import { duracao } from "@/lib/propostas/visitas";
 import { haQuanto } from "@/components/propostas/propostas-do-negocio";
 import { EditorModelo, MODELO_VAZIO } from "@/components/propostas/editor-modelo";
 import { ListaFichas } from "@/components/fichas/lista-fichas";
+import { GerirAcervo } from "@/components/propostas/acervo-slides";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -30,8 +31,13 @@ import {
 export const Route = createFileRoute("/_app/propostas")({
   validateSearch: (
     s: Record<string, unknown>,
-  ): { aba?: "propostas" | "modelos" | "fichas"; ficha?: string } => ({
-    ...(s.aba === "modelos" || s.aba === "fichas" || s.aba === "propostas" ? { aba: s.aba } : {}),
+  ): { aba?: "propostas" | "modelos" | "apresentacao" | "fichas"; ficha?: string } => ({
+    ...(s.aba === "modelos" ||
+    s.aba === "fichas" ||
+    s.aba === "propostas" ||
+    s.aba === "apresentacao"
+      ? { aba: s.aba }
+      : {}),
     ...(typeof s.ficha === "string" && /^[0-9a-f-]{36}$/i.test(s.ficha) ? { ficha: s.ficha } : {}),
   }),
   component: PropostasPage,
@@ -44,7 +50,9 @@ export const Route = createFileRoute("/_app/propostas")({
  */
 function PropostasPage() {
   const { aba: abaUrl, ficha: fichaUrl } = Route.useSearch();
-  const [aba, setAba] = useState<"propostas" | "modelos" | "fichas">(abaUrl ?? "propostas");
+  const [aba, setAba] = useState<"propostas" | "modelos" | "apresentacao" | "fichas">(
+    abaUrl ?? "propostas",
+  );
   return (
     <div className="mx-auto max-w-[1200px] space-y-5 p-4 lg:p-8">
       <header className="flex flex-wrap items-end justify-between gap-3">
@@ -58,14 +66,20 @@ function PropostasPage() {
           </p>
         </div>
         <div className="flex rounded-full bg-muted p-1 text-[13px]">
-          {(["propostas", "modelos", "fichas"] as const).map((a) => (
+          {(["propostas", "modelos", "apresentacao", "fichas"] as const).map((a) => (
             <button
               key={a}
               type="button"
               onClick={() => setAba(a)}
               className={`rounded-full px-4 py-1.5 ${aba === a ? "bg-card font-semibold shadow-sm" : "text-muted-foreground"}`}
             >
-              {a === "propostas" ? "Propostas" : a === "modelos" ? "Modelos" : "Fichas cadastrais"}
+              {a === "propostas"
+                ? "Propostas"
+                : a === "modelos"
+                  ? "Modelos"
+                  : a === "apresentacao"
+                    ? "Apresentação"
+                    : "Fichas cadastrais"}
             </button>
           ))}
         </div>
@@ -74,6 +88,8 @@ function PropostasPage() {
         <ListaPropostas />
       ) : aba === "modelos" ? (
         <Modelos />
+      ) : aba === "apresentacao" ? (
+        <GerirAcervo />
       ) : (
         <ListaFichas abrirId={fichaUrl} />
       )}
