@@ -1397,6 +1397,12 @@ export const addCsTimelineEntry = createServerFn({ method: "POST" })
       ]
         .filter(Boolean)
         .join("\n");
+      const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
+      const prazo = await ajustarDataDaTarefa(
+        supabase,
+        client?.comercial_responsavel_id ?? null,
+        new Date(Date.now() + 2 * 86400000).toISOString(),
+      );
       await supabase.from("cs_tasks").insert({
         client_uid: data.clientUid,
         owner_id: client?.comercial_responsavel_id ?? null,
@@ -1406,7 +1412,7 @@ export const addCsTimelineEntry = createServerFn({ method: "POST" })
             200,
           ),
         task_type: "outro",
-        due_at: new Date(Date.now() + 2 * 86400000).toISOString(),
+        due_at: prazo.iso,
         notes,
         created_by: userId,
         source: "acionamento_executivo",

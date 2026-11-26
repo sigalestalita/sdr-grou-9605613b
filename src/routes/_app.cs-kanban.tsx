@@ -15,6 +15,13 @@ import {
   upsertCadenceTask,
 } from "@/lib/cs-cadence-kanban.functions";
 import { ATENDIMENTOS_POR_DIA, montarSemana, primeiroDiaComVagaNova } from "@/lib/cs/semana-cs";
+import { lerAgendaTarefas } from "@/lib/cs-agenda-tarefas.functions";
+import {
+  capacidadeDaPessoa,
+  diasDisponiveisNaSemana,
+  motivoIndisponivel,
+  somarDias,
+} from "@/lib/cs/agenda-tarefas";
 import { CADENCE_URGENCY_LABEL, URGENCY_TONE, WEEKDAY_LABEL } from "@/lib/cs/cadence";
 import { CS_SIGNAL_LABEL, CS_STAGE_LABEL, mondayOf, type CsSignal } from "@/lib/cs-types";
 import { useAuth } from "@/lib/use-auth";
@@ -196,6 +203,13 @@ function CsKanbanPage() {
     queryKey: ["cs-cadence-tasks", weekStart],
     queryFn: () => fetchTasks({ data: { weekStart } }),
   });
+  // Agenda de tarefas (Configurações CS): dias, capacidade, feriados e ausências.
+  const agendaFn = useServerFn(lerAgendaTarefas);
+  const agendaQ = useQuery({
+    queryKey: ["cs-agenda-tarefas"],
+    queryFn: () => agendaFn(),
+    staleTime: 5 * 60_000,
+  });
 
   const mutation = useMutation({
     mutationFn: (input: {
@@ -236,23 +250,38 @@ function CsKanbanPage() {
       })),
       ATENDIMENTOS_POR_DIA,
       primeiroDiaComVagaNova(weekStart),
+      agendaQ.data
+        ? {
+            diasDoDono: (dono) =>
+              diasDisponiveisNaSemana(weekStart, dono, agendaQ.data.config, agendaQ.data.ausencias),
+            porDiaDoDono: (dono) => capacidadeDaPessoa(agendaQ.data.config, dono),
+          }
+        : {},
     );
-  }, [cadenceQ.data, tasksQ.data, weekStart]);
+  }, [cadenceQ.data, tasksQ.data, weekStart, agendaQ.data]);
 
   // Grava a agenda montada (semana atual ou futura) para ela não mudar de lugar.
   const fixadas = useRef<string>("");
   useEffect(() => {
-    if (!cadenceQ.data || !tasksQ.data) return;
+    // Espera a agenda carregar; se ela falhar, segue como antes (seg–sex, 8 por dia).
+    if (!cadenceQ.data || !tasksQ.data || agendaQ.isPending) return;
     if (weekStart < mondayOf()) return;
-    const novos = semana.filter((i) => !i.salvo);
-    if (novos.length === 0) return;
-    const chave = `${weekStart}:${novos.length}:${novos[0]?.clientUid}`;
+    const jaSalvos = new Set(tasksQ.data.map((t) => t.clientUid));
+    const pendentes = semana.filter((i) => !i.salvo);
+    // Card que já existia e mudou de dia (feriado, folga, férias): só move.
+    const mover = pendentes
+      .filter((i) => jaSalvos.has(i.clientUid))
+      .map((i) => ({ clientUid: i.clientUid, weekday: i.weekday }));
+    const novos = pendentes.filter((i) => !jaSalvos.has(i.clientUid));
+    if (novos.length === 0 && mover.length === 0) return;
+    const chave = `${weekStart}:${novos.length}:${novos[0]?.clientUid}:${mover.length}`;
     if (fixadas.current === chave) return;
     fixadas.current = chave;
     const porUid = new Map((cadenceQ.data.rows ?? []).map((r) => [r.clientUid, r]));
     fixarFn({
       data: {
         weekStart,
+        mover,
         itens: novos.map((i) => {
           const r = porUid.get(i.clientUid);
           return {
@@ -270,7 +299,7 @@ function CsKanbanPage() {
       .catch(() => {
         fixadas.current = "";
       });
-  }, [semana, weekStart, cadenceQ.data, tasksQ.data, fixarFn, qc]);
+  }, [semana, weekStart, cadenceQ.data, tasksQ.data, agendaQ.isPending, fixarFn, qc]);
 
   const cards = useMemo(() => {
     const porUid = new Map((cadenceQ.data?.rows ?? []).map((r) => [r.clientUid, r]));
@@ -299,10 +328,30 @@ function CsKanbanPage() {
       m.set(`${i.ownerId}:${i.weekday}`, (m.get(`${i.ownerId}:${i.weekday}`) ?? 0) + 1);
     return m;
   }, [semana]);
-  const diasCheiosDe = (ownerId: string | null) =>
-    new Set(
-      [1, 2, 3, 4, 5].filter((d) => (ocupacao.get(`${ownerId}:${d}`) ?? 0) >= ATENDIMENTOS_POR_DIA),
+  const diasCheiosDe = (ownerId: string | null) => {
+    const ag = agendaQ.data;
+    const cap = ag ? capacidadeDaPessoa(ag.config, ownerId) : ATENDIMENTOS_POR_DIA;
+    const livres = ag
+      ? diasDisponiveisNaSemana(weekStart, ownerId, ag.config, ag.ausencias)
+      : [1, 2, 3, 4, 5];
+    // Dia cheio ou indisponível (feriado, folga, férias) não recebe card movido.
+    return new Set(
+      [1, 2, 3, 4, 5].filter(
+        (d) => !livres.includes(d) || (ocupacao.get(`${ownerId}:${d}`) ?? 0) >= cap,
+      ),
     );
+  };
+  /** Feriado do dia (vale para todos) ou ausência de quem está sendo visto. */
+  const avisoDoDia = (d: number) => {
+    const ag = agendaQ.data;
+    if (!ag) return null;
+    return motivoIndisponivel(
+      somarDias(weekStart, d - 1),
+      verTodos ? null : effectiveOwner || null,
+      { ...ag.config, dias: [0, 1, 2, 3, 4, 5, 6], por_pessoa: {} },
+      ag.ausencias,
+    );
+  };
 
   const byDay = useMemo(() => {
     const map: Record<number, TaskCard[]> = { 1: [], 2: [], 3: [], 4: [], 5: [] };
@@ -444,6 +493,11 @@ function CsKanbanPage() {
                     {WEEKDAY_LABEL[d]}
                   </div>
                   <div className="text-xs text-muted-foreground">{dayLabel(weekStart, d)}</div>
+                  {avisoDoDia(d) && (
+                    <div className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                      {avisoDoDia(d)}
+                    </div>
+                  )}
                 </div>
                 <div className="text-sm font-bold">
                   {(byDay[d] ?? []).filter((c) => c.done).length}/{byDay[d]?.length ?? 0}

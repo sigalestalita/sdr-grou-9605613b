@@ -134,10 +134,28 @@ export const fixarSemanaCs = createServerFn({ method: "POST" })
             }),
           )
           .max(2000),
+        /**
+         * Cards pendentes que já existiam e mudaram de dia (o dia ficou
+         * indisponível na agenda de tarefas: feriado, férias, folga).
+         */
+        mover: z
+          .array(
+            z.object({ clientUid: z.string().min(1), weekday: z.number().int().min(1).max(5) }),
+          )
+          .max(2000)
+          .default([]),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    for (const m of data.mover) {
+      await context.supabase
+        .from("cs_cadence_tasks")
+        .update({ weekday: m.weekday } as never)
+        .eq("client_uid", m.clientUid)
+        .eq("week_start", data.weekStart)
+        .eq("done", false);
+    }
     if (data.itens.length === 0) return { gravadas: 0 };
     const linhas = data.itens.map((i) => ({
       client_uid: i.clientUid,

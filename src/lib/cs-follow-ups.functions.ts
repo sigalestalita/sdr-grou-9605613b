@@ -334,7 +334,11 @@ export const completeCsFollowUp = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const now = new Date().toISOString();
     const outcome = data.outcome ?? "atendimento_concluido";
-    const nextAt = data.nextAt ? new Date(data.nextAt).toISOString() : null;
+    // Próximo contato em dia indisponível (feriado, folga, férias) → próximo dia disponível.
+    const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
+    const nextAt = data.nextAt
+      ? (await ajustarDataDaTarefa(supabase, userId, new Date(data.nextAt).toISOString())).iso
+      : null;
     const channel = data.channel ?? (data.kind === "reuniao" ? "reuniao" : "observacao");
 
     // Canal com evidência obrigatória: só conclui se o canal vinculado registrou
@@ -484,7 +488,10 @@ export const rescheduleCsFollowUp = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const nextAt = new Date(data.nextAt).toISOString();
+    const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
+    const nextAt = (
+      await ajustarDataDaTarefa(supabase, userId, new Date(data.nextAt).toISOString())
+    ).iso;
 
     if (data.kind === "reuniao" && data.refId) {
       const { error } = await supabase
