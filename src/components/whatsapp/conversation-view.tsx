@@ -12,6 +12,7 @@ import { listTemplates } from "@/lib/whatsapp-templates.functions";
 import { explainWhatsappError } from "@/lib/whatsapp/send-error";
 import {
   summarizeConversation,
+  salvarResumoNoHistorico,
   suggestReply,
   classifyTemperature,
   getConversationAi,
@@ -66,6 +67,7 @@ export function ConversationView({ conversationId }: { conversationId: string })
   const sendMediaFn = useServerFn(sendMediaFromStorage);
   const aiGet = useServerFn(getConversationAi);
   const aiSummarize = useServerFn(summarizeConversation);
+  const salvarResumoFn = useServerFn(salvarResumoNoHistorico);
   const aiSuggest = useServerFn(suggestReply);
   const aiClassify = useServerFn(classifyTemperature);
   const aiPlan = useServerFn(suggestApproachPlan);
@@ -144,6 +146,12 @@ export function ConversationView({ conversationId }: { conversationId: string })
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao resumir"),
   });
 
+  const salvarResumo = useMutation({
+    mutationFn: () => salvarResumoFn({ data: { conversationId } }),
+    onSuccess: (r) => toast.success(`Resumo salvo: ${r.destinos.join(" e ")}`),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Não deu para salvar"),
+  });
+
   const classify = useMutation({
     mutationFn: () => aiClassify({ data: { conversationId } }),
     onSuccess: (r) => {
@@ -217,6 +225,8 @@ export function ConversationView({ conversationId }: { conversationId: string })
       <AiToolbar
         ai={ai ?? null}
         summarizing={summarize.isPending}
+        salvandoResumo={salvarResumo.isPending}
+        onSalvarResumo={() => salvarResumo.mutate()}
         classifying={classify.isPending}
         planning={plan.isPending}
         plan={plan.data ?? null}
@@ -628,6 +638,8 @@ type AiState = {
 function AiToolbar({
   ai,
   summarizing,
+  salvandoResumo,
+  onSalvarResumo,
   classifying,
   planning,
   plan,
@@ -638,6 +650,8 @@ function AiToolbar({
 }: {
   ai: AiState;
   summarizing: boolean;
+  salvandoResumo: boolean;
+  onSalvarResumo: () => void;
   classifying: boolean;
   planning: boolean;
   plan: {
@@ -703,6 +717,20 @@ function AiToolbar({
                     Gerado em {new Date(ai.ai_summary_at).toLocaleString("pt-BR")}
                   </p>
                 )}
+                {/* Vai para a ficha do cliente e para o lead: quem abre a empresa lê ali. */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 w-full text-[11px]"
+                  onClick={onSalvarResumo}
+                  disabled={salvandoResumo || summarizing}
+                >
+                  {salvandoResumo ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    "Salvar no histórico da empresa"
+                  )}
+                </Button>
               </>
             ) : (
               <p className="text-[11px] text-muted-foreground">

@@ -762,6 +762,79 @@ export const summarizeConversation = createServerFn({ method: "POST" })
     return { summary, summarized_at: new Date().toISOString() };
   });
 
+/**
+ * Leva o resumo da conversa para o histórico, para quem abre a empresa saber o
+ * que foi falado sem ler o WhatsApp inteiro (pedido do time de CS). Vai para a
+ * linha do tempo da ficha do cliente no CS (pela conversa ou pela empresa do
+ * lead) e vira nota no lead, quando há lead.
+ */
+export const salvarResumoNoHistorico = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ conversationId: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    // client_uid entrou depois dos tipos gerados
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const db = supabase as any;
+    const { data: conv, error } = await db
+      .from("whatsapp_conversations")
+      .select("id, lead_id, client_uid, ai_summary, ai_summary_at")
+      .eq("id", data.conversationId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!conv) throw new Error("Conversa não encontrada");
+    const resumo = (conv.ai_summary as string | null)?.trim();
+    if (!resumo) throw new Error("Gere o resumo antes de salvar");
+
+    let clientUid = (conv.client_uid as string | null) ?? null;
+    if (!clientUid && conv.lead_id) {
+      const { data: lead } = await supabase
+        .from("leads")
+        .select("company_id")
+        .eq("id", conv.lead_id as string)
+        .maybeSingle();
+      const companyId = (lead as { company_id?: string | null } | null)?.company_id;
+      if (companyId) {
+        const { data: cli } = await db
+          .from("cs_clients")
+          .select("client_uid")
+          .eq("company_id", companyId)
+          .eq("ativo", true)
+          .limit(1)
+          .maybeSingle();
+        clientUid = (cli?.client_uid as string | undefined) ?? null;
+      }
+    }
+
+    const titulo = "Resumo da conversa de WhatsApp";
+    const destinos: string[] = [];
+    if (clientUid) {
+      const { error: e1 } = await db.from("cs_timeline_events").insert({
+        client_uid: clientUid,
+        author_id: userId,
+        event_type: "nota",
+        channel: "whatsapp",
+        title: titulo,
+        description: resumo,
+        metadata: { source: "resumo_whatsapp", conversation_id: conv.id },
+        occurred_at: new Date().toISOString(),
+      });
+      if (e1) throw new Error(e1.message);
+      destinos.push("ficha do cliente");
+    }
+    if (conv.lead_id) {
+      const { error: e2 } = await supabase.from("lead_notes").insert({
+        lead_id: conv.lead_id as string,
+        author_id: userId,
+        content: `${titulo}:\n${resumo}`,
+      });
+      if (e2) throw new Error(e2.message);
+      destinos.push("histórico do lead");
+    }
+    if (!destinos.length) throw new Error("Conversa sem lead nem cliente para guardar o resumo");
+    return { ok: true, destinos };
+  });
+
 /** Sugere a próxima mensagem do SDR (não envia — devolve para o composer). */
 export const suggestReply = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
