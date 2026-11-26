@@ -16,6 +16,9 @@ import { URGENCY_ORDER, type CadencePlan } from "./cadence";
  *  3. Com os 5 dias cheios (40 atendimentos), o resto fica para a semana
  *     seguinte.
  * Carteira com menos de 40 clientes não completa os 8 por dia: não há quem pôr.
+ *
+ * Dia que já passou não recebe card novo (nasceria atrasado): na semana atual
+ * a agenda nova começa hoje; numa semana passada, só fica o que estava salvo.
  */
 
 export const ATENDIMENTOS_POR_DIA = 8;
@@ -59,12 +62,33 @@ export function compararPrioridade(a: PlanoMinimo, b: PlanoMinimo): number {
   return sb - sa;
 }
 
-/** Dia com vaga mais perto do preferido (empate: o dia seguinte). */
-function diaComVaga(preferido: number, ocupacao: Record<number, number>, porDia: number) {
-  const base = DIAS_UTEIS.includes(preferido as 1) ? preferido : 1;
+/**
+ * Primeiro dia útil da semana que ainda aceita card novo: 1 numa semana
+ * futura, o dia de hoje na semana atual (6 no fim de semana) e 6 numa semana
+ * que já passou — 6 quer dizer nenhum. Datas no fuso do navegador.
+ */
+export function primeiroDiaComVagaNova(weekStart: string, hoje: Date = new Date()): number {
+  const ymd = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(
+    hoje.getDate(),
+  ).padStart(2, "0")}`;
+  const dias = Math.round(
+    (Date.parse(`${ymd}T00:00:00Z`) - Date.parse(`${weekStart}T00:00:00Z`)) / 86400000,
+  );
+  if (dias < 0) return 1;
+  return Math.min(dias + 1, 6);
+}
+
+/** Dia com vaga mais perto do preferido, a partir de `minimo` (empate: o dia seguinte). */
+function diaComVaga(
+  preferido: number,
+  ocupacao: Record<number, number>,
+  porDia: number,
+  minimo = 1,
+) {
+  const base = DIAS_UTEIS.includes(preferido as 1) ? Math.max(preferido, minimo) : minimo;
   for (let dist = 0; dist < DIAS_UTEIS.length; dist++) {
     for (const d of [base + dist, base - dist]) {
-      if (d >= 1 && d <= 5 && (ocupacao[d] ?? 0) < porDia) return d;
+      if (d >= minimo && d <= 5 && (ocupacao[d] ?? 0) < porDia) return d;
     }
   }
   return null;
@@ -74,6 +98,8 @@ export function montarSemana(
   linhas: LinhaDaCarteira[],
   tarefas: TarefaSalva[],
   porDia: number = ATENDIMENTOS_POR_DIA,
+  /** Primeiro dia que recebe card novo (ver primeiroDiaComVagaNova). */
+  primeiroDia = 1,
 ): ItemDaSemana[] {
   const tarefaPorCliente = new Map(tarefas.map((t) => [t.clientUid, t]));
   const porDono = new Map<string, LinhaDaCarteira[]>();
@@ -116,7 +142,7 @@ export function montarSemana(
     // Tarefa salva num dia que já estourou vai para o dia livre mais perto.
     for (const l of sobras) {
       const t = tarefaPorCliente.get(l.clientUid)!;
-      const d = diaComVaga(t.weekday, ocupacao, porDia);
+      const d = diaComVaga(t.weekday, ocupacao, porDia, primeiroDia);
       if (d === null) break;
       ocupacao[d]++;
       saida.push({
@@ -132,7 +158,7 @@ export function montarSemana(
       .filter((l) => !tarefaPorCliente.has(l.clientUid))
       .sort((a, b) => compararPrioridade(a.plan, b.plan));
     for (const l of fila) {
-      const d = diaComVaga(l.plan.suggestedWeekday, ocupacao, porDia);
+      const d = diaComVaga(l.plan.suggestedWeekday, ocupacao, porDia, primeiroDia);
       if (d === null) break;
       ocupacao[d]++;
       saida.push({ clientUid: l.clientUid, ownerId: dono, weekday: d, done: false, salvo: false });

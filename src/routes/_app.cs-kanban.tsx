@@ -14,7 +14,7 @@ import {
   listCadenceTasks,
   upsertCadenceTask,
 } from "@/lib/cs-cadence-kanban.functions";
-import { ATENDIMENTOS_POR_DIA, montarSemana } from "@/lib/cs/semana-cs";
+import { ATENDIMENTOS_POR_DIA, montarSemana, primeiroDiaComVagaNova } from "@/lib/cs/semana-cs";
 import { CADENCE_URGENCY_LABEL, URGENCY_TONE, WEEKDAY_LABEL } from "@/lib/cs/cadence";
 import { CS_SIGNAL_LABEL, CS_STAGE_LABEL, mondayOf, type CsSignal } from "@/lib/cs-types";
 import { useAuth } from "@/lib/use-auth";
@@ -234,8 +234,10 @@ function CsKanbanPage() {
         done: t.done,
         ownerId: t.ownerId,
       })),
+      ATENDIMENTOS_POR_DIA,
+      primeiroDiaComVagaNova(weekStart),
     );
-  }, [cadenceQ.data, tasksQ.data]);
+  }, [cadenceQ.data, tasksQ.data, weekStart]);
 
   // Grava a agenda montada (semana atual ou futura) para ela não mudar de lugar.
   const fixadas = useRef<string>("");

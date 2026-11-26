@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { montarSemana, type LinhaDaCarteira } from "./semana-cs";
+import { montarSemana, primeiroDiaComVagaNova, type LinhaDaCarteira } from "./semana-cs";
 
 function linha(i: number, dono: string | null, extra: Partial<LinhaDaCarteira["plan"]> = {}) {
   return {
@@ -63,5 +63,35 @@ describe("agenda semanal do CS", () => {
   it("deixa de fora cliente sem CS", () => {
     const s = montarSemana([linha(1, null, { due: true })], []);
     expect(s).toHaveLength(0);
+  });
+
+  it("dia que já passou não recebe card novo; o salvo fica onde está", () => {
+    const linhas = Array.from({ length: 60 }, (_, i) => linha(i, "ana", { suggestedWeekday: 1 }));
+    const tarefas = [{ clientUid: "c0", weekday: 1, done: true, ownerId: "ana" }];
+    // quinta-feira: só quinta e sexta recebem cards novos
+    const s = montarSemana(linhas, tarefas, 8, 4);
+    expect(contaPorDia(s, "ana")).toEqual({ 1: 1, 2: 0, 3: 0, 4: 8, 5: 8 });
+  });
+
+  it("semana que já passou só mostra o que estava salvo", () => {
+    const linhas = Array.from({ length: 20 }, (_, i) => linha(i, "ana"));
+    const tarefas = [{ clientUid: "c3", weekday: 2, done: false, ownerId: "ana" }];
+    const s = montarSemana(linhas, tarefas, 8, 6);
+    expect(s.map((i) => i.clientUid)).toEqual(["c3"]);
+  });
+});
+
+describe("primeiroDiaComVagaNova", () => {
+  // semana de segunda 23/11/2026
+  const semana = "2026-11-23";
+  it("semana atual começa hoje; fim de semana não tem vaga", () => {
+    expect(primeiroDiaComVagaNova(semana, new Date(2026, 10, 23, 9))).toBe(1);
+    expect(primeiroDiaComVagaNova(semana, new Date(2026, 10, 26, 8))).toBe(4);
+    expect(primeiroDiaComVagaNova(semana, new Date(2026, 10, 28, 10))).toBe(6);
+  });
+
+  it("semana futura começa na segunda; semana passada não recebe nada", () => {
+    expect(primeiroDiaComVagaNova("2026-11-30", new Date(2026, 10, 26))).toBe(1);
+    expect(primeiroDiaComVagaNova("2026-11-16", new Date(2026, 10, 26))).toBe(6);
   });
 });
