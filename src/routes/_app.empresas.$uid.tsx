@@ -39,6 +39,7 @@ import { CsTasksPanel } from "@/components/cs/cs-tasks-panel";
 import { CsMasterclassPanel } from "@/components/cs/cs-masterclass-panel";
 import { CsOportunidadePanel } from "@/components/cs/cs-oportunidade-panel";
 import { CsJourneyPanel } from "@/components/cs/cs-journey-panel";
+import { CsPlataformaPanel } from "@/components/cs/cs-plataforma-panel";
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
 import { CadastroContaAzulCard } from "@/components/faturamento/cadastro-conta-azul";
 import {
@@ -323,6 +324,10 @@ function CompanyPage() {
 
           <Panel title="Jornadas Reais (e-mails por marco)">
             <CsJourneyPanel clientUid={clientUid} />
+          </Panel>
+
+          <Panel title="Plataforma de CS">
+            <CsPlataformaPanel clientUid={clientUid} />
           </Panel>
 
           <Panel

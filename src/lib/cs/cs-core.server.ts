@@ -253,6 +253,13 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
       .limit(1),
     db.from("cs_masterclass_participations").select("id").eq("client_uid", clientUid).limit(1),
   ]);
+  // Uso da Plataforma de CS nos últimos 90 dias (sincronizado todo dia às 08:10).
+  const { data: usoPlataforma } = await (db as unknown as SupabaseClient)
+    .from("cs_plataforma_uso")
+    .select("email")
+    .eq("client_uid", clientUid)
+    .gte("ultima_atividade", since90)
+    .limit(1);
 
   if (!clientRes.data) return 0;
   const c = clientRes.data as Record<string, unknown>;
@@ -275,6 +282,7 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
         (k) =>
           (k as Record<string, unknown>)["analista_pda"] === true && k.ativo_no_cliente !== false,
       ),
+      usaPlataforma: (usoPlataforma ?? []).length > 0,
     }),
     weights,
     points,
@@ -379,6 +387,18 @@ export async function recomputeHealthAll(
           .range(a, b) as never,
     ),
   ]);
+  // Uso da Plataforma de CS nos últimos 90 dias (sincronizado todo dia às 08:10).
+  const usoPlataforma = await fetchAllRows<{ client_uid: string }>(
+    (a, b) =>
+      (db as unknown as SupabaseClient)
+        .from("cs_plataforma_uso")
+        .select("client_uid")
+        .gte("ultima_atividade", since90)
+        .order("client_uid")
+        .order("email")
+        .range(a, b) as never,
+  );
+  const comPlataforma = new Set(usoPlataforma.map((u) => u.client_uid));
 
   // a semana mais recente de cada empresa (as linhas vêm em ordem de semana)
   const ultimoSinal = new Map<string, CsSignal>();
@@ -417,6 +437,7 @@ export async function recomputeHealthAll(
               temParticipacaoMasterclass: comMasterclass.has(c.client_uid),
               tags: (tagsDe.get(c.client_uid) ?? []).map((t) => t.tag),
               analistaPda: comAnalista.has(c.client_uid),
+              usaPlataforma: comPlataforma.has(c.client_uid),
             }),
             weights,
             points,
