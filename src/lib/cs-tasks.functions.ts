@@ -183,19 +183,28 @@ export const saveCsTask = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    const dono = data.ownerId === undefined ? userId : data.ownerId;
+    // Agenda de tarefas: feriado, dia que não trabalha ou ausência → próximo dia disponível.
+    const { ajustarDataDaTarefa } = await import("@/lib/cs/agenda-tarefas.server");
+    const ajuste = await ajustarDataDaTarefa(supabase, dono, new Date(data.dueAt).toISOString());
     const row = {
       client_uid: data.clientUid,
       contact_id: data.contactId ?? null,
-      owner_id: data.ownerId === undefined ? userId : data.ownerId,
+      owner_id: dono,
       title: data.title.trim(),
       task_type: data.taskType,
-      due_at: new Date(data.dueAt).toISOString(),
+      due_at: ajuste.iso,
       notes: data.notes ?? null,
     };
     if (data.id) {
       const { error } = await supabase.from("cs_tasks").update(row).eq("id", data.id);
       if (error) throw new Error(error.message);
-      return { ok: true, id: data.id };
+      return {
+        ok: true,
+        id: data.id,
+        movidaPara: ajuste.movida ? ajuste.iso : null,
+        motivo: ajuste.motivo,
+      };
     }
     const { data: created, error } = await supabase
       .from("cs_tasks")

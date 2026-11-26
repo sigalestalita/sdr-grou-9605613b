@@ -3,8 +3,9 @@ import { URGENCY_ORDER, type CadencePlan } from "./cadence";
 /**
  * Agenda da semana de cada analista de CS no kanban de cadência.
  *
- * Regra da gestão: cada CS faz exatamente 8 atendimentos por dia, nem mais nem
- * menos. A semana de cada analista é montada assim:
+ * Regra da gestão: cada CS faz 8 atendimentos por dia (configurável na agenda
+ * de tarefas, por pessoa), só nos dias em que está disponível — feriados,
+ * férias e dias que não trabalha ficam fora. A semana de cada analista é montada assim:
  *  1. O que já está salvo para a semana (concluído ou movido à mão) fica no dia
  *     em que está, até 8 por dia; o que passar disso vai para o dia livre mais
  *     perto.
@@ -78,21 +79,32 @@ export function primeiroDiaComVagaNova(weekStart: string, hoje: Date = new Date(
   return Math.min(dias + 1, 6);
 }
 
-/** Dia com vaga mais perto do preferido, a partir de `minimo` (empate: o dia seguinte). */
+/**
+ * Dia com vaga mais perto do preferido, a partir de `minimo` (empate: o dia
+ * seguinte), só entre os dias permitidos (agenda de tarefas: feriado, férias e
+ * dias que a pessoa não trabalha ficam de fora).
+ */
 function diaComVaga(
   preferido: number,
   ocupacao: Record<number, number>,
   porDia: number,
   minimo = 1,
+  permitidos: readonly number[] = DIAS_UTEIS,
 ) {
   const base = DIAS_UTEIS.includes(preferido as 1) ? Math.max(preferido, minimo) : minimo;
   for (let dist = 0; dist < DIAS_UTEIS.length; dist++) {
     for (const d of [base + dist, base - dist]) {
-      if (d >= minimo && d <= 5 && (ocupacao[d] ?? 0) < porDia) return d;
+      if (d >= minimo && d <= 5 && permitidos.includes(d) && (ocupacao[d] ?? 0) < porDia) return d;
     }
   }
   return null;
 }
+
+/** Dias e capacidade de cada analista vindos da agenda de tarefas do CS. */
+export type AgendaDaSemana = {
+  diasDoDono?: (ownerId: string) => readonly number[];
+  porDiaDoDono?: (ownerId: string) => number;
+};
 
 export function montarSemana(
   linhas: LinhaDaCarteira[],
@@ -100,6 +112,7 @@ export function montarSemana(
   porDia: number = ATENDIMENTOS_POR_DIA,
   /** Primeiro dia que recebe card novo (ver primeiroDiaComVagaNova). */
   primeiroDia = 1,
+  agenda: AgendaDaSemana = {},
 ): ItemDaSemana[] {
   const tarefaPorCliente = new Map(tarefas.map((t) => [t.clientUid, t]));
   const porDono = new Map<string, LinhaDaCarteira[]>();
@@ -114,6 +127,8 @@ export function montarSemana(
   const saida: ItemDaSemana[] = [];
   for (const [dono, carteira] of porDono) {
     const ocupacao: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    const permitidos = agenda.diasDoDono?.(dono) ?? DIAS_UTEIS;
+    const cap = agenda.porDiaDoDono?.(dono) ?? porDia;
     const salvas = carteira
       .filter((l) => tarefaPorCliente.has(l.clientUid))
       .sort((a, b) => {
@@ -126,7 +141,8 @@ export function montarSemana(
     for (const l of salvas) {
       const t = tarefaPorCliente.get(l.clientUid)!;
       const d = DIAS_UTEIS.includes(t.weekday as 1) ? t.weekday : 1;
-      if (ocupacao[d] < porDia) {
+      // Concluído fica onde está; pendente em dia indisponível vai para outro dia.
+      if (ocupacao[d] < cap && (t.done || permitidos.includes(d))) {
         ocupacao[d]++;
         saida.push({
           clientUid: l.clientUid,
@@ -142,7 +158,7 @@ export function montarSemana(
     // Tarefa salva num dia que já estourou vai para o dia livre mais perto.
     for (const l of sobras) {
       const t = tarefaPorCliente.get(l.clientUid)!;
-      const d = diaComVaga(t.weekday, ocupacao, porDia, primeiroDia);
+      const d = diaComVaga(t.weekday, ocupacao, cap, primeiroDia, permitidos);
       if (d === null) break;
       ocupacao[d]++;
       saida.push({
@@ -158,7 +174,7 @@ export function montarSemana(
       .filter((l) => !tarefaPorCliente.has(l.clientUid))
       .sort((a, b) => compararPrioridade(a.plan, b.plan));
     for (const l of fila) {
-      const d = diaComVaga(l.plan.suggestedWeekday, ocupacao, porDia, primeiroDia);
+      const d = diaComVaga(l.plan.suggestedWeekday, ocupacao, cap, primeiroDia, permitidos);
       if (d === null) break;
       ocupacao[d]++;
       saida.push({ clientUid: l.clientUid, ownerId: dono, weekday: d, done: false, salvo: false });

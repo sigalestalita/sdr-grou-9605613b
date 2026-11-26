@@ -38,6 +38,7 @@ import { fmtDate } from "@/components/cs/cs-client-sections";
 import { MasterclassSettings } from "@/components/cs/cs-masterclass-settings";
 import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
 import { JourneySettings } from "@/components/cs/cs-journey-settings";
+import { AgendaTarefasConfig } from "@/components/cs/agenda-tarefas-config";
 import { DEFAULT_JOURNEY_CONFIG, type JourneyConfig } from "@/lib/cs/journey";
 import { Plus, Save, Trash2, Upload } from "lucide-react";
 
@@ -51,6 +52,7 @@ const TABS = [
   "jornadas",
   "sla",
   "roteamento",
+  "agenda",
   "carteira",
   "importar",
 ] as const;
@@ -63,6 +65,7 @@ const TAB_LABEL: Record<Tab, string> = {
   jornadas: "Jornadas Reais",
   sla: "SLA da jornada",
   roteamento: "Roteamento",
+  agenda: "Agenda de tarefas",
   carteira: "Carteira e delegações",
   importar: "Importar carteira",
 };
@@ -623,6 +626,8 @@ export function CsSettingsPanel({
             {saveBar}
           </>
         )}
+
+        {tab === "agenda" && <AgendaTarefasConfig profiles={profiles} />}
 
         {tab === "carteira" && <DelegationsTab profiles={profiles} />}
 
