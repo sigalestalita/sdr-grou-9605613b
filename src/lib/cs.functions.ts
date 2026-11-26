@@ -185,6 +185,8 @@ async function pessoasDaEmpresa(
   return { leadPorContato, leadPorEmail, outras };
 }
 
+const temEmail = (c: { email?: string | null }) => !!c.email && c.email.trim().includes("@");
+
 /** Detalhe completo do cliente para o card (abas). */
 export const getCsClient = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -396,8 +398,9 @@ export const getCsClient = createServerFn({ method: "GET" })
       isManager: Boolean(isManager),
       evidenceChannels: evidenceCfg.exigir_evidencia ? evidenceCfg.canais : [],
       client: client.data,
-      // Cada contato com o lead dele, para abrir o histórico da pessoa.
-      contacts: (contacts.data ?? []).map((c) => ({
+      // Cada contato com o lead dele, para abrir o histórico da pessoa. A ficha
+      // mostra só quem tem e-mail (os sem e-mail ficam guardados, só ocultos).
+      contacts: (contacts.data ?? []).filter(temEmail).map((c) => ({
         ...c,
         leadId:
           (c.contact_id ? pessoas.leadPorContato.get(c.contact_id) : null) ??
@@ -405,7 +408,11 @@ export const getCsClient = createServerFn({ method: "GET" })
           null,
       })),
       /** Pessoas da empresa (vindas do RD/negócios) que não estão nos contatos de CS. */
-      outrasPessoas: pessoas.outras,
+      outrasPessoas: pessoas.outras.filter(temEmail),
+      /** Contatos e pessoas sem e-mail, ocultos na ficha. */
+      semEmailOcultos:
+        (contacts.data ?? []).filter((c) => !temEmail(c)).length +
+        pessoas.outras.filter((p) => !temEmail(p)).length,
       tags: tags.data ?? [],
       snapshots: snaps.data ?? [],
       records: records.data ?? [],
@@ -643,6 +650,36 @@ export const addCsTag = createServerFn({ method: "POST" })
       created_by: context.userId,
     });
     return { ok: true };
+  });
+
+/** Tags de um contato do cliente: acrescenta ou tira uma. */
+export const tagDoContato = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        contactId: z.string().uuid(),
+        tag: z.string().trim().min(1).max(60),
+        acao: z.enum(["adicionar", "remover"]),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = context.supabase as unknown as import("@supabase/supabase-js").SupabaseClient;
+    const tag = data.tag.toLowerCase().replace(/\s+/g, "_");
+    const { data: c, error } = await db
+      .from("cs_contacts")
+      .select("tags")
+      .eq("id", data.contactId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!c) throw new Error("Contato não encontrado");
+    const atuais = ((c as { tags: string[] | null }).tags ?? []).filter(Boolean);
+    const tags =
+      data.acao === "adicionar" ? [...new Set([...atuais, tag])] : atuais.filter((t) => t !== tag);
+    const { error: e2 } = await db.from("cs_contacts").update({ tags }).eq("id", data.contactId);
+    if (e2) throw new Error(e2.message);
+    return { tags };
   });
 
 export const removeCsTag = createServerFn({ method: "POST" })
@@ -1213,6 +1250,25 @@ export const saveCsMeeting = createServerFn({ method: "POST" })
           origem_agenda_id: meetingId,
           created_by: userId,
         });
+        // A pessoa da reunião também leva a tag.
+        if (data.contactId) {
+          const tagContato = (categoria?.slug || categoria?.name || "masterclass")
+            .trim()
+            .toLowerCase()
+            .replace(/\s+/g, "_");
+          const dbc = supabase as unknown as import("@supabase/supabase-js").SupabaseClient;
+          const { data: ct } = await dbc
+            .from("cs_contacts")
+            .select("tags")
+            .eq("id", data.contactId)
+            .maybeSingle();
+          const atuais = ((ct as { tags: string[] | null } | null)?.tags ?? []).filter(Boolean);
+          if (!atuais.includes(tagContato))
+            await dbc
+              .from("cs_contacts")
+              .update({ tags: [...atuais, tagContato] })
+              .eq("id", data.contactId);
+        }
       }
     }
 

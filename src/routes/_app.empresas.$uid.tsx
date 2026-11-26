@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   addCsRecord,
   addCsTag,
+  tagDoContato,
   addCsTimelineEntry,
   deleteCsContact,
   getCsClient,
@@ -134,6 +135,12 @@ function CompanyPage() {
   );
   const addTag = useMut((t: string) => tagFn({ data: { clientUid, tag: t } }), "Tag adicionada");
   const rmTag = useMut((id: string) => untagFn({ data: { id } }), "Tag removida");
+  const tagContatoFn = useServerFn(tagDoContato);
+  const tagContato = useMut(
+    (v: { contactId: string; tag: string; acao: "adicionar" | "remover" }) =>
+      tagContatoFn({ data: v }),
+    "Tag do contato atualizada",
+  );
   const enrichFn = useServerFn(enriquecerEmpresa);
   const enrich = useMutation({
     mutationFn: () => enrichFn({ data: { clientUid } }),
@@ -584,7 +591,13 @@ function CompanyPage() {
               pending={saveContact.isPending}
               onSave={(v) => saveContact.mutate(v as never)}
               onDelete={(id) => delContact.mutate(id)}
+              onTag={(contactId, tag, acao) => tagContato.mutate({ contactId, tag, acao })}
             />
+            {(data?.semEmailOcultos ?? 0) > 0 && (
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                {data?.semEmailOcultos} contato(s) sem e-mail ocultos.
+              </p>
+            )}
           </Panel>
 
           {(data?.outrasPessoas ?? []).length > 0 && (
