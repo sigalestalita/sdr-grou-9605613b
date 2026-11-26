@@ -168,6 +168,8 @@ export const getCsCadence = createServerFn({ method: "GET" })
       const answered =
         meta["answered"] === true ||
         meta["engajamento"] === true ||
+        // mensagem do cliente que chegou pela caixa de WhatsApp também é resposta
+        e["event_type"] === "whatsapp_recebido" ||
         e["event_type"] === "agenda" ||
         e["event_type"] === "reuniao_realizada" ||
         e["event_type"] === "reuniao";

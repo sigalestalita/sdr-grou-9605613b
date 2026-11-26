@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/integrations/supabase/types";
 import { DEFAULT_MASTERCLASS_CONFIG, type MasterclassConfig } from "@/lib/cs/masterclass";
 import { DEFAULT_JOURNEY_CONFIG, type JourneyConfig } from "@/lib/cs/journey";
+import { montarEntradaDeSaude, type EventoParaSaude } from "@/lib/cs/saude";
 import {
   CS_AGENDA_TAG,
   DEFAULT_HEALTH_WEIGHTS,
@@ -259,35 +260,22 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
   if (c["tipo_lead"] === "consultoria") return 0;
 
   const signal = (snapRes.data?.[0]?.signal ?? c["current_signal"] ?? "sem_dado") as CsSignal;
-  const hasSinaleira =
-    (c["tipo_servico"] == null || c["tipo_servico"] === "licenca_pda") && !!c["login_pda"];
-  const events = eventsRes.data ?? [];
-  // "agenda realizada": registro manual de agenda + reuniões liquidadas pela agenda vinculada
-  const agendaLast90d = events.filter(
-    (e) => e.event_type === "agenda" || e.event_type === "reuniao_realizada",
-  ).length;
-  const answered = (channel: string) =>
-    events.some((e) => {
-      const meta = (e.metadata ?? {}) as Record<string, unknown>;
-      return e.channel === channel && (meta["answered"] === true || meta["engajamento"] === true);
-    });
-  // masterclass realizada: participação registrada (tag antiga ainda vale)
-  const masterclass =
-    (mcRes.data ?? []).length > 0 || (tagsRes.data ?? []).some((t) => /masterclass/i.test(t.tag));
-  const analistaPda = (contactsRes.data ?? []).some(
-    (k) => (k as Record<string, unknown>)["analista_pda"] === true && k.ativo_no_cliente !== false,
-  );
-
   const score = computeHealthScore(
-    {
+    montarEntradaDeSaude({
+      cliente: {
+        tipo_servico: c["tipo_servico"] as string | null,
+        login_pda: c["login_pda"] as string | null,
+      },
       signal,
-      hasSinaleira,
-      agendaLast90d,
-      whatsappAnswered: answered("whatsapp"),
+      eventos90d: (eventsRes.data ?? []) as EventoParaSaude[],
       propostaAberta: (salesRes.data ?? []).length > 0,
-      masterclass,
-      analistaPda,
-    },
+      temParticipacaoMasterclass: (mcRes.data ?? []).length > 0,
+      tags: (tagsRes.data ?? []).map((t) => t.tag as string),
+      analistaPda: (contactsRes.data ?? []).some(
+        (k) =>
+          (k as Record<string, unknown>)["analista_pda"] === true && k.ativo_no_cliente !== false,
+      ),
+    }),
     weights,
     points,
     options,
@@ -298,6 +286,162 @@ export async function recomputeHealth(db: DB, clientUid: string): Promise<number
     .update({ health_score: score, current_signal: signal })
     .eq("client_uid", clientUid);
   return score;
+}
+
+/**
+ * Recalcula a saúde da carteira ativa inteira de uma vez (mesma fórmula de
+ * recomputeHealth, com os dados buscados em bloco). Roda todo dia depois do
+ * sync da sinaleira: sem ele, só a empresa que está na planilha ou que teve
+ * alguma ação era recalculada, e mensagem recebida ou reunião não mexiam no
+ * número. Só grava o que mudou.
+ */
+export async function recomputeHealthAll(
+  db: DB,
+): Promise<{ clientes: number; alterados: number; erros: number }> {
+  const [weights, points, options] = await Promise.all([
+    getHealthWeights(db),
+    getHealthSignalPoints(db),
+    getHealthOptions(db),
+  ]);
+  const since90 = new Date(Date.now() - 90 * 86400000).toISOString();
+  const recentes = lastNWeeks(6)[0];
+
+  type Cliente = {
+    client_uid: string;
+    tipo_lead: string | null;
+    tipo_servico: string | null;
+    login_pda: string | null;
+    current_signal: string | null;
+    health_score: number | null;
+  };
+  const [clientes, snaps, eventos, tags, contatos, vendas, participacoes] = await Promise.all([
+    fetchAllRows<Cliente>(
+      (a, b) =>
+        db
+          .from("cs_clients")
+          .select("client_uid, tipo_lead, tipo_servico, login_pda, current_signal, health_score")
+          .eq("ativo", true)
+          .order("client_uid")
+          .range(a, b) as never,
+    ),
+    fetchAllRows<{ client_uid: string; signal: string; week_start: string }>(
+      (a, b) =>
+        db
+          .from("cs_signal_snapshots")
+          .select("client_uid, signal, week_start")
+          .gte("week_start", recentes)
+          .order("client_uid")
+          .order("week_start")
+          .range(a, b) as never,
+    ),
+    fetchAllRows<EventoParaSaude & { client_uid: string }>(
+      (a, b) =>
+        db
+          .from("cs_timeline_events")
+          .select("client_uid, event_type, channel, metadata")
+          .gte("occurred_at", since90)
+          .order("id")
+          .range(a, b) as never,
+    ),
+    fetchAllRows<{ client_uid: string; tag: string }>(
+      (a, b) =>
+        db
+          .from("cs_client_tags")
+          .select("client_uid, tag")
+          .ilike("tag", "%masterclass%")
+          .order("id")
+          .range(a, b) as never,
+    ),
+    fetchAllRows<{ client_uid: string; ativo_no_cliente: boolean | null }>(
+      (a, b) =>
+        db
+          .from("cs_contacts")
+          .select("client_uid, ativo_no_cliente")
+          .eq("analista_pda", true)
+          .order("id")
+          .range(a, b) as never,
+    ),
+    fetchAllRows<{ client_uid: string }>(
+      (a, b) =>
+        db
+          .from("cs_sales")
+          .select("client_uid")
+          .eq("status", "em_negociacao")
+          .order("id")
+          .range(a, b) as never,
+    ),
+    fetchAllRows<{ client_uid: string }>(
+      (a, b) =>
+        db
+          .from("cs_masterclass_participations")
+          .select("client_uid")
+          .order("id")
+          .range(a, b) as never,
+    ),
+  ]);
+
+  // a semana mais recente de cada empresa (as linhas vêm em ordem de semana)
+  const ultimoSinal = new Map<string, CsSignal>();
+  for (const s of snaps) ultimoSinal.set(s.client_uid, s.signal as CsSignal);
+  const agrupar = <T extends { client_uid: string }>(rows: T[]) => {
+    const m = new Map<string, T[]>();
+    for (const r of rows) {
+      const l = m.get(r.client_uid);
+      if (l) l.push(r);
+      else m.set(r.client_uid, [r]);
+    }
+    return m;
+  };
+  const eventosDe = agrupar(eventos);
+  const tagsDe = agrupar(tags);
+  const comAnalista = new Set(
+    contatos.filter((k) => k.ativo_no_cliente !== false).map((k) => k.client_uid),
+  );
+  const comProposta = new Set(vendas.map((v) => v.client_uid));
+  const comMasterclass = new Set(participacoes.map((p) => p.client_uid));
+
+  const mudancas: Array<{ client_uid: string; health_score: number; current_signal: CsSignal }> =
+    [];
+  for (const c of clientes) {
+    const signal = (ultimoSinal.get(c.client_uid) ?? c.current_signal ?? "sem_dado") as CsSignal;
+    // Consultoria é isolada das métricas gerenciais.
+    const score =
+      c.tipo_lead === "consultoria"
+        ? 0
+        : computeHealthScore(
+            montarEntradaDeSaude({
+              cliente: c,
+              signal,
+              eventos90d: eventosDe.get(c.client_uid) ?? [],
+              propostaAberta: comProposta.has(c.client_uid),
+              temParticipacaoMasterclass: comMasterclass.has(c.client_uid),
+              tags: (tagsDe.get(c.client_uid) ?? []).map((t) => t.tag),
+              analistaPda: comAnalista.has(c.client_uid),
+            }),
+            weights,
+            points,
+            options,
+          );
+    if (score !== (c.health_score ?? 0) || signal !== c.current_signal)
+      mudancas.push({ client_uid: c.client_uid, health_score: score, current_signal: signal });
+  }
+
+  let erros = 0;
+  const LOTE = 40;
+  for (let i = 0; i < mudancas.length; i += LOTE) {
+    const res = await Promise.all(
+      mudancas
+        .slice(i, i + LOTE)
+        .map((m) =>
+          db
+            .from("cs_clients")
+            .update({ health_score: m.health_score, current_signal: m.current_signal })
+            .eq("client_uid", m.client_uid),
+        ),
+    );
+    erros += res.filter((r) => r.error).length;
+  }
+  return { clientes: clientes.length, alterados: mudancas.length - erros, erros };
 }
 
 /** Varre a carteira e gera alertas (sinaleira crítica, queda, SLA, sem contato, upsell). */
