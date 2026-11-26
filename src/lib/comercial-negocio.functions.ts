@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { filtroDoResponsavel } from "@/lib/comercial/responsavel";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { conferirGanho, resolverPolitica, soDigitos } from "@/lib/faturamento/politica";
 import { carregarPolitica, type Db } from "@/lib/faturamento/politica.server";
@@ -369,7 +370,7 @@ export const minhaFilaComercial = createServerFn({ method: "GET" })
         .select(
           `id, nome, amount, proximo_passo, proximo_passo_em, stage_id, companies:company_id(nome)`,
         )
-        .eq("executivo_user_id", alvo)
+        .or(filtroDoResponsavel(alvo))
         .eq("status", "open")
         .not("proximo_passo_em", "is", null)
         .lte("proximo_passo_em", limite.toISOString())
@@ -378,7 +379,7 @@ export const minhaFilaComercial = createServerFn({ method: "GET" })
       supabase
         .from("deals")
         .select(`id, nome, amount, stage_id, updated_at, companies:company_id(nome)`)
-        .eq("executivo_user_id", alvo)
+        .or(filtroDoResponsavel(alvo))
         .eq("status", "open")
         .is("congelado_ate", null)
         .is("proximo_passo_em", null)

@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { format } from "date-fns";
@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { EtapasVisiveis, useEtapasOcultas } from "@/components/kanban/etapas-ocultas";
 import { NovoNegocioButton } from "@/components/comercial/novo-negocio";
+import { useAuth } from "@/lib/use-auth";
 
 export const Route = createFileRoute("/_app/comercial-pipeline")({
   component: PipelinePage,
@@ -115,9 +116,20 @@ function PipelinePage() {
       ],
     ),
   );
-  const executivos = [
-    ...new Set(deals.map((d) => d.executivo_user_id).filter(Boolean)),
-  ] as string[];
+  // Responsável = executivo da reunião ou, sem ele, o dono do negócio (o
+  // servidor já devolve assim). A lista guarda quem já apareceu, para não
+  // encolher quando se filtra um executivo.
+  const { user } = useAuth();
+  const [vistos, setVistos] = useState<string[]>([]);
+  useEffect(() => {
+    const novos = ((data?.deals ?? []) as Deal[])
+      .map((d) => d.executivo_user_id)
+      .filter(Boolean) as string[];
+    setVistos((v) => (novos.every((id) => v.includes(id)) ? v : [...new Set([...v, ...novos])]));
+  }, [data?.deals]);
+  const executivos = vistos
+    .filter((id) => id !== user?.id)
+    .sort((a, b) => String(nomeDe.get(a) ?? a).localeCompare(String(nomeDe.get(b) ?? b)));
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -153,6 +165,7 @@ function PipelinePage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todos">Todos os executivos</SelectItem>
+              {user?.id && <SelectItem value={user.id}>Só os meus</SelectItem>}
               {executivos.map((id) => (
                 <SelectItem key={id} value={id}>
                   {nomeDe.get(id) ?? id}

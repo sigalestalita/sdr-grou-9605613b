@@ -1,5 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import {
+  filtroDoResponsavel,
+  responsavelDoNegocio,
+  type ComResponsavel,
+} from "@/lib/comercial/responsavel";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { mesDe, type Meta, type Realizado } from "@/lib/comercial/metas";
 
@@ -19,6 +24,7 @@ type DealRow = {
   nome: string | null;
   company_id: string | null;
   executivo_user_id: string | null;
+  owner_user_id?: string | null;
   sdr_user_id: string | null;
   pipeline_id: string | null;
   stage_id: string | null;
@@ -46,7 +52,7 @@ const ativo = (d: Pick<DealRow, "status" | "congelado_ate">) =>
   d.status === "open" && !d.congelado_ate;
 
 const DEAL_COLS =
-  "id, nome, company_id, executivo_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, reuniao_em, agendado_em, closed_at, ordem_compra_em, proposta_aceita_em, faturado_em, cs_entregue_em, adm_checked_at, esteira, lost_reason, created_at, congelado_ate, congelado_motivo";
+  "id, nome, company_id, executivo_user_id, owner_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, reuniao_em, agendado_em, closed_at, ordem_compra_em, proposta_aceita_em, faturado_em, cs_entregue_em, adm_checked_at, esteira, lost_reason, created_at, congelado_ate, congelado_motivo";
 
 /** Data que caracteriza a venda ganha, na regra da gestora. */
 export function dataGanho(d: Pick<DealRow, "status" | "ordem_compra_em" | "closed_at">) {
@@ -77,7 +83,11 @@ async function todosOsNegocios(
       .order("created_at", { ascending: false })
       .range(page * PAGE, page * PAGE + PAGE - 1);
     if (error) throw new Error(error.message);
-    const rows = (data ?? []) as DealRow[];
+    // O executivo do negócio é o da reunião ou, sem ele, o dono (vindo do RD).
+    const rows = ((data ?? []) as DealRow[]).map((d) => ({
+      ...d,
+      executivo_user_id: responsavelDoNegocio(d),
+    }));
     out.push(...rows);
     if (rows.length < PAGE) break;
   }
@@ -368,7 +378,7 @@ export const listComercialDeals = createServerFn({ method: "GET" })
       .order("updated_at", { ascending: false })
       .limit(600);
     if (alvo) q = q.eq("pipeline_id", alvo);
-    if (data.executivoId) q = q.eq("executivo_user_id", data.executivoId);
+    if (data.executivoId) q = q.or(filtroDoResponsavel(data.executivoId));
     if (data.somenteAbertos !== false) q = q.eq("status", "open");
     const { data: deals, error } = await q;
     if (error) throw new Error(error.message);
@@ -379,7 +389,10 @@ export const listComercialDeals = createServerFn({ method: "GET" })
       stages: ((stagesRaw ?? []) as Array<{ pipeline_id: string }>).filter(
         (s) => s.pipeline_id === alvo,
       ),
-      deals: deals ?? [],
+      deals: ((deals ?? []) as Array<Record<string, unknown> & ComResponsavel>).map((d) => ({
+        ...d,
+        executivo_user_id: responsavelDoNegocio(d),
+      })),
       profiles: profiles ?? [],
     };
   });
@@ -526,7 +539,7 @@ export const removerMetaComercial = createServerFn({ method: "POST" })
 const COLS_NOVAS =
   "ordem_compra_em, proposta_aceita_em, faturado_em, cs_entregue_em, adm_checked_at, esteira";
 const COLS_BASE =
-  "id, nome, company_id, executivo_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, tipo_venda, categoria_venda, motivo_venda, reuniao_em, agendado_em, closed_at, lost_reason, created_at";
+  "id, nome, company_id, executivo_user_id, owner_user_id, sdr_user_id, pipeline_id, stage_id, status, amount, temperatura, fonte, campanha, tipo_venda, categoria_venda, motivo_venda, reuniao_em, agendado_em, closed_at, lost_reason, created_at";
 
 /**
  * Busca os negócios tolerando a migration ainda não aplicada. Se as colunas
@@ -615,7 +628,7 @@ export const getComercialAnalise = createServerFn({ method: "GET" })
         r.status === "won"
           ? ((r.ordem_compra_em as string | null) ?? (r.closed_at as string | null) ?? null)
           : null,
-      executivo_user_id: (r.executivo_user_id as string | null) ?? null,
+      executivo_user_id: responsavelDoNegocio(r as ComResponsavel),
       stage_id: (r.stage_id as string | null) ?? null,
       fonte: (r.fonte as string | null) ?? null,
       campanha: (r.campanha as string | null) ?? null,

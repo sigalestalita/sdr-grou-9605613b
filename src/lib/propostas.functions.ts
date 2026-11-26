@@ -760,7 +760,10 @@ const apresentacaoZ = z.object({
         .string()
         .url()
         .max(1000)
-        .refine((u) => u.startsWith("https://") || u.startsWith("http://localhost"), "URL inválida"),
+        .refine(
+          (u) => u.startsWith("https://") || u.startsWith("http://localhost"),
+          "URL inválida",
+        ),
     )
     .min(1)
     .max(120),
@@ -783,9 +786,7 @@ async function rascunhoParaEditar(db: SupabaseClient, id: string) {
 /** Anexa ou troca a apresentação em slides (só no rascunho). */
 export const salvarApresentacao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z.object({ id: z.string().uuid(), apresentacao: apresentacaoZ }).parse(d),
-  )
+  .inputValidator((d) => z.object({ id: z.string().uuid(), apresentacao: apresentacaoZ }).parse(d))
   .handler(async ({ data, context }) => {
     const db = solto(context.supabase);
     const atual = await rascunhoParaEditar(db, data.id);
@@ -965,4 +966,64 @@ export const cancelarProposta = createServerFn({ method: "POST" })
       .in("status", ["rascunho", "enviada", "visualizada"]);
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+/**
+ * "Nova proposta" na tela de Propostas: a proposta nasce do negócio, então
+ * primeiro se escolhe o negócio aberto (os da pessoa primeiro). Sem termo,
+ * traz os negócios abertos dela mexidos por último.
+ */
+export const buscarNegociosParaProposta = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) => z.object({ q: z.string().trim().max(80).default("") }).parse(d ?? {}))
+  .handler(async ({ data, context }) => {
+    const { filtroDoResponsavel, responsavelDoNegocio } =
+      await import("@/lib/comercial/responsavel");
+    const db = context.supabase as unknown as SupabaseClient;
+    const termo = data.q.replace(/[%,()]/g, " ").trim();
+    let q = db
+      .from("deals")
+      .select(
+        "id, nome, amount, updated_at, executivo_user_id, owner_user_id, companies:company_id(nome), pipeline_stages:stage_id(nome)",
+      )
+      .eq("status", "open")
+      .order("updated_at", { ascending: false })
+      .limit(20);
+    if (termo.length >= 2) {
+      const { data: empresas } = await db
+        .from("companies")
+        .select("id")
+        .ilike("nome", `%${termo}%`)
+        .limit(50);
+      const ids = ((empresas ?? []) as Array<{ id: string }>).map((e) => e.id);
+      q = q.or(
+        [`nome.ilike.%${termo}%`, ids.length ? `company_id.in.(${ids.join(",")})` : null]
+          .filter(Boolean)
+          .join(","),
+      );
+    } else {
+      q = q.or(filtroDoResponsavel(context.userId));
+    }
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    type Linha = {
+      id: string;
+      nome: string | null;
+      amount: number | null;
+      updated_at: string;
+      executivo_user_id: string | null;
+      owner_user_id: string | null;
+      companies: { nome: string | null } | null;
+      pipeline_stages: { nome: string | null } | null;
+    };
+    return ((rows ?? []) as unknown as Linha[])
+      .map((r) => ({
+        id: r.id,
+        nome: r.nome ?? "Negócio",
+        empresa: r.companies?.nome ?? null,
+        etapa: r.pipeline_stages?.nome ?? null,
+        valor: r.amount,
+        meu: responsavelDoNegocio(r) === context.userId,
+      }))
+      .sort((a, b) => Number(b.meu) - Number(a.meu));
   });

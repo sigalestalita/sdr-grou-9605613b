@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { filtroDoResponsavel } from "@/lib/comercial/responsavel";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { hojeSP, inicioDoDiaSP } from "./datas-sp";
 
@@ -133,7 +134,7 @@ export const getInicioAcoes = createServerFn({ method: "GET" })
       supabase
         .from("deals")
         .select("id, nome, reuniao_em, companies:company_id(nome)")
-        .eq("executivo_user_id", alvo)
+        .or(filtroDoResponsavel(alvo))
         .gte("reuniao_em", inicioHoje)
         .lt("reuniao_em", fimHoje)
         .order("reuniao_em")
