@@ -227,6 +227,29 @@ export function brutoParaLiquido(
   return r2(liquido / (1 - fator(b0)));
 }
 
+/**
+ * Fator para multiplicar todos os itens e chegar ao líquido pedido (o cliente
+ * fixa quanto paga líquido; o bruto e os impostos saem daqui). Repete algumas
+ * vezes porque a faixa de retenção muda com o valor de cada item.
+ */
+export function fatorParaLiquido(
+  itens: Array<{ nome: string; classificacao: Classificacao | null; bruto: number }>,
+  c: Cliente,
+  liquido: number,
+): { fator: number; resultado: Resultado } {
+  const escala = (k: number) => itens.map((i) => ({ ...i, bruto: r2(i.bruto * k) }));
+  let fator = 1;
+  let resultado = calcular(itens, c);
+  if (resultado.liquido <= 0 || liquido <= 0) return { fator, resultado };
+  for (let n = 0; n < 6; n++) {
+    const prox = (fator * liquido) / resultado.liquido;
+    if (Math.abs(prox - fator) < 1e-9) break;
+    fator = prox;
+    resultado = calcular(escala(fator), c);
+  }
+  return { fator, resultado };
+}
+
 /** Regime a partir da consulta de CNPJ (BrasilAPI); Lucro Real e Isento só manual. */
 export function regimeDaReceita(r: {
   opcao_pelo_mei?: boolean | null;

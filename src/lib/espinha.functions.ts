@@ -85,13 +85,14 @@ export const passarParaExecutivo = createServerFn({ method: "POST" })
     const id = dealId as string;
     const { data: deal } = await db.from("deals").select("nome").eq("id", id).maybeSingle();
     // Avisa o executivo (menção: qualquer pessoa do comercial pode mandar).
-    await db.rpc("notificar_usuarios", {
-      _users: [data.executivoId],
-      _tipo: "mencao",
-      _titulo: `Novo negócio para você: ${(deal as { nome?: string } | null)?.nome ?? ""}`,
-      _corpo: "Lead passado pelo SDR.",
-      _link: `/negocio/${id}`,
-      _deal_id: id,
+    const { notificar } = await import("@/lib/notificacoes.server");
+    await notificar(db, context.userId, {
+      para: [data.executivoId],
+      tipo: "mencao",
+      titulo: `Novo negócio para você: ${(deal as { nome?: string } | null)?.nome ?? ""}`,
+      corpo: "Lead passado pelo SDR.",
+      link: `/negocio/${id}`,
+      dealId: id,
     });
     return { dealId: id };
   });

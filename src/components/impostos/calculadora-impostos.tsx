@@ -3,9 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Search } from "lucide-react";
-import { aplicarImpostos, consultarCnpj, dadosImpostos } from "@/lib/impostos.functions";
+import {
+  ajustarItensParaLiquido,
+  aplicarImpostos,
+  consultarCnpj,
+  dadosImpostos,
+} from "@/lib/impostos.functions";
 import {
   calcular,
+  fatorParaLiquido,
   CATEGORIAS_ESPECIAIS_ISS,
   CLASSIFICACOES,
   ehPortoAlegre,
@@ -92,6 +98,31 @@ export function CalculadoraImpostos({ dealId, onClose }: { dealId: string; onClo
     mutationFn: () => aplicarFn({ data: { dealId, cliente: { documento: doc, ...cliente } } }),
     onSuccess: (x) => {
       toast.success(`Impostos de ${moedaBr(x.impostos)} aplicados na proposta`);
+      qc.invalidateQueries({ queryKey: ["itens-negocio", dealId] });
+      qc.invalidateQueries({ queryKey: ["negocio", dealId] });
+      qc.invalidateQueries({ queryKey: ["impostos", dealId] });
+      onClose();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
+  });
+
+  // "Partir do líquido": quanto o cliente vai pagar líquido → bruto necessário.
+  const ajustarFn = useServerFn(ajustarItensParaLiquido);
+  const [liquidoPedido, setLiquidoPedido] = useState("");
+  const liquidoNum = Number(liquidoPedido.replace(/\./g, "").replace(",", ".")) || 0;
+  const simulacao = useMemo(
+    () => (data && liquidoNum > 0 ? fatorParaLiquido(data.itens, cliente, liquidoNum) : null),
+    [data, liquidoNum, tipo, regime, municipio, especial], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const ajustar = useMutation({
+    mutationFn: () =>
+      ajustarFn({
+        data: { dealId, liquido: liquidoNum, cliente: { documento: doc, ...cliente } },
+      }),
+    onSuccess: (x) => {
+      toast.success(
+        `Itens ajustados: bruto ${moedaBr(x.bruto)}, impostos ${moedaBr(x.impostos)}, líquido ${moedaBr(x.liquido)}`,
+      );
       qc.invalidateQueries({ queryKey: ["itens-negocio", dealId] });
       qc.invalidateQueries({ queryKey: ["negocio", dealId] });
       qc.invalidateQueries({ queryKey: ["impostos", dealId] });
@@ -256,6 +287,39 @@ export function CalculadoraImpostos({ dealId, onClose }: { dealId: string; onClo
                 <dd className="tabular-nums">{moedaBr(r.liquido)}</dd>
               </div>
             </dl>
+            <div className="space-y-2 rounded-lg border p-3 text-[13px]">
+              <p className="font-medium">Partir do valor líquido</p>
+              <p className="text-[12px] text-muted-foreground">
+                Quando o cliente fixa quanto vai pagar líquido: informe o valor e o Compass calcula
+                o bruto da proposta (os itens sobem na mesma proporção).
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  inputMode="decimal"
+                  value={liquidoPedido}
+                  onChange={(e) => setLiquidoPedido(e.target.value)}
+                  placeholder="Líquido desejado (R$)"
+                  className="h-8 w-48"
+                />
+                {simulacao && (
+                  <span className="text-[12px]">
+                    Bruto necessário <strong>{moedaBr(simulacao.resultado.bruto)}</strong> ·
+                    impostos {moedaBr(simulacao.resultado.impostos)} · líquido{" "}
+                    {moedaBr(simulacao.resultado.liquido)}
+                  </span>
+                )}
+              </div>
+              {simulacao && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={!!falta || ajustar.isPending}
+                  onClick={() => ajustar.mutate()}
+                >
+                  {ajustar.isPending ? "Ajustando…" : "Ajustar os itens para este líquido"}
+                </Button>
+              )}
+            </div>
             {r.semClassificacao > 0 && (
               <p className="text-[12px] text-destructive">
                 {r.semClassificacao} item(ns) sem classificação fiscal ficaram fora do cálculo.

@@ -682,13 +682,13 @@ export const criarNegocio = createServerFn({ method: "POST" })
       occurred_at: new Date().toISOString(),
     });
     if (executivo !== userId)
-      await db.rpc("notificar_usuarios", {
-        _users: [executivo],
-        _tipo: "mencao",
-        _titulo: `Novo negócio para você: ${data.nome || nomeEmpresa}`,
-        _corpo: "Aberto pela gestão comercial.",
-        _link: `/negocio/${dealId}`,
-        _deal_id: dealId,
+      await notificar(db as Db, userId, {
+        para: [executivo],
+        tipo: "mencao",
+        titulo: `Novo negócio para você: ${data.nome || nomeEmpresa}`,
+        corpo: "Aberto pela gestão comercial.",
+        link: `/negocio/${dealId}`,
+        dealId,
       });
     return { dealId };
   });

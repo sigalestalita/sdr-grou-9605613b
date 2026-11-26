@@ -5,6 +5,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { totalItem } from "@/lib/catalogo/itens";
 import {
   calcular,
+  fatorParaLiquido,
   REGIMES,
   regimeDaReceita,
   tipoPessoaDoDocumento,
@@ -189,4 +190,96 @@ export const aplicarImpostos = createServerFn({ method: "POST" })
       empresaAtualizada = (up ?? []).length > 0;
     }
     return { ...r, empresaAtualizada };
+  });
+
+/**
+ * "Partir do líquido": o cliente fixa quanto paga líquido; ajusta o valor de
+ * todos os itens na mesma proporção para chegar lá (respeitando as faixas de
+ * retenção), e grava o total, os impostos e o líquido no negócio.
+ */
+export const ajustarItensParaLiquido = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        dealId: z.string().uuid(),
+        liquido: z.number().positive().max(100_000_000),
+        cliente: clienteZ,
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const db = solto(context.supabase);
+    const { data: rows, error } = await db
+      .from("deal_products")
+      .select(
+        "id, nome, quantidade, valor_unitario, desconto_tipo, desconto, products:product_id(classificacao_fiscal)",
+      )
+      .eq("deal_id", data.dealId)
+      .order("ordem");
+    if (error) throw new Error(error.message);
+    const itens = (rows ?? []) as unknown as Array<ItemRow & { id: string }>;
+    if (!itens.length) throw new Error("O negócio não tem itens");
+    const c: Cliente = {
+      tipoPessoa: data.cliente.tipoPessoa,
+      regime: data.cliente.regime,
+      municipio: data.cliente.municipio,
+      categoriaEspecialIss: data.cliente.categoriaEspecialIss,
+    };
+    const conta = (i: ItemRow) =>
+      totalItem({
+        quantidade: Number(i.quantidade),
+        valor_unitario: Number(i.valor_unitario),
+        desconto_tipo: i.desconto_tipo,
+        desconto: Number(i.desconto),
+      });
+    const { fator } = fatorParaLiquido(
+      itens.map((i) => ({
+        nome: i.nome,
+        classificacao: i.products?.classificacao_fiscal ?? null,
+        bruto: conta(i),
+      })),
+      c,
+      data.liquido,
+    );
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const novos = itens.map((i) => ({
+      ...i,
+      valor_unitario: r2(Number(i.valor_unitario) * fator),
+      desconto: i.desconto_tipo === "valor" ? r2(Number(i.desconto) * fator) : Number(i.desconto),
+    }));
+    for (const i of novos) {
+      const { error: e } = await db
+        .from("deal_products")
+        .update({ valor_unitario: i.valor_unitario, desconto: i.desconto, total: conta(i) })
+        .eq("id", i.id);
+      if (e) throw new Error(e.message);
+    }
+    const r = calcular(
+      novos.map((i) => ({
+        nome: i.nome,
+        classificacao: i.products?.classificacao_fiscal ?? null,
+        bruto: conta(i),
+      })),
+      c,
+    );
+    const agora = new Date().toISOString();
+    const { error: e2 } = await db
+      .from("deals")
+      .update({
+        amount: r.bruto,
+        valor_impostos: r.impostos,
+        valor_liquido: r.liquido,
+        impostos_calculo: {
+          em: agora,
+          por: context.userId,
+          cliente: data.cliente,
+          resultado: r,
+          liquido_pedido: data.liquido,
+        },
+        updated_at: agora,
+      })
+      .eq("id", data.dealId);
+    if (e2) throw new Error(e2.message);
+    return { bruto: r.bruto, impostos: r.impostos, liquido: r.liquido, fator };
   });
