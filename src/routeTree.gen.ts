@@ -87,6 +87,7 @@ import { Route as AppWhatsappIaRouteImport } from './routes/_app.whatsapp.ia'
 import { Route as AppWhatsappMetricasRouteImport } from './routes/_app.whatsapp.metricas'
 import { Route as AppWhatsappPlaygroundRouteImport } from './routes/_app.whatsapp.playground'
 import { Route as AppWhatsappTemplatesRouteImport } from './routes/_app.whatsapp.templates'
+import { Route as ApiPublicIntegracaoRouteImport } from './routes/api/public/integracao'
 import { Route as AppEmailMarketingCampanhaIdRouteImport } from './routes/_app.email-marketing.campanha.$id'
 import { Route as AppWhatsappCampanhasIdRouteImport } from './routes/_app.whatsapp.campanhas.$id'
 import { Route as ApiPublicContaAzulCallbackRouteImport } from './routes/api/public/conta-azul/callback'
@@ -519,6 +520,11 @@ const AppWhatsappTemplatesRoute = AppWhatsappTemplatesRouteImport.update({
   path: '/templates',
   getParentRoute: () => AppWhatsappRoute,
 } as any)
+const ApiPublicIntegracaoRoute = ApiPublicIntegracaoRouteImport.update({
+  id: '/api/public/integracao',
+  path: '/api/public/integracao',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppEmailMarketingCampanhaIdRoute =
   AppEmailMarketingCampanhaIdRouteImport.update({
     id: '/campanha/$id',
@@ -818,6 +824,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp/metricas': typeof AppWhatsappMetricasRoute
   '/whatsapp/playground': typeof AppWhatsappPlaygroundRoute
   '/whatsapp/templates': typeof AppWhatsappTemplatesRoute
+  '/api/public/integracao': typeof ApiPublicIntegracaoRoute
   '/email-marketing/': typeof AppEmailMarketingIndexRoute
   '/whatsapp/': typeof AppWhatsappIndexRoute
   '/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
@@ -934,6 +941,7 @@ export interface FileRoutesByTo {
   '/whatsapp/metricas': typeof AppWhatsappMetricasRoute
   '/whatsapp/playground': typeof AppWhatsappPlaygroundRoute
   '/whatsapp/templates': typeof AppWhatsappTemplatesRoute
+  '/api/public/integracao': typeof ApiPublicIntegracaoRoute
   '/email-marketing': typeof AppEmailMarketingIndexRoute
   '/whatsapp': typeof AppWhatsappIndexRoute
   '/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
@@ -1054,6 +1062,7 @@ export interface FileRoutesById {
   '/_app/whatsapp/metricas': typeof AppWhatsappMetricasRoute
   '/_app/whatsapp/playground': typeof AppWhatsappPlaygroundRoute
   '/_app/whatsapp/templates': typeof AppWhatsappTemplatesRoute
+  '/api/public/integracao': typeof ApiPublicIntegracaoRoute
   '/_app/email-marketing/': typeof AppEmailMarketingIndexRoute
   '/_app/whatsapp/': typeof AppWhatsappIndexRoute
   '/_app/email-marketing/campanha/$id': typeof AppEmailMarketingCampanhaIdRoute
@@ -1174,6 +1183,7 @@ export interface FileRouteTypes {
     | '/whatsapp/metricas'
     | '/whatsapp/playground'
     | '/whatsapp/templates'
+    | '/api/public/integracao'
     | '/email-marketing/'
     | '/whatsapp/'
     | '/email-marketing/campanha/$id'
@@ -1290,6 +1300,7 @@ export interface FileRouteTypes {
     | '/whatsapp/metricas'
     | '/whatsapp/playground'
     | '/whatsapp/templates'
+    | '/api/public/integracao'
     | '/email-marketing'
     | '/whatsapp'
     | '/email-marketing/campanha/$id'
@@ -1409,6 +1420,7 @@ export interface FileRouteTypes {
     | '/_app/whatsapp/metricas'
     | '/_app/whatsapp/playground'
     | '/_app/whatsapp/templates'
+    | '/api/public/integracao'
     | '/_app/email-marketing/'
     | '/_app/whatsapp/'
     | '/_app/email-marketing/campanha/$id'
@@ -1462,6 +1474,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   PropostaTokenRoute: typeof PropostaTokenRoute
   ReuniaoTokenRoute: typeof ReuniaoTokenRoute
+  ApiPublicIntegracaoRoute: typeof ApiPublicIntegracaoRoute
   ApiPublicContaAzulCallbackRoute: typeof ApiPublicContaAzulCallbackRoute
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicEmailDescadastroRoute: typeof ApiPublicEmailDescadastroRoute
@@ -2049,6 +2062,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWhatsappTemplatesRouteImport
       parentRoute: typeof AppWhatsappRoute
     }
+    '/api/public/integracao': {
+      id: '/api/public/integracao'
+      path: '/api/public/integracao'
+      fullPath: '/api/public/integracao'
+      preLoaderRoute: typeof ApiPublicIntegracaoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/email-marketing/campanha/$id': {
       id: '/_app/email-marketing/campanha/$id'
       path: '/campanha/$id'
@@ -2522,6 +2542,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   PropostaTokenRoute: PropostaTokenRoute,
   ReuniaoTokenRoute: ReuniaoTokenRoute,
+  ApiPublicIntegracaoRoute: ApiPublicIntegracaoRoute,
   ApiPublicContaAzulCallbackRoute: ApiPublicContaAzulCallbackRoute,
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicEmailDescadastroRoute: ApiPublicEmailDescadastroRoute,
