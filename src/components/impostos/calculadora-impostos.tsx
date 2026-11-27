@@ -74,9 +74,10 @@ export function CalculadoraImpostos({ dealId, onClose }: { dealId: string; onClo
     categoriaEspecialIss: poa ? !!especial : false,
   };
   const r = useMemo(
-    () => (data ? calcular(data.itens, cliente) : null),
+    () => (data ? calcular(data.itens, cliente, data.regras) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [data, tipo, regime, municipio, especial],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const buscar = useMutation({
     mutationFn: () => cnpjFn({ data: { cnpj: doc } }),
@@ -111,7 +112,10 @@ export function CalculadoraImpostos({ dealId, onClose }: { dealId: string; onClo
   const [liquidoPedido, setLiquidoPedido] = useState("");
   const liquidoNum = Number(liquidoPedido.replace(/\./g, "").replace(",", ".")) || 0;
   const simulacao = useMemo(
-    () => (data && liquidoNum > 0 ? fatorParaLiquido(data.itens, cliente, liquidoNum) : null),
+    () =>
+      data && liquidoNum > 0
+        ? fatorParaLiquido(data.itens, cliente, liquidoNum, data.regras)
+        : null,
     [data, liquidoNum, tipo, regime, municipio, especial], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const ajustar = useMutation({

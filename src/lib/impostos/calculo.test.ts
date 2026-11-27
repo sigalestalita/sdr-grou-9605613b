@@ -8,6 +8,9 @@ import {
   regimeDaReceita,
   tipoPessoaDoDocumento,
   type Cliente,
+  type RegraImposto,
+  REGRAS_PADRAO,
+  simular,
 } from "./calculo";
 
 const cnpj = (regime: Cliente["regime"], extra: Partial<Cliente> = {}): Cliente => ({
@@ -118,5 +121,50 @@ describe("fatorParaLiquido", () => {
     const { fator, resultado } = fatorParaLiquido(itens, c, 2000);
     expect(Math.abs(resultado.liquido - 2000)).toBeLessThan(0.05);
     expect(fator).toBeGreaterThan(2);
+  });
+});
+
+describe("regras editáveis e simulação", () => {
+  it("regra de um produto substitui as da classificação", () => {
+    const especial: RegraImposto = {
+      ...REGRAS_PADRAO[0],
+      id: "x",
+      nome: "Pesquisa — sem retenção",
+      classificacao: null,
+      produtoId: "p1",
+      tipoPessoa: null,
+      prioridade: 50,
+      itens: [],
+    };
+    const item = {
+      nome: "Pesquisa",
+      classificacao: "treinamento" as const,
+      bruto: 1000,
+      produtoId: "p1",
+    };
+    expect(calcularItem(item, cnpj("Lucro Presumido"), [...REGRAS_PADRAO, especial]).total).toBe(0);
+    expect(calcularItem(item, cnpj("Lucro Presumido")).total).toBe(61.5);
+  });
+
+  it("regra desativada não vale", () => {
+    const sem = REGRAS_PADRAO.map((r) => (r.id === "trein-acima-666" ? { ...r, ativo: false } : r));
+    expect(calcularItem(t(1000), cnpj("Lucro Presumido"), sem).total).toBe(0);
+  });
+
+  it("desconto e comissão saem do líquido; modo líquido acha o bruto", () => {
+    const b = simular([t(1000)], cnpj("Simples Nacional"), {
+      modo: "bruto",
+      desconto: 50,
+      comissaoPct: 10,
+    });
+    expect(b.liquidoFinal).toBe(1000 - 15 - 50 - 100);
+    const l = simular([t(500)], cnpj("Simples Nacional"), {
+      modo: "liquido",
+      liquidoAlvo: 835,
+      desconto: 50,
+      comissaoPct: 10,
+    });
+    expect(Math.abs(l.liquidoFinal - 835)).toBeLessThan(0.02);
+    expect(l.bruto).toBeCloseTo(1000, 0);
   });
 });

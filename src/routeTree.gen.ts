@@ -50,6 +50,7 @@ import { Route as AppEmpresasParecidasRouteImport } from './routes/_app.empresas
 import { Route as AppFaturamentoRouteImport } from './routes/_app.faturamento'
 import { Route as AppFunilSdrRouteImport } from './routes/_app.funil-sdr'
 import { Route as AppImportarRdRouteImport } from './routes/_app.importar-rd'
+import { Route as AppImpostosRouteImport } from './routes/_app.impostos'
 import { Route as AppInicioRouteImport } from './routes/_app.inicio'
 import { Route as AppJornadaRouteImport } from './routes/_app.jornada'
 import { Route as AppKanbanRouteImport } from './routes/_app.kanban'
@@ -328,6 +329,11 @@ const AppFunilSdrRoute = AppFunilSdrRouteImport.update({
 const AppImportarRdRoute = AppImportarRdRouteImport.update({
   id: '/importar-rd',
   path: '/importar-rd',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppImpostosRoute = AppImpostosRouteImport.update({
+  id: '/impostos',
+  path: '/impostos',
   getParentRoute: () => AppRoute,
 } as any)
 const AppInicioRoute = AppInicioRouteImport.update({
@@ -777,6 +783,7 @@ export interface FileRoutesByFullPath {
   '/faturamento': typeof AppFaturamentoRoute
   '/funil-sdr': typeof AppFunilSdrRoute
   '/importar-rd': typeof AppImportarRdRoute
+  '/impostos': typeof AppImpostosRoute
   '/inicio': typeof AppInicioRoute
   '/jornada': typeof AppJornadaRoute
   '/kanban': typeof AppKanbanRoute
@@ -893,6 +900,7 @@ export interface FileRoutesByTo {
   '/faturamento': typeof AppFaturamentoRoute
   '/funil-sdr': typeof AppFunilSdrRoute
   '/importar-rd': typeof AppImportarRdRoute
+  '/impostos': typeof AppImpostosRoute
   '/inicio': typeof AppInicioRoute
   '/jornada': typeof AppJornadaRoute
   '/kanban': typeof AppKanbanRoute
@@ -1011,6 +1019,7 @@ export interface FileRoutesById {
   '/_app/faturamento': typeof AppFaturamentoRoute
   '/_app/funil-sdr': typeof AppFunilSdrRoute
   '/_app/importar-rd': typeof AppImportarRdRoute
+  '/_app/impostos': typeof AppImpostosRoute
   '/_app/inicio': typeof AppInicioRoute
   '/_app/jornada': typeof AppJornadaRoute
   '/_app/kanban': typeof AppKanbanRoute
@@ -1130,6 +1139,7 @@ export interface FileRouteTypes {
     | '/faturamento'
     | '/funil-sdr'
     | '/importar-rd'
+    | '/impostos'
     | '/inicio'
     | '/jornada'
     | '/kanban'
@@ -1246,6 +1256,7 @@ export interface FileRouteTypes {
     | '/faturamento'
     | '/funil-sdr'
     | '/importar-rd'
+    | '/impostos'
     | '/inicio'
     | '/jornada'
     | '/kanban'
@@ -1363,6 +1374,7 @@ export interface FileRouteTypes {
     | '/_app/faturamento'
     | '/_app/funil-sdr'
     | '/_app/importar-rd'
+    | '/_app/impostos'
     | '/_app/inicio'
     | '/_app/jornada'
     | '/_app/kanban'
@@ -1776,6 +1788,13 @@ declare module '@tanstack/react-router' {
       path: '/importar-rd'
       fullPath: '/importar-rd'
       preLoaderRoute: typeof AppImportarRdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/impostos': {
+      id: '/_app/impostos'
+      path: '/impostos'
+      fullPath: '/impostos'
+      preLoaderRoute: typeof AppImpostosRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/inicio': {
@@ -2412,6 +2431,7 @@ interface AppRouteChildren {
   AppFaturamentoRoute: typeof AppFaturamentoRoute
   AppFunilSdrRoute: typeof AppFunilSdrRoute
   AppImportarRdRoute: typeof AppImportarRdRoute
+  AppImpostosRoute: typeof AppImpostosRoute
   AppInicioRoute: typeof AppInicioRoute
   AppJornadaRoute: typeof AppJornadaRoute
   AppKanbanRoute: typeof AppKanbanRoute
@@ -2468,6 +2488,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFaturamentoRoute: AppFaturamentoRoute,
   AppFunilSdrRoute: AppFunilSdrRoute,
   AppImportarRdRoute: AppImportarRdRoute,
+  AppImpostosRoute: AppImpostosRoute,
   AppInicioRoute: AppInicioRoute,
   AppJornadaRoute: AppJornadaRoute,
   AppKanbanRoute: AppKanbanRoute,
