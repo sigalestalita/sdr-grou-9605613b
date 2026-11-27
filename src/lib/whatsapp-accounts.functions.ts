@@ -444,6 +444,27 @@ export const salvarEmbeddedSignupConfig = createServerFn({ method: "POST" })
   });
 
 /**
+ * O número do WABA recém-compartilhado, quando a Meta não manda o
+ * phone_number_id (coexistência v4). Prefere o que está no app do celular.
+ */
+async function numeroDoWaba(wabaId: string, token: string): Promise<string> {
+  const res = await fetch(
+    `https://graph.facebook.com/v21.0/${encodeURIComponent(wabaId)}/phone_numbers?fields=id,is_on_biz_app`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  const json = (await res.json()) as {
+    data?: Array<{ id?: string; is_on_biz_app?: boolean }>;
+    error?: { message?: string };
+  };
+  if (!res.ok) throw new Error(json.error?.message || `Meta respondeu ${res.status}`);
+  const lista = json.data ?? [];
+  const escolhido = lista.find((n) => n.is_on_biz_app) ?? (lista.length === 1 ? lista[0] : null);
+  if (!escolhido?.id)
+    throw new Error("A Meta não informou o número conectado. Tente de novo pelo botão.");
+  return escolhido.id;
+}
+
+/**
  * Conclui a conexão de um número que já roda no app WhatsApp Business.
  *
  * Recebe o que o pop-up da Meta devolveu, troca o código pelo token
@@ -459,7 +480,8 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
     z
       .object({
         code: z.string().min(10),
-        phoneNumberId: z.string().min(3),
+        // Na coexistência (v4) a Meta pode devolver só o WABA: o número sai dele.
+        phoneNumberId: z.string().min(3).nullable(),
         wabaId: z.string().min(3),
         ownerUserId: z.string().uuid().nullable().optional(),
         label: z.string().max(120).nullable().optional(),
@@ -478,13 +500,14 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
 
     const token = await trocarCodigoPorToken(data.code);
     await assinarWebhookDoWaba(data.wabaId, token);
-    const info = await dadosDoNumero(data.phoneNumberId, token);
+    const phoneNumberId = data.phoneNumberId ?? (await numeroDoWaba(data.wabaId, token));
+    const info = await dadosDoNumero(phoneNumberId, token);
 
     // Mesmo número reconectado: atualiza em vez de duplicar a conta.
     const { data: existente } = await supabaseAdmin
       .from("whatsapp_accounts")
       .select("id, metadata")
-      .eq("provider_instance_id", data.phoneNumberId)
+      .eq("provider_instance_id", phoneNumberId)
       .maybeSingle();
 
     /*
@@ -492,7 +515,7 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
      * primeiras 24 horas, então sai já. Falhar aqui não desfaz a conexão — a
      * tela mostra o resultado e dá para pedir de novo pelo botão.
      */
-    const sincronizacao = await pedirSincronizacaoDoApp(data.phoneNumberId, token).catch((e) => ({
+    const sincronizacao = await pedirSincronizacaoDoApp(phoneNumberId, token).catch((e) => ({
       contatos: `erro: ${e instanceof Error ? e.message : String(e)}`,
       historico: `erro: ${e instanceof Error ? e.message : String(e)}`,
     }));
@@ -506,9 +529,9 @@ export const concluirEmbeddedSignup = createServerFn({ method: "POST" })
     };
     const patch = {
       label: data.label?.trim() || info.verifiedName || info.displayPhoneNumber || "WhatsApp",
-      phone_number: (info.displayPhoneNumber ?? "").replace(/\D+/g, "") || data.phoneNumberId,
+      phone_number: (info.displayPhoneNumber ?? "").replace(/\D+/g, "") || phoneNumberId,
       provider: "meta_cloud",
-      provider_instance_id: data.phoneNumberId,
+      provider_instance_id: phoneNumberId,
       access_token: token,
       // "active" como as demais: a tela trata qualquer outro valor como desligada.
       status: "active",
