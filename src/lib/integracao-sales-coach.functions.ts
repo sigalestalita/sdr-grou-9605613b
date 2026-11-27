@@ -8,22 +8,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * Sales Coach). Só a gestão gera, vê e revoga. O token aparece uma vez; o banco
  * guarda só o hash.
  */
-const HOSTS_OFICIAIS = ["compass.grougp.com", "sdr-grou.lovable.app"];
+// sdr-grou.lovable.app redireciona para compass.grougp.com, e o fetch descarta o
+// Authorization num redirecionamento entre domínios: o endereço é sempre este.
+export const ENDERECO_INTEGRACAO = "https://compass.grougp.com/api/public/integracao";
 
 async function exigirGestao(db: SupabaseClient, userId: string) {
   const { data } = await db.rpc("is_manager", { _user_id: userId });
   if (!data) throw new Error("Só a gestão gerencia a integração com o Sales Coach");
-}
-
-/** Endereço que vai no Sales Coach: o domínio oficial do Compass. */
-export function enderecoIntegracao(origin: string | null | undefined): string {
-  try {
-    const host = new URL(String(origin ?? "")).hostname;
-    if (HOSTS_OFICIAIS.includes(host)) return `https://${host}/api/public/integracao`;
-  } catch {
-    /* cai no padrão */
-  }
-  return `https://${HOSTS_OFICIAIS[0]}/api/public/integracao`;
 }
 
 export const tokensSalesCoach = createServerFn({ method: "GET" })
@@ -68,14 +59,7 @@ export const tokensSalesCoach = createServerFn({ method: "GET" })
 
 export const gerarTokenSalesCoach = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) =>
-    z
-      .object({
-        nome: z.string().trim().max(80).optional(),
-        origin: z.string().max(200).optional(),
-      })
-      .parse(d),
-  )
+  .inputValidator((d) => z.object({ nome: z.string().trim().max(80).optional() }).parse(d ?? {}))
   .handler(async ({ data, context }) => {
     await exigirGestao(context.supabase as unknown as SupabaseClient, context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -90,7 +74,7 @@ export const gerarTokenSalesCoach = createServerFn({ method: "POST" })
         criado_por: context.userId,
       });
     if (error) throw new Error(error.message);
-    return { token, endereco: enderecoIntegracao(data.origin) };
+    return { token, endereco: ENDERECO_INTEGRACAO };
   });
 
 export const revogarTokenSalesCoach = createServerFn({ method: "POST" })

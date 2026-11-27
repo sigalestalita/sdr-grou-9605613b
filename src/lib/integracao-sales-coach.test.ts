@@ -12,7 +12,7 @@ import {
   TOKEN_RE,
   tokenValido,
 } from "./integracao-sales-coach.server";
-import { enderecoIntegracao } from "./integracao-sales-coach.functions";
+import { ENDERECO_INTEGRACAO } from "./integracao-sales-coach.functions";
 
 const U = "0b5c1f7e-8d2a-4c3b-9e1f-2a3b4c5d6e7f";
 
@@ -40,16 +40,7 @@ describe("integração Sales Coach", () => {
   });
 
   it("usa sempre o endereço oficial do Compass", () => {
-    expect(enderecoIntegracao("https://compass.grougp.com")).toBe(
-      "https://compass.grougp.com/api/public/integracao",
-    );
-    expect(enderecoIntegracao("https://sdr-grou.lovable.app")).toBe(
-      "https://sdr-grou.lovable.app/api/public/integracao",
-    );
-    expect(enderecoIntegracao("https://id-preview--x.lovable.app")).toBe(
-      "https://compass.grougp.com/api/public/integracao",
-    );
-    expect(enderecoIntegracao(undefined)).toBe("https://compass.grougp.com/api/public/integracao");
+    expect(ENDERECO_INTEGRACAO).toBe("https://compass.grougp.com/api/public/integracao");
   });
 
   it("responde info e recusa ação desconhecida", async () => {
