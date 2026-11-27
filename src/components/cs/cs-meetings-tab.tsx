@@ -16,6 +16,7 @@ import {
   saveCsMeetingCategory,
 } from "@/lib/cs.functions";
 import { opcoesDoClienteCs } from "@/lib/cs-agenda-reunioes.functions";
+import { OfertasDeHorarios } from "@/components/cs/oferecer-horarios";
 import {
   CalendarClock,
   CalendarPlus,
@@ -155,7 +156,10 @@ export function CsMeetingsTab({
     return (id: string | null) => (id ? (map.get(id) ?? "Sem categoria") : "Sem categoria");
   }, [categories]);
 
-  const reunioes = (data?.meetings ?? []) as unknown as Reuniao[];
+  // Horário reservado de uma oferta aparece na seção da oferta, não aqui.
+  const reunioes = ((data?.meetings ?? []) as unknown as Reuniao[]).filter(
+    (m) => m.status !== "reservada",
+  );
   const agora = Date.now();
   // Próximas: agendadas de hoje em diante, da mais próxima para a mais distante.
   const proximas = reunioes
@@ -294,6 +298,13 @@ export function CsMeetingsTab({
           </Button>
         </div>
       </div>
+
+      <OfertasDeHorarios
+        clientUid={clientUid}
+        contatos={contatos}
+        tipos={categories}
+        invalidar={invalidate}
+      />
 
       {openForm && (
         <Card className="space-y-2 p-3">

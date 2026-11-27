@@ -91,7 +91,9 @@ export function CsClientCard({
             <span className="font-mono">{c.client_uid}</span> · {ownerName}
           </p>
         </div>
-        <Badge className={`text-[10px] shrink-0 ${CS_SIGNAL_CLASS[c.current_signal ?? "sem_dado"]}`}>
+        <Badge
+          className={`text-[10px] shrink-0 ${CS_SIGNAL_CLASS[c.current_signal ?? "sem_dado"]}`}
+        >
           {CS_SIGNAL_LABEL[c.current_signal ?? "sem_dado"]}
         </Badge>
       </div>
@@ -105,7 +107,9 @@ export function CsClientCard({
         )}
         <span>· {daysInStage}d na etapa</span>
         {c.tipo_lead === "consultoria" && (
-          <Badge variant="outline" className="text-[10px]">Consultoria</Badge>
+          <Badge variant="outline" className="text-[10px]">
+            Consultoria
+          </Badge>
         )}
       </div>
 
@@ -166,9 +170,6 @@ export function CsClientCard({
         </div>
       )}
 
-
-
-
       {(trend.kind === "critico" || trend.kind === "queda" || slaBreach) && (
         <p className="flex items-center gap-1 text-[11px] text-warning">
           <AlertTriangle className="h-3 w-3" />
@@ -187,9 +188,13 @@ export function CsClientCard({
 
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {Array.from(new Set(tags)).slice(0, 5).map((t) => (
-            <Badge key={t} variant="secondary" className="text-[10px]">{t}</Badge>
-          ))}
+          {Array.from(new Set(tags))
+            .slice(0, 5)
+            .map((t) => (
+              <Badge key={t} variant="secondary" className="text-[10px]">
+                {t}
+              </Badge>
+            ))}
         </div>
       )}
 

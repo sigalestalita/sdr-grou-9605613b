@@ -349,7 +349,7 @@ export const getCsDashboard = createServerFn({ method: "GET" })
       const st = String(m["status"] ?? "realizada");
       if (st === "canceled" || st === "cancelled" || st === "cancelada") {
         b.meetingsCanceled++;
-      } else if (st === "agendada" || st === "no_show") {
+      } else if (st === "agendada" || st === "no_show" || st === "reservada") {
         // Agendada ainda não aconteceu e no-show não houve: não contam como feitas.
       } else {
         b.meetingsHeld++;

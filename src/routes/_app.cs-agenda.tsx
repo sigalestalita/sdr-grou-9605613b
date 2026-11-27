@@ -445,6 +445,14 @@ function CsAgendaPage() {
                           agendada no Compass
                         </Badge>
                       )}
+                      {e.origem === "compass" && e.status === "reservada" && (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/50 text-[9px] text-amber-600"
+                        >
+                          reservado · aguardando o cliente
+                        </Badge>
+                      )}
                     </div>
                   </Card>
                 ))}

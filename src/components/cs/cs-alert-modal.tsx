@@ -96,10 +96,14 @@ export function CsAlertModal({
               <AlertTriangle className="h-4 w-4 text-warning" /> Registrar tratativa
             </h2>
             <p className="text-xs text-muted-foreground">
-              {alert ? `${CS_ALERT_TYPE_LABEL[alert.alert_type] ?? alert.alert_type} — ${alert.reason}` : "Alerta de CS"}
+              {alert
+                ? `${CS_ALERT_TYPE_LABEL[alert.alert_type] ?? alert.alert_type} — ${alert.reason}`
+                : "Alerta de CS"}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onClose}><X className="h-4 w-4" /></Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         <div className="space-y-3">
@@ -112,7 +116,9 @@ export function CsAlertModal({
                   type="button"
                   onClick={() => setContactType(t)}
                   className={`rounded-full border px-2.5 py-1 text-[11px] ${
-                    contactType === t ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"
+                    contactType === t
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "hover:bg-muted"
                   }`}
                 >
                   {CS_CONTACT_TYPE_LABEL[t]}
@@ -134,7 +140,9 @@ export function CsAlertModal({
                     type="button"
                     onClick={() => setAnswered(o.v)}
                     className={`rounded-full border px-2.5 py-1 text-[11px] ${
-                      answered === o.v ? "bg-primary text-primary-foreground border-primary" : "hover:bg-muted"
+                      answered === o.v
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "hover:bg-muted"
                     }`}
                   >
                     {o.l}
@@ -159,7 +167,9 @@ export function CsAlertModal({
               >
                 <option value="">Selecione…</option>
                 {CS_AGENDA_TYPES.map((a) => (
-                  <option key={a} value={a}>{CS_AGENDA_TYPE_LABEL[a]}</option>
+                  <option key={a} value={a}>
+                    {CS_AGENDA_TYPE_LABEL[a]}
+                  </option>
                 ))}
               </select>
               <p className="text-[11px] text-muted-foreground">
@@ -189,8 +199,14 @@ export function CsAlertModal({
         </div>
 
         <div className="flex justify-end gap-2">
-          <Button variant="ghost" size="sm" onClick={onClose}>Cancelar</Button>
-          <Button size="sm" disabled={!canSave || resolve.isPending} onClick={() => resolve.mutate()}>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            size="sm"
+            disabled={!canSave || resolve.isPending}
+            onClick={() => resolve.mutate()}
+          >
             {resolve.isPending ? "Salvando…" : "Salvar tratativa"}
           </Button>
         </div>
