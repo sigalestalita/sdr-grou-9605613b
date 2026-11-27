@@ -21,6 +21,7 @@ import {
   QuadroBaseMarketing,
 } from "@/components/migracao/conexao-rd-marketing";
 import { BaseDeMarketingRd } from "@/components/migracao/base-marketing-rd";
+import { CarteirasDeQuemSaiu } from "@/components/migracao/carteiras-de-quem-saiu";
 
 type Aba = "crm" | "marketing";
 
@@ -382,6 +383,8 @@ function MigracaoCrm() {
           </Card>
         </div>
       )}
+
+      <CarteirasDeQuemSaiu />
 
       <Card className="flex flex-col gap-3 p-4">
         <h2 className="flex items-center gap-2 text-[13px] font-semibold">

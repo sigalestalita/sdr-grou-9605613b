@@ -320,3 +320,71 @@ export const reaplicarDonosNoHistorico = createServerFn({ method: "POST" })
     }
     return { atualizadas, semUsuario };
   });
+
+/*
+ * Carteiras de quem saiu: negócios e empresas que ficaram sem dono no Compass
+ * (dono no RD sem usuário aqui), agrupados pelo nome do RD. A gestão envia a
+ * carteira para quem quiser; o que for enviado fica marcado como "manual" e a
+ * releitura do RD não volta a deixar sem dono. Funções no banco:
+ * carteiras_sem_dono() e transferir_carteira() (migração 20261127140000).
+ */
+export type CarteiraSemDono = {
+  nome: string;
+  negocios: number;
+  abertos: number;
+  ganhos: number;
+  empresas: number;
+};
+
+export const carteirasSemDono = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await exigirGestao(context.supabase, context.userId);
+    const db = context.supabase as unknown as SupabaseClient;
+    const [{ data, error }, { data: perfis }] = await Promise.all([
+      db.rpc("carteiras_sem_dono"),
+      db.from("profiles").select("id, full_name, email"),
+    ]);
+    if (error) throw new Error(error.message);
+    return {
+      carteiras: ((data ?? []) as CarteiraSemDono[]).map((c) => ({
+        nome: c.nome,
+        negocios: Number(c.negocios),
+        abertos: Number(c.abertos),
+        ganhos: Number(c.ganhos),
+        empresas: Number(c.empresas),
+      })),
+      usuarios: (
+        (perfis ?? []) as Array<{ id: string; full_name: string | null; email: string | null }>
+      )
+        .map((p) => ({ id: p.id, nome: p.full_name || p.email || p.id }))
+        .sort((a, b) => a.nome.localeCompare(b.nome)),
+    };
+  });
+
+export const transferirCarteira = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z
+      .object({
+        nome: z.string().min(1).max(200),
+        destinoId: z.string().uuid(),
+        negocios: z.enum(["nenhum", "abertos", "todos"]),
+        empresas: z.boolean(),
+      })
+      .refine((v) => v.negocios !== "nenhum" || v.empresas, "Escolha o que enviar")
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await exigirGestao(context.supabase, context.userId);
+    const db = context.supabase as unknown as SupabaseClient;
+    const { data: r, error } = await db.rpc("transferir_carteira", {
+      _nome: data.nome,
+      _destino: data.destinoId,
+      _negocios: data.negocios,
+      _empresas: data.empresas,
+    });
+    if (error) throw new Error(error.message);
+    const linha = ((r ?? []) as Array<{ negocios: number; empresas: number }>)[0];
+    return { negocios: Number(linha?.negocios ?? 0), empresas: Number(linha?.empresas ?? 0) };
+  });

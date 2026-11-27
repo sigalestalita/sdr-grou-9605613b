@@ -167,6 +167,7 @@ function PipelinePage() {
             <SelectContent>
               <SelectItem value="todos">Todos os executivos</SelectItem>
               {user?.id && <SelectItem value={user.id}>Só os meus</SelectItem>}
+              <SelectItem value="sem">Sem responsável</SelectItem>
               {executivos.map((id) => (
                 <SelectItem key={id} value={id}>
                   {nomeDe.get(id) ?? id}

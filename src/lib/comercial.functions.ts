@@ -344,6 +344,8 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
   });
 
 export const TODOS_OS_FUNIS = "todos";
+/** Filtro de responsável: negócios sem executivo e sem dono. */
+export const SEM_RESPONSAVEL = "sem";
 
 export type EtapaDeFunil = {
   id: string;
@@ -418,7 +420,8 @@ export const listComercialDeals = createServerFn({ method: "GET" })
       .object({
         // "todos" junta os funis comerciais num quadro só (como o "[C] Vendas" do RD).
         pipelineId: z.union([z.string().uuid(), z.literal(TODOS_OS_FUNIS)]).optional(),
-        executivoId: z.string().uuid().optional(),
+        // SEM_RESPONSAVEL: negócios sem executivo e sem dono (ex.: carteira de quem saiu).
+        executivoId: z.union([z.string().uuid(), z.literal(SEM_RESPONSAVEL)]).optional(),
         somenteAbertos: z.boolean().optional(),
       })
       .parse(d ?? {}),
@@ -452,7 +455,9 @@ export const listComercialDeals = createServerFn({ method: "GET" })
         pipelines.map((p) => p.id),
       );
     else if (alvo) q = q.eq("pipeline_id", alvo);
-    if (data.executivoId) q = q.or(filtroDoResponsavel(data.executivoId));
+    if (data.executivoId === SEM_RESPONSAVEL)
+      q = q.is("executivo_user_id", null).is("owner_user_id", null);
+    else if (data.executivoId) q = q.or(filtroDoResponsavel(data.executivoId));
     if (data.somenteAbertos !== false) q = q.eq("status", "open");
     const { data: deals, error } = await q;
     if (error) throw new Error(error.message);
