@@ -331,7 +331,9 @@ export const getCsClient = createServerFn({ method: "GET" })
         supabase as unknown as import("@supabase/supabase-js").SupabaseClient
       )
         .from("company_activities")
-        .select("id, tipo, descricao, occurred_at, author_id, rd_autor, rd_funil, created_at")
+        .select(
+          "id, tipo, descricao, occurred_at, author_id, rd_autor, rd_funil, rd_activity_id, created_at",
+        )
         .eq("company_id", empresa.id)
         .order("occurred_at", { ascending: false })
         .limit(200);
@@ -344,6 +346,7 @@ export const getCsClient = createServerFn({ method: "GET" })
           author_id: string | null;
           rd_autor: string | null;
           rd_funil: string | null;
+          rd_activity_id: string | null;
           created_at: string;
         }>
       ).map((a) => ({
@@ -352,7 +355,14 @@ export const getCsClient = createServerFn({ method: "GET" })
         author_id: a.author_id,
         event_type: "empresa_atividade",
         channel: a.tipo,
-        title: a.rd_funil ? `RD · ${a.rd_funil}` : "RD",
+        title: a.rd_funil
+          ? `RD · ${a.rd_funil}`
+          : a.rd_activity_id
+            ? "RD"
+            : a.descricao?.startsWith("Reunião analisada no Sales Coach") ||
+                a.descricao?.startsWith("Próximo passo combinado na reunião (Sales Coach)")
+              ? "Sales Coach"
+              : "Empresa",
         description:
           a.author_id || !a.rd_autor ? a.descricao : `${a.descricao ?? ""}\n— ${a.rd_autor} (RD)`,
         metadata: {},

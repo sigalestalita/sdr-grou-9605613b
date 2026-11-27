@@ -14,6 +14,7 @@ import {
 } from "@/lib/sheets.functions";
 import { getStatusMetaLeads } from "@/lib/meta-leads.functions";
 import { ContaAzulConexaoCard } from "@/components/faturamento/conta-azul";
+import { SalesCoachIntegracaoCard } from "@/components/sales-coach-integracao-card";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,6 +196,8 @@ function SettingsPage() {
       )}
 
       <ContaAzulConexaoCard />
+
+      {(isSuperAdmin || isGestao) && <SalesCoachIntegracaoCard />}
 
       <Card className="p-5 space-y-3">
         <div className="flex justify-between items-center">
