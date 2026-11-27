@@ -27,10 +27,17 @@ export async function getJourneyConfig(): Promise<JourneyConfig> {
 async function pickRecipient(clientUid: string) {
   const { data } = await supabaseAdmin
     .from("cs_contacts")
-    .select("id, nome, email, analista_pda, ativo_no_cliente")
+    .select("id, nome, email, analista_pda, ativo_no_cliente, origem_detecao")
     .eq("client_uid", clientUid)
     .not("email", "is", null);
-  const list = (data ?? []).filter((c) => c.email && c.ativo_no_cliente !== false);
+  // Quem veio da base da empresa só recebe a jornada se for analista PDA:
+  // a escolha automática fica entre os contatos cadastrados pelo time.
+  const list = (data ?? []).filter(
+    (c) =>
+      c.email &&
+      c.ativo_no_cliente !== false &&
+      (c.analista_pda || (c.origem_detecao as string) !== "empresa"),
+  );
   return list.find((c) => c.analista_pda) ?? list[0] ?? null;
 }
 

@@ -112,13 +112,8 @@ const NAV_OBJECTS: NavItem[] = [
     also: ["/empresas"],
   },
   { to: "/cs-follow-ups", label: "Tarefas", icon: ListChecks, team: "cs", roles: ["executivo"] },
-  {
-    to: "/jornada",
-    label: "Jornada do cliente",
-    icon: RouteIcon,
-    team: "cs",
-    roles: ["executivo"],
-  },
+  // "Jornada do cliente" saiu do menu a pedido da gestão (a tela /jornada
+  // continua existindo para links antigos).
 ];
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
