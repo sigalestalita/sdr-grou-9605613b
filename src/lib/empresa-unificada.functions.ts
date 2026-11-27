@@ -115,6 +115,7 @@ async function tudoDaEmpresaHandler(
         .from("contacts")
         .select("id, nome, email, telefone, cargo")
         .eq("company_id", companyId)
+        .eq("ativo", true)
         .order("nome")
         .limit(200),
     ]);
