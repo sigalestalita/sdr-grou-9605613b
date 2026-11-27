@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { GoogleAgendaConexao } from "@/components/google-agenda-conexao";
 import { useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -289,6 +290,8 @@ function CsIntegrationsPage() {
             </div>
           )}
         </Card>
+
+        <GoogleAgendaConexao voltarPara="/cs-integracoes" />
 
         <Card className="space-y-3 p-4">
           <div className="flex items-center gap-2">

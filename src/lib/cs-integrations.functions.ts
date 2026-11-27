@@ -146,7 +146,7 @@ export const listCsAgenda = createServerFn({ method: "GET" })
     let qr = (supabase as unknown as import("@supabase/supabase-js").SupabaseClient)
       .from("cs_meetings")
       .select(
-        "id, client_uid, title, occurred_at, duration_minutes, status, owner_user_id, meeting_url, contact_id, cs_clients:client_uid(nome_empresa), cs_contacts:contact_id(nome, email)",
+        "id, client_uid, title, occurred_at, duration_minutes, status, owner_user_id, meeting_url, contact_id, google_event_id, cs_clients:client_uid(nome_empresa), cs_contacts:contact_id(nome, email)",
       )
       .gte("occurred_at", data.from)
       .lte("occurred_at", data.to)
@@ -183,6 +183,20 @@ export const listCsAgenda = createServerFn({ method: "GET" })
       meetingUrl: r.meeting_url,
     }));
 
+    /*
+     * A reunião criada pelo Compass no Google volta pela leitura do iCal: o
+     * UID do iCal é "<id do evento>@google.com". Mostra só a do Compass.
+     */
+    const doCompass = new Set(
+      ((reunioesRaw ?? []) as Array<{ google_event_id?: string | null }>)
+        .map((r) => r.google_event_id)
+        .filter((x): x is string => !!x),
+    );
+    const eventos = (events ?? []).filter((e) => {
+      const uid = String((e as { raw?: { uid?: string } }).raw?.uid ?? "").split("@")[0];
+      return !uid || !doCompass.has(uid);
+    });
+
     // Donos de agenda: quem tem eventos registrados (Calendly ou simulados) + integrações vinculadas.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const [{ data: ownerRows }, { data: profiles }] = await Promise.all([
@@ -204,7 +218,7 @@ export const listCsAgenda = createServerFn({ method: "GET" })
 
     return {
       isManager: access.isManager,
-      events: events ?? [],
+      events: eventos,
       reunioes,
       users: await listIntegrationStatus(),
       owners,

@@ -92,7 +92,7 @@ export const getComercialAgenda = createServerFn({ method: "GET" })
         supabaseAdmin
           .from("cs_calendly_events")
           .select(
-            "id, user_id, name, status, start_time, end_time, location, meeting_url, invitee_name, invitee_email",
+            "id, user_id, name, status, start_time, end_time, location, meeting_url, invitee_name, invitee_email, raw",
           )
           .in("user_id", alvos)
           .gte("start_time", data.from)
@@ -116,7 +116,7 @@ export const getComercialAgenda = createServerFn({ method: "GET" })
         supabaseAdmin
           .from("cs_meetings")
           .select(
-            "id, owner_user_id, title, occurred_at, duration_minutes, status, meeting_url, cs_clients:client_uid(nome_empresa), cs_contacts:contact_id(nome)",
+            "id, owner_user_id, title, occurred_at, duration_minutes, status, meeting_url, google_event_id, cs_clients:client_uid(nome_empresa), cs_contacts:contact_id(nome)",
           )
           .in("owner_user_id", alvos)
           .in("status", ["agendada", "reservada"])
@@ -126,7 +126,15 @@ export const getComercialAgenda = createServerFn({ method: "GET" })
 
     const eventos: AgendaEvento[] = [];
 
+    // A reunião que o Compass criou no Google volta pelo iCal: mostra só a do Compass.
+    const doCompass = new Set(
+      ((comCliente ?? []) as unknown as Array<{ google_event_id?: string | null }>)
+        .map((m) => m.google_event_id)
+        .filter((x): x is string => !!x),
+    );
     for (const e of gcal ?? []) {
+      const uid = String((e as { raw?: { uid?: string } }).raw?.uid ?? "").split("@")[0];
+      if (uid && doCompass.has(uid)) continue;
       eventos.push({
         id: `g:${e.id}`,
         executivoId: e.user_id as string,
@@ -191,7 +199,7 @@ export const getComercialAgenda = createServerFn({ method: "GET" })
       });
     }
 
-    for (const m of (comCliente ?? []) as Array<Record<string, unknown>>) {
+    for (const m of (comCliente ?? []) as unknown as Array<Record<string, unknown>>) {
       const inicio = new Date(m.occurred_at as string);
       const min = (m.duration_minutes as number | null) ?? 60;
       eventos.push({

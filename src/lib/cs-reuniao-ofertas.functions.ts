@@ -255,8 +255,26 @@ async function avisarEscolha(
   }).catch((e) => console.warn("[oferta] e-mail", e));
 }
 
-/** Convite de calendário (.ics) para o contato do cliente e quem ofereceu. */
+/**
+ * Convite: se quem ofereceu conectou o Google, o evento é criado direto na
+ * agenda dela e o próprio Google convida o cliente. Sem Google, vai o .ics por
+ * e-mail para o contato do cliente e quem ofereceu.
+ */
 async function mandarConvite(meetingId: string) {
+  const { sincronizarSemFalhar } = await import("@/lib/cs/reuniao-google.server");
+  const google = await sincronizarSemFalhar(meetingId);
+  if (google === "criado" || google === "atualizado") {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await solto(supabaseAdmin)
+      .from("cs_meetings")
+      .select("cs_contacts:contact_id(email)")
+      .eq("id", meetingId)
+      .maybeSingle();
+    const email =
+      (data as { cs_contacts?: { email?: string | null } | null } | null)?.cs_contacts?.email ??
+      null;
+    return { enviado: true, para: email ? [email] : [], paraContato: !!email, google: true };
+  }
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { enviarConviteDaReuniaoCs } = await import("@/lib/cs/convite-reuniao.server");

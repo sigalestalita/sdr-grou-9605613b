@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { GoogleAgendaConexao } from "@/components/google-agenda-conexao";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -225,6 +226,8 @@ function ComercialAgendaPage() {
           </Button>
         </div>
       </div>
+
+      <GoogleAgendaConexao voltarPara="/comercial-agenda" />
 
       {/* Sem a agenda ligada, o convite do SDR chega por e-mail mas o sistema
           não consegue conferir se o horário está livre. */}

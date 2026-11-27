@@ -91,6 +91,7 @@ import { Route as ApiPublicContaAzulCallbackRouteImport } from './routes/api/pub
 import { Route as ApiPublicCsEmailInboundRouteImport } from './routes/api/public/cs/email-inbound'
 import { Route as ApiPublicEmailDescadastroRouteImport } from './routes/api/public/email/descadastro'
 import { Route as ApiPublicFichasWebhookRouteImport } from './routes/api/public/fichas/webhook'
+import { Route as ApiPublicGoogleCallbackRouteImport } from './routes/api/public/google/callback'
 import { Route as ApiPublicHooksCampanhasAgendadasRouteImport } from './routes/api/public/hooks/campanhas-agendadas'
 import { Route as ApiPublicHooksEmailCampanhasRouteImport } from './routes/api/public/hooks/email-campanhas'
 import { Route as ApiPublicHooksEspelhoSdrRouteImport } from './routes/api/public/hooks/espelho-sdr'
@@ -537,6 +538,11 @@ const ApiPublicFichasWebhookRoute = ApiPublicFichasWebhookRouteImport.update({
   path: '/api/public/fichas/webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicGoogleCallbackRoute = ApiPublicGoogleCallbackRouteImport.update({
+  id: '/api/public/google/callback',
+  path: '/api/public/google/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicHooksCampanhasAgendadasRoute =
   ApiPublicHooksCampanhasAgendadasRouteImport.update({
     id: '/api/public/hooks/campanhas-agendadas',
@@ -792,6 +798,7 @@ export interface FileRoutesByFullPath {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
+  '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
   '/api/public/hooks/email-campanhas': typeof ApiPublicHooksEmailCampanhasRoute
   '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
@@ -903,6 +910,7 @@ export interface FileRoutesByTo {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
+  '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
   '/api/public/hooks/email-campanhas': typeof ApiPublicHooksEmailCampanhasRoute
   '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
@@ -1018,6 +1026,7 @@ export interface FileRoutesById {
   '/api/public/cs/email-inbound': typeof ApiPublicCsEmailInboundRoute
   '/api/public/email/descadastro': typeof ApiPublicEmailDescadastroRoute
   '/api/public/fichas/webhook': typeof ApiPublicFichasWebhookRoute
+  '/api/public/google/callback': typeof ApiPublicGoogleCallbackRoute
   '/api/public/hooks/campanhas-agendadas': typeof ApiPublicHooksCampanhasAgendadasRoute
   '/api/public/hooks/email-campanhas': typeof ApiPublicHooksEmailCampanhasRoute
   '/api/public/hooks/espelho-sdr': typeof ApiPublicHooksEspelhoSdrRoute
@@ -1133,6 +1142,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
+    | '/api/public/google/callback'
     | '/api/public/hooks/campanhas-agendadas'
     | '/api/public/hooks/email-campanhas'
     | '/api/public/hooks/espelho-sdr'
@@ -1244,6 +1254,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
+    | '/api/public/google/callback'
     | '/api/public/hooks/campanhas-agendadas'
     | '/api/public/hooks/email-campanhas'
     | '/api/public/hooks/espelho-sdr'
@@ -1358,6 +1369,7 @@ export interface FileRouteTypes {
     | '/api/public/cs/email-inbound'
     | '/api/public/email/descadastro'
     | '/api/public/fichas/webhook'
+    | '/api/public/google/callback'
     | '/api/public/hooks/campanhas-agendadas'
     | '/api/public/hooks/email-campanhas'
     | '/api/public/hooks/espelho-sdr'
@@ -1404,6 +1416,7 @@ export interface RootRouteChildren {
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicEmailDescadastroRoute: typeof ApiPublicEmailDescadastroRoute
   ApiPublicFichasWebhookRoute: typeof ApiPublicFichasWebhookRoute
+  ApiPublicGoogleCallbackRoute: typeof ApiPublicGoogleCallbackRoute
   ApiPublicHooksCampanhasAgendadasRoute: typeof ApiPublicHooksCampanhasAgendadasRoute
   ApiPublicHooksEmailCampanhasRoute: typeof ApiPublicHooksEmailCampanhasRoute
   ApiPublicHooksEspelhoSdrRoute: typeof ApiPublicHooksEspelhoSdrRoute
@@ -2012,6 +2025,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFichasWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/google/callback': {
+      id: '/api/public/google/callback'
+      path: '/api/public/google/callback'
+      fullPath: '/api/public/google/callback'
+      preLoaderRoute: typeof ApiPublicGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/campanhas-agendadas': {
       id: '/api/public/hooks/campanhas-agendadas'
       path: '/api/public/hooks/campanhas-agendadas'
@@ -2422,6 +2442,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicEmailDescadastroRoute: ApiPublicEmailDescadastroRoute,
   ApiPublicFichasWebhookRoute: ApiPublicFichasWebhookRoute,
+  ApiPublicGoogleCallbackRoute: ApiPublicGoogleCallbackRoute,
   ApiPublicHooksCampanhasAgendadasRoute: ApiPublicHooksCampanhasAgendadasRoute,
   ApiPublicHooksEmailCampanhasRoute: ApiPublicHooksEmailCampanhasRoute,
   ApiPublicHooksEspelhoSdrRoute: ApiPublicHooksEspelhoSdrRoute,
