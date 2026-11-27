@@ -60,8 +60,12 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
     const { supabase, userId } = context;
     const dayMs = 86400000;
     const { DEFAULT_STAGE_SLA } = await import("@/lib/cs-types");
-    const { getStageSla, fetchAllRows, getEvidenceConfig } =
+    const { getStageSla, fetchAllRows, getEvidenceConfig, getInicioOperacao } =
       await import("@/lib/cs/cs-core.server");
+    const { ancorar, antesDoInicio } = await import("@/lib/cs/inicio-operacao");
+    // Dia 1 do CS: o que venceu antes do início não é atraso, e os prazos
+    // de jornada e de contato contam a partir dele.
+    const inicio = await getInicioOperacao(supabase);
 
     const from = new Date(data.from).toISOString();
     const to = new Date(data.to).toISOString();
@@ -245,10 +249,9 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
     for (const c of clients) {
       const stage = c.journey_stage as keyof typeof sla;
       const stageDays = typeof sla[stage] === "number" ? (sla[stage] as number) : 0;
-      if (stageDays > 0 && c.stage_entered_at) {
-        const due = new Date(
-          new Date(c.stage_entered_at).getTime() + stageDays * dayMs,
-        ).toISOString();
+      const entrouNaEtapa = ancorar(c.stage_entered_at, inicio);
+      if (stageDays > 0 && entrouNaEtapa) {
+        const due = new Date(new Date(entrouNaEtapa).getTime() + stageDays * dayMs).toISOString();
         if (due <= to) {
           items.push({
             key: `jornada:${c.client_uid}`,
@@ -264,7 +267,7 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
         }
       }
       const semContato = sla.sem_contato_dias ?? 45;
-      const lastContact = c.last_contact_at ?? c.stage_entered_at;
+      const lastContact = ancorar(c.last_contact_at ?? c.stage_entered_at, inicio);
       if (semContato > 0 && lastContact) {
         const due = new Date(new Date(lastContact).getTime() + semContato * dayMs).toISOString();
         if (due <= to) {
@@ -285,7 +288,8 @@ export const getCsFollowUpAgenda = createServerFn({ method: "GET" })
       }
     }
 
-    const filtered = data.ownerId ? items.filter((i) => i.ownerId === data.ownerId) : items;
+    const doPeriodo = items.filter((i) => i.done || !antesDoInicio(i.dueAt, inicio));
+    const filtered = data.ownerId ? doPeriodo.filter((i) => i.ownerId === data.ownerId) : doPeriodo;
     const overdue = filtered
       .filter((i) => !i.done && i.dueAt < from)
       .sort((a, b) => a.dueAt.localeCompare(b.dueAt));

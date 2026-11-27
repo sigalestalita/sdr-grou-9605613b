@@ -69,6 +69,13 @@ export async function getCsSetting<T>(db: DB, key: string, fallback: T): Promise
   return { ...(fallback as object), ...(data.value as object) } as T;
 }
 
+/** Início da operação do CS (ISO da meia-noite de Brasília), ou null. */
+export async function getInicioOperacao(db: DB): Promise<string | null> {
+  const { CHAVE_INICIO_OPERACAO, lerInicioOperacao, inicioIso } =
+    await import("@/lib/cs/inicio-operacao");
+  return inicioIso(lerInicioOperacao(await getCsSetting<unknown>(db, CHAVE_INICIO_OPERACAO, null)));
+}
+
 export async function saveCsSetting(db: DB, key: string, value: unknown) {
   const { error } = await db
     .from("cs_settings")
@@ -469,6 +476,9 @@ export async function recomputeHealthAll(
 export async function generateCsAlerts(db: DB): Promise<{ created: number }> {
   const sla = await getStageSla(db);
   const weeks = lastNWeeks(8);
+  // Dia 1 do CS: prazos contam a partir do início da operação.
+  const { ancorar } = await import("@/lib/cs/inicio-operacao");
+  const inicio = await getInicioOperacao(db);
 
   const { data: clients } = await db
     .from("cs_clients")
@@ -557,7 +567,10 @@ export async function generateCsAlerts(db: DB): Promise<{ created: number }> {
       });
     }
 
-    const stageDays = Math.floor((now - new Date(c.stage_entered_at).getTime()) / 86400000);
+    const stageDays = Math.floor(
+      (now - new Date(ancorar(c.stage_entered_at, inicio) ?? c.stage_entered_at).getTime()) /
+        86400000,
+    );
     const limit = sla[c.journey_stage as keyof StageSla] as number;
     if (typeof limit === "number" && stageDays > limit) {
       pending.push({
@@ -568,8 +581,9 @@ export async function generateCsAlerts(db: DB): Promise<{ created: number }> {
       });
     }
 
-    const contactDays = c.last_contact_at
-      ? Math.floor((now - new Date(c.last_contact_at).getTime()) / 86400000)
+    const contatoAncorado = ancorar(c.last_contact_at, inicio);
+    const contactDays = contatoAncorado
+      ? Math.floor((now - new Date(contatoAncorado).getTime()) / 86400000)
       : null;
     if (contactDays === null || contactDays > sla.sem_contato_dias) {
       pending.push({

@@ -57,9 +57,11 @@ export const getCsCadence = createServerFn({ method: "GET" })
   )
   .handler(async ({ data, context }): Promise<CsCadenceData> => {
     const { supabase } = context;
-    const { fetchAllRows } = await import("@/lib/cs/cs-core.server");
+    const { fetchAllRows, getInicioOperacao } = await import("@/lib/cs/cs-core.server");
     const { computeCadence, URGENCY_ORDER } = await import("@/lib/cs/cadence");
     const { lastNWeeks } = await import("@/lib/cs-types");
+    const { ancorar } = await import("@/lib/cs/inicio-operacao");
+    const inicioOperacao = await getInicioOperacao(supabase);
 
     const weeks = lastNWeeks(data.weeks);
     const since240 = new Date(Date.now() - 240 * 86400000).toISOString();
@@ -208,7 +210,8 @@ export const getCsCadence = createServerFn({ method: "GET" })
         snapshots: filled,
         contractStart: (c["data_inicio_contrato"] as string) ?? null,
         renewal: (c["data_renovacao"] as string) ?? null,
-        lastContactAt: (c["last_contact_at"] as string) ?? null,
+        // Dia 1 do CS: a cadência conta a partir do início da operação.
+        lastContactAt: ancorar((c["last_contact_at"] as string) ?? null, inicioOperacao),
         contactsWithResponse: responsesByClient.get(uid) ?? 0,
         now,
       });
