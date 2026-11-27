@@ -339,6 +339,20 @@ async function fetchAll<T = Row>(table: string, select: string): Promise<T[]> {
   return fetchIntervalo<T>(table, select, 0, 200000);
 }
 
+/** Registros do staging com estes rd_id. */
+async function fetchPorIds<T = Row>(table: string, select: string, ids: string[]): Promise<T[]> {
+  const out: T[] = [];
+  for (const part of chunk([...new Set(ids)], 150)) {
+    const { data, error } = await supabaseAdmin
+      .from(table as never)
+      .select(select)
+      .in("rd_id", part);
+    if (error) throw new Error(`${table}: ${error.message}`);
+    out.push(...((data ?? []) as T[]));
+  }
+  return out;
+}
+
 /** Registros [de, de + quantos) da tabela, na ordem da primeira coluna do select. */
 async function fetchIntervalo<T = Row>(
   table: string,
@@ -376,6 +390,13 @@ export async function transformRdToObjects(opts?: {
   /** Fatia do staging (por recurso): pula offset linhas e processa até limit. */
   offset?: number;
   limit?: number;
+  /** Só estes registros do staging (rd_id), em vez do espelho inteiro. */
+  filtro?: { orgs?: string[]; deals?: string[]; contatos?: string[] };
+  /**
+   * Só cria o que falta: empresas, contatos e negócios que já existem no
+   * Compass não são tocados (o que o time mudou aqui vale mais que o RD).
+   */
+  soCriar?: boolean;
 }): Promise<RdTransformResult> {
   const dryRun = !!opts?.dryRun;
   const only = new Set(opts?.only ?? ["companies", "contacts", "deals", "parents"]);
@@ -383,8 +404,21 @@ export async function transformRdToObjects(opts?: {
   const limit = opts?.limit && opts.limit > 0 ? opts.limit : null;
   // A fatia é buscada no banco (ordenada por rd_id), em vez de baixar o
   // espelho inteiro — com o JSON cru de 24 mil negócios — a cada fatia.
-  const fatiaDo = <T = Row>(table: string, select: string) =>
-    limit ? fetchIntervalo<T>(table, select, offset, limit) : fetchAll<T>(table, select);
+  const filtro = opts?.filtro;
+  const soCriar = !!opts?.soCriar;
+  const idsDoFiltro = (table: string) =>
+    table === "rd_organizations"
+      ? filtro?.orgs
+      : table === "rd_deals"
+        ? filtro?.deals
+        : table === "rd_contacts"
+          ? filtro?.contatos
+          : undefined;
+  const fatiaDo = <T = Row>(table: string, select: string) => {
+    const ids = filtro ? (idsDoFiltro(table) ?? []) : null;
+    if (ids) return fetchPorIds<T>(table, select, ids);
+    return limit ? fetchIntervalo<T>(table, select, offset, limit) : fetchAll<T>(table, select);
+  };
   const errors: string[] = [];
   const result: RdTransformResult = {
     companies: { total: 0, created: 0, updated: 0, linkedByKey: 0, csClientsUpdated: 0 },
@@ -447,6 +481,10 @@ export async function transformRdToObjects(opts?: {
       .map((m) => [String(m.sai_rd_org_id), String(m.fica_id)] as const),
   );
   for (const [org, empresa] of aliasRd) orgToCompany.set(org, empresa);
+  // Com filtro, as organizações fora dele continuam valendo para os negócios.
+  if (filtro)
+    for (const c of existingCompanies)
+      if (c.rd_org_id) orgToCompany.set(String(c.rd_org_id), String(c.id));
 
   if (only.has("companies")) {
     result.companies.total = rdOrgs.length;
@@ -485,7 +523,7 @@ export async function transformRdToObjects(opts?: {
         if (proj.companies?.porte != null) csFields.porte = proj.companies.porte;
         if (proj.companies?.num_funcionarios != null)
           csFields.num_funcionarios = proj.companies.num_funcionarios;
-        if (Object.keys(csFields).length > 0) csPatches.set(String(o.rd_id), csFields);
+        if (!soCriar && Object.keys(csFields).length > 0) csPatches.set(String(o.rd_id), csFields);
       }
       const fields: Row = {
         nome: clean(o.name),
@@ -531,7 +569,7 @@ export async function transformRdToObjects(opts?: {
           // já ligada a outra organização do RD: candidata a duplicata, não sobrescrever
           continue;
         }
-        const patch = applyWithProvenance(existing, fields);
+        const patch = soCriar ? {} : applyWithProvenance(existing, fields);
         if (Object.keys(patch).length > 0) updates.push({ id: String(existing.id), patch });
         orgToCompany.set(key, String(existing.id));
         if (!existing.rd_org_id) {
@@ -700,7 +738,7 @@ export async function transformRdToObjects(opts?: {
       semUuidInvalido(fields);
       const existing = byRdC.get(String(c.rd_id)) ?? null;
       if (existing) {
-        const patch = applyWithProvenance(existing, fields);
+        const patch = soCriar ? {} : applyWithProvenance(existing, fields);
         if (Object.keys(patch).length > 0) updates.push({ id: String(existing.id), patch });
         contactByRd.set(String(c.rd_id), String(existing.id));
       } else {
@@ -1023,6 +1061,7 @@ export async function transformRdToObjects(opts?: {
     const companyOfDeal = new Map<string, string>(); // rd_deal_id -> companies.id
     for (const d of rdDeals) {
       if (destinoDe.get(String(d.rd_id))?.tipo !== "negocio") continue;
+      if (soCriar && byRdD.has(String(d.rd_id))) continue;
       const raw = (d.raw ?? {}) as Json;
       const cf = customFields(raw);
       const proj = project(MAP.deal, cf);
