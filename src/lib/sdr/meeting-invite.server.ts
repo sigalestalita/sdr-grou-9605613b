@@ -315,7 +315,7 @@ export async function buildHandoff(lead: LeadRow): Promise<Handoff> {
 // ---------------------------------------------------------------------------
 type Attachment = { filename: string; content: string; content_type?: string };
 
-async function sendEmail(input: {
+export async function sendEmail(input: {
   from: string;
   to: string[];
   cc?: string[];

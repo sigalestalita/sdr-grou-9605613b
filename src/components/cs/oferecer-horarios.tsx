@@ -100,8 +100,12 @@ export function OfertasDeHorarios({
   });
   const escolher = useMutation({
     mutationFn: (p: { ofertaId: string; meetingId: string }) => escolherFn({ data: p }),
-    onSuccess: () => {
-      toast.success("Horário confirmado. Os outros foram liberados.");
+    onSuccess: (r) => {
+      toast.success(
+        r.convite?.enviado
+          ? `Horário confirmado e convite de calendário enviado para ${r.convite.para.join(", ")}.`
+          : "Horário confirmado. Os outros foram liberados. (Convite não enviado: o contato não tem e-mail.)",
+      );
       atualizar();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),

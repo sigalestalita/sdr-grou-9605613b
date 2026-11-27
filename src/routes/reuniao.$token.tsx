@@ -39,6 +39,7 @@ function EscolherHorario() {
   const [nome, setNome] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [confirmado, setConfirmado] = useState<string | null>(null);
+  const [convite, setConvite] = useState(false);
 
   const carregar = () =>
     ver({ data: { token } })
@@ -56,6 +57,7 @@ function EscolherHorario() {
     try {
       const r = await escolher({ data: { token, meetingId: marcado, nome: nome || undefined } });
       setConfirmado(r.inicio);
+      setConvite(!!r.conviteParaVoce);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível confirmar.");
       void carregar();
@@ -96,7 +98,8 @@ function EscolherHorario() {
                   {quando(confirmado ?? dados.escolhida!.inicio)}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {dados.quemConvida} já recebeu o aviso. Até lá!
+                  {dados.quemConvida} já recebeu o aviso.
+                  {convite ? " O convite de calendário foi para o seu e-mail." : ""} Até lá!
                 </p>
               </div>
             ) : dados.status === "cancelada" ? (
