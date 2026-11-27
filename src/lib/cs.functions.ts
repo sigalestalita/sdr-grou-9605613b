@@ -1297,7 +1297,10 @@ export async function saveCsMeetingNucleo(
     }
   }
 
-  return { ok: true, id: meetingId };
+  // Google Agenda de quem é dono da reunião (se conectou): cria, muda ou cancela.
+  const { sincronizarSemFalhar } = await import("@/lib/cs/reuniao-google.server");
+  const google = meetingId ? await sincronizarSemFalhar(meetingId) : "nada";
+  return { ok: true, id: meetingId, google };
 }
 
 export const saveCsMeeting = createServerFn({ method: "POST" })
@@ -1309,6 +1312,17 @@ export const deleteCsMeeting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
+    // Cancela antes no Google (avisa os convidados), se a reunião estava lá.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { cancelarNoGoogleAntesDeApagar } = await import("@/lib/cs/reuniao-google.server");
+      await cancelarNoGoogleAntesDeApagar(
+        supabaseAdmin as unknown as import("@supabase/supabase-js").SupabaseClient,
+        data.id,
+      );
+    } catch (e) {
+      console.warn("[google] apagar reunião", e);
+    }
     const { error } = await context.supabase.from("cs_meetings").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
