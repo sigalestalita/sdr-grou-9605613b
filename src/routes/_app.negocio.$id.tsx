@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { ReunioesDoNegocio } from "@/components/reunioes-analisadas";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -381,6 +382,8 @@ function NegocioPage() {
               </div>
             </section>
           }
+
+          <ReunioesDoNegocio dealId={id} />
 
           {/* histórico */}
           <section className="surface-panel p-4">
