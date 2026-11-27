@@ -41,7 +41,9 @@ function PrivacidadePage() {
         <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
           SDR GROU — Grou Gestão de Pessoas
         </p>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Política de Privacidade</h1>
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          Política de Privacidade
+        </h1>
         <p className="text-sm text-muted-foreground">Última atualização: {UPDATED}</p>
       </header>
 
@@ -55,8 +57,8 @@ function PrivacidadePage() {
             autorizados da Grou.
           </p>
           <p>
-            Esta página é mantida pela Grou para explicar de forma clara quais dados o sistema trata.
-            Ela não é uma certificação nem uma auditoria independente.
+            Esta página é mantida pela Grou para explicar de forma clara quais dados o sistema
+            trata. Ela não é uma certificação nem uma auditoria independente.
           </p>
         </Section>
 
@@ -92,8 +94,14 @@ function PrivacidadePage() {
           <ul className="list-disc space-y-2 pl-5">
             <li>Responder solicitações e dar continuidade ao atendimento comercial.</li>
             <li>Qualificar oportunidades e direcionar o lead ao consultor responsável.</li>
-            <li>Enviar mensagens de atendimento e follow-up pelo WhatsApp, inclusive com apoio de assistente automatizado.</li>
-            <li>Organizar a operação comercial: histórico de contatos, agenda de follow-ups e indicadores internos.</li>
+            <li>
+              Enviar mensagens de atendimento e follow-up pelo WhatsApp, inclusive com apoio de
+              assistente automatizado.
+            </li>
+            <li>
+              Organizar a operação comercial: histórico de contatos, agenda de follow-ups e
+              indicadores internos.
+            </li>
           </ul>
           <p>
             As bases legais aplicáveis (LGPD, Lei 13.709/2018) são o legítimo interesse na atividade
@@ -107,14 +115,40 @@ function PrivacidadePage() {
             Nossos atendimentos por WhatsApp são realizados via WhatsApp Business Platform (Meta).
             Parte das mensagens iniciais e dos follow-ups pode ser enviada de forma automatizada por
             um assistente, sempre com identificação da Grou e com possibilidade de falar com uma
-            pessoa da equipe. O envio de mensagens ativas ocorre apenas para contatos que
-            informaram seus dados em nossos canais.
+            pessoa da equipe. O envio de mensagens ativas ocorre apenas para contatos que informaram
+            seus dados em nossos canais.
           </p>
           <p>
-            Para deixar de receber mensagens, basta responder <strong className="text-foreground">
-            &quot;sair&quot;</strong> ou <strong className="text-foreground">&quot;parar&quot;</strong> na
-            conversa, ou solicitar por e-mail. O contato é marcado como opt-out e o envio ativo é
-            interrompido.
+            Para deixar de receber mensagens, basta responder{" "}
+            <strong className="text-foreground">&quot;sair&quot;</strong> ou{" "}
+            <strong className="text-foreground">&quot;parar&quot;</strong> na conversa, ou solicitar
+            por e-mail. O contato é marcado como opt-out e o envio ativo é interrompido.
+          </p>
+        </Section>
+
+        <Section title="4.1. Google Agenda (integração da equipe)">
+          <p>
+            Pessoas da equipe Grou podem conectar a própria conta Google ao Compass para que as
+            reuniões marcadas no sistema sejam criadas na agenda delas. Com essa autorização, o
+            Compass acessa apenas os eventos da agenda principal da pessoa (
+            <code>calendar.events</code>) e o e-mail da conta, e somente para criar, alterar ou
+            cancelar os eventos das reuniões marcadas pelo próprio Compass — com o título, o
+            horário, a pauta, o link e os convidados daquela reunião.
+          </p>
+          <p>
+            O uso de informações recebidas das APIs do Google segue a{" "}
+            <a
+              href="https://developers.google.com/terms/api-services-user-data-policy"
+              className="underline"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Política de Dados do Usuário dos Serviços de API do Google
+            </a>
+            , incluindo os requisitos de Uso Limitado. Esses dados não são vendidos, não são usados
+            para publicidade nem para treinar modelos de IA, e não são compartilhados com terceiros.
+            A autorização pode ser revogada a qualquer momento no Compass ("Desconectar") ou na
+            conta Google; ao desconectar, o token guardado é apagado.
           </p>
         </Section>
 
@@ -124,10 +158,17 @@ function PrivacidadePage() {
             operação do sistema, no limite necessário:
           </p>
           <ul className="list-disc space-y-2 pl-5">
-            <li>Meta Platforms — envio e recebimento de mensagens via WhatsApp Business Platform.</li>
-            <li>Provedor de infraestrutura e banco de dados em nuvem, para hospedagem do sistema.</li>
+            <li>
+              Meta Platforms — envio e recebimento de mensagens via WhatsApp Business Platform.
+            </li>
+            <li>
+              Provedor de infraestrutura e banco de dados em nuvem, para hospedagem do sistema.
+            </li>
             <li>Provedores de e-mail transacional, para notificações internas da equipe.</li>
-            <li>Provedores de modelos de inteligência artificial, para geração de respostas de atendimento.</li>
+            <li>
+              Provedores de modelos de inteligência artificial, para geração de respostas de
+              atendimento.
+            </li>
             <li>Autoridades públicas, quando houver obrigação legal ou requisição judicial.</li>
           </ul>
         </Section>
@@ -153,10 +194,13 @@ function PrivacidadePage() {
 
         <Section title="8. Direitos do titular">
           <p>
-            Você pode solicitar confirmação de tratamento, acesso, correção, anonimização, portabilidade,
-            eliminação dos seus dados, informação sobre compartilhamentos e revogação de consentimento.
-            Basta escrever para{" "}
-            <a className="font-medium text-primary underline-offset-4 hover:underline" href={`mailto:${CONTACT}`}>
+            Você pode solicitar confirmação de tratamento, acesso, correção, anonimização,
+            portabilidade, eliminação dos seus dados, informação sobre compartilhamentos e revogação
+            de consentimento. Basta escrever para{" "}
+            <a
+              className="font-medium text-primary underline-offset-4 hover:underline"
+              href={`mailto:${CONTACT}`}
+            >
               {CONTACT}
             </a>
             . Responderemos nos prazos previstos na LGPD.
@@ -173,7 +217,10 @@ function PrivacidadePage() {
         <Section title="10. Contato">
           <p>
             Dúvidas sobre privacidade e proteção de dados:{" "}
-            <a className="font-medium text-primary underline-offset-4 hover:underline" href={`mailto:${CONTACT}`}>
+            <a
+              className="font-medium text-primary underline-offset-4 hover:underline"
+              href={`mailto:${CONTACT}`}
+            >
               {CONTACT}
             </a>
             .
