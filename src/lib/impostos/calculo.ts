@@ -87,6 +87,48 @@ export type ResultadoItem = {
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
 
+/*
+ * Regra de retenção (editável em Calculadora de impostos → Regras, como na
+ * calculadora original). Escopo: um produto do catálogo, uma classificação
+ * fiscal ou todas. Condições vazias valem para qualquer valor.
+ */
+export type RegraImposto = {
+  id: string;
+  nome: string;
+  classificacao: Classificacao | null;
+  produtoId: string | null;
+  tipoPessoa: "CPF" | "CNPJ" | null;
+  regime: Regime | null;
+  /** Não vale para estes regimes (ex.: ISS não é retido de cliente Isento). */
+  excetoRegimes: Regime[];
+  municipio: string | null;
+  categoriaEspecialIss: boolean;
+  valorMin: number | null;
+  valorMax: number | null;
+  prioridade: number;
+  itens: Array<{ imposto: string; aliquota: number }>;
+  observacoes: string | null;
+  ativo: boolean;
+};
+
+const regra = (
+  r: Partial<RegraImposto> & Pick<RegraImposto, "id" | "nome" | "itens">,
+): RegraImposto => ({
+  classificacao: null,
+  produtoId: null,
+  tipoPessoa: null,
+  regime: null,
+  excetoRegimes: [],
+  municipio: null,
+  categoriaEspecialIss: false,
+  valorMin: null,
+  valorMax: null,
+  prioridade: 10,
+  observacoes: null,
+  ativo: true,
+  ...r,
+});
+
 const FEDERAIS_465 = [
   { imposto: "PIS", aliquota: 0.65 },
   { imposto: "COFINS", aliquota: 3 },
@@ -94,16 +136,133 @@ const FEDERAIS_465 = [
 ];
 const IRRF = { imposto: "IRRF", aliquota: 1.5 };
 
+/**
+ * Regras da calculadora original (financeiro, 08/2026), por classificação.
+ * São o ponto de partida do banco (impostos_regras) e a referência dos testes.
+ */
+export const REGRAS_PADRAO: RegraImposto[] = [
+  regra({
+    id: "trein-cpf",
+    nome: "Treinamento — CPF (sem retenção)",
+    classificacao: "treinamento",
+    tipoPessoa: "CPF",
+    itens: [],
+    observacoes: "Pessoa física: nenhuma retenção.",
+  }),
+  regra({
+    id: "trein-simples",
+    nome: "Treinamento — CNPJ Simples Nacional",
+    classificacao: "treinamento",
+    tipoPessoa: "CNPJ",
+    regime: "Simples Nacional",
+    prioridade: 20,
+    itens: [IRRF],
+    observacoes:
+      "Simples Nacional: dispensada retenção de PIS/COFINS/CSLL. Reter apenas IRRF 1,5%.",
+  }),
+  regra({
+    id: "trein-mei",
+    nome: "Treinamento — CNPJ MEI",
+    classificacao: "treinamento",
+    tipoPessoa: "CNPJ",
+    regime: "MEI",
+    prioridade: 20,
+    itens: [IRRF],
+    observacoes: "MEI dispensado de PIS, COFINS e CSLL. Retém apenas IRRF 1,5%.",
+  }),
+  regra({
+    id: "trein-isento",
+    nome: "Treinamento — CNPJ Isento",
+    classificacao: "treinamento",
+    tipoPessoa: "CNPJ",
+    regime: "Isento",
+    prioridade: 20,
+    itens: [...FEDERAIS_465, IRRF],
+    observacoes: "Cliente isento: deixa de reter ISS, mas federais (1,5% IRRF + 4,65%) continuam.",
+  }),
+  regra({
+    id: "trein-ate-215",
+    nome: "Treinamento — CNPJ até R$ 215,05",
+    classificacao: "treinamento",
+    tipoPessoa: "CNPJ",
+    valorMax: 215.05,
+    itens: [],
+    observacoes: "Até R$ 215,05: sem retenção federal.",
+  }),
+  regra({
+    id: "trein-215-666",
+    nome: "Treinamento — CNPJ R$ 215,06 a R$ 666,66",
+    classificacao: "treinamento",
+    tipoPessoa: "CNPJ",
+    valorMin: 215.06,
+    valorMax: 666.66,
+    itens: FEDERAIS_465,
+    observacoes: "Reter PIS 0,65% + COFINS 3% + CSLL 1%. IRRF dispensado nesta faixa.",
+  }),
+  regra({
+    id: "trein-acima-666",
+    nome: "Treinamento — CNPJ acima de R$ 666,66",
+    classificacao: "treinamento",
+    tipoPessoa: "CNPJ",
+    valorMin: 666.67,
+    itens: [...FEDERAIS_465, IRRF],
+    observacoes: "Reter PIS 0,65% + COFINS 3% + CSLL 1% + IRRF 1,5%.",
+  }),
+  regra({
+    id: "trein-iss-poa",
+    nome: "Treinamento — ISS Porto Alegre categoria especial",
+    classificacao: "treinamento",
+    tipoPessoa: "CNPJ",
+    excetoRegimes: ["Isento"],
+    municipio: "Porto Alegre",
+    categoriaEspecialIss: true,
+    prioridade: 5,
+    itens: [{ imposto: "ISS", aliquota: 5 }],
+    observacoes:
+      "ISS retido na fonte (5%) quando o tomador é de Porto Alegre e de categoria especial (bancos, seguradoras, órgãos públicos, concessionárias, hospitais, condomínios, escolas privadas etc.).",
+  }),
+  ...(["licenciamento", "suporte"] as const).flatMap((cl) => [
+    regra({
+      id: `${cl}-sem-retencao`,
+      nome: `${cl === "licenciamento" ? "Licenciamento" : "Suporte"} — sem retenção`,
+      classificacao: cl,
+      prioridade: 1,
+      itens: [],
+      observacoes: "Licenciamento/Suporte: nenhuma retenção federal nem ISS por padrão.",
+    }),
+    regra({
+      id: `${cl}-iss-poa`,
+      nome: `${cl === "licenciamento" ? "Licenciamento" : "Suporte"} — ISS Porto Alegre categoria especial`,
+      classificacao: cl,
+      tipoPessoa: "CNPJ",
+      excetoRegimes: ["Isento"],
+      municipio: "Porto Alegre",
+      categoriaEspecialIss: true,
+      prioridade: 5,
+      itens: [{ imposto: "ISS", aliquota: 2 }],
+      observacoes:
+        "ISS retido na fonte (2%) quando o tomador é de Porto Alegre e de categoria especial.",
+    }),
+  ]),
+];
+
 /** "Porto Alegre", "PORTO ALEGRE", "porto alegre/RS" → true. */
 export function ehPortoAlegre(municipio: string | null | undefined): boolean {
-  if (!municipio) return false;
-  const s = municipio
+  return mesmoMunicipio(municipio, "Porto Alegre");
+}
+
+function semAcento(s: string) {
+  return s
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[/-]\s*rs$/, "")
+    .replace(/[/-]\s*[a-z]{2}$/, "")
     .trim();
-  return s === "porto alegre";
+}
+
+function mesmoMunicipio(a: string | null | undefined, b: string | null | undefined): boolean {
+  if (!a || !b) return false;
+  return semAcento(a) === semAcento(b);
 }
 
 export function tipoPessoaDoDocumento(doc: string | null | undefined): "CPF" | "CNPJ" | null {
@@ -113,47 +272,76 @@ export function tipoPessoaDoDocumento(doc: string | null | undefined): "CPF" | "
   return null;
 }
 
-function federais(classificacao: Classificacao | null, c: Cliente, bruto: number) {
-  if (classificacao !== "treinamento" || c.tipoPessoa === "CPF") {
-    return {
-      itens: [],
-      regra:
-        classificacao === "treinamento"
-          ? "Pessoa física: sem retenção"
-          : "Licenciamento/suporte: sem retenção federal",
-    };
-  }
-  if (c.regime === "Simples Nacional" || c.regime === "MEI") {
-    return { itens: [IRRF], regra: `${c.regime}: só IRRF 1,5%` };
-  }
-  if (c.regime === "Isento") {
-    return { itens: [...FEDERAIS_465, IRRF], regra: "Isento: PIS, COFINS, CSLL e IRRF (6,15%)" };
-  }
-  if (bruto <= 215.05) return { itens: [], regra: "Até R$ 215,05: sem retenção" };
-  if (bruto <= 666.66)
-    return { itens: FEDERAIS_465, regra: "R$ 215,06 a R$ 666,66: PIS, COFINS e CSLL (4,65%)" };
-  return {
-    itens: [...FEDERAIS_465, IRRF],
-    regra: "Acima de R$ 666,66: PIS, COFINS, CSLL e IRRF (6,15%)",
-  };
+type ItemCalculo = {
+  nome: string;
+  classificacao: Classificacao | null;
+  bruto: number;
+  produtoId?: string | null;
+};
+
+/** A regra vale para este item, cliente e valor? */
+export function regraVale(r: RegraImposto, item: ItemCalculo, c: Cliente, bruto: number) {
+  if (!r.ativo) return false;
+  if (r.produtoId && r.produtoId !== (item.produtoId ?? null)) return false;
+  if (r.classificacao && r.classificacao !== item.classificacao) return false;
+  if (r.tipoPessoa && r.tipoPessoa !== c.tipoPessoa) return false;
+  if (r.regime && (c.tipoPessoa !== "CNPJ" || r.regime !== c.regime)) return false;
+  if (c.regime && c.tipoPessoa === "CNPJ" && r.excetoRegimes.includes(c.regime)) return false;
+  if (r.municipio && !mesmoMunicipio(r.municipio, c.municipio)) return false;
+  if (r.categoriaEspecialIss && !c.categoriaEspecialIss) return false;
+  if (r.valorMin != null && bruto < r.valorMin) return false;
+  if (r.valorMax != null && bruto > r.valorMax) return false;
+  return true;
 }
 
-function iss(classificacao: Classificacao | null, c: Cliente) {
-  if (!classificacao || c.tipoPessoa === "CPF" || c.regime === "Isento") return null;
-  if (!c.categoriaEspecialIss || !ehPortoAlegre(c.municipio)) return null;
-  return { imposto: "ISS", aliquota: classificacao === "treinamento" ? 5 : 2 };
+const ehMunicipal = (r: RegraImposto) =>
+  r.itens.length > 0 && r.itens.every((i) => i.imposto.trim().toUpperCase().startsWith("ISS"));
+
+/**
+ * Como a calculadora original: regras de um produto específico substituem as
+ * da classificação; as municipais (só ISS) sempre somam; entre as demais, vale
+ * a de maior prioridade (regime específico vence a faixa de valor genérica).
+ */
+export function regrasAplicaveis(
+  item: ItemCalculo,
+  c: Cliente,
+  bruto: number,
+  regras: RegraImposto[] = REGRAS_PADRAO,
+): RegraImposto[] {
+  let lista = regras.filter((r) => regraVale(r, item, c, bruto));
+  if (lista.some((r) => r.produtoId)) lista = lista.filter((r) => r.produtoId);
+  const municipais = lista.filter(ehMunicipal);
+  const federais = lista.filter((r) => !ehMunicipal(r));
+  if (federais.length <= 1) return [...federais, ...municipais];
+  const max = Math.max(...federais.map((r) => r.prioridade));
+  return [...federais.filter((r) => r.prioridade === max), ...municipais];
 }
 
 /** Retenções de um item, sobre o valor bruto dele. */
 export function calcularItem(
-  item: { nome: string; classificacao: Classificacao | null; bruto: number },
+  item: ItemCalculo,
   c: Cliente,
+  regras: RegraImposto[] = REGRAS_PADRAO,
 ): ResultadoItem {
   const bruto = r2(item.bruto);
-  const f = federais(item.classificacao, c, bruto);
-  const i = iss(item.classificacao, c);
-  const aliquotas = [...f.itens, ...(i ? [i] : [])];
-  const impostos = aliquotas.map((a) => ({ ...a, valor: r2((bruto * a.aliquota) / 100) }));
+  if (!item.classificacao && !regras.some((r) => r.produtoId && r.produtoId === item.produtoId))
+    return {
+      nome: item.nome,
+      classificacao: null,
+      bruto,
+      impostos: [],
+      total: 0,
+      liquido: bruto,
+      regra: "Item sem classificação fiscal: sem cálculo",
+    };
+  const aplic = regrasAplicaveis(item, c, bruto, regras);
+  const impostos = aplic
+    .flatMap((r) => r.itens)
+    .map((a) => ({
+      imposto: a.imposto,
+      aliquota: a.aliquota,
+      valor: r2((bruto * a.aliquota) / 100),
+    }));
   const total = r2(impostos.reduce((s, x) => s + x.valor, 0));
   return {
     nome: item.nome,
@@ -162,11 +350,7 @@ export function calcularItem(
     impostos,
     total,
     liquido: r2(bruto - total),
-    regra: item.classificacao
-      ? [f.regra, i ? `ISS ${i.aliquota}% (Porto Alegre, categoria especial)` : null]
-          .filter(Boolean)
-          .join(" + ")
-      : "Item sem classificação fiscal: sem cálculo",
+    regra: aplic.length ? aplic.map((r) => r.nome).join(" + ") : "Nenhuma regra: sem retenção",
   };
 }
 
@@ -181,10 +365,11 @@ export type Resultado = {
 };
 
 export function calcular(
-  itens: Array<{ nome: string; classificacao: Classificacao | null; bruto: number }>,
+  itens: ItemCalculo[],
   c: Cliente,
+  regras: RegraImposto[] = REGRAS_PADRAO,
 ): Resultado {
-  const res = itens.map((i) => calcularItem(i, c));
+  const res = itens.map((i) => calcularItem(i, c, regras));
   const soma = new Map<string, LinhaImposto>();
   for (const r of res) {
     for (const l of r.impostos) {
@@ -217,9 +402,10 @@ export function brutoParaLiquido(
   liquido: number,
   classificacao: Classificacao,
   c: Cliente,
+  regras: RegraImposto[] = REGRAS_PADRAO,
 ): number {
   const fator = (b: number) =>
-    calcularItem({ nome: "", classificacao, bruto: b }, c).impostos.reduce(
+    calcularItem({ nome: "", classificacao, bruto: b }, c, regras).impostos.reduce(
       (s, l) => s + l.aliquota,
       0,
     ) / 100;
@@ -233,19 +419,20 @@ export function brutoParaLiquido(
  * vezes porque a faixa de retenção muda com o valor de cada item.
  */
 export function fatorParaLiquido(
-  itens: Array<{ nome: string; classificacao: Classificacao | null; bruto: number }>,
+  itens: ItemCalculo[],
   c: Cliente,
   liquido: number,
+  regras: RegraImposto[] = REGRAS_PADRAO,
 ): { fator: number; resultado: Resultado } {
   const escala = (k: number) => itens.map((i) => ({ ...i, bruto: r2(i.bruto * k) }));
   let fator = 1;
-  let resultado = calcular(itens, c);
+  let resultado = calcular(itens, c, regras);
   if (resultado.liquido <= 0 || liquido <= 0) return { fator, resultado };
   for (let n = 0; n < 6; n++) {
     const prox = (fator * liquido) / resultado.liquido;
     if (Math.abs(prox - fator) < 1e-9) break;
     fator = prox;
-    resultado = calcular(escala(fator), c);
+    resultado = calcular(escala(fator), c, regras);
   }
   return { fator, resultado };
 }
@@ -258,4 +445,56 @@ export function regimeDaReceita(r: {
   if (r.opcao_pelo_mei) return "MEI";
   if (r.opcao_pelo_simples) return "Simples Nacional";
   return "Lucro Presumido";
+}
+
+export type ResultadoSimulacao = Resultado & {
+  desconto: number;
+  comissaoPct: number;
+  comissao: number;
+  /** Líquido depois de impostos, desconto e comissão. */
+  liquidoFinal: number;
+  /** Fator aplicado aos valores dos itens (modo líquido). */
+  fator: number;
+};
+
+/**
+ * Simulação como na calculadora original: a partir dos valores brutos, ou de
+ * quanto se quer receber líquido (os itens sobem na mesma proporção). Desconto
+ * (R$) e comissão (% do bruto) saem do líquido.
+ */
+export function simular(
+  itens: ItemCalculo[],
+  c: Cliente,
+  o: { modo: "bruto" | "liquido"; liquidoAlvo?: number; desconto?: number; comissaoPct?: number },
+  regras: RegraImposto[] = REGRAS_PADRAO,
+): ResultadoSimulacao {
+  const desconto = Math.max(0, o.desconto ?? 0);
+  const comissaoPct = Math.min(100, Math.max(0, o.comissaoPct ?? 0));
+  const fechar = (res: Resultado, fator: number): ResultadoSimulacao => {
+    const comissao = r2((res.bruto * comissaoPct) / 100);
+    return {
+      ...res,
+      desconto,
+      comissaoPct,
+      comissao,
+      liquidoFinal: r2(res.liquido - desconto - comissao),
+      fator,
+    };
+  };
+  const escala = (k: number) => itens.map((i) => ({ ...i, bruto: r2(i.bruto * k) }));
+  let fator = 1;
+  let atual = fechar(calcular(itens, c, regras), 1);
+  const alvo = o.liquidoAlvo ?? 0;
+  if (o.modo !== "liquido" || alvo <= 0 || atual.bruto <= 0) return atual;
+  for (let n = 0; n < 12; n++) {
+    if (atual.liquidoFinal <= 0) {
+      fator *= 2;
+    } else {
+      const prox = (fator * alvo) / atual.liquidoFinal;
+      if (Math.abs(prox - fator) < 1e-9) break;
+      fator = prox;
+    }
+    atual = fechar(calcular(escala(fator), c, regras), fator);
+  }
+  return atual;
 }

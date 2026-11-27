@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/use-auth";
 import {
   Kanban as KanbanIcon,
   BriefcaseBusiness,
+  Calculator,
   Contact,
   History,
   Briefcase,
@@ -173,6 +174,13 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         roles: ["executivo"],
       },
       {
+        to: "/impostos",
+        label: "Calculadora de impostos",
+        icon: Calculator,
+        team: "comercial",
+        roles: ["executivo"],
+      },
+      {
         to: "/comercial-metas",
         label: "Metas",
         icon: Target,
@@ -231,6 +239,12 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: "Administrativo",
     items: [
       { to: "/faturamento", label: "Faturamento", icon: Receipt, team: "administrativo" },
+      {
+        to: "/impostos",
+        label: "Calculadora de impostos",
+        icon: Calculator,
+        team: "administrativo",
+      },
       {
         to: "/requerimentos",
         label: "Requerimentos",

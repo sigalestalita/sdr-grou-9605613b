@@ -12,6 +12,7 @@ import {
   type Classificacao,
   type Cliente,
   type Regime,
+  type RegraImposto,
 } from "@/lib/impostos/calculo";
 
 /*
@@ -21,12 +22,68 @@ import {
  */
 const solto = (s: unknown) => s as SupabaseClient;
 
+type RegraRow = {
+  id: string;
+  nome: string;
+  classificacao: Classificacao | null;
+  product_id: string | null;
+  tipo_pessoa: "CPF" | "CNPJ" | null;
+  regime: Regime | null;
+  exceto_regimes: Regime[] | null;
+  municipio: string | null;
+  categoria_especial_iss: boolean;
+  valor_min: number | string | null;
+  valor_max: number | string | null;
+  prioridade: number;
+  itens: Array<{ imposto: string; aliquota: number | string }> | null;
+  observacoes: string | null;
+  ativo: boolean;
+  ordem: number;
+};
+
+const num = (v: number | string | null) => (v == null || v === "" ? null : Number(v));
+
+export function regraDaLinha(r: RegraRow): RegraImposto {
+  return {
+    id: r.id,
+    nome: r.nome,
+    classificacao: r.classificacao,
+    produtoId: r.product_id,
+    tipoPessoa: r.tipo_pessoa,
+    regime: r.regime,
+    excetoRegimes: r.exceto_regimes ?? [],
+    municipio: r.municipio,
+    categoriaEspecialIss: !!r.categoria_especial_iss,
+    valorMin: num(r.valor_min),
+    valorMax: num(r.valor_max),
+    prioridade: Number(r.prioridade) || 0,
+    itens: (r.itens ?? []).map((i) => ({
+      imposto: String(i.imposto),
+      aliquota: Number(i.aliquota),
+    })),
+    observacoes: r.observacoes,
+    ativo: !!r.ativo,
+  };
+}
+
+/** Regras ativas do banco (editadas em Calculadora de impostos → Regras). */
+export async function regrasDoBanco(db: SupabaseClient): Promise<RegraImposto[]> {
+  const { data, error } = await db
+    .from("impostos_regras" as never)
+    .select("*")
+    .eq("ativo", true)
+    .order("ordem");
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as unknown as RegraRow[]).map(regraDaLinha);
+}
+
 type ItemRow = {
   nome: string;
   quantidade: number;
   valor_unitario: number;
   desconto_tipo: "pct" | "valor";
   desconto: number;
+  product_id: string | null;
   products: { classificacao_fiscal: Classificacao | null } | null;
 };
 
@@ -34,13 +91,14 @@ async function itensDoNegocio(db: SupabaseClient, dealId: string) {
   const { data, error } = await db
     .from("deal_products")
     .select(
-      "nome, quantidade, valor_unitario, desconto_tipo, desconto, products:product_id(classificacao_fiscal)",
+      "nome, quantidade, valor_unitario, desconto_tipo, desconto, product_id, products:product_id(classificacao_fiscal)",
     )
     .eq("deal_id", dealId)
     .order("ordem");
   if (error) throw new Error(error.message);
   return ((data ?? []) as unknown as ItemRow[]).map((i) => ({
     nome: i.nome,
+    produtoId: i.product_id,
     classificacao: i.products?.classificacao_fiscal ?? null,
     bruto: totalItem({
       quantidade: Number(i.quantidade),
@@ -81,6 +139,7 @@ export const dadosImpostos = createServerFn({ method: "GET" })
       documento,
       tipoPessoa: tipoPessoaDoDocumento(documento) ?? "CNPJ",
       itens: await itensDoNegocio(db, data.dealId),
+      regras: await regrasDoBanco(db),
       ultimoCliente:
         (
           d.impostos_calculo as {
@@ -162,7 +221,7 @@ export const aplicarImpostos = createServerFn({ method: "POST" })
       municipio: data.cliente.municipio,
       categoriaEspecialIss: data.cliente.categoriaEspecialIss,
     };
-    const r = calcular(itens, c);
+    const r = calcular(itens, c, await regrasDoBanco(db));
     const agora = new Date().toISOString();
     const { data: deal, error } = await db
       .from("deals")
@@ -213,7 +272,7 @@ export const ajustarItensParaLiquido = createServerFn({ method: "POST" })
     const { data: rows, error } = await db
       .from("deal_products")
       .select(
-        "id, nome, quantidade, valor_unitario, desconto_tipo, desconto, products:product_id(classificacao_fiscal)",
+        "id, nome, quantidade, valor_unitario, desconto_tipo, desconto, product_id, products:product_id(classificacao_fiscal)",
       )
       .eq("deal_id", data.dealId)
       .order("ordem");
@@ -233,14 +292,17 @@ export const ajustarItensParaLiquido = createServerFn({ method: "POST" })
         desconto_tipo: i.desconto_tipo,
         desconto: Number(i.desconto),
       });
+    const regras = await regrasDoBanco(db);
     const { fator } = fatorParaLiquido(
       itens.map((i) => ({
         nome: i.nome,
+        produtoId: i.product_id,
         classificacao: i.products?.classificacao_fiscal ?? null,
         bruto: conta(i),
       })),
       c,
       data.liquido,
+      regras,
     );
     const r2 = (n: number) => Math.round(n * 100) / 100;
     const novos = itens.map((i) => ({
@@ -258,10 +320,12 @@ export const ajustarItensParaLiquido = createServerFn({ method: "POST" })
     const r = calcular(
       novos.map((i) => ({
         nome: i.nome,
+        produtoId: i.product_id,
         classificacao: i.products?.classificacao_fiscal ?? null,
         bruto: conta(i),
       })),
       c,
+      regras,
     );
     const agora = new Date().toISOString();
     const { error: e2 } = await db
