@@ -64,6 +64,7 @@ import { Route as AppUsoRouteImport } from './routes/_app.uso'
 import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
 import { Route as AppWhatsappRouteImport } from './routes/_app.whatsapp'
 import { Route as PropostaTokenRouteImport } from './routes/proposta.$token'
+import { Route as ReuniaoTokenRouteImport } from './routes/reuniao.$token'
 import { Route as AppAnalyticsChatThreadIdRouteImport } from './routes/_app.analytics-chat.$threadId'
 import { Route as AppEmailMarketingIndexRouteImport } from './routes/_app.email-marketing.index'
 import { Route as AppEmailMarketingDescadastrosRouteImport } from './routes/_app.email-marketing.descadastros'
@@ -393,6 +394,11 @@ const AppWhatsappRoute = AppWhatsappRouteImport.update({
 const PropostaTokenRoute = PropostaTokenRouteImport.update({
   id: '/proposta/$token',
   path: '/proposta/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReuniaoTokenRoute = ReuniaoTokenRouteImport.update({
+  id: '/reuniao/$token',
+  path: '/reuniao/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAnalyticsChatThreadIdRoute =
@@ -759,6 +765,7 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AppUsuariosRoute
   '/whatsapp': typeof AppWhatsappRouteWithChildren
   '/proposta/$token': typeof PropostaTokenRoute
+  '/reuniao/$token': typeof ReuniaoTokenRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/email-marketing/descadastros': typeof AppEmailMarketingDescadastrosRoute
   '/email-marketing/segmentos': typeof AppEmailMarketingSegmentosRoute
@@ -869,6 +876,7 @@ export interface FileRoutesByTo {
   '/uso': typeof AppUsoRoute
   '/usuarios': typeof AppUsuariosRoute
   '/proposta/$token': typeof PropostaTokenRoute
+  '/reuniao/$token': typeof ReuniaoTokenRoute
   '/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/email-marketing/descadastros': typeof AppEmailMarketingDescadastrosRoute
   '/email-marketing/segmentos': typeof AppEmailMarketingSegmentosRoute
@@ -983,6 +991,7 @@ export interface FileRoutesById {
   '/_app/usuarios': typeof AppUsuariosRoute
   '/_app/whatsapp': typeof AppWhatsappRouteWithChildren
   '/proposta/$token': typeof PropostaTokenRoute
+  '/reuniao/$token': typeof ReuniaoTokenRoute
   '/_app/analytics-chat/$threadId': typeof AppAnalyticsChatThreadIdRoute
   '/_app/email-marketing/descadastros': typeof AppEmailMarketingDescadastrosRoute
   '/_app/email-marketing/segmentos': typeof AppEmailMarketingSegmentosRoute
@@ -1097,6 +1106,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/whatsapp'
     | '/proposta/$token'
+    | '/reuniao/$token'
     | '/analytics-chat/$threadId'
     | '/email-marketing/descadastros'
     | '/email-marketing/segmentos'
@@ -1207,6 +1217,7 @@ export interface FileRouteTypes {
     | '/uso'
     | '/usuarios'
     | '/proposta/$token'
+    | '/reuniao/$token'
     | '/analytics-chat/$threadId'
     | '/email-marketing/descadastros'
     | '/email-marketing/segmentos'
@@ -1320,6 +1331,7 @@ export interface FileRouteTypes {
     | '/_app/usuarios'
     | '/_app/whatsapp'
     | '/proposta/$token'
+    | '/reuniao/$token'
     | '/_app/analytics-chat/$threadId'
     | '/_app/email-marketing/descadastros'
     | '/_app/email-marketing/segmentos'
@@ -1387,6 +1399,7 @@ export interface RootRouteChildren {
   PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   PropostaTokenRoute: typeof PropostaTokenRoute
+  ReuniaoTokenRoute: typeof ReuniaoTokenRoute
   ApiPublicContaAzulCallbackRoute: typeof ApiPublicContaAzulCallbackRoute
   ApiPublicCsEmailInboundRoute: typeof ApiPublicCsEmailInboundRoute
   ApiPublicEmailDescadastroRoute: typeof ApiPublicEmailDescadastroRoute
@@ -1808,6 +1821,13 @@ declare module '@tanstack/react-router' {
       path: '/proposta/$token'
       fullPath: '/proposta/$token'
       preLoaderRoute: typeof PropostaTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reuniao/$token': {
+      id: '/reuniao/$token'
+      path: '/reuniao/$token'
+      fullPath: '/reuniao/$token'
+      preLoaderRoute: typeof ReuniaoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/analytics-chat/$threadId': {
@@ -2397,6 +2417,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   PropostaTokenRoute: PropostaTokenRoute,
+  ReuniaoTokenRoute: ReuniaoTokenRoute,
   ApiPublicContaAzulCallbackRoute: ApiPublicContaAzulCallbackRoute,
   ApiPublicCsEmailInboundRoute: ApiPublicCsEmailInboundRoute,
   ApiPublicEmailDescadastroRoute: ApiPublicEmailDescadastroRoute,
