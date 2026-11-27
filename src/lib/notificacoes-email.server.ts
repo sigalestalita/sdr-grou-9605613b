@@ -13,6 +13,7 @@ export async function enviarMencaoPorEmail(n: {
   titulo: string;
   corpo?: string | null;
   link?: string | null;
+  rodape?: string;
 }): Promise<void> {
   if (!n.para.length) return;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
