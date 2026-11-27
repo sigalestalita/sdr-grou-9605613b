@@ -102,6 +102,7 @@ import { Route as ApiPublicHooksNotifyEscalationsRouteImport } from './routes/ap
 import { Route as ApiPublicHooksNotifyRedListRouteImport } from './routes/api/public/hooks/notify-red-list'
 import { Route as ApiPublicHooksRdMigracaoRouteImport } from './routes/api/public/hooks/rd-migracao'
 import { Route as ApiPublicHooksRdNegociosNovosRouteImport } from './routes/api/public/hooks/rd-negocios-novos'
+import { Route as ApiPublicHooksRdReleituraRouteImport } from './routes/api/public/hooks/rd-releitura'
 import { Route as ApiPublicHooksRecalcularSaudeRouteImport } from './routes/api/public/hooks/recalcular-saude'
 import { Route as ApiPublicHooksRunFupsRouteImport } from './routes/api/public/hooks/run-fups'
 import { Route as ApiPublicHooksSendJourneyEmailsRouteImport } from './routes/api/public/hooks/send-journey-emails'
@@ -602,6 +603,12 @@ const ApiPublicHooksRdNegociosNovosRoute =
     path: '/api/public/hooks/rd-negocios-novos',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksRdReleituraRoute =
+  ApiPublicHooksRdReleituraRouteImport.update({
+    id: '/api/public/hooks/rd-releitura',
+    path: '/api/public/hooks/rd-releitura',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksRecalcularSaudeRoute =
   ApiPublicHooksRecalcularSaudeRouteImport.update({
     id: '/api/public/hooks/recalcular-saude',
@@ -822,6 +829,7 @@ export interface FileRoutesByFullPath {
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
   '/api/public/hooks/rd-negocios-novos': typeof ApiPublicHooksRdNegociosNovosRoute
+  '/api/public/hooks/rd-releitura': typeof ApiPublicHooksRdReleituraRoute
   '/api/public/hooks/recalcular-saude': typeof ApiPublicHooksRecalcularSaudeRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
@@ -936,6 +944,7 @@ export interface FileRoutesByTo {
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
   '/api/public/hooks/rd-negocios-novos': typeof ApiPublicHooksRdNegociosNovosRoute
+  '/api/public/hooks/rd-releitura': typeof ApiPublicHooksRdReleituraRoute
   '/api/public/hooks/recalcular-saude': typeof ApiPublicHooksRecalcularSaudeRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
@@ -1054,6 +1063,7 @@ export interface FileRoutesById {
   '/api/public/hooks/notify-red-list': typeof ApiPublicHooksNotifyRedListRoute
   '/api/public/hooks/rd-migracao': typeof ApiPublicHooksRdMigracaoRoute
   '/api/public/hooks/rd-negocios-novos': typeof ApiPublicHooksRdNegociosNovosRoute
+  '/api/public/hooks/rd-releitura': typeof ApiPublicHooksRdReleituraRoute
   '/api/public/hooks/recalcular-saude': typeof ApiPublicHooksRecalcularSaudeRoute
   '/api/public/hooks/run-fups': typeof ApiPublicHooksRunFupsRoute
   '/api/public/hooks/send-journey-emails': typeof ApiPublicHooksSendJourneyEmailsRoute
@@ -1172,6 +1182,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/rd-migracao'
     | '/api/public/hooks/rd-negocios-novos'
+    | '/api/public/hooks/rd-releitura'
     | '/api/public/hooks/recalcular-saude'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
@@ -1286,6 +1297,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/rd-migracao'
     | '/api/public/hooks/rd-negocios-novos'
+    | '/api/public/hooks/rd-releitura'
     | '/api/public/hooks/recalcular-saude'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
@@ -1403,6 +1415,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/notify-red-list'
     | '/api/public/hooks/rd-migracao'
     | '/api/public/hooks/rd-negocios-novos'
+    | '/api/public/hooks/rd-releitura'
     | '/api/public/hooks/recalcular-saude'
     | '/api/public/hooks/run-fups'
     | '/api/public/hooks/send-journey-emails'
@@ -1451,6 +1464,7 @@ export interface RootRouteChildren {
   ApiPublicHooksNotifyRedListRoute: typeof ApiPublicHooksNotifyRedListRoute
   ApiPublicHooksRdMigracaoRoute: typeof ApiPublicHooksRdMigracaoRoute
   ApiPublicHooksRdNegociosNovosRoute: typeof ApiPublicHooksRdNegociosNovosRoute
+  ApiPublicHooksRdReleituraRoute: typeof ApiPublicHooksRdReleituraRoute
   ApiPublicHooksRecalcularSaudeRoute: typeof ApiPublicHooksRecalcularSaudeRoute
   ApiPublicHooksRunFupsRoute: typeof ApiPublicHooksRunFupsRoute
   ApiPublicHooksSendJourneyEmailsRoute: typeof ApiPublicHooksSendJourneyEmailsRoute
@@ -2128,6 +2142,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksRdNegociosNovosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/rd-releitura': {
+      id: '/api/public/hooks/rd-releitura'
+      path: '/api/public/hooks/rd-releitura'
+      fullPath: '/api/public/hooks/rd-releitura'
+      preLoaderRoute: typeof ApiPublicHooksRdReleituraRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/recalcular-saude': {
       id: '/api/public/hooks/recalcular-saude'
       path: '/api/public/hooks/recalcular-saude'
@@ -2494,6 +2515,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicHooksNotifyRedListRoute: ApiPublicHooksNotifyRedListRoute,
   ApiPublicHooksRdMigracaoRoute: ApiPublicHooksRdMigracaoRoute,
   ApiPublicHooksRdNegociosNovosRoute: ApiPublicHooksRdNegociosNovosRoute,
+  ApiPublicHooksRdReleituraRoute: ApiPublicHooksRdReleituraRoute,
   ApiPublicHooksRecalcularSaudeRoute: ApiPublicHooksRecalcularSaudeRoute,
   ApiPublicHooksRunFupsRoute: ApiPublicHooksRunFupsRoute,
   ApiPublicHooksSendJourneyEmailsRoute: ApiPublicHooksSendJourneyEmailsRoute,

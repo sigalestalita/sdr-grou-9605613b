@@ -258,6 +258,27 @@ async function inserirEmLotes(
   return { gravadas, erros };
 }
 
+/**
+ * Mesmo valor para fins de sincronização: datas comparadas pelo instante
+ * ("2026-11-08T06:25:54+00:00" = "2026-11-08T06:25:54.000Z"), números pelo
+ * número, e vazio = nulo.
+ */
+export function mesmoValor(a: unknown, b: unknown): boolean {
+  const vazio = (x: unknown) => x === null || x === undefined || x === "";
+  if (vazio(a) && vazio(b)) return true;
+  if (vazio(a) || vazio(b)) return false;
+  if (typeof a === "number" || typeof b === "number") return Number(a) === Number(b);
+  if (typeof a === "string" && typeof b === "string") {
+    if (a === b) return true;
+    if (/^\d{4}-\d{2}-\d{2}/.test(a) && /^\d{4}-\d{2}-\d{2}/.test(b)) {
+      const [ta, tb] = [Date.parse(a), Date.parse(b)];
+      if (!Number.isNaN(ta) && !Number.isNaN(tb)) return ta === tb;
+    }
+    return false;
+  }
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 /** Mescla valores projetados num registro existente respeitando provenance 'manual'. */
 function applyWithProvenance(
   existing: Row | null,
@@ -270,7 +291,7 @@ function applyWithProvenance(
   const patch: Row = {};
   for (const [k, v] of Object.entries(incoming)) {
     if (prov[k] === "manual") continue;
-    if (existing && JSON.stringify(existing[k]) === JSON.stringify(v)) continue;
+    if (existing && mesmoValor(existing[k], v)) continue;
     patch[k] = v;
     prov[k] = source;
   }
@@ -397,6 +418,16 @@ export async function transformRdToObjects(opts?: {
    * Compass não são tocados (o que o time mudou aqui vale mais que o RD).
    */
   soCriar?: boolean;
+  /**
+   * Releitura diária: só negócios (sem carteira/CS), sem regravar os itens de
+   * negócios que já existem e sem reabrir negócio fechado no Compass.
+   */
+  releitura?: boolean;
+  /**
+   * Marcação inicial: compara o Compass com o espelho atual e marca como
+   * 'manual' os campos que divergem (foram mudados aqui); não altera valores.
+   */
+  marcarEdicoes?: boolean;
 }): Promise<RdTransformResult> {
   const dryRun = !!opts?.dryRun;
   const only = new Set(opts?.only ?? ["companies", "contacts", "deals", "parents"]);
@@ -406,6 +437,8 @@ export async function transformRdToObjects(opts?: {
   // espelho inteiro — com o JSON cru de 24 mil negócios — a cada fatia.
   const filtro = opts?.filtro;
   const soCriar = !!opts?.soCriar;
+  const releitura = !!opts?.releitura || !!opts?.marcarEdicoes;
+  const marcarEdicoes = !!opts?.marcarEdicoes;
   const idsDoFiltro = (table: string) =>
     table === "rd_organizations"
       ? filtro?.orgs
@@ -867,7 +900,10 @@ export async function transformRdToObjects(opts?: {
       }
     };
 
-    const existingDeals = await fetchAll("deals", "id, rd_deal_id, provenance");
+    const existingDeals = await fetchAll(
+      "deals",
+      "id, rd_deal_id, provenance, nome, status, amount, closed_at, rd_pipeline, rd_stage, fonte, campanha, pipeline_id, stage_id, owner_user_id, owner_original, sdr_user_id, executivo_user_id, devolutiva_user_id, company_id, contact_id, agendado_em, closed_at_original, created_at_original, devolutiva_em, fonte_original, lost_note, lost_reason, motivo_venda, observacao_adm, reuniao_em, status_reuniao, temperatura, tipo_venda, trilha",
+    );
     const byRdD = new Map(
       existingDeals.filter((d) => d.rd_deal_id).map((d) => [String(d.rd_deal_id), d]),
     );
@@ -907,7 +943,7 @@ export async function transformRdToObjects(opts?: {
         if (pid) pares.push([pid, etapa]);
       }
     }
-    await garantirEtapas(pares);
+    if (!marcarEdicoes) await garantirEtapas(pares);
 
     // Carteira comercial e jornada do CS: a empresa é o card.
     const contaPorEmpresa = new Map<string, Row>();
@@ -917,7 +953,7 @@ export async function transformRdToObjects(opts?: {
       string,
       { stage: string | null; stageEm: string; owner: string | null; ownerEm: string }
     >();
-    for (const d of rdDeals) {
+    for (const d of releitura ? [] : rdDeals) {
       const destino = destinoDe.get(String(d.rd_id));
       if (!destino || destino.tipo === "negocio") continue;
       if (destino.tipo === "ignorar") {
@@ -968,7 +1004,7 @@ export async function transformRdToObjects(opts?: {
     }
     result.deals.carteira = contaPorEmpresa.size;
     result.deals.carteiraCs = csPorEmpresa.size;
-    if (!dryRun) {
+    if (!dryRun && !releitura) {
       const linhas = [...contaPorEmpresa.values()].map(({ __em: _, ...r }) => r);
       for (const part of chunk(linhas, 300)) {
         const { error } = await supabaseAdmin
@@ -990,7 +1026,7 @@ export async function transformRdToObjects(opts?: {
         if (nome && !productByName.has(norm(nome))) newProducts.set(norm(nome), nome);
       }
     }
-    if (!dryRun && newProducts.size > 0) {
+    if (!dryRun && !marcarEdicoes && newProducts.size > 0) {
       const rows = [...newProducts.values()].map((nome) => ({ nome }));
       for (const part of chunk(rows, 400)) {
         const { data, error } = await supabaseAdmin
@@ -1035,7 +1071,7 @@ export async function transformRdToObjects(opts?: {
         }
       }
       result.contacts.created += novos.length;
-      if (!dryRun) {
+      if (!dryRun && !marcarEdicoes) {
         for (const part of chunk(novos, 500)) {
           const { data: criados, error } = await supabaseAdmin
             .from("contacts")
@@ -1128,7 +1164,7 @@ export async function transformRdToObjects(opts?: {
             Object.entries(compProj).filter(([k, v]) => v && (!existing || !existing[k])),
           ),
         );
-        if (!dryRun && Object.keys(patch).length > 0) {
+        if (!dryRun && !marcarEdicoes && Object.keys(patch).length > 0) {
           const { error } = await supabaseAdmin
             .from("companies")
             .update(patch as never)
@@ -1165,8 +1201,29 @@ export async function transformRdToObjects(opts?: {
       semUuidInvalido(fields);
       const existing = byRdD.get(String(d.rd_id)) ?? null;
       if (existing) {
+        // Negócio fechado no Compass não volta a ficar aberto pelo RD.
+        if (releitura && existing.status !== "open" && fields.status === "open") {
+          delete fields.status;
+          delete fields.stage_id;
+          delete fields.closed_at;
+          delete fields.pipeline_id;
+        }
+        // Itens do negócio que já existe são do Compass (propostas, faturamento).
+        if (releitura) productLines.delete(String(d.rd_id));
         const patch = applyWithProvenance(existing, fields);
-        if (Object.keys(patch).length > 0) updates.push({ id: String(existing.id), patch });
+        if (marcarEdicoes) {
+          // Só marca: o que diverge do espelho foi mudado aqui.
+          const prov = { ...((existing.provenance as Record<string, string>) ?? {}) };
+          let mudou = false;
+          for (const k of Object.keys(patch)) {
+            if (k === "provenance" || k.startsWith("rd_") || k.endsWith("_original")) continue;
+            prov[k] = "manual";
+            mudou = true;
+          }
+          if (mudou) updates.push({ id: String(existing.id), patch: { provenance: prov } });
+        } else if (Object.keys(patch).length > 0) updates.push({ id: String(existing.id), patch });
+      } else if (marcarEdicoes) {
+        continue;
       } else {
         const prov: Record<string, string> = {};
         for (const k of Object.keys(fields)) prov[k] = "rd";
@@ -1219,6 +1276,7 @@ export async function transformRdToObjects(opts?: {
         if (error) errors.push(`deal_products insert: ${error.message}`);
       }
       // contatos por negócio
+      if (marcarEdicoes) contactLinks.clear();
       const linkRows: Row[] = [];
       for (const [rd, ids] of contactLinks) {
         const dealId = idByRd.get(rd);
