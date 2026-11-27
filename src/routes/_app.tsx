@@ -246,6 +246,12 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
         team: "administrativo",
       },
       {
+        to: "/revisao-valores",
+        label: "Revisão de valores",
+        icon: Receipt,
+        team: "administrativo",
+      },
+      {
         to: "/requerimentos",
         label: "Requerimentos",
         icon: ClipboardList,
