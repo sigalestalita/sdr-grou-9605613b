@@ -96,10 +96,8 @@ async function registrarDoContato(
   }
 
   const soHistorico = novas.every((m) => m.origem === "history");
-  let conversa = leadId
-    ? (await admin.from("whatsapp_conversations").select("*").eq("lead_id", leadId).maybeSingle())
-        .data
-    : contato
+  const doContatoNesteNumero = async () =>
+    contato
       ? (
           await admin
             .from("whatsapp_conversations")
@@ -110,6 +108,20 @@ async function registrarDoContato(
             .maybeSingle()
         ).data
       : null;
+  let conversa = leadId
+    ? (await admin.from("whatsapp_conversations").select("*").eq("lead_id", leadId).maybeSingle())
+        .data
+    : await doContatoNesteNumero();
+  /*
+   * O lead já conversa por outro número (ex.: o de atendimento). O que se
+   * passou no celular desta pessoa fica no número dela, numa conversa própria,
+   * em vez de cair na caixa do outro número. O lead é um só por conversa
+   * (índice único), então esta fica sem lead, ligada ao contato.
+   */
+  if (conversa && leadId && conversa.account_id !== conta.id) {
+    leadId = null;
+    conversa = await doContatoNesteNumero();
+  }
 
   if (!conversa) {
     const { data: lead } = leadId

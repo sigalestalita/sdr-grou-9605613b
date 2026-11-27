@@ -297,10 +297,8 @@ async function handleInbound(
 
   // 2) acha/cria conversa
   // Sem lead, quem identifica a conversa é o par conta + contato.
-  let conv = leadId
-    ? (await admin.from("whatsapp_conversations").select("*").eq("lead_id", leadId).maybeSingle())
-        .data
-    : contact
+  const doContatoNesteNumero = async () =>
+    contact
       ? (
           await admin
             .from("whatsapp_conversations")
@@ -311,18 +309,32 @@ async function handleInbound(
             .maybeSingle()
         ).data
       : null;
+  let conv = leadId
+    ? (await admin.from("whatsapp_conversations").select("*").eq("lead_id", leadId).maybeSingle())
+        .data
+    : await doContatoNesteNumero();
+  /*
+   * Número pessoal espelhado: se o lead já conversa por outro número, o que
+   * chega no celular desta pessoa fica no número dela (conversa do contato),
+   * não na caixa do outro número.
+   */
+  if (espelhada && conv && leadId && conv.account_id !== accountId) {
+    leadId = null;
+    conv = await doContatoNesteNumero();
+  }
   if (!conv) {
     const { data: lead } = leadId
       ? await admin.from("leads").select("assigned_to").eq("id", leadId).maybeSingle()
       : { data: null };
     // Conversa espelhada nasce com o dono do número, que é quem atende ali.
-    const { data: dono } = semLead
-      ? await admin
-          .from("whatsapp_accounts")
-          .select("owner_user_id")
-          .eq("id", accountId)
-          .maybeSingle()
-      : { data: null };
+    const { data: dono } =
+      semLead || (espelhada && !leadId)
+        ? await admin
+            .from("whatsapp_accounts")
+            .select("owner_user_id")
+            .eq("id", accountId)
+            .maybeSingle()
+        : { data: null };
     const ins = await admin
       .from("whatsapp_conversations")
       .insert({
