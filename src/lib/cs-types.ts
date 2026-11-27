@@ -100,12 +100,20 @@ export const CS_CONTACT_MODULE_LABEL: Record<string, string> = {
   nao_marketing: "Não marketing",
 };
 
-export const CS_CONTACT_ORIGINS = ["manual", "email_bcc", "pda_api", "linkedin"] as const;
+export const CS_CONTACT_ORIGINS = [
+  "manual",
+  "email_bcc",
+  "pda_api",
+  "linkedin",
+  "empresa",
+] as const;
 export const CS_CONTACT_ORIGIN_LABEL: Record<string, string> = {
   manual: "Manual",
   email_bcc: "E-mail (BCC)",
   pda_api: "API PDA",
   linkedin: "LinkedIn",
+  // Pessoa da base geral (RD, leads, formulários) ligada à empresa do cliente.
+  empresa: "Base da empresa",
 };
 
 export const CS_AGENDA_TYPES = [

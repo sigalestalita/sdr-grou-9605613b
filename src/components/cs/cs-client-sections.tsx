@@ -309,6 +309,9 @@ export function ContactsPanel({
   };
   const [form, setForm] = useState(empty);
   const [adding, setAdding] = useState(false);
+  // Com todas as pessoas da empresa como contato, a lista pode ser longa.
+  const [todos, setTodos] = useState(false);
+  const visiveis = todos ? contacts : contacts.slice(0, 8);
   const toggleModule = (m: string) =>
     setForm((f) => ({
       ...f,
@@ -323,7 +326,7 @@ export function ContactsPanel({
         {contacts.length === 0 && (
           <p className="text-xs text-muted-foreground">Nenhum contato cadastrado.</p>
         )}
-        {contacts.map((c) => (
+        {visiveis.map((c) => (
           <div key={c.id} className="flex items-start justify-between gap-2 rounded-md border p-2">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-[13px] font-medium">
@@ -425,6 +428,15 @@ export function ContactsPanel({
             </button>
           </div>
         ))}
+        {contacts.length > 8 && (
+          <button
+            type="button"
+            className="text-[11px] text-primary hover:underline"
+            onClick={() => setTodos((v) => !v)}
+          >
+            {todos ? "Mostrar menos" : `Ver todos os ${contacts.length} contatos`}
+          </button>
+        )}
       </div>
 
       {!adding ? (

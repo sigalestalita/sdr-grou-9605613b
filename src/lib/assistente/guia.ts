@@ -193,12 +193,6 @@ export const TELAS: TelaDoGuia[] = [
     texto: `Tarefas e follow-ups do CS. Alterne entre "Minha agenda" e "Todo o time"; os indicadores mostram atrasados, pendentes e concluídos na semana. "Nova tarefa" escolhe empresa, tipo, título, prazo e responsável; algumas se concluem sozinhas pela evidência do canal (e-mail, WhatsApp, reunião aceita). Em cada item: "Concluído" (registra resultado e próximo follow-up) ou "Reagendar"; a gestão pode concluir sem o registro do canal, com justificativa. Usado pelo CS e por executivos.`,
   },
   {
-    rota: "/jornada",
-    nome: "Jornada do cliente",
-    area: "CS",
-    texto: `Linha do tempo de uma empresa do fechamento até o CS. "Escolha a empresa" e veja o ciclo de venda, o tempo do ADM até o CS, o valor fechado, a situação no CS e o briefing que o comercial deixou para o CS. Usado pelo CS e por executivos.`,
-  },
-  {
     rota: "/cs-emails",
     nome: "E-mails",
     area: "CS",
