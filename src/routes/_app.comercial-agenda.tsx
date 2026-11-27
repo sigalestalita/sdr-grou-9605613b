@@ -30,11 +30,13 @@ const ORIGEM_LABEL: Record<string, string> = {
   google: "Google",
   sdr: "Do SDR",
   negocio: "Negócio",
+  cliente: "Cliente",
 };
 
 const ORIGEM_TONE: Record<string, string> = {
   sdr: "border-primary/40 bg-primary/10 text-primary",
   negocio: "border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  cliente: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
 };
 
 function startOfDay(d: Date) {
@@ -358,7 +360,11 @@ function ComercialAgendaPage() {
                         variant="outline"
                         className={`text-[9px] ${ORIGEM_TONE[e.origem] ?? ""}`}
                       >
-                        {e.cancelado ? "cancelada" : ORIGEM_LABEL[e.origem]}
+                        {e.cancelado
+                          ? "cancelada"
+                          : e.reservado
+                            ? "reservado · aguardando o cliente"
+                            : ORIGEM_LABEL[e.origem]}
                       </Badge>
                     </div>
                     <p className="font-medium leading-tight">{e.titulo}</p>

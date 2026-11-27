@@ -21,6 +21,8 @@ export function montarEmailDaMencao(n: {
   titulo: string;
   corpo?: string | null;
   link?: string | null;
+  /** Linha do rodapé; padrão: "Você foi mencionado(a) no Compass". */
+  rodape?: string;
 }): { assunto: string; html: string; texto: string } {
   const url = linkAbsoluto(n.link);
   const corpo = (n.corpo ?? "").trim();
@@ -32,7 +34,7 @@ export function montarEmailDaMencao(n: {
 <tr><td style="padding:22px 28px 6px;font-size:16px;font-weight:bold;">${esc(n.titulo)}</td></tr>
 ${corpo ? `<tr><td style="padding:6px 28px 4px;font-size:14px;line-height:1.5;white-space:pre-wrap;color:#374151;">${esc(corpo)}</td></tr>` : ""}
 <tr><td style="padding:16px 28px 24px;"><a href="${esc(url)}" style="display:inline-block;background:#0b1f5c;color:#ffffff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:bold;">Abrir no Compass</a></td></tr>
-<tr><td style="padding:12px 28px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">Você foi mencionado(a) no Compass · <a href="${COMPASS}" style="color:#6b7280;">compass.grougp.com</a></td></tr>
+<tr><td style="padding:12px 28px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;">${esc(n.rodape ?? "Você foi mencionado(a) no Compass")} · <a href="${COMPASS}" style="color:#6b7280;">compass.grougp.com</a></td></tr>
 </table></td></tr></table></body></html>`;
   return { assunto, html, texto };
 }

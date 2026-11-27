@@ -15,7 +15,9 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
  *    integração existir — o convite sai por e-mail, mas a reunião tem que
  *    aparecer no sistema mesmo antes de o Google sincronizar, e continua
  *    aparecendo se a pessoa ainda nem ligou a agenda;
- *  - as reuniões de negócios da carteira (deals.reuniao_em).
+ *  - as reuniões de negócios da carteira (deals.reuniao_em);
+ *  - as reuniões com cliente marcadas no Compass (cs_meetings), inclusive
+ *    os horários oferecidos que aguardam a escolha do cliente.
  *
  * A gestão comercial vê todos os executivos na mesma tela; o executivo vê a
  * própria agenda.
@@ -27,7 +29,9 @@ export type AgendaEvento = {
   titulo: string;
   inicio: string;
   fim: string | null;
-  origem: "google" | "sdr" | "negocio";
+  origem: "google" | "sdr" | "negocio" | "cliente";
+  /** Horário oferecido ao cliente que ainda espera a escolha dele. */
+  reservado?: boolean;
   meetUrl: string | null;
   local: string | null;
   empresa: string | null;
@@ -83,32 +87,42 @@ export const getComercialAgenda = createServerFn({ method: "GET" })
         : executivos.map((e) => e.userId)
       : [context.userId];
 
-    const [{ data: gcal }, { data: leads }, { data: negocios }, integracoes] = await Promise.all([
-      supabaseAdmin
-        .from("cs_calendly_events")
-        .select(
-          "id, user_id, name, status, start_time, end_time, location, meeting_url, invitee_name, invitee_email",
-        )
-        .in("user_id", alvos)
-        .gte("start_time", data.from)
-        .lte("start_time", data.to)
-        .order("start_time"),
-      supabaseAdmin
-        .from("leads")
-        .select(
-          "id, name, company_name, executivo_id, meeting_at, meeting_duration_min, meeting_invite_sent_at, deal_id",
-        )
-        .in("executivo_id", alvos)
-        .gte("meeting_at", data.from)
-        .lte("meeting_at", data.to),
-      supabaseAdmin
-        .from("deals")
-        .select("id, nome, executivo_user_id, reuniao_em, companies:company_id(nome)")
-        .in("executivo_user_id", alvos)
-        .gte("reuniao_em", data.from)
-        .lte("reuniao_em", data.to),
-      listIntegrationStatus(executivos.map((e) => e.userId)),
-    ]);
+    const [{ data: gcal }, { data: leads }, { data: negocios }, integracoes, { data: comCliente }] =
+      await Promise.all([
+        supabaseAdmin
+          .from("cs_calendly_events")
+          .select(
+            "id, user_id, name, status, start_time, end_time, location, meeting_url, invitee_name, invitee_email",
+          )
+          .in("user_id", alvos)
+          .gte("start_time", data.from)
+          .lte("start_time", data.to)
+          .order("start_time"),
+        supabaseAdmin
+          .from("leads")
+          .select(
+            "id, name, company_name, executivo_id, meeting_at, meeting_duration_min, meeting_invite_sent_at, deal_id",
+          )
+          .in("executivo_id", alvos)
+          .gte("meeting_at", data.from)
+          .lte("meeting_at", data.to),
+        supabaseAdmin
+          .from("deals")
+          .select("id, nome, executivo_user_id, reuniao_em, companies:company_id(nome)")
+          .in("executivo_user_id", alvos)
+          .gte("reuniao_em", data.from)
+          .lte("reuniao_em", data.to),
+        listIntegrationStatus(executivos.map((e) => e.userId)),
+        supabaseAdmin
+          .from("cs_meetings")
+          .select(
+            "id, owner_user_id, title, occurred_at, duration_minutes, status, meeting_url, cs_clients:client_uid(nome_empresa), cs_contacts:contact_id(nome)",
+          )
+          .in("owner_user_id", alvos)
+          .in("status", ["agendada", "reservada"])
+          .gte("occurred_at", data.from)
+          .lte("occurred_at", data.to),
+      ]);
 
     const eventos: AgendaEvento[] = [];
 
@@ -173,6 +187,27 @@ export const getComercialAgenda = createServerFn({ method: "GET" })
         convidado: null,
         leadId: null,
         dealId: n.id as string,
+        cancelado: false,
+      });
+    }
+
+    for (const m of (comCliente ?? []) as Array<Record<string, unknown>>) {
+      const inicio = new Date(m.occurred_at as string);
+      const min = (m.duration_minutes as number | null) ?? 60;
+      eventos.push({
+        id: `c:${m.id}`,
+        executivoId: m.owner_user_id as string,
+        titulo: (m.title as string | null) ?? "Reunião com cliente",
+        inicio: inicio.toISOString(),
+        fim: new Date(inicio.getTime() + min * 60000).toISOString(),
+        origem: "cliente",
+        reservado: m.status === "reservada",
+        meetUrl: (m.meeting_url as string | null) ?? null,
+        local: null,
+        empresa: (m.cs_clients as { nome_empresa?: string | null } | null)?.nome_empresa ?? null,
+        convidado: (m.cs_contacts as { nome?: string | null } | null)?.nome ?? null,
+        leadId: null,
+        dealId: null,
         cancelado: false,
       });
     }

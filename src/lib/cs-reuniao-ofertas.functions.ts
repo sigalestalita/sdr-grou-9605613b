@@ -200,6 +200,61 @@ async function fecharNaEscolha(
   return r;
 }
 
+/**
+ * Avisa (sino + e-mail) quem ofereceu, o CS responsável e o executivo do
+ * cliente que o horário foi escolhido. Quem confirmou na mão não se avisa.
+ */
+async function avisarEscolha(
+  oferta: { client_uid: string; owner_user_id: string; title: string },
+  inicio: string,
+  quem: string,
+  excluir: string | null,
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = solto(supabaseAdmin);
+  const { data: c } = await db
+    .from("cs_clients")
+    .select("nome_empresa, cs_responsavel_id, comercial_responsavel_id")
+    .eq("client_uid", oferta.client_uid)
+    .maybeSingle();
+  const cli = c as {
+    nome_empresa?: string | null;
+    cs_responsavel_id?: string | null;
+    comercial_responsavel_id?: string | null;
+  } | null;
+  const para = [
+    ...new Set(
+      [oferta.owner_user_id, cli?.cs_responsavel_id, cli?.comercial_responsavel_id].filter(
+        (u): u is string => !!u && u !== excluir,
+      ),
+    ),
+  ];
+  if (!para.length) return;
+  const quando = new Date(inicio).toLocaleString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const empresa = cli?.nome_empresa ?? "Cliente";
+  const titulo = `${empresa} confirmou a reunião: ${quando}`;
+  const corpo = `${oferta.title}\n${quem}\nA reunião já está na Agenda do CS e na ficha do cliente; os outros horários oferecidos foram liberados.`;
+  const link = `/empresas/${oferta.client_uid}`;
+  await db
+    .from("notificacoes")
+    .insert(para.map((user_id) => ({ user_id, tipo: "mencao", titulo, corpo, link })));
+  const { enviarMencaoPorEmail } = await import("@/lib/notificacoes-email.server");
+  await enviarMencaoPorEmail({
+    para,
+    titulo,
+    corpo,
+    link,
+    rodape: "Aviso de reunião confirmada no Compass",
+  }).catch((e) => console.warn("[oferta] e-mail", e));
+}
+
 const COLS_OFERTA = "id, token, client_uid, owner_user_id, title, summary, category_id, status";
 
 /** O CS marca o horário que o cliente escolheu (resposta por WhatsApp, e-mail…). */
@@ -218,7 +273,20 @@ export const escolherHorarioDaOferta = createServerFn({ method: "POST" })
     const oferta = o as (Row & { status: string }) | null;
     if (!oferta) throw new Error("Oferta não encontrada");
     if (oferta.status !== "aberta") throw new Error("Essa oferta já foi fechada");
-    await fecharNaEscolha(db, oferta as never, data.meetingId, "cs", null, context.userId);
+    const r = await fecharNaEscolha(
+      db,
+      oferta as never,
+      data.meetingId,
+      "cs",
+      null,
+      context.userId,
+    );
+    await avisarEscolha(
+      oferta as never,
+      r.occurred_at,
+      "Confirmado pelo CS (resposta do cliente fora do link).",
+      context.userId,
+    ).catch((e) => console.warn("[oferta] aviso", e));
     return { ok: true };
   });
 
@@ -318,18 +386,14 @@ export const escolherHorarioPublico = createServerFn({ method: "POST" })
       data.nome?.trim() || null,
       String(oferta.owner_user_id),
     );
-    // Avisa quem ofereceu (direto na tabela: aqui não há usuário logado).
-    const quando = new Date(r.occurred_at).toLocaleString("pt-BR", {
-      timeZone: "America/Sao_Paulo",
-      dateStyle: "short",
-      timeStyle: "short",
-    });
-    await db.from("notificacoes").insert({
-      user_id: oferta.owner_user_id,
-      tipo: "mencao",
-      titulo: `Cliente escolheu o horário: ${quando}`,
-      corpo: `${String(oferta.title)}${data.nome ? ` · ${data.nome}` : ""}`,
-      link: `/empresas/${String(oferta.client_uid)}`,
-    });
+    // Aqui não há usuário logado: o aviso vai pelo service role.
+    await avisarEscolha(
+      oferta as never,
+      r.occurred_at,
+      data.nome?.trim()
+        ? `Escolhido pelo cliente: ${data.nome.trim()}.`
+        : "Escolhido pelo cliente pelo link.",
+      null,
+    ).catch((e) => console.warn("[oferta] aviso", e));
     return { ok: true, inicio: r.occurred_at };
   });
