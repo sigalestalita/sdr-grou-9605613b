@@ -37,7 +37,7 @@ export function SalesCoachIntegracaoCard() {
     retry: false,
   });
   const gerar = useMutation({
-    mutationFn: () => gerarFn({ data: { origin: window.location.origin } }),
+    mutationFn: () => gerarFn({ data: {} }),
     onSuccess: (r) => {
       setNovo(r);
       qc.invalidateQueries({ queryKey: ["sales-coach-tokens"] });
