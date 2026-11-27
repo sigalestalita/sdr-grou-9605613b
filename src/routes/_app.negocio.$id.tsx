@@ -201,12 +201,23 @@ function NegocioPage() {
         <div className="min-w-0">
           <h1 className="text-2xl font-semibold">{String(n.nome ?? "Negócio")}</h1>
           <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-            {empresa?.nome && (
-              <span className="inline-flex items-center gap-1">
-                <Building2 className="h-3.5 w-3.5" />
-                {empresa.nome}
-              </span>
-            )}
+            {empresa?.nome &&
+              (n.company_id ? (
+                <Link
+                  to="/empresas/$uid"
+                  params={{ uid: String(n.company_id) }}
+                  className="inline-flex items-center gap-1 hover:text-primary hover:underline"
+                  title="Abrir a ficha da empresa"
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  {empresa.nome}
+                </Link>
+              ) : (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 className="h-3.5 w-3.5" />
+                  {empresa.nome}
+                </span>
+              ))}
             {data.executivoNome && <span>· {data.executivoNome}</span>}
             {data.sdrNome && <span>· trouxe: {data.sdrNome}</span>}
           </p>

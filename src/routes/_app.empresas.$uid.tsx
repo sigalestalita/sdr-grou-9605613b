@@ -1,6 +1,8 @@
 import { AnalistasPdaTab } from "@/components/cs/analistas-pda-tab";
-import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { abrirFichaDaEmpresa } from "@/lib/empresa-unificada.functions";
+import { EmpresaSemFicha, TudoDaEmpresaPanel } from "@/components/empresa/tudo-da-empresa";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -86,7 +88,30 @@ const TAB_LABEL: Record<Tab, string> = {
  * atividade no centro, associações à direita. Substitui o antigo modal do CS.
  */
 function CompanyPage() {
-  const { uid: clientUid } = useParams({ from: "/_app/empresas/$uid" });
+  const { uid } = useParams({ from: "/_app/empresas/$uid" });
+  const navigate = useNavigate();
+  const abrirFn = useServerFn(abrirFichaDaEmpresa);
+  const { data: alvo, isLoading } = useQuery({
+    queryKey: ["abrir-ficha", uid],
+    queryFn: () => abrirFn({ data: { chave: uid } }),
+    staleTime: 60_000,
+  });
+  // Ficha mesclada ou id da empresa com ficha: troca o endereço para a ficha.
+  useEffect(() => {
+    if (alvo?.tipo === "cliente" && alvo.clientUid !== uid)
+      void navigate({ to: "/empresas/$uid", params: { uid: alvo.clientUid }, replace: true });
+  }, [alvo, uid, navigate]);
+  if (isLoading || (alvo?.tipo === "cliente" && alvo.clientUid !== uid))
+    return <p className="p-6 text-sm text-muted-foreground">Carregando empresa…</p>;
+  if (alvo?.tipo === "empresa") return <EmpresaSemFicha companyId={alvo.companyId} />;
+  return <FichaDoCliente clientUid={uid} />;
+}
+
+/**
+ * Ficha do cliente: a mesma para CS, comercial, SDR e ADM. Além da parte do
+ * CS, mostra negócios, propostas, leads, faturas e requerimentos da empresa.
+ */
+function FichaDoCliente({ clientUid }: { clientUid: string }) {
   const [tab, setTab] = useState<Tab>("atividades");
   const [editing, setEditing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -577,6 +602,11 @@ function CompanyPage() {
 
         {/* Direita */}
         <div className="space-y-4">
+          {client.company_id ? (
+            <Panel title="Comercial, SDR e ADM">
+              <TudoDaEmpresaPanel companyId={client.company_id} />
+            </Panel>
+          ) : null}
           <PoliticaFaturamentoCard uid={clientUid} />
           <CadastroContaAzulCard uid={clientUid} />
 
