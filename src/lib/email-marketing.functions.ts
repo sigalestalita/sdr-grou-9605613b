@@ -48,6 +48,17 @@ export const RegrasSchema = z.object({
     .array(z.object({ id: z.string().uuid(), nome: z.string().max(200) }))
     .max(500)
     .default([]),
+  /** Tirar da lista (valem por cima de todas as outras regras; ver email_segmento_leads). */
+  excluir_empresas: z
+    .array(z.object({ id: z.string().uuid(), nome: z.string().max(200) }))
+    .max(500)
+    .default([]),
+  /** Empresa cujo nome contém o texto (ex.: "sicredi" pega todas as cooperativas). */
+  excluir_nomes: z.array(z.string().trim().min(2).max(80)).max(30).default([]),
+  /** E-mail exato ou domínio ("@sicredi.com.br" / "sicredi.com.br"). */
+  excluir_emails: z.array(z.string().trim().min(3).max(160)).max(2000).default([]),
+  /** Quem está nestas segmentações salvas. */
+  excluir_segmentos: z.array(z.string().uuid()).max(20).default([]),
   /** Condições sobre campos do lead, do contato e da empresa (todas valem). */
   condicoes: z
     .array(

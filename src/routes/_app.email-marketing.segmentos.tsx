@@ -63,6 +63,10 @@ const REGRAS_VAZIAS: Regras = {
   criado_desde: "",
   criado_ate: "",
   empresas: [],
+  excluir_empresas: [],
+  excluir_nomes: [],
+  excluir_emails: [],
+  excluir_segmentos: [],
   condicoes: [],
 };
 const TIPOS = [
@@ -564,6 +568,23 @@ function SegmentosPage() {
                   onChange={(v) => setRegra("condicoes", v)}
                 />
               </Card>
+
+              <Card className="space-y-3 p-4">
+                <div>
+                  <p className="section-label">Tirar da lista</p>
+                  <p className="text-[12px] text-muted-foreground">
+                    Quem bater em qualquer uma destas sai, mesmo cumprindo as regras acima. Ex.: os
+                    clientes do Maicon, menos a Sicredi.
+                  </p>
+                </div>
+                <TirarDaLista
+                  regras={ed.regras}
+                  setRegra={setRegra}
+                  segmentos={(segmentos ?? [])
+                    .filter((x) => x.id !== ed.id)
+                    .map((x) => ({ id: x.id, nome: x.nome }))}
+                />
+              </Card>
             </>
           )}
         </div>
@@ -660,6 +681,137 @@ function EmpresasEscolhidas({
               </label>
             ))
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Exclusões: empresas escolhidas, nome de empresa contendo, e-mails/domínios e outras segmentações. */
+function TirarDaLista({
+  regras,
+  setRegra,
+  segmentos,
+}: {
+  regras: Regras;
+  setRegra: <K extends keyof Regras>(k: K, v: Regras[K]) => void;
+  segmentos: Array<{ id: string; nome: string }>;
+}) {
+  const [nome, setNome] = useState("");
+  const [emailsTexto, setEmailsTexto] = useState(regras.excluir_emails.join("\n"));
+  // Abrir outra segmentação troca a lista de e-mails do campo.
+  const chaveEmails = regras.excluir_emails.join("\n");
+  useEffect(() => setEmailsTexto(chaveEmails), [chaveEmails]);
+  const addNome = () => {
+    const t = nome.trim();
+    if (t.length < 2) return;
+    if (!regras.excluir_nomes.some((x) => x.toLowerCase() === t.toLowerCase()))
+      setRegra("excluir_nomes", [...regras.excluir_nomes, t].slice(0, 30));
+    setNome("");
+  };
+  const lerEmails = (texto: string) =>
+    [
+      ...new Set(
+        texto
+          .split(/[\s,;]+/)
+          .map((x) => x.trim().toLowerCase())
+          .filter((x) => x.length >= 3),
+      ),
+    ].slice(0, 2000);
+  const chip =
+    "inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2.5 py-1 text-[12px] text-destructive";
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1.5">
+        <p className="text-[12px] font-medium">Empresas</p>
+        <EmpresasEscolhidas
+          valor={regras.excluir_empresas}
+          onChange={(v) => setRegra("excluir_empresas", v)}
+        />
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-[12px] font-medium">Empresas com o nome contendo</p>
+        {regras.excluir_nomes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {regras.excluir_nomes.map((n) => (
+              <span key={n} className={chip}>
+                {n}
+                <button
+                  type="button"
+                  title="Tirar"
+                  onClick={() =>
+                    setRegra(
+                      "excluir_nomes",
+                      regras.excluir_nomes.filter((x) => x !== n),
+                    )
+                  }
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex gap-2">
+          <Input
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") {
+                e.preventDefault();
+                addNome();
+              }
+            }}
+            placeholder="Ex.: sicredi (pega todas as cooperativas)"
+            className="text-[13px]"
+          />
+          <Button type="button" size="sm" variant="outline" onClick={addNome}>
+            Tirar
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <p className="text-[12px] font-medium">E-mails ou domínios</p>
+        <textarea
+          value={emailsTexto}
+          onChange={(e) => setEmailsTexto(e.target.value)}
+          onBlur={() => setRegra("excluir_emails", lerEmails(emailsTexto))}
+          rows={3}
+          placeholder={"fulano@empresa.com.br\n@sicredi.com.br"}
+          className="w-full rounded-md border bg-background px-3 py-2 text-[13px]"
+        />
+        <p className="text-[11px] text-muted-foreground">
+          Um por linha (ou separados por vírgula). Domínio com ou sem @ tira também os subdomínios.
+          {regras.excluir_emails.length > 0 && ` ${regras.excluir_emails.length} na lista.`}
+        </p>
+      </div>
+
+      {segmentos.length > 0 && (
+        <div className="space-y-1.5">
+          <p className="text-[12px] font-medium">Quem está nestas segmentações</p>
+          <div className="max-h-40 overflow-y-auto rounded-md border">
+            {segmentos.map((sg) => (
+              <label
+                key={sg.id}
+                className="flex cursor-pointer items-center gap-2 border-b px-2 py-1.5 text-[13px] last:border-0 hover:bg-muted/50"
+              >
+                <Checkbox
+                  checked={regras.excluir_segmentos.includes(sg.id)}
+                  onCheckedChange={(v) =>
+                    setRegra(
+                      "excluir_segmentos",
+                      v
+                        ? [...regras.excluir_segmentos, sg.id]
+                        : regras.excluir_segmentos.filter((x) => x !== sg.id),
+                    )
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate">{sg.nome}</span>
+              </label>
+            ))}
+          </div>
         </div>
       )}
     </div>
