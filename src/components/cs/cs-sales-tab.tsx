@@ -41,9 +41,7 @@ const brl = (v: number) =>
 
 /** Aceita formatos BR e US: "1.000" -> 1000, "1.000,50" -> 1000.5, "16,647" -> 16647, "1234.56" -> 1234.56 */
 export const parseMoney = (raw: string): number => {
-  const s = String(raw ?? "")
-    .replace(/[^\d.,-]/g, "")
-    .trim();
+  const s = String(raw ?? "").replace(/[^\d.,-]/g, "").trim();
   if (!s) return 0;
   const lastDot = s.lastIndexOf(".");
   const lastComma = s.lastIndexOf(",");
@@ -62,6 +60,7 @@ export const parseMoney = (raw: string): number => {
 };
 
 const fmtNum = (v: number) => (v ? v.toLocaleString("pt-BR", { maximumFractionDigits: 2 }) : "");
+
 
 type SaleRow = {
   id: string;
@@ -131,9 +130,7 @@ export function CsSalesTab({
   const totals = useMemo(() => {
     const valid = sales.filter((s) => s.status !== "cancelado");
     const sum = (k?: Kind) =>
-      valid
-        .filter((s) => !k || s.item_kind === k)
-        .reduce((a, s) => a + Number(s.total_value || 0), 0);
+      valid.filter((s) => !k || s.item_kind === k).reduce((a, s) => a + Number(s.total_value || 0), 0);
     return {
       geral: sum(),
       produto: sum("produto"),
@@ -257,8 +254,8 @@ export function CsSalesTab({
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Histórico de tudo que já foi vendido para este cliente, separado entre produto e serviço. No
-        futuro estes registros serão alimentados pela planilha de faturamento/receita.
+        Histórico de tudo que já foi vendido para este cliente, separado entre produto e serviço.
+        No futuro estes registros serão alimentados pela planilha de faturamento/receita.
       </p>
 
       {openForm && (
