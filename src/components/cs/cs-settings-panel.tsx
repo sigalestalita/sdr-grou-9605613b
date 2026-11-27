@@ -1,3 +1,4 @@
+import { InicioOperacaoCard } from "@/components/cs/inicio-operacao-card";
 import { useEffect, useMemo, useState } from "react";
 import { parseCsvClients } from "@/lib/cs-import";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -510,6 +511,7 @@ export function CsSettingsPanel({
 
         {tab === "sla" && (
           <>
+            <InicioOperacaoCard />
             <p className="max-w-[70ch] text-[13px] text-muted-foreground">
               Dias máximos em cada etapa da jornada (2 · 8 · 2 meses no padrão) e o limite de dias
               sem contato que gera alerta.
