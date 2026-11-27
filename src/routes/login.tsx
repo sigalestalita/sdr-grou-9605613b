@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import grouLogoBranco from "@/assets/lidi-logo-white.png";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { JornadaDoLead } from "@/components/brand/jornada-do-lead";
-import { ArrowRight, Loader2, Lock, Mail, User } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, Lock, Mail, User } from "lucide-react";
 
 export const Route = createFileRoute("/login")({
   head: () => ({ meta: [{ title: "Entrar — Compass CRM · Grou" }] }),
@@ -24,6 +24,7 @@ function LoginPage() {
   const [mode, setMode] = useState<"login" | "signup" | "reset">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [verSenha, setVerSenha] = useState(false);
   const [name, setName] = useState("");
   const [role, setRole] = useState<"sdr" | "executivo" | "cs">("sdr");
   const [loading, setLoading] = useState(false);
@@ -195,15 +196,29 @@ function LoginPage() {
                 <Lock className="h-[18px] w-[18px] shrink-0 text-white/60" strokeWidth={1.75} />
                 <span className="sr-only">Senha</span>
                 <input
-                  type="password"
+                  type={verSenha ? "text" : "password"}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   minLength={6}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className={entrada}
+                  className={`${entrada} [&::-ms-reveal]:hidden`}
                   placeholder="Senha"
                 />
+                <button
+                  type="button"
+                  onClick={() => setVerSenha((v) => !v)}
+                  aria-label={verSenha ? "Esconder senha" : "Mostrar senha"}
+                  aria-pressed={verSenha}
+                  title={verSenha ? "Esconder senha" : "Mostrar senha"}
+                  className="-mr-1 shrink-0 rounded-full p-1 text-white/60 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                >
+                  {verSenha ? (
+                    <EyeOff className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  ) : (
+                    <Eye className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                  )}
+                </button>
               </label>
             )}
             {mode === "login" && (

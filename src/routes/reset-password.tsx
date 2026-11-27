@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
+import { Eye, EyeOff } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({
@@ -13,7 +14,10 @@ export const Route = createFileRoute("/reset-password")({
       { title: "Redefinir senha — SDR GROU" },
       { name: "description", content: "Defina uma nova senha para acessar a plataforma SDR GROU." },
       { property: "og:title", content: "Redefinir senha — SDR GROU" },
-      { property: "og:description", content: "Defina uma nova senha para acessar a plataforma SDR GROU." },
+      {
+        property: "og:description",
+        content: "Defina uma nova senha para acessar a plataforma SDR GROU.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -25,6 +29,7 @@ function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [verSenha, setVerSenha] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -58,24 +63,38 @@ function ResetPasswordPage() {
         <form onSubmit={submit} className="space-y-4">
           <div>
             <Label htmlFor="password">Nova senha</Label>
-            <Input
-              id="password"
-              type="password"
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                type={verSenha ? "text" : "password"}
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="pr-10 [&::-ms-reveal]:hidden"
+              />
+              <button
+                type="button"
+                onClick={() => setVerSenha((v) => !v)}
+                aria-label={verSenha ? "Esconder senhas" : "Mostrar senhas"}
+                aria-pressed={verSenha}
+                title={verSenha ? "Esconder senhas" : "Mostrar senhas"}
+                className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-r-md"
+              >
+                {verSenha ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
           </div>
           <div>
             <Label htmlFor="confirm">Confirmar senha</Label>
             <Input
               id="confirm"
-              type="password"
+              type={verSenha ? "text" : "password"}
               minLength={8}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               required
+              className="[&::-ms-reveal]:hidden"
             />
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
