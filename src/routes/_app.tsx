@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/use-auth";
 import {
   Kanban as KanbanIcon,
+  BriefcaseBusiness,
+  Contact,
   History,
   Briefcase,
   BarChart3,
@@ -103,14 +105,11 @@ type NavItem = {
  */
 const NAV_OBJECTS: NavItem[] = [
   { to: "/inicio", label: "Início", icon: Home },
-  {
-    to: "/cs",
-    label: "Empresas",
-    icon: Building2,
-    team: "cs",
-    roles: ["executivo"],
-    also: ["/empresas"],
-  },
+  // Empresas, contatos e negócios existem para todos os times; o que muda por
+  // time é o que cada um faz dentro da ficha.
+  { to: "/cs", label: "Empresas", icon: Building2, also: ["/empresas"] },
+  { to: "/contatos", label: "Contatos", icon: Contact },
+  { to: "/comercial-pipeline", label: "Negócios", icon: BriefcaseBusiness, also: ["/negocio"] },
   { to: "/cs-follow-ups", label: "Tarefas", icon: ListChecks, team: "cs", roles: ["executivo"] },
   // "Jornada do cliente" saiu do menu a pedido da gestão (a tela /jornada
   // continua existindo para links antigos).
