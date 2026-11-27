@@ -190,14 +190,15 @@ export function modulesFromMemberships(memberships: Membership[], teams: Team[])
  *    Início, Empresas e Tarefas do CS.
  *  - CS (módulo cs): tudo do Customer Success.
  *
+ * Empresas (/cs, /empresas), contatos, negócios (/comercial-pipeline,
+ * /negocio) e leads (/lead) são de todos os times: não aparecem aqui.
+ *
  * Rotas não listadas são livres. O inbox de WhatsApp é compartilhado entre
  * SDR e CS — a visibilidade real é por conta (whatsapp_accounts).
  */
 type RouteAccess = { prefix: string; teams: AppTeam[]; roles?: AppRole[] };
 
 const ROUTE_ACCESS: RouteAccess[] = [
-  { prefix: "/cs", teams: ["cs"], roles: ["executivo"] },
-  { prefix: "/empresas", teams: ["cs"], roles: ["executivo"] },
   // Parecidas: a gestão decide; CS e comercial pedem (mesclar, excluir, filiais).
   { prefix: "/empresas-parecidas", teams: ["cs", "comercial"], roles: ["executivo"] },
   { prefix: "/cs-follow-ups", teams: ["cs"], roles: ["executivo"] },
@@ -213,17 +214,13 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/cs-emails", teams: ["cs"] },
   { prefix: "/cs-integracoes", teams: ["cs"], roles: ["executivo"] },
   { prefix: "/jornada", teams: ["comercial", "cs"], roles: ["executivo"] },
-  // O ADM abre o negócio e a empresa a partir da fila de faturamento.
-  { prefix: "/negocio", teams: ["comercial", "administrativo"], roles: ["executivo"] },
   { prefix: "/carteira-comercial", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-analise", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial", teams: ["comercial"], roles: ["executivo"] },
-  { prefix: "/comercial-pipeline", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-metas", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/comercial-agenda", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/dashboard", teams: ["comercial"] },
   { prefix: "/kanban", teams: ["comercial"] },
-  { prefix: "/lead", teams: ["comercial"], roles: ["executivo"] },
   { prefix: "/agenda", teams: ["comercial"] },
   { prefix: "/cadencia", teams: ["comercial"] },
   { prefix: "/leads-analytics", teams: ["comercial"] },

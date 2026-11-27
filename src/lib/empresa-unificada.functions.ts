@@ -238,3 +238,34 @@ export const tudoDaEmpresa = createServerFn({ method: "GET" })
       data.companyId,
     ),
   );
+
+export type EmpresaDaBase = {
+  id: string;
+  nome: string;
+  cnpj: string | null;
+  segmento: string | null;
+  cidade: string | null;
+  estado: string | null;
+  owner_user_id: string | null;
+  sdr_user_id: string | null;
+  negocios_abertos: number;
+  negocios_ganhos: number;
+  ultimo_negocio: string | null;
+  contatos: number;
+};
+
+/** Empresas da base que ainda não têm ficha do CS (as que têm vêm pela ficha). */
+export const listEmpresasDaBase = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { fetchAllRows } = await import("@/lib/cs/cs-core.server");
+    const sb = context.supabase as unknown as {
+      rpc(fn: string): {
+        range(
+          a: number,
+          b: number,
+        ): PromiseLike<{ data: EmpresaDaBase[] | null; error: { message: string } | null }>;
+      };
+    };
+    return fetchAllRows<EmpresaDaBase>((from, to) => sb.rpc("empresas_da_base").range(from, to));
+  });

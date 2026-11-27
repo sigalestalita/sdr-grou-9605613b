@@ -1,5 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
+import { useCurrentRole } from "@/lib/use-role";
+import { listEmpresasDaBase, type EmpresaDaBase } from "@/lib/empresa-unificada.functions";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useAuth } from "@/lib/use-auth";
@@ -105,6 +107,8 @@ type Filters = {
   redWeeks: number;
   /** Renovação nos próximos N dias. */
   renewalDays: number;
+  /** Clientes (com ficha do CS), a base inteira ou só quem ainda não é cliente. */
+  base?: "clientes" | "todas" | "nao_clientes";
 };
 
 const EMPTY: Filters = {
@@ -120,6 +124,7 @@ const EMPTY: Filters = {
   mine: false,
   redWeeks: 0,
   renewalDays: 0,
+  base: "clientes",
 };
 
 const BUILTIN_VIEWS: SavedView<Filters>[] = [
@@ -127,8 +132,27 @@ const BUILTIN_VIEWS: SavedView<Filters>[] = [
   { id: "minha", label: "Minha carteira", builtin: true, filters: { mine: true } },
   { id: "vermelho5", label: "Vermelhos 5+ semanas", builtin: true, filters: { redWeeks: 5 } },
   { id: "renov60", label: "Renovação ≤ 60 d", builtin: true, filters: { renewalDays: 60 } },
-  { id: "todas", label: "Todas as empresas", builtin: true, filters: { ativo: "todos" } },
+  {
+    id: "todas",
+    label: "Clientes ativos e inativos",
+    builtin: true,
+    filters: { ativo: "todos" },
+  },
+  { id: "base", label: "Base inteira", builtin: true, filters: { base: "todas" } },
 ];
+
+/** Filtros que só existem para quem tem ficha do CS. */
+const SO_CLIENTES: (keyof Filters)[] = [
+  "owner",
+  "signal",
+  "stage",
+  "tag",
+  "tagUso",
+  "tipo",
+  "redWeeks",
+  "renewalDays",
+];
+const PAGINA = 300;
 
 const COLUMNS: ColumnDef[] = [
   { key: "empresa", label: "Empresa", always: true },
@@ -143,6 +167,9 @@ const COLUMNS: ColumnDef[] = [
   { key: "tags", label: "Tags" },
   { key: "tipo", label: "Tipo" },
   { key: "aporte", label: "Aporte" },
+  { key: "dono", label: "Dono na base" },
+  { key: "negocios", label: "Negócios abertos" },
+  { key: "segmento", label: "Segmento" },
 ];
 
 type SortKey = "empresa" | "saude" | "etapa" | "renovacao" | "contato" | "aporte";
@@ -161,6 +188,8 @@ function CsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuth();
+  // Sinaleira, alertas e configurações são do CS; a lista é de todos.
+  const ehCs = useCurrentRole().canAccessTeam("cs");
 
   const [mode, setMode] = useState<"lista" | "board">("lista");
   const [openAlert, setOpenAlert] = useState<string | null>(null);
@@ -171,13 +200,22 @@ function CsPage() {
   });
 
   const storageNs = `cs:empresas:${user?.id ?? "anon"}`;
-  const savedViews = useSavedViews<Filters>(`${storageNs}:views`, BUILTIN_VIEWS);
+  const savedViews = useSavedViews<Filters>("empresas", BUILTIN_VIEWS, `${storageNs}:views`);
   const columns = useVisibleColumns(`${storageNs}:cols`, COLUMNS);
 
-  const [viewId, setViewId] = useState<string>("carteira");
+  const [viewId, setViewId] = useState<string>("");
+  const [limite, setLimite] = useState(PAGINA);
   const { ocultas: etapasCsOcultas } = useEtapasOcultas("cs-jornada");
   const [filters, setFilters] = useState<Filters>({ ...EMPTY, ...BUILTIN_VIEWS[0].filters });
   const activeView = savedViews.views.find((v) => v.id === viewId) ?? null;
+  // Ao carregar as visões da pessoa, abre a primeira.
+  useEffect(() => {
+    if (!viewId && savedViews.views[0]) {
+      setViewId(savedViews.views[0].id);
+      setFilters({ ...EMPTY, ...savedViews.views[0].filters });
+    }
+  }, [viewId, savedViews.views]);
+  useEffect(() => setLimite(PAGINA), [filters, sort]);
   const dirty = activeView ? !sameFilters(filters, { ...EMPTY, ...activeView.filters }) : true;
   const set = <K extends keyof Filters>(k: K, v: Filters[K]) =>
     setFilters((f) => ({ ...f, [k]: v }));
@@ -191,6 +229,16 @@ function CsPage() {
     enabled: !!user,
   });
   const invalidate = () => qc.invalidateQueries({ queryKey: ["cs-board"] });
+
+  // Empresas da base sem ficha do CS: só quando a visão pede a base.
+  const baseFn = useServerFn(listEmpresasDaBase);
+  const querBase = (filters.base ?? "clientes") !== "clientes";
+  const { data: base, isLoading: carregandoBase } = useQuery({
+    queryKey: ["empresas-da-base"],
+    queryFn: () => baseFn({}),
+    enabled: !!user && querBase,
+    staleTime: 5 * 60_000,
+  });
 
   const scan = useMutation({
     mutationFn: () => scanFn({}),
@@ -381,6 +429,34 @@ function CsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.clients, filters, sort, tagsOf, historyOf, user?.id]);
 
+  const baseRows = useMemo(() => {
+    if (!querBase) return [];
+    if (SO_CLIENTES.some((k) => !!filters[k])) return [];
+    const q = filters.q.trim().toLowerCase();
+    return (base ?? []).filter((e) => {
+      if (q && !`${e.nome} ${e.cnpj ?? ""}`.toLowerCase().includes(q)) return false;
+      if (filters.mine && user && e.owner_user_id !== user.id && e.sdr_user_id !== user.id)
+        return false;
+      if (filters.exec && e.owner_user_id !== filters.exec) return false;
+      return true;
+    });
+  }, [base, querBase, filters, user]);
+
+  /** Linhas da lista: fichas do CS e, se a visão pedir, empresas sem ficha. */
+  const linhas = useMemo(() => {
+    type Linha =
+      | { tipo: "cliente"; nome: string; c: (typeof clients)[number] }
+      | { tipo: "base"; nome: string; e: EmpresaDaBase };
+    const doCs: Linha[] =
+      filters.base === "nao_clientes"
+        ? []
+        : clients.map((c) => ({ tipo: "cliente" as const, nome: c.nome_empresa, c }));
+    const daBase: Linha[] = baseRows.map((e) => ({ tipo: "base" as const, nome: e.nome, e }));
+    if (sort.key !== "empresa") return [...doCs, ...daBase];
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...doCs, ...daBase].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR") * dir);
+  }, [clients, baseRows, filters.base, sort]);
+
   // Sinaleira: contagem por cor dentro dos filtros atuais (ignorando o próprio filtro de sinaleira).
   const signalCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -401,11 +477,57 @@ function CsPage() {
     setViewId(v.id);
     setFilters({ ...EMPTY, ...v.filters });
   };
+  const semBusca = (f: Filters) => ({ ...f, q: "" });
+  const comAviso = async (fn: () => Promise<unknown>, ok: string) => {
+    try {
+      await fn();
+      toast.success(ok);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Não foi possível salvar a visão");
+    }
+  };
   const createView = () => {
-    const label = window.prompt("Nome da visão");
+    const label = window.prompt("Nome da nova visão (com os filtros atuais)");
     if (!label?.trim()) return;
-    const id = savedViews.addView(label.trim(), filters);
-    setViewId(id);
+    void comAviso(async () => {
+      const id = await savedViews.addView(label.trim().slice(0, 60), semBusca(filters));
+      if (id) setViewId(id);
+    }, "Visão criada");
+  };
+  const renameView = (id: string) => {
+    const atual = savedViews.views.find((v) => v.id === id);
+    const label = window.prompt("Novo nome da visão", atual?.label ?? "");
+    if (!label?.trim() || label.trim() === atual?.label) return;
+    void comAviso(() => savedViews.renameView(id, label.trim().slice(0, 60)), "Visão renomeada");
+  };
+  const saveFilters = (id: string) =>
+    void comAviso(() => savedViews.updateView(id, semBusca(filters)), "Filtros salvos na visão");
+  const duplicateView = (id: string) => {
+    const v = savedViews.views.find((x) => x.id === id);
+    if (!v) return;
+    void comAviso(async () => {
+      const novo = await savedViews.addView(`${v.label} (cópia)`.slice(0, 60), v.filters);
+      if (novo) selectView({ ...v, id: novo });
+    }, "Visão duplicada");
+  };
+  const removeView = (id: string) => {
+    const v = savedViews.views.find((x) => x.id === id);
+    if (!v || !window.confirm(`Excluir a visão "${v.label}"?`)) return;
+    void comAviso(async () => {
+      await savedViews.removeView(id);
+      if (viewId === id) {
+        const outra = savedViews.views.find((x) => x.id !== id);
+        if (outra) selectView(outra);
+      }
+    }, "Visão excluída");
+  };
+  const restoreViews = () => {
+    if (!window.confirm("Voltar às visões padrão? As suas visões desta lista serão apagadas."))
+      return;
+    void comAviso(async () => {
+      await savedViews.restoreDefaults();
+      setViewId("");
+    }, "Visões padrão restauradas");
   };
   const toggleSort = (key: SortKey) =>
     setSort((s) =>
@@ -415,21 +537,39 @@ function CsPage() {
   const exportCsv = () => {
     downloadCsv(
       "empresas.csv",
-      clients.map((c) => ({
-        codigo: c.client_uid,
-        empresa: c.nome_empresa,
-        tipo: CS_CLIENT_TYPE_LABEL[c.tipo_lead] ?? c.tipo_lead,
-        sinaleira: CS_SIGNAL_LABEL[c.current_signal ?? "sem_dado"],
-        saude: c.health_score ?? 0,
-        etapa: CS_STAGE_LABEL[c.journey_stage as never] ?? c.journey_stage,
-        responsavel_cs: profileName(c.cs_responsavel_id),
-        executivo: profileName(c.comercial_responsavel_id),
-        renovacao: c.data_renovacao ?? "",
-        ultimo_contato: c.last_contact_at ?? "",
-        aporte: Number(c.aporte_valor ?? 0),
-        alertas_abertos: (alertsOf.get(c.client_uid) ?? []).length,
-        tags: (tagsOf.get(c.client_uid) ?? []).join("; "),
-      })),
+      clients
+        .map((c) => ({
+          codigo: c.client_uid,
+          empresa: c.nome_empresa,
+          tipo: CS_CLIENT_TYPE_LABEL[c.tipo_lead] ?? c.tipo_lead,
+          sinaleira: CS_SIGNAL_LABEL[c.current_signal ?? "sem_dado"],
+          saude: c.health_score ?? 0,
+          etapa: String(CS_STAGE_LABEL[c.journey_stage as never] ?? c.journey_stage),
+          responsavel_cs: profileName(c.cs_responsavel_id),
+          executivo: profileName(c.comercial_responsavel_id),
+          renovacao: c.data_renovacao ?? "",
+          ultimo_contato: c.last_contact_at ?? "",
+          aporte: Number(c.aporte_valor ?? 0),
+          alertas_abertos: (alertsOf.get(c.client_uid) ?? []).length,
+          tags: (tagsOf.get(c.client_uid) ?? []).join("; "),
+        }))
+        .concat(
+          baseRows.map((e) => ({
+            codigo: "",
+            empresa: e.nome,
+            tipo: "Sem ficha do CS",
+            sinaleira: "",
+            saude: 0,
+            etapa: "",
+            responsavel_cs: "",
+            executivo: e.owner_user_id ? profileName(e.owner_user_id) : "",
+            renovacao: "",
+            ultimo_contato: "",
+            aporte: 0,
+            alertas_abertos: 0,
+            tags: "",
+          })),
+        ),
     );
   };
 
@@ -444,36 +584,46 @@ function CsPage() {
         <div>
           <h1 className="text-xl font-semibold">Empresas</h1>
           <p className="text-[12px] text-muted-foreground">
-            {isLoading ? "Carregando…" : `${clients.length} na visão · saúde média ${avgHealth}`}
+            {isLoading || (querBase && carregandoBase)
+              ? "Carregando…"
+              : `${linhas.length} na visão` +
+                (baseRows.length
+                  ? ` · ${linhas.length - baseRows.length} clientes, ${baseRows.length} sem ficha`
+                  : "") +
+                ` · saúde média ${avgHealth}`}
             {openAlerts > 0 && ` · ${openAlerts} alerta(s) em aberto`}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={sync.isPending}
-            onClick={() => sync.mutate()}
-          >
-            <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />{" "}
-            Sincronizar sinaleira
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={scan.isPending}
-            onClick={() => scan.mutate()}
-          >
-            <Bell className="mr-1 h-4 w-4" /> Gerar alertas
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            title="Configurações do CS"
-            onClick={() => navigate({ to: "/cs-configuracoes" })}
-          >
-            <Settings2 className="h-4 w-4" />
-          </Button>
+          {ehCs && (
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={sync.isPending}
+                onClick={() => sync.mutate()}
+              >
+                <RefreshCw className={`mr-1 h-4 w-4 ${sync.isPending ? "animate-spin" : ""}`} />{" "}
+                Sincronizar sinaleira
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={scan.isPending}
+                onClick={() => scan.mutate()}
+              >
+                <Bell className="mr-1 h-4 w-4" /> Gerar alertas
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                title="Configurações do CS"
+                onClick={() => navigate({ to: "/cs-configuracoes" })}
+              >
+                <Settings2 className="h-4 w-4" />
+              </Button>
+            </>
+          )}
           <Button
             size="sm"
             variant="outline"
@@ -496,10 +646,12 @@ function CsPage() {
             dirty={dirty}
             onSelect={selectView}
             onCreate={createView}
-            onRemove={(id) => {
-              savedViews.removeView(id);
-              if (viewId === id) selectView(BUILTIN_VIEWS[0]);
-            }}
+            onRemove={removeView}
+            onRename={renameView}
+            onSaveFilters={saveFilters}
+            onDuplicate={duplicateView}
+            onMove={(id, dir) => void comAviso(() => savedViews.moveView(id, dir), "Visão movida")}
+            onRestore={restoreViews}
           />
         </div>
 
@@ -514,6 +666,15 @@ function CsPage() {
               onChange={(e) => set("q", e.target.value)}
             />
           </div>
+          <FilterChip
+            label="Empresas"
+            value={filters.base && filters.base !== "clientes" ? filters.base : ""}
+            options={[
+              { value: "todas", label: "Base inteira" },
+              { value: "nao_clientes", label: "Só quem não é cliente" },
+            ]}
+            onChange={(v) => set("base", (v || "clientes") as Filters["base"])}
+          />
           <FilterChip
             label="Responsável CS"
             value={filters.owner}
@@ -618,7 +779,7 @@ function CsPage() {
               variant="outline"
               className="h-8"
               onClick={exportCsv}
-              disabled={clients.length === 0}
+              disabled={linhas.length === 0}
             >
               <Download className="mr-1 h-3.5 w-3.5" /> Exportar
             </Button>
@@ -654,17 +815,71 @@ function CsPage() {
                   {show("aporte") && (
                     <SortTh label="Aporte" k="aporte" sort={sort} onSort={toggleSort} />
                   )}
+                  {show("dono") && <th>Dono na base</th>}
+                  {show("negocios") && <th>Negócios abertos</th>}
+                  {show("segmento") && <th>Segmento</th>}
                 </tr>
               </thead>
               <tbody>
-                {clients.length === 0 && (
+                {linhas.length === 0 && (
                   <tr>
-                    <td colSpan={12} className="text-muted-foreground">
-                      Nenhuma empresa nesta visão.
+                    <td colSpan={15} className="text-muted-foreground">
+                      {querBase && carregandoBase
+                        ? "Carregando a base de empresas…"
+                        : "Nenhuma empresa nesta visão."}
                     </td>
                   </tr>
                 )}
-                {clients.map((c) => {
+                {linhas.slice(0, limite).map((l) => {
+                  if (l.tipo === "base") {
+                    const e = l.e;
+                    const vazio = <td className="text-muted-foreground">—</td>;
+                    return (
+                      <tr key={e.id} className="cursor-pointer" onClick={() => openClient(e.id)}>
+                        <td>
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />
+                            <Link
+                              to="/empresas/$uid"
+                              params={{ uid: e.id }}
+                              onClick={(ev) => ev.stopPropagation()}
+                              className="truncate font-medium text-primary hover:underline"
+                            >
+                              {e.nome}
+                            </Link>
+                            <Badge variant="outline" className="text-[10px]">
+                              {e.negocios_ganhos > 0 ? "já comprou" : "não é cliente"}
+                            </Badge>
+                          </div>
+                        </td>
+                        {show("sinaleira") && vazio}
+                        {show("saude") && vazio}
+                        {show("etapa") && (
+                          <td className="whitespace-nowrap text-muted-foreground">
+                            Sem ficha do CS
+                          </td>
+                        )}
+                        {show("cs") && vazio}
+                        {show("exec") && vazio}
+                        {show("renovacao") && vazio}
+                        {show("contato") && vazio}
+                        {show("alertas") && vazio}
+                        {show("tags") && vazio}
+                        {show("tipo") && vazio}
+                        {show("aporte") && vazio}
+                        {show("dono") && (
+                          <td className="whitespace-nowrap">
+                            {e.owner_user_id ? profileName(e.owner_user_id) : "—"}
+                          </td>
+                        )}
+                        {show("negocios") && (
+                          <td className="metric-value">{e.negocios_abertos || "—"}</td>
+                        )}
+                        {show("segmento") && <td>{e.segmento ?? "—"}</td>}
+                      </tr>
+                    );
+                  }
+                  const c = l.c;
                   const health = healthLabel(c.health_score ?? 0);
                   const alerts = alertsOf.get(c.client_uid) ?? [];
                   const tags = tagsOf.get(c.client_uid) ?? [];
@@ -776,6 +991,9 @@ function CsPage() {
                           R$ {Number(c.aporte_valor ?? 0).toLocaleString("pt-BR")}
                         </td>
                       )}
+                      {show("dono") && <td className="text-muted-foreground">—</td>}
+                      {show("negocios") && <td className="text-muted-foreground">—</td>}
+                      {show("segmento") && <td>{(c as { setor?: string | null }).setor ?? "—"}</td>}
                     </tr>
                   );
                 })}
@@ -823,8 +1041,20 @@ function CsPage() {
 
         <div className="flex items-center gap-3 border-t px-3 py-2 text-[12px] text-muted-foreground">
           <span className="rounded-full bg-muted px-2.5 py-0.5 font-medium text-foreground">
-            {clients.length} empresa{clients.length === 1 ? "" : "s"}
+            {linhas.length} empresa{linhas.length === 1 ? "" : "s"}
           </span>
+          {mode === "lista" && linhas.length > limite && (
+            <button
+              type="button"
+              onClick={() => setLimite((n) => n + PAGINA)}
+              className="font-medium text-primary hover:underline"
+            >
+              Mostrar mais {Math.min(PAGINA, linhas.length - limite)} (mostrando {limite})
+            </button>
+          )}
+          {mode === "board" && baseRows.length > 0 && (
+            <span>O funil mostra só quem tem ficha do CS.</span>
+          )}
           {activeView && (
             <span>
               Visão: {activeView.label}

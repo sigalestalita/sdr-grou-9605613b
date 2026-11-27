@@ -29,6 +29,7 @@ import { Route as AppComercialMetasRouteImport } from './routes/_app.comercial-m
 import { Route as AppComercialPipelineRouteImport } from './routes/_app.comercial-pipeline'
 import { Route as AppComissaoRouteImport } from './routes/_app.comissao'
 import { Route as AppConfiguracoesRouteImport } from './routes/_app.configuracoes'
+import { Route as AppContatosRouteImport } from './routes/_app.contatos'
 import { Route as AppCsRouteImport } from './routes/_app.cs'
 import { Route as AppCsAgendaRouteImport } from './routes/_app.cs-agenda'
 import { Route as AppCsCadenciaRouteImport } from './routes/_app.cs-cadencia'
@@ -220,6 +221,11 @@ const AppComissaoRoute = AppComissaoRouteImport.update({
 const AppConfiguracoesRoute = AppConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppContatosRoute = AppContatosRouteImport.update({
+  id: '/contatos',
+  path: '/contatos',
   getParentRoute: () => AppRoute,
 } as any)
 const AppCsRoute = AppCsRouteImport.update({
@@ -736,6 +742,7 @@ export interface FileRoutesByFullPath {
   '/comercial-pipeline': typeof AppComercialPipelineRoute
   '/comissao': typeof AppComissaoRoute
   '/configuracoes': typeof AppConfiguracoesRoute
+  '/contatos': typeof AppContatosRoute
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
   '/cs-cadencia': typeof AppCsCadenciaRoute
@@ -850,6 +857,7 @@ export interface FileRoutesByTo {
   '/comercial-pipeline': typeof AppComercialPipelineRoute
   '/comissao': typeof AppComissaoRoute
   '/configuracoes': typeof AppConfiguracoesRoute
+  '/contatos': typeof AppContatosRoute
   '/cs': typeof AppCsRoute
   '/cs-agenda': typeof AppCsAgendaRoute
   '/cs-cadencia': typeof AppCsCadenciaRoute
@@ -964,6 +972,7 @@ export interface FileRoutesById {
   '/_app/comercial-pipeline': typeof AppComercialPipelineRoute
   '/_app/comissao': typeof AppComissaoRoute
   '/_app/configuracoes': typeof AppConfiguracoesRoute
+  '/_app/contatos': typeof AppContatosRoute
   '/_app/cs': typeof AppCsRoute
   '/_app/cs-agenda': typeof AppCsAgendaRoute
   '/_app/cs-cadencia': typeof AppCsCadenciaRoute
@@ -1080,6 +1089,7 @@ export interface FileRouteTypes {
     | '/comercial-pipeline'
     | '/comissao'
     | '/configuracoes'
+    | '/contatos'
     | '/cs'
     | '/cs-agenda'
     | '/cs-cadencia'
@@ -1194,6 +1204,7 @@ export interface FileRouteTypes {
     | '/comercial-pipeline'
     | '/comissao'
     | '/configuracoes'
+    | '/contatos'
     | '/cs'
     | '/cs-agenda'
     | '/cs-cadencia'
@@ -1307,6 +1318,7 @@ export interface FileRouteTypes {
     | '/_app/comercial-pipeline'
     | '/_app/comissao'
     | '/_app/configuracoes'
+    | '/_app/contatos'
     | '/_app/cs'
     | '/_app/cs-agenda'
     | '/_app/cs-cadencia'
@@ -1589,6 +1601,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/configuracoes'
       preLoaderRoute: typeof AppConfiguracoesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/contatos': {
+      id: '/_app/contatos'
+      path: '/contatos'
+      fullPath: '/contatos'
+      preLoaderRoute: typeof AppContatosRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/cs': {
@@ -2330,6 +2349,7 @@ interface AppRouteChildren {
   AppComercialPipelineRoute: typeof AppComercialPipelineRoute
   AppComissaoRoute: typeof AppComissaoRoute
   AppConfiguracoesRoute: typeof AppConfiguracoesRoute
+  AppContatosRoute: typeof AppContatosRoute
   AppCsRoute: typeof AppCsRoute
   AppCsAgendaRoute: typeof AppCsAgendaRoute
   AppCsCadenciaRoute: typeof AppCsCadenciaRoute
@@ -2385,6 +2405,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppComercialPipelineRoute: AppComercialPipelineRoute,
   AppComissaoRoute: AppComissaoRoute,
   AppConfiguracoesRoute: AppConfiguracoesRoute,
+  AppContatosRoute: AppContatosRoute,
   AppCsRoute: AppCsRoute,
   AppCsAgendaRoute: AppCsAgendaRoute,
   AppCsCadenciaRoute: AppCsCadenciaRoute,
