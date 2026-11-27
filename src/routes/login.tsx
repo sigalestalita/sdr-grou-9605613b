@@ -97,7 +97,9 @@ function LoginPage() {
   const campo =
     "flex h-12 items-center gap-3 rounded-full border border-white/15 bg-[#030b3a]/70 px-5 transition-[border-color,box-shadow] focus-within:border-[#88d5ce] focus-within:shadow-[0_0_0_4px_rgb(136_213_206/0.2)]";
   const entrada =
-    "h-full w-full bg-transparent text-[15px] text-white outline-none placeholder:text-white/40";
+    "h-full w-full bg-transparent text-[15px] text-white outline-none placeholder:text-white/40 " +
+    // Preenchimento automático do Chrome: sem o fundo azul-claro, texto continua branco.
+    "[&:-webkit-autofill]:[-webkit-text-fill-color:#fff] [&:-webkit-autofill]:[caret-color:#fff] [&:-webkit-autofill]:[transition:background-color_600000s_0s,color_600000s_0s]";
 
   return (
     <div className="relative min-h-[100dvh] overflow-hidden bg-[#05104c] text-white">
