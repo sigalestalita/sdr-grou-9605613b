@@ -2182,11 +2182,14 @@ export type Database = {
           created_at: string
           created_by: string | null
           duration_minutes: number | null
+          google_event_dono: string | null
+          google_event_id: string | null
           id: string
           meeting_url: string | null
           next_step: string | null
           next_step_at: string | null
           occurred_at: string
+          oferta_id: string | null
           owner_user_id: string | null
           source: string
           status: string
@@ -2203,11 +2206,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           duration_minutes?: number | null
+          google_event_dono?: string | null
+          google_event_id?: string | null
           id?: string
           meeting_url?: string | null
           next_step?: string | null
           next_step_at?: string | null
           occurred_at?: string
+          oferta_id?: string | null
           owner_user_id?: string | null
           source?: string
           status?: string
@@ -2224,11 +2230,14 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           duration_minutes?: number | null
+          google_event_dono?: string | null
+          google_event_id?: string | null
           id?: string
           meeting_url?: string | null
           next_step?: string | null
           next_step_at?: string | null
           occurred_at?: string
+          oferta_id?: string | null
           owner_user_id?: string | null
           source?: string
           status?: string
@@ -2263,6 +2272,13 @@ export type Database = {
             columns: ["contact_id"]
             isOneToOne: false
             referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_meetings_oferta_id_fkey"
+            columns: ["oferta_id"]
+            isOneToOne: false
+            referencedRelation: "cs_reuniao_ofertas"
             referencedColumns: ["id"]
           },
         ]
@@ -2451,6 +2467,85 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cs_clients"
             referencedColumns: ["client_uid"]
+          },
+        ]
+      }
+      cs_reuniao_ofertas: {
+        Row: {
+          category_id: string | null
+          client_uid: string
+          contact_id: string | null
+          created_at: string
+          duration_minutes: number | null
+          escolhida_em: string | null
+          escolhida_meeting_id: string | null
+          escolhida_nome: string | null
+          escolhida_por: string | null
+          id: string
+          meeting_url: string | null
+          owner_user_id: string
+          status: string
+          summary: string | null
+          title: string
+          token: string
+        }
+        Insert: {
+          category_id?: string | null
+          client_uid: string
+          contact_id?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          escolhida_em?: string | null
+          escolhida_meeting_id?: string | null
+          escolhida_nome?: string | null
+          escolhida_por?: string | null
+          id?: string
+          meeting_url?: string | null
+          owner_user_id?: string
+          status?: string
+          summary?: string | null
+          title: string
+          token?: string
+        }
+        Update: {
+          category_id?: string | null
+          client_uid?: string
+          contact_id?: string | null
+          created_at?: string
+          duration_minutes?: number | null
+          escolhida_em?: string | null
+          escolhida_meeting_id?: string | null
+          escolhida_nome?: string | null
+          escolhida_por?: string | null
+          id?: string
+          meeting_url?: string | null
+          owner_user_id?: string
+          status?: string
+          summary?: string | null
+          title?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_reuniao_ofertas_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "cs_meeting_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_reuniao_ofertas_client_uid_fkey"
+            columns: ["client_uid"]
+            isOneToOne: false
+            referencedRelation: "cs_clients"
+            referencedColumns: ["client_uid"]
+          },
+          {
+            foreignKeyName: "cs_reuniao_ofertas_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "cs_contacts"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3806,6 +3901,71 @@ export type Database = {
           },
         ]
       }
+      empresas_solicitacoes: {
+        Row: {
+          alvo_ids: string[]
+          alvo_nomes: string[]
+          decidido_em: string | null
+          decidido_por: string | null
+          fica_id: string | null
+          fica_nome: string | null
+          grupo: string | null
+          id: string
+          motivo: string
+          nova_mae_nome: string | null
+          observacao: string | null
+          resultado: Json | null
+          solicitado_em: string
+          solicitado_por: string
+          status: string
+          tipo: string
+        }
+        Insert: {
+          alvo_ids: string[]
+          alvo_nomes?: string[]
+          decidido_em?: string | null
+          decidido_por?: string | null
+          fica_id?: string | null
+          fica_nome?: string | null
+          grupo?: string | null
+          id?: string
+          motivo: string
+          nova_mae_nome?: string | null
+          observacao?: string | null
+          resultado?: Json | null
+          solicitado_em?: string
+          solicitado_por?: string
+          status?: string
+          tipo: string
+        }
+        Update: {
+          alvo_ids?: string[]
+          alvo_nomes?: string[]
+          decidido_em?: string | null
+          decidido_por?: string | null
+          fica_id?: string | null
+          fica_nome?: string | null
+          grupo?: string | null
+          id?: string
+          motivo?: string
+          nova_mae_nome?: string | null
+          observacao?: string | null
+          resultado?: Json | null
+          solicitado_em?: string
+          solicitado_por?: string
+          status?: string
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "empresas_solicitacoes_fica_id_fkey"
+            columns: ["fica_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fatura_parcelas: {
         Row: {
           created_at: string
@@ -4002,6 +4162,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      google_agenda_contas: {
+        Row: {
+          access_token: string | null
+          conectado_em: string
+          email: string | null
+          escopo: string | null
+          expira_em: string | null
+          refresh_token: string
+          ultimo_erro: string | null
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          conectado_em?: string
+          email?: string | null
+          escopo?: string | null
+          expira_em?: string | null
+          refresh_token: string
+          ultimo_erro?: string | null
+          user_id: string
+        }
+        Update: {
+          access_token?: string | null
+          conectado_em?: string
+          email?: string | null
+          escopo?: string | null
+          expira_em?: string | null
+          refresh_token?: string
+          ultimo_erro?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      google_agenda_estados: {
+        Row: {
+          criado_em: string
+          estado: string
+          user_id: string
+          voltar_para: string | null
+        }
+        Insert: {
+          criado_em?: string
+          estado: string
+          user_id: string
+          voltar_para?: string | null
+        }
+        Update: {
+          criado_em?: string
+          estado?: string
+          user_id?: string
+          voltar_para?: string | null
+        }
+        Relationships: []
       }
       icp_config: {
         Row: {
@@ -7201,6 +7415,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assistente_colunas: {
+        Args: { _tabelas: string[] }
+        Returns: {
+          coluna: string
+          tabela: string
+          tipo: string
+        }[]
+      }
       can_access_lead: { Args: { _lead_id: string }; Returns: boolean }
       can_access_module: {
         Args: {
@@ -7273,6 +7495,10 @@ export type Database = {
       deal_data_ganho: {
         Args: { _deal: Database["public"]["Tables"]["deals"]["Row"] }
         Returns: string
+      }
+      desativar_empresas: {
+        Args: { _ativo?: boolean; _ids: string[] }
+        Returns: number
       }
       descongelar_negocios: { Args: never; Returns: number }
       dominio_corporativo: {
@@ -7361,6 +7587,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      ids_da_gestao: { Args: never; Returns: string[] }
       importar_analistas_pda: {
         Args: { _importacao: string; _linhas: Json }
         Returns: Json
@@ -7425,6 +7652,10 @@ export type Database = {
       phone_key: { Args: { raw: string }; Returns: string }
       pode_faturar: { Args: { _user_id: string }; Returns: boolean }
       pode_propor: { Args: { _user_id: string }; Returns: boolean }
+      pode_ver_conversa_wa: {
+        Args: { _account_id: string; _assigned: string; _lead_id: string }
+        Returns: boolean
+      }
       pode_ver_fatura: { Args: { _deal_id: string }; Returns: boolean }
       pode_ver_requerimento: { Args: { _req: string }; Returns: boolean }
       reabrir_grupo_de_parecidas: { Args: { _grupo: string }; Returns: Json }
