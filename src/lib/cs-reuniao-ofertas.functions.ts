@@ -255,6 +255,18 @@ async function avisarEscolha(
   }).catch((e) => console.warn("[oferta] e-mail", e));
 }
 
+/** Convite de calendário (.ics) para o contato do cliente e quem ofereceu. */
+async function mandarConvite(meetingId: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { enviarConviteDaReuniaoCs } = await import("@/lib/cs/convite-reuniao.server");
+    return await enviarConviteDaReuniaoCs(solto(supabaseAdmin), meetingId);
+  } catch (e) {
+    console.warn("[oferta] convite", e);
+    return { enviado: false, para: [] as string[], motivo: "falha no envio" };
+  }
+}
+
 const COLS_OFERTA = "id, token, client_uid, owner_user_id, title, summary, category_id, status";
 
 /** O CS marca o horário que o cliente escolheu (resposta por WhatsApp, e-mail…). */
@@ -287,7 +299,8 @@ export const escolherHorarioDaOferta = createServerFn({ method: "POST" })
       "Confirmado pelo CS (resposta do cliente fora do link).",
       context.userId,
     ).catch((e) => console.warn("[oferta] aviso", e));
-    return { ok: true };
+    const convite = await mandarConvite(r.id);
+    return { ok: true, convite };
   });
 
 /** Cancela a oferta: os horários reservados voltam a ficar livres. */
@@ -395,5 +408,7 @@ export const escolherHorarioPublico = createServerFn({ method: "POST" })
         : "Escolhido pelo cliente pelo link.",
       null,
     ).catch((e) => console.warn("[oferta] aviso", e));
-    return { ok: true, inicio: r.occurred_at };
+    const convite = await mandarConvite(r.id);
+    // Diz ao cliente só se o convite foi mesmo para o e-mail dele.
+    return { ok: true, inicio: r.occurred_at, conviteParaVoce: !!convite.paraContato };
   });
