@@ -61,6 +61,7 @@ import { Route as AppPlaybookRouteImport } from './routes/_app.playbook'
 import { Route as AppPropostasRouteImport } from './routes/_app.propostas'
 import { Route as AppRelatoriosRouteImport } from './routes/_app.relatorios'
 import { Route as AppRequerimentosRouteImport } from './routes/_app.requerimentos'
+import { Route as AppRevisaoValoresRouteImport } from './routes/_app.revisao-valores'
 import { Route as AppTurmasRouteImport } from './routes/_app.turmas'
 import { Route as AppUsoRouteImport } from './routes/_app.uso'
 import { Route as AppUsuariosRouteImport } from './routes/_app.usuarios'
@@ -385,6 +386,11 @@ const AppRelatoriosRoute = AppRelatoriosRouteImport.update({
 const AppRequerimentosRoute = AppRequerimentosRouteImport.update({
   id: '/requerimentos',
   path: '/requerimentos',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRevisaoValoresRoute = AppRevisaoValoresRouteImport.update({
+  id: '/revisao-valores',
+  path: '/revisao-valores',
   getParentRoute: () => AppRoute,
 } as any)
 const AppTurmasRoute = AppTurmasRouteImport.update({
@@ -800,6 +806,7 @@ export interface FileRoutesByFullPath {
   '/propostas': typeof AppPropostasRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/requerimentos': typeof AppRequerimentosRoute
+  '/revisao-valores': typeof AppRevisaoValoresRoute
   '/turmas': typeof AppTurmasRoute
   '/uso': typeof AppUsoRoute
   '/usuarios': typeof AppUsuariosRoute
@@ -918,6 +925,7 @@ export interface FileRoutesByTo {
   '/propostas': typeof AppPropostasRoute
   '/relatorios': typeof AppRelatoriosRoute
   '/requerimentos': typeof AppRequerimentosRoute
+  '/revisao-valores': typeof AppRevisaoValoresRoute
   '/turmas': typeof AppTurmasRoute
   '/uso': typeof AppUsoRoute
   '/usuarios': typeof AppUsuariosRoute
@@ -1038,6 +1046,7 @@ export interface FileRoutesById {
   '/_app/propostas': typeof AppPropostasRoute
   '/_app/relatorios': typeof AppRelatoriosRoute
   '/_app/requerimentos': typeof AppRequerimentosRoute
+  '/_app/revisao-valores': typeof AppRevisaoValoresRoute
   '/_app/turmas': typeof AppTurmasRoute
   '/_app/uso': typeof AppUsoRoute
   '/_app/usuarios': typeof AppUsuariosRoute
@@ -1159,6 +1168,7 @@ export interface FileRouteTypes {
     | '/propostas'
     | '/relatorios'
     | '/requerimentos'
+    | '/revisao-valores'
     | '/turmas'
     | '/uso'
     | '/usuarios'
@@ -1277,6 +1287,7 @@ export interface FileRouteTypes {
     | '/propostas'
     | '/relatorios'
     | '/requerimentos'
+    | '/revisao-valores'
     | '/turmas'
     | '/uso'
     | '/usuarios'
@@ -1396,6 +1407,7 @@ export interface FileRouteTypes {
     | '/_app/propostas'
     | '/_app/relatorios'
     | '/_app/requerimentos'
+    | '/_app/revisao-valores'
     | '/_app/turmas'
     | '/_app/uso'
     | '/_app/usuarios'
@@ -1878,6 +1890,13 @@ declare module '@tanstack/react-router' {
       path: '/requerimentos'
       fullPath: '/requerimentos'
       preLoaderRoute: typeof AppRequerimentosRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/revisao-valores': {
+      id: '/_app/revisao-valores'
+      path: '/revisao-valores'
+      fullPath: '/revisao-valores'
+      preLoaderRoute: typeof AppRevisaoValoresRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/turmas': {
@@ -2462,6 +2481,7 @@ interface AppRouteChildren {
   AppPropostasRoute: typeof AppPropostasRoute
   AppRelatoriosRoute: typeof AppRelatoriosRoute
   AppRequerimentosRoute: typeof AppRequerimentosRoute
+  AppRevisaoValoresRoute: typeof AppRevisaoValoresRoute
   AppTurmasRoute: typeof AppTurmasRoute
   AppUsoRoute: typeof AppUsoRoute
   AppUsuariosRoute: typeof AppUsuariosRoute
@@ -2519,6 +2539,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPropostasRoute: AppPropostasRoute,
   AppRelatoriosRoute: AppRelatoriosRoute,
   AppRequerimentosRoute: AppRequerimentosRoute,
+  AppRevisaoValoresRoute: AppRevisaoValoresRoute,
   AppTurmasRoute: AppTurmasRoute,
   AppUsoRoute: AppUsoRoute,
   AppUsuariosRoute: AppUsuariosRoute,

@@ -228,6 +228,7 @@ const ROUTE_ACCESS: RouteAccess[] = [
   { prefix: "/playbook", teams: ["comercial"] },
   // Faturamento: Administrativo (e gestão). O servidor confere de novo.
   { prefix: "/faturamento", teams: ["administrativo"] },
+  { prefix: "/revisao-valores", teams: ["administrativo"] },
   // Turmas: o ADM monta e aprova; comercial/CS inscrevem; a trainer faz check-in.
   {
     prefix: "/turmas",
