@@ -37,7 +37,20 @@ import {
 // que não serve — ele criaria outro número em vez de adotar o do celular.
 const FEATURE_COEXISTENCIA = "whatsapp_business_app_onboarding";
 
-type SessionInfo = { phoneNumberId: string; wabaId: string };
+/*
+ * Formato de lançamento exigido pela Meta desde a descontinuação das versões
+ * v2/v3 (15/10/2026): sem "version": "v4" ela ignora o featureType e abre o
+ * cadastro de número novo (com SMS), que tiraria o WhatsApp do celular.
+ * É o mesmo JSON que o Configurador de cadastro incorporado gera.
+ */
+export const EXTRAS_COEXISTENCIA = {
+  featureType: FEATURE_COEXISTENCIA,
+  sessionInfoVersion: "3",
+  version: "v4",
+} as const;
+
+// Na coexistência a Meta pode mandar só o waba_id; o servidor acha o número.
+type SessionInfo = { phoneNumberId: string | null; wabaId: string };
 
 declare global {
   interface Window {
@@ -101,7 +114,7 @@ export function EmbeddedSignupButton() {
   });
 
   const concluir = useMutation({
-    mutationFn: (p: { code: string; phoneNumberId: string; wabaId: string }) =>
+    mutationFn: (p: { code: string; phoneNumberId: string | null; wabaId: string }) =>
       concluirFn({ data: { ...p, ownerUserId: dono || null } }),
     onSuccess: (r) => {
       toast.success(
@@ -139,8 +152,11 @@ export function EmbeddedSignupButton() {
           return;
         }
         const info = d?.data ?? {};
-        if (info.phone_number_id && info.waba_id) {
-          sessao.current = { phoneNumberId: info.phone_number_id, wabaId: info.waba_id };
+        if (info.waba_id) {
+          sessao.current = {
+            phoneNumberId: info.phone_number_id ? String(info.phone_number_id) : null,
+            wabaId: String(info.waba_id),
+          };
           tentarConcluir();
         }
       } catch {
@@ -176,11 +192,7 @@ export function EmbeddedSignupButton() {
         config_id: cfg.configId,
         response_type: "code",
         override_default_response_type: true,
-        extras: {
-          setup: {},
-          featureType: FEATURE_COEXISTENCIA,
-          sessionInfoVersion: "3",
-        },
+        extras: EXTRAS_COEXISTENCIA,
       },
     );
   }
@@ -253,11 +265,11 @@ export function EmbeddedSignupButton() {
           e o SDR CRM pertence ao GROU.adm. Dizer isso aqui evita descobrir no
           meio do fluxo, com o celular do SDR na mão. */}
       <p className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-300">
-        <strong>Não serve para os números da própria Grou.</strong> A Meta não deixa escolher, aqui,
-        o portfólio que é dono do app (GROU.adm) — este fluxo é para conectar o WhatsApp de um
-        cliente. Para um número do time, adicione pelo WhatsApp Manager, na conta do WhatsApp
-        Business da Grou, e depois cadastre em <strong>Nova conta</strong> com o Phone Number ID e o
-        token do usuário do sistema.
+        <strong>Na janela da Meta, nunca escolha o portfólio GROU.adm</strong> (é o dono do app e a
+        Meta não aceita). Para números do time, use sempre o mesmo portfólio do time, por exemplo
+        "Grou – Time" — crie na primeira vez. E escolha conectar o{" "}
+        <strong>app WhatsApp Business existente</strong>: se a Meta pedir código por SMS, pare —
+        esse caminho tira o WhatsApp do celular.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Select value={dono} onValueChange={setDono}>
