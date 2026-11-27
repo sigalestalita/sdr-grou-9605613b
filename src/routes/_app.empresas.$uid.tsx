@@ -603,7 +603,7 @@ function FichaDoCliente({ clientUid }: { clientUid: string }) {
         {/* Direita */}
         <div className="space-y-4">
           {client.company_id ? (
-            <Panel title="Comercial, SDR e ADM">
+            <Panel title="Todos os times">
               <TudoDaEmpresaPanel companyId={client.company_id} />
             </Panel>
           ) : null}

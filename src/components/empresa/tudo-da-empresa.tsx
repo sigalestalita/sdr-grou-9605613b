@@ -6,11 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { tudoDaEmpresa } from "@/lib/empresa-unificada.functions";
 import { FichaCadastralCard } from "@/components/fichas/ficha-cadastral";
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
+import { ReunioesAnalisadas } from "@/components/reunioes-analisadas";
 
 /*
- * O que os outros times têm da empresa, na mesma ficha: negócios e propostas
- * (comercial), leads (SDR), faturas e requerimentos (ADM). Tudo com link para
- * abrir o item.
+ * O que os outros times têm da empresa, na mesma ficha: reuniões analisadas no
+ * Sales Coach (todos os times), negócios e propostas (comercial), leads (SDR),
+ * faturas e requerimentos (ADM). Tudo com link para abrir o item.
  */
 const brl = (v: number | null | undefined) =>
   v == null
@@ -66,6 +67,13 @@ export function TudoDaEmpresaPanel({ companyId }: { companyId: string }) {
   const fechados = d.negocios.filter((n) => n.status !== "open");
   return (
     <div className="space-y-4">
+      <div className="space-y-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Reuniões analisadas
+        </p>
+        <ReunioesAnalisadas companyId={companyId} />
+      </div>
+
       <Bloco titulo="Negócios" vazio="Nenhum negócio com esta empresa." n={d.negocios.length}>
         <div className="space-y-1.5">
           {[...abertos, ...fechados].slice(0, 12).map((n) => {
@@ -225,7 +233,7 @@ export function EmpresaSemFicha({ companyId }: { companyId: string }) {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="surface-panel p-4">
-          <h2 className="section-label mb-3">Comercial, SDR e ADM</h2>
+          <h2 className="section-label mb-3">Todos os times</h2>
           <TudoDaEmpresaPanel companyId={companyId} />
         </section>
         <div className="space-y-4">
