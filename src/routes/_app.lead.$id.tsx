@@ -273,6 +273,18 @@ function LeadDetailPage() {
             <p className="truncate text-[12px] text-muted-foreground">
               {[lead.position, lead.company_name].filter(Boolean).join(" · ") ||
                 "Sem cargo/empresa"}
+              {lead.company_id && (
+                <>
+                  {" · "}
+                  <Link
+                    to="/empresas/$uid"
+                    params={{ uid: lead.company_id }}
+                    className="text-primary hover:underline"
+                  >
+                    abrir ficha da empresa
+                  </Link>
+                </>
+              )}
             </p>
           </div>
         </div>

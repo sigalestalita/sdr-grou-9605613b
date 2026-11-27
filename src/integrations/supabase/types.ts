@@ -1596,6 +1596,7 @@ export type Database = {
           last_contact_at: string | null
           linkedin_url: string | null
           login_pda: string | null
+          mesclado_em: string | null
           nome_empresa: string
           num_funcionarios: number | null
           origem: Database["public"]["Enums"]["cs_origin"]
@@ -1641,6 +1642,7 @@ export type Database = {
           last_contact_at?: string | null
           linkedin_url?: string | null
           login_pda?: string | null
+          mesclado_em: string | null
           nome_empresa: string
           num_funcionarios?: number | null
           origem?: Database["public"]["Enums"]["cs_origin"]
@@ -1686,6 +1688,7 @@ export type Database = {
           last_contact_at?: string | null
           linkedin_url?: string | null
           login_pda?: string | null
+          mesclado_em?: string | null
           nome_empresa?: string
           num_funcionarios?: number | null
           origem?: Database["public"]["Enums"]["cs_origin"]

@@ -42,7 +42,11 @@ function fieldLabel(f: RdCustomField): string {
 function fieldValue(f: RdCustomField): string {
   const v = f.value;
   if (v == null) return "";
-  if (Array.isArray(v)) return v.map((x) => String(x)).join(", ").trim();
+  if (Array.isArray(v))
+    return v
+      .map((x) => String(x))
+      .join(", ")
+      .trim();
   if (typeof v === "object") return String((v as Json).name ?? "").trim();
   return String(v).trim();
 }
@@ -68,7 +72,10 @@ function readCnpj(o: RdOrganization): string | null {
 
 function normalizeLifecycle(raw: string | null): RdLifecycle | null {
   if (!raw) return null;
-  const v = raw.replace(/[\u200b-\u200f\ufeff]/g, "").trim().toLowerCase();
+  const v = raw
+    .replace(/[\u200b-\u200f\ufeff]/g, "")
+    .trim()
+    .toLowerCase();
   if (v === "cliente") return "Cliente";
   if (v === "cliente inativo") return "Cliente Inativo";
   if (v === "cliente de partner") return "Cliente de Partner";
@@ -106,7 +113,10 @@ async function rdGet(path: string, params: Record<string, string>, token: string
  * Percorre /organizations. O RD trava a paginação em ~9.000 registros, então varremos
  * a lista em ordem crescente e decrescente (por nome e por data) e juntamos sem duplicar.
  */
-export async function fetchRdOrganizations(token: string, maxPages = 45): Promise<RdOrganization[]> {
+export async function fetchRdOrganizations(
+  token: string,
+  maxPages = 45,
+): Promise<RdOrganization[]> {
   const out: RdOrganization[] = [];
   const seen = new Set<string>();
   const passes: Array<Record<string, string>> = [
@@ -142,7 +152,6 @@ export async function fetchRdOrganizations(token: string, maxPages = 45): Promis
   return out;
 }
 
-
 export interface RdClientSyncResult {
   fetched: number;
   matched: number;
@@ -177,7 +186,6 @@ export async function syncRdClientsToCs(opts?: {
     .filter((c): c is { o: RdOrganization; lifecycle: RdLifecycle } => c.lifecycle !== null)
     .filter((c) => (c.o.name ?? "").trim().length > 0);
 
-
   const result: RdClientSyncResult = {
     fetched: orgs.length,
     matched: candidates.length,
@@ -194,22 +202,38 @@ export async function syncRdClientsToCs(opts?: {
     return { ...result, lifecycles: tally };
   }
 
-
   const { fetchAllRows } = await import("@/lib/cs/cs-core.server");
   const existing = await fetchAllRows<{
     client_uid: string;
     nome_empresa: string;
     cnpj: string | null;
     rd_org_id: string | null;
+    mesclado_em: string | null;
   }>((from, to) =>
-    supabaseAdmin.from("cs_clients").select("client_uid, nome_empresa, cnpj, rd_org_id").range(from, to),
+    supabaseAdmin
+      .from("cs_clients")
+      .select("client_uid, nome_empresa, cnpj, rd_org_id, mesclado_em")
+      .range(from, to),
   );
 
+  // Ficha mesclada em outra: quem a encontrar no RD vai para a ficha que ficou
+  // e não a reativa nem sobrescreve a que ficou.
+  const mescladaEm = new Map<string, string>();
+  for (const c of existing ?? []) if (c.mesclado_em) mescladaEm.set(c.client_uid, c.mesclado_em);
+  const destino = (uid: string) => {
+    let atual = uid;
+    for (let i = 0; i < 10 && mescladaEm.has(atual); i++) atual = mescladaEm.get(atual)!;
+    return atual;
+  };
 
   const byRd = new Map<string, string>();
   const byName = new Map<string, string>();
   const byCnpj = new Map<string, string>();
-  for (const c of existing ?? []) {
+  // As mescladas primeiro: nome e CNPJ iguais ficam com a ficha que ficou.
+  const ordem = [...(existing ?? [])].sort(
+    (a, b) => Number(!!b.mesclado_em) - Number(!!a.mesclado_em),
+  );
+  for (const c of ordem) {
     if (c.rd_org_id) byRd.set(c.rd_org_id, c.client_uid);
     byName.set(norm(c.nome_empresa), c.client_uid);
     if (c.cnpj) byCnpj.set(c.cnpj.replace(/\D/g, ""), c.client_uid);
@@ -235,6 +259,11 @@ export async function syncRdClientsToCs(opts?: {
 
     const uid =
       byRd.get(rdId) ?? (cnpj ? byCnpj.get(cnpj) : undefined) ?? byName.get(norm(nome)) ?? null;
+
+    if (uid && mescladaEm.has(uid)) {
+      byRd.set(rdId, destino(uid));
+      continue;
+    }
 
     if (uid) {
       const { error } = await supabaseAdmin
@@ -289,5 +318,6 @@ export async function syncRdClientsToCs(opts?: {
     } as never,
   });
 
-  return { ...result, orgToClient: byRd };
+  const orgToClient = new Map([...byRd].map(([org, uid]) => [org, destino(uid)] as const));
+  return { ...result, orgToClient };
 }
