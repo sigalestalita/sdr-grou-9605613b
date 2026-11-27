@@ -343,13 +343,81 @@ export const getComercialDashboard = createServerFn({ method: "GET" })
     };
   });
 
+export const TODOS_OS_FUNIS = "todos";
+
+export type EtapaDeFunil = {
+  id: string;
+  pipeline_id: string;
+  nome: string;
+  slug: string;
+  ordem: number;
+  probabilidade: number;
+  kind: string;
+};
+
+const chaveDaEtapa = (nome: string) =>
+  nome
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+
+/**
+ * Junta as etapas de vários funis pelo nome ("Envio de Proposta" de todos vira
+ * uma coluna). A ordem é a do funil de referência (Novos Negócios, igual ao
+ * "[C] Vendas" do RD); etapas que só existem em outro funil entram antes, as
+ * abertas, e Venda/Perda ficam no fim. Devolve as colunas e o mapa etapa → coluna.
+ */
+export function juntarEtapas(etapas: EtapaDeFunil[], referencia: string | undefined) {
+  const colunas = new Map<string, EtapaDeFunil & { origem: number }>();
+  const etapaDe = new Map<string, string>();
+  const peso = (e: EtapaDeFunil) => (e.kind === "won" ? 2 : e.kind === "lost" ? 3 : 1);
+  const ordenadas = [...etapas].sort(
+    (a, b) =>
+      Number(b.pipeline_id === referencia) - Number(a.pipeline_id === referencia) ||
+      a.ordem - b.ordem,
+  );
+  for (const e of ordenadas) {
+    const chave = `${e.kind === "open" ? "open" : e.kind}:${chaveDaEtapa(e.nome)}`;
+    const id = `todos:${chave}`;
+    if (!colunas.has(chave))
+      colunas.set(chave, {
+        ...e,
+        id,
+        pipeline_id: TODOS_OS_FUNIS,
+        origem: e.pipeline_id === referencia ? 1 : 0,
+      });
+    etapaDe.set(e.id, id);
+  }
+  const lista = [...colunas.values()].sort(
+    (a, b) =>
+      peso(a) - peso(b) ||
+      a.origem - b.origem || // as que só existem em outro funil vêm antes
+      a.ordem - b.ordem,
+  );
+  return {
+    etapas: lista.map((c, i) => ({
+      id: c.id,
+      pipeline_id: c.pipeline_id,
+      nome: c.nome,
+      slug: c.slug,
+      ordem: i + 1,
+      probabilidade: c.probabilidade,
+      kind: c.kind,
+    })),
+    etapaDe: (stageId: string | null) => (stageId ? (etapaDe.get(stageId) ?? stageId) : stageId),
+  };
+}
+
 /** Negócios de um pipeline, para o kanban comercial. */
 export const listComercialDeals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) =>
     z
       .object({
-        pipelineId: z.string().uuid().optional(),
+        // "todos" junta os funis comerciais num quadro só (como o "[C] Vendas" do RD).
+        pipelineId: z.union([z.string().uuid(), z.literal(TODOS_OS_FUNIS)]).optional(),
         executivoId: z.string().uuid().optional(),
         somenteAbertos: z.boolean().optional(),
       })
@@ -370,29 +438,55 @@ export const listComercialDeals = createServerFn({ method: "GET" })
       supabase.from("profiles").select("id, full_name, email"),
     ]);
     const pipelines = (pipelinesRaw ?? []) as Array<{ id: string; nome: string; slug: string }>;
-    const alvo = data.pipelineId ?? pipelines[0]?.id ?? null;
+    const todos = data.pipelineId === TODOS_OS_FUNIS;
+    const alvo = todos ? TODOS_OS_FUNIS : (data.pipelineId ?? pipelines[0]?.id ?? null);
 
     let q = supabase
       .from("deals")
       .select(`${DEAL_COLS}, companies:company_id(id, nome)`)
       .order("updated_at", { ascending: false })
-      .limit(600);
-    if (alvo) q = q.eq("pipeline_id", alvo);
+      .limit(todos ? 3000 : 600);
+    if (todos)
+      q = q.in(
+        "pipeline_id",
+        pipelines.map((p) => p.id),
+      );
+    else if (alvo) q = q.eq("pipeline_id", alvo);
     if (data.executivoId) q = q.or(filtroDoResponsavel(data.executivoId));
     if (data.somenteAbertos !== false) q = q.eq("status", "open");
     const { data: deals, error } = await q;
     if (error) throw new Error(error.message);
 
+    const lista = ((deals ?? []) as Array<Record<string, unknown> & ComResponsavel>).map((d) => ({
+      ...d,
+      executivo_user_id: responsavelDoNegocio(d),
+    }));
+    if (todos) {
+      const ids = new Set(pipelines.map((p) => p.id));
+      const ordemPadrao =
+        pipelines.find((p) => p.slug === "novos-negocios")?.id ?? pipelines[0]?.id;
+      const { etapas, etapaDe } = juntarEtapas(
+        ((stagesRaw ?? []) as EtapaDeFunil[]).filter((s) => ids.has(s.pipeline_id)),
+        ordemPadrao,
+      );
+      return {
+        pipelines,
+        pipelineId: alvo,
+        stages: etapas,
+        deals: lista.map((d) => ({
+          ...d,
+          stage_id: etapaDe((d as Record<string, unknown>).stage_id as string | null),
+        })),
+        profiles: profiles ?? [],
+      };
+    }
     return {
       pipelines,
       pipelineId: alvo,
       stages: ((stagesRaw ?? []) as Array<{ pipeline_id: string }>).filter(
         (s) => s.pipeline_id === alvo,
       ),
-      deals: ((deals ?? []) as Array<Record<string, unknown> & ComResponsavel>).map((d) => ({
-        ...d,
-        executivo_user_id: responsavelDoNegocio(d),
-      })),
+      deals: lista,
       profiles: profiles ?? [],
     };
   });

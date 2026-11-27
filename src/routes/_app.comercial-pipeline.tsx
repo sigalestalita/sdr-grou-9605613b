@@ -137,8 +137,8 @@ function PipelinePage() {
         <div>
           <h1 className="text-lg font-semibold">Pipeline comercial</h1>
           <p className="text-[12px] text-muted-foreground">
-            {deals.length}{" "}
-            {mostrarFechados ? "negócios neste funil" : "negócios abertos neste funil"}
+            {deals.length} {mostrarFechados ? "negócios" : "negócios abertos"}
+            {pipelineId === "todos" ? " nos funis comerciais" : " neste funil"}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -151,6 +151,7 @@ function PipelinePage() {
               <SelectValue placeholder="Funil" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="todos">Todos os funis comerciais</SelectItem>
               {(data?.pipelines ?? []).map((p: { id: string; nome: string }) => (
                 <SelectItem key={p.id} value={p.id}>
                   {p.nome}
