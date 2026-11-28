@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { nomeDaConversa } from "@/lib/whatsapp/nome-da-conversa";
 
 /** Normaliza telefone para E.164 sem '+'. Números BR vindos como DDD+número recebem DDI 55. */
 function normPhone(raw: string): string {
@@ -34,7 +35,7 @@ export const listConversations = createServerFn({ method: "GET" })
     let q = supabase
       .from("whatsapp_conversations")
       .select(
-        "*, leads:lead_id(id,name,company_name,email,phone,priority,stage_id,assigned_to,lead_type,company_size)",
+        "*, leads:lead_id(id,name,company_name,email,phone,priority,stage_id,assigned_to,lead_type,company_size), contato:contact_id(name,phone)",
       )
       .order("last_message_at", { ascending: false, nullsFirst: false })
       .limit(300);
@@ -75,13 +76,16 @@ export const listConversations = createServerFn({ method: "GET" })
      */
     const { data: minhasContas } = await supabase
       .from("whatsapp_accounts")
-      .select("id, label, phone_number, owner_user_id");
+      .select("id, label, phone_number, owner_user_id, espelhada");
     const contas = (minhasContas ?? []) as Array<{
       id: string;
       label: string | null;
       phone_number: string;
       owner_user_id: string | null;
+      espelhada: boolean | null;
     }>;
+    // Número pessoal (coexistência): a IA não responde lá; quem atende é o dono.
+    const espelhadas = new Set(contas.filter((c) => c.espelhada).map((c) => c.id));
     const minhas = contas.filter((c) => c.owner_user_id === userId).map((c) => c.id);
     if (data?.accountId && data.accountId !== "todos") {
       q = q.eq("account_id", data.accountId);
@@ -115,11 +119,16 @@ export const listConversations = createServerFn({ method: "GET" })
     }
     if (data?.search) {
       const s = data.search.toLowerCase();
+      const digitos = s.replace(/\D+/g, "");
       result = result.filter((r) => {
         const lead = r.leads as { name?: string | null; company_name?: string | null } | null;
+        const contato = (r as { contato?: { name?: string | null; phone?: string | null } | null })
+          .contato;
         return (
           lead?.name?.toLowerCase().includes(s) ||
           lead?.company_name?.toLowerCase().includes(s) ||
+          contato?.name?.toLowerCase().includes(s) ||
+          (digitos.length >= 4 && !!contato?.phone?.includes(digitos)) ||
           r.last_preview?.toLowerCase().includes(s)
         );
       });
@@ -188,6 +197,12 @@ export const listConversations = createServerFn({ method: "GET" })
       conversations: result.map((c) => ({
         ...c,
         tem_mensagem_humana: comHumano.has(c.id as string),
+        // Sem lead (número pessoal), o nome vem do contato do WhatsApp; sem ele, o número.
+        nome_exibicao: nomeDaConversa(
+          c.leads as { name?: string | null } | null,
+          (c as { contato?: { name?: string | null; phone?: string | null } | null }).contato,
+        ),
+        sem_ia: !!c.account_id && espelhadas.has(c.account_id as string),
       })),
       profiles: profiles ?? [],
       windows,
@@ -312,12 +327,27 @@ export const getOrCreateConversationForLead = createServerFn({ method: "POST" })
     let contactId: string | null = null;
     if (lead.phone) {
       const phone = normPhone(lead.phone);
-      const { data: contact } = await supabase
-        .from("whatsapp_contacts")
-        .upsert({ phone, lead_id: lead.id, name: lead.name }, { onConflict: "phone" })
-        .select("id")
-        .maybeSingle();
-      contactId = contact?.id ?? null;
+      // O mesmo número em outro formato já é contato: reaproveita em vez de criar outro.
+      const { acharContatoPorTelefone } = await import("./whatsapp/lead-match.server");
+      const jaExiste = (await acharContatoPorTelefone(supabase, phone)) as {
+        id: string;
+        lead_id: string | null;
+      } | null;
+      if (jaExiste) {
+        contactId = jaExiste.id;
+        if (!jaExiste.lead_id)
+          await supabase
+            .from("whatsapp_contacts")
+            .update({ lead_id: lead.id })
+            .eq("id", jaExiste.id);
+      } else {
+        const { data: contact } = await supabase
+          .from("whatsapp_contacts")
+          .upsert({ phone, lead_id: lead.id, name: lead.name }, { onConflict: "phone" })
+          .select("id")
+          .maybeSingle();
+        contactId = contact?.id ?? null;
+      }
     }
 
     // Conversa nova nasce no número da dona do lead, se ela tiver um conectado.
@@ -1146,12 +1176,12 @@ export const getOrCreateConversationForPhone = createServerFn({ method: "POST" }
     let contactId: string | null = null;
     let leadId: string | null = null;
 
-    const { data: existingContact, error: contactErr } = await supabase
-      .from("whatsapp_contacts")
-      .select("id, lead_id")
-      .eq("phone", phone)
-      .maybeSingle();
-    if (contactErr) throw new Error(contactErr.message);
+    // Pela chave do número: "5551999…", "555199…" e "51999…" são a mesma pessoa.
+    const { acharContatoPorTelefone } = await import("./whatsapp/lead-match.server");
+    const existingContact = (await acharContatoPorTelefone(supabase, phone)) as {
+      id: string;
+      lead_id: string | null;
+    } | null;
 
     if (existingContact) {
       contactId = existingContact.id;

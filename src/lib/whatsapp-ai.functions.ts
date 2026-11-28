@@ -1174,12 +1174,12 @@ export const triggerManualAiTest = createServerFn({ method: "POST" })
     let contactId: string | null = null;
     let leadId: string | null = null;
 
-    const { data: existingContact, error: contactErr } = await context.supabase
-      .from("whatsapp_contacts")
-      .select("id, lead_id")
-      .eq("phone", normalizedPhone)
-      .maybeSingle();
-    if (contactErr) throw new Error(contactErr.message);
+    // Pela chave do número: "5551999…", "555199…" e "51999…" são a mesma pessoa.
+    const { acharContatoPorTelefone } = await import("./whatsapp/lead-match.server");
+    const existingContact = (await acharContatoPorTelefone(context.supabase, normalizedPhone)) as {
+      id: string;
+      lead_id: string | null;
+    } | null;
 
     if (existingContact) {
       contactId = existingContact.id;

@@ -122,7 +122,6 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { to: "/dashboard", label: "Visão geral", icon: BarChart3, team: "comercial" },
       { to: "/kanban", label: "Pipeline", icon: KanbanIcon, team: "comercial", also: ["/lead"] },
-      { to: "/whatsapp", label: "WhatsApp", icon: Inbox, team: "comercial" },
       { to: "/agenda", label: "Agenda de FUPs", icon: CalendarDays, team: "comercial" },
       { to: "/cadencia", label: "Cadência", icon: Activity, team: "comercial" },
     ],
@@ -130,7 +129,10 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: "Canais",
     items: [
-      { to: "/whatsapp", label: "Caixa de entrada", icon: Inbox, team: "cs" },
+      // WhatsApp é canal de todos (SDR e os números pessoais do CS), não do SDR.
+      // Duas linhas porque cada item tem um time; o menu mostra uma só.
+      { to: "/whatsapp", label: "WhatsApp", icon: Inbox, team: "cs" },
+      { to: "/whatsapp", label: "WhatsApp", icon: Inbox, team: "comercial" },
       { to: "/cs-emails", label: "E-mails", icon: Mail, team: "cs" },
       { to: "/cs-agenda", label: "Agenda", icon: CalendarDays, team: "cs" },
     ],
