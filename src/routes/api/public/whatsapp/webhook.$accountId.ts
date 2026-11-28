@@ -481,6 +481,40 @@ async function handleInbound(
    * pessoal de trabalho da SDR. A IA se apresentando como ela para um
    * fornecedor seria pior do que não responder nada.
    */
+  /*
+   * Número pessoal (coexistência) de quem é do CS: cliente pedindo suporte é
+   * atendido pela IA do CS até onde o playbook cobre; o que ela não resolve
+   * vira ticket e passa para uma pessoa. Vale com ou sem lead, e antes da IA do
+   * SDR: cliente não é lead para qualificar. A conversa fica com o dono do número.
+   */
+  if (espelhada) {
+    try {
+      const { data: doLead } = leadId
+        ? await admin.from("leads").select("company_id").eq("id", leadId).maybeSingle()
+        : { data: null };
+      const { clienteDoTelefone } = await import("@/lib/cs/atendimento.server");
+      const cliente = await clienteDoTelefone(
+        admin,
+        phone,
+        (doLead as { company_id?: string | null } | null)?.company_id ?? null,
+      );
+      if (cliente) {
+        const { atenderSuporteNoNumeroPessoal } =
+          await import("@/lib/cs/suporte-numero-pessoal.server");
+        await atenderSuporteNoNumeroPessoal(admin, {
+          conversaId: conv.id,
+          cliente,
+          conta: accountConfig as never,
+          telefone: phone,
+          leadId,
+        });
+        return;
+      }
+    } catch (e) {
+      console.error("[wa webhook] suporte no número pessoal", e);
+    }
+  }
+
   if (!leadId) return;
 
   /*
@@ -661,46 +695,14 @@ async function handleInbound(
         const { responderComoCs } = await import("@/lib/cs-ai.functions");
         const r = await responderComoCs(admin, conv.id);
         if (r?.resposta) {
-          const { getProvider } = await import("@/lib/whatsapp/provider-registry.server");
-          const provider = getProvider(accountConfig.provider);
-          const registro = await admin
-            .from("whatsapp_messages")
-            .insert({
-              conversation_id: conv.id,
-              lead_id: leadId,
-              sender_type: "bot",
-              message_type: "text",
-              body: r.resposta,
-              metadata: { source: "cs_ai", ticket: r.ticket },
-              status: "sending",
-            })
-            .select("id")
-            .single();
-
-          const envio = await provider.sendMessage({
-            account: accountConfig,
-            to: phone,
-            type: "text",
-            body: r.resposta,
+          const { enviarRespostaDaIaCs } = await import("@/lib/cs/suporte-numero-pessoal.server");
+          await enviarRespostaDaIaCs(admin, {
+            conversaId: conv.id,
+            conta: accountConfig as never,
+            telefone: phone,
+            leadId,
+            resposta: r,
           });
-
-          await admin
-            .from("whatsapp_messages")
-            .update({
-              provider_message_id: envio.providerMessageId || null,
-              status: envio.status === "failed" ? "failed" : "sent",
-              error: envio.error ?? null,
-              sent_at: new Date().toISOString(),
-            })
-            .eq("id", registro.data?.id ?? "00000000-0000-0000-0000-000000000000");
-
-          await admin
-            .from("whatsapp_conversations")
-            .update({
-              last_message_at: new Date().toISOString(),
-              last_preview: r.resposta.slice(0, 200),
-            })
-            .eq("id", conv.id);
         }
       } catch (e) {
         console.error("[wa webhook] IA do CS", e);

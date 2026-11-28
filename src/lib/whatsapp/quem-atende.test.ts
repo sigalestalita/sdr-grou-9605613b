@@ -50,5 +50,6 @@ describe("temMensagemDeHumano", () => {
   it("número pessoal não mostra IA atendendo", () => {
     expect(quemAtende({ status: "open", semIa: true })).toBe("pessoal");
     expect(quemAtende({ status: "open", semIa: true, temMensagemHumana: true })).toBe("humano");
+    expect(quemAtende({ status: "open", soSuporte: true })).toBe("suporte");
   });
 });

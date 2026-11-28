@@ -11,6 +11,7 @@ import {
   STATUS_TICKET,
 } from "@/lib/cs-tickets.functions";
 import { Badge } from "@/components/ui/badge";
+import { IaDoSuporte } from "@/components/cs/ia-do-suporte";
 
 export const Route = createFileRoute("/_app/cs-tickets")({
   component: TicketsPage,
@@ -77,6 +78,8 @@ function TicketsPage() {
           que precisa de gente — ou à mão, pela ficha do cliente.
         </p>
       </header>
+
+      <IaDoSuporte />
 
       {/* Contagem por status, como numa caixa de entrada; clicar filtra. */}
       <div className="flex flex-wrap gap-2">

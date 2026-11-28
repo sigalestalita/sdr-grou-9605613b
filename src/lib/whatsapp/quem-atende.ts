@@ -8,7 +8,13 @@
  * bastão ter sido passado.
  */
 
-export type QuemAtende = "ia" | "aguardando_humano" | "humano" | "encerrada" | "pessoal";
+export type QuemAtende =
+  | "ia"
+  | "aguardando_humano"
+  | "humano"
+  | "encerrada"
+  | "pessoal"
+  | "suporte";
 
 export type EstadoDaConversa = {
   status: string | null | undefined;
@@ -18,6 +24,8 @@ export type EstadoDaConversa = {
   temMensagemHumana?: boolean;
   /** Número pessoal (coexistência): a IA nunca responde lá. */
   semIa?: boolean;
+  /** Cliente no número pessoal: a IA do CS só entra em pedido de suporte. */
+  soSuporte?: boolean;
 };
 
 export function quemAtende(e: EstadoDaConversa): QuemAtende {
@@ -25,6 +33,7 @@ export function quemAtende(e: EstadoDaConversa): QuemAtende {
   if (e.assumedAt || e.temMensagemHumana) return "humano";
   if (e.status === "pending") return "aguardando_humano";
   if (e.semIa) return "pessoal";
+  if (e.soSuporte) return "suporte";
   return "ia";
 }
 
@@ -44,6 +53,7 @@ export const ROTULO_DE_QUEM_ATENDE: Record<QuemAtende, string> = {
   humano: "Com a SDR",
   encerrada: "Encerrada",
   pessoal: "Número pessoal",
+  suporte: "IA só no suporte",
 };
 
 export const EXPLICACAO_DE_QUEM_ATENDE: Record<QuemAtende, string> = {
@@ -53,6 +63,8 @@ export const EXPLICACAO_DE_QUEM_ATENDE: Record<QuemAtende, string> = {
   encerrada: "Conversa encerrada.",
   pessoal:
     "Conversa do número pessoal (coexistência). A IA não responde aqui: quem atende é o dono do número, pelo celular ou por aqui.",
+  suporte:
+    "Cliente no número pessoal. A IA do CS só responde pedido de suporte, e só se o dono do número não escreveu nas últimas 24h. O que ela não resolve vira ticket e passa para uma pessoa.",
 };
 
 /** Classes de cor por estado, para o selo ficar igual no kanban e no chat. */
@@ -62,6 +74,7 @@ export const COR_DE_QUEM_ATENDE: Record<QuemAtende, string> = {
   humano: "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   encerrada: "border-border bg-muted text-muted-foreground",
   pessoal: "border-violet-500/50 bg-violet-500/10 text-violet-600 dark:text-violet-400",
+  suporte: "border-sky-500/50 bg-sky-500/10 text-sky-600 dark:text-sky-400",
 };
 
 const HUMANOS = new Set(["sdr", "agent", "human"]);
