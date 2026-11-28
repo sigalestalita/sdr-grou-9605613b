@@ -131,6 +131,18 @@ async function chamarIa(mensagens: Array<{ role: string; content: string }>, too
   }>;
 }
 
+/*
+ * No número pessoal de quem é do CS o cliente também conversa sobre outras
+ * coisas (combinados, agradecimentos, relacionamento). A IA só entra quando é
+ * pedido de suporte; no resto ela fica quieta e quem responde é o dono.
+ */
+export const NAO_RESPONDER = "[NAO_RESPONDER]";
+const REGRA_NUMERO_PESSOAL = [
+  "Este é o número pessoal de quem cuida da conta, e o cliente também conversa com essa pessoa sobre outros assuntos.",
+  "Só responda se a última mensagem for pedido de suporte: dúvida de uso da plataforma, erro, acesso, configuração, dado errado, pedido operacional ou reclamação.",
+  `Em qualquer outro caso (cumprimento solto, agradecimento, combinado de reunião, conversa de relacionamento, assunto pessoal, assunto comercial sem pedido de suporte), responda exatamente ${NAO_RESPONDER} e nada mais, sem abrir ticket.`,
+].join(" ");
+
 const FERRAMENTA_TICKET = {
   type: "function",
   function: {
@@ -160,6 +172,8 @@ export async function responderComoCs(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   admin: any,
   conversationId: string,
+  /** Número pessoal de alguém do CS: a IA só entra em pedido de suporte. */
+  opcoes: { numeroPessoal?: boolean } = {},
 ): Promise<{ resposta: string; ticket: number | null } | null> {
   const cfg = await lerConfigIaCs(admin);
   if (!cfg.enabled || !cfg.autoReplyEnabled) return null;
@@ -175,7 +189,8 @@ export async function responderComoCs(
     area: string | null;
     assigned_user_id: string | null;
   } | null;
-  if (!c?.client_uid || c.area !== "cs") return null;
+  // No número pessoal a conversa segue na caixa do dono: basta estar ligada ao cliente.
+  if (!c?.client_uid || (c.area !== "cs" && !opcoes.numeroPessoal)) return null;
 
   const { data: cliente } = await admin
     .from("cs_clients")
@@ -216,7 +231,12 @@ export async function responderComoCs(
 
   const r = await chamarIa(
     [
-      { role: "system", content: montarPrompt(cfg, playbook, assinatura, empresa) },
+      {
+        role: "system",
+        content:
+          montarPrompt(cfg, playbook, assinatura, empresa) +
+          (opcoes.numeroPessoal ? `\n\n${REGRA_NUMERO_PESSOAL}` : ""),
+      },
       {
         role: "user",
         content: `Conversa:\n${transcricao}\n\nÚltima mensagem do cliente: ${ultima.body}\n\nResponda como mensagem de WhatsApp pronta, curta e direta.`,
@@ -251,7 +271,7 @@ export async function responderComoCs(
   }
 
   const resposta = (msg?.content ?? "").trim();
-  if (!resposta) return null;
+  if (!resposta || (resposta.includes(NAO_RESPONDER) && !ticket)) return null;
 
   const { removerSaudacaoRepetida } = await import("./whatsapp/saudacao");
   const jaFalamosAntes = mensagens.some((m) =>

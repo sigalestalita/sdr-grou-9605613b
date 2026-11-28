@@ -86,6 +86,9 @@ export const listConversations = createServerFn({ method: "GET" })
     }>;
     // Número pessoal (coexistência): a IA não responde lá; quem atende é o dono.
     const espelhadas = new Set(contas.filter((c) => c.espelhada).map((c) => c.id));
+    const { lerConfigIaCs } = await import("./cs-ai.functions");
+    const cfgCs = await lerConfigIaCs(supabase);
+    const iaCsLigada = cfgCs.enabled && cfgCs.autoReplyEnabled;
     const minhas = contas.filter((c) => c.owner_user_id === userId).map((c) => c.id);
     if (data?.accountId && data.accountId !== "todos") {
       q = q.eq("account_id", data.accountId);
@@ -202,7 +205,18 @@ export const listConversations = createServerFn({ method: "GET" })
           c.leads as { name?: string | null } | null,
           (c as { contato?: { name?: string | null; phone?: string | null } | null }).contato,
         ),
-        sem_ia: !!c.account_id && espelhadas.has(c.account_id as string),
+        /*
+         * Número pessoal: lead tem a IA do SDR; cliente tem a IA do CS só para
+         * suporte (se ligada); o resto (colega, fornecedor) não tem IA.
+         */
+        ...(() => {
+          const pessoal = !!c.account_id && espelhadas.has(c.account_id as string);
+          const cliente = !!(c as { client_uid?: string | null }).client_uid;
+          return {
+            sem_ia: pessoal && !c.lead_id && !(cliente && iaCsLigada),
+            so_suporte: pessoal && cliente && iaCsLigada,
+          };
+        })(),
       })),
       profiles: profiles ?? [],
       windows,

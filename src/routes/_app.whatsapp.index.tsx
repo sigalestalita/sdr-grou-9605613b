@@ -296,6 +296,7 @@ function WhatsappInbox() {
                       temMensagemHumana: (c as { tem_mensagem_humana?: boolean })
                         .tem_mensagem_humana,
                       semIa: (c as { sem_ia?: boolean }).sem_ia,
+                      soSuporte: (c as { so_suporte?: boolean }).so_suporte,
                     });
                     if (estado === "encerrada") return null;
                     return (
@@ -383,6 +384,7 @@ function WhatsappInbox() {
                         temMensagemHumana: (selectedConv as { tem_mensagem_humana?: boolean })
                           .tem_mensagem_humana,
                         semIa: (selectedConv as { sem_ia?: boolean }).sem_ia,
+                        soSuporte: (selectedConv as { so_suporte?: boolean }).so_suporte,
                       });
                       return (
                         <Badge
