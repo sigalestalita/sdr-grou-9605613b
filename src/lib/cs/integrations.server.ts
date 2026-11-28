@@ -418,12 +418,43 @@ export async function syncGoogleCalendars(userIds: string[] | null, days = 60, p
   if (userIds?.length) qo = qo.in("user_id", userIds);
   const { data: oauthRows } = await qo;
   const comOauth = new Set(((oauthRows ?? []) as Array<{ user_id: string }>).map((r) => r.user_id));
-  const rows = [
+  /*
+   * Delegação em todo o domínio (conta de serviço autorizada pelo admin do
+   * Workspace): o time de CS inteiro é lido sem ninguém conectar nada.
+   */
+  const { chaveDaDelegacao, tokenPelaDelegacao } = await import("@/lib/google/delegacao.server");
+  const { lerEventosComToken } = await import("@/lib/google/agenda.server");
+  const delegacao = !!chaveDaDelegacao();
+  const emailDe = new Map<string, string>();
+  if (delegacao) {
+    let qt = supabaseAdmin.from("user_teams").select("user_id").eq("team", "cs");
+    if (userIds?.length) qt = qt.in("user_id", userIds);
+    const { data: doCs } = await qt;
+    const ids = [...new Set(((doCs ?? []) as Array<{ user_id: string }>).map((r) => r.user_id))];
+    if (ids.length) {
+      const { data: perfis } = await supabaseAdmin
+        .from("profiles")
+        .select("id, email")
+        .in("id", ids);
+      for (const p of (perfis ?? []) as Array<{ id: string; email: string | null }>)
+        if (p.email) emailDe.set(p.id, p.email.toLowerCase());
+    }
+  }
+  const vistos = new Set<string>();
+  const rows: Array<{ user_id: string; gcal_ics_url: string | null; gcal_email: string | null }> =
+    [];
+  for (const r of [
     ...(icsRows ?? []),
-    ...[...comOauth]
-      .filter((id) => !(icsRows ?? []).some((r) => r.user_id === id))
-      .map((user_id) => ({ user_id, gcal_ics_url: null as string | null, gcal_email: null })),
-  ];
+    ...[...comOauth, ...emailDe.keys()].map((user_id) => ({
+      user_id,
+      gcal_ics_url: null as string | null,
+      gcal_email: null as string | null,
+    })),
+  ]) {
+    if (vistos.has(r.user_id)) continue;
+    vistos.add(r.user_id);
+    rows.push(r);
+  }
 
   const from = new Date(Date.now() - pastDays * 86400000);
   const to = new Date(Date.now() + days * 86400000);
@@ -431,9 +462,16 @@ export async function syncGoogleCalendars(userIds: string[] | null, days = 60, p
   const failures: string[] = [];
   for (const row of rows) {
     try {
-      const pelaApi = comOauth.has(row.user_id)
+      // Ordem: conexão da própria pessoa → delegação do Workspace → endereço iCal.
+      let pelaApi = comOauth.has(row.user_id)
         ? await lerEventosDoGoogle(supabaseAdmin as never, row.user_id, from, to)
         : null;
+      const emailDelegado = emailDe.get(row.user_id) ?? row.gcal_email?.toLowerCase() ?? null;
+      if (!pelaApi && delegacao && emailDelegado) {
+        const token = await tokenPelaDelegacao(emailDelegado);
+        if (token)
+          pelaApi = { email: emailDelegado, eventos: await lerEventosComToken(token, from, to) };
+      }
       if (!pelaApi && !row.gcal_ics_url) continue;
       const list = pelaApi
         ? pelaApi.eventos
@@ -477,6 +515,13 @@ export async function syncGoogleCalendars(userIds: string[] | null, days = 60, p
           .update({ status: "canceled" })
           .in("id", gone);
       events += prepared.length;
+      if (pelaApi && !row.gcal_ics_url)
+        await supabaseAdmin
+          .from("cs_user_integrations")
+          .upsert({ user_id: row.user_id, gcal_email: row.gcal_email } as never, {
+            onConflict: "user_id",
+            ignoreDuplicates: true,
+          });
       await supabaseAdmin
         .from("cs_user_integrations")
         .update({
