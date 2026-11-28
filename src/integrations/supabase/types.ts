@@ -156,6 +156,75 @@ export type Database = {
         }
         Relationships: []
       }
+      backup_leads_empresa_sicredi: {
+        Row: {
+          company_id_antes: string | null
+          company_id_depois: string | null
+          em: string | null
+          lead_id: string
+        }
+        Insert: {
+          company_id_antes?: string | null
+          company_id_depois?: string | null
+          em?: string | null
+          lead_id: string
+        }
+        Update: {
+          company_id_antes?: string | null
+          company_id_depois?: string | null
+          em?: string | null
+          lead_id?: string
+        }
+        Relationships: []
+      }
+      backup_valores_negocios: {
+        Row: {
+          amount_antes: number | null
+          amount_depois: number | null
+          company_antes: string | null
+          company_depois: string | null
+          conferir: boolean | null
+          deal_id: string
+          em: string | null
+          motivo: string | null
+        }
+        Insert: {
+          amount_antes?: number | null
+          amount_depois?: number | null
+          company_antes?: string | null
+          company_depois?: string | null
+          conferir?: boolean | null
+          deal_id: string
+          em?: string | null
+          motivo?: string | null
+        }
+        Update: {
+          amount_antes?: number | null
+          amount_depois?: number | null
+          company_antes?: string | null
+          company_depois?: string | null
+          conferir?: boolean | null
+          deal_id?: string
+          em?: string | null
+          motivo?: string | null
+        }
+        Relationships: []
+      }
+      backup_wa_duplicados_20261128: {
+        Row: {
+          linha: Json | null
+          tipo: string | null
+        }
+        Insert: {
+          linha?: Json | null
+          tipo?: string | null
+        }
+        Update: {
+          linha?: Json | null
+          tipo?: string | null
+        }
+        Relationships: []
+      }
       ca_clientes: {
         Row: {
           ativo: boolean | null
@@ -1642,7 +1711,7 @@ export type Database = {
           last_contact_at?: string | null
           linkedin_url?: string | null
           login_pda?: string | null
-          mesclado_em: string | null
+          mesclado_em?: string | null
           nome_empresa: string
           num_funcionarios?: number | null
           origem?: Database["public"]["Enums"]["cs_origin"]
@@ -4247,6 +4316,154 @@ export type Database = {
         }
         Relationships: []
       }
+      impostos_regras: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          atualizado_por: string | null
+          categoria_especial_iss: boolean
+          chave: string | null
+          classificacao: string | null
+          criado_em: string
+          exceto_regimes: string[]
+          id: string
+          itens: Json
+          municipio: string | null
+          nome: string
+          observacoes: string | null
+          ordem: number
+          prioridade: number
+          product_id: string | null
+          regime: string | null
+          tipo_pessoa: string | null
+          valor_max: number | null
+          valor_min: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_especial_iss?: boolean
+          chave?: string | null
+          classificacao?: string | null
+          criado_em?: string
+          exceto_regimes?: string[]
+          id?: string
+          itens?: Json
+          municipio?: string | null
+          nome: string
+          observacoes?: string | null
+          ordem?: number
+          prioridade?: number
+          product_id?: string | null
+          regime?: string | null
+          tipo_pessoa?: string | null
+          valor_max?: number | null
+          valor_min?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          atualizado_por?: string | null
+          categoria_especial_iss?: boolean
+          chave?: string | null
+          classificacao?: string | null
+          criado_em?: string
+          exceto_regimes?: string[]
+          id?: string
+          itens?: Json
+          municipio?: string | null
+          nome?: string
+          observacoes?: string | null
+          ordem?: number
+          prioridade?: number
+          product_id?: string | null
+          regime?: string | null
+          tipo_pessoa?: string | null
+          valor_max?: number | null
+          valor_min?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "impostos_regras_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      impostos_simulacoes: {
+        Row: {
+          company_id: string | null
+          criado_em: string
+          entrada: Json
+          id: string
+          resultado: Json
+          titulo: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id?: string | null
+          criado_em?: string
+          entrada: Json
+          id?: string
+          resultado: Json
+          titulo?: string | null
+          user_id?: string
+        }
+        Update: {
+          company_id?: string | null
+          criado_em?: string
+          entrada?: Json
+          id?: string
+          resultado?: Json
+          titulo?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "impostos_simulacoes_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integracao_tokens: {
+        Row: {
+          criado_em: string
+          criado_por: string | null
+          hash: string
+          id: string
+          nome: string
+          prefixo: string
+          revogado_em: string | null
+          usado_em: string | null
+        }
+        Insert: {
+          criado_em?: string
+          criado_por?: string | null
+          hash: string
+          id?: string
+          nome?: string
+          prefixo: string
+          revogado_em?: string | null
+          usado_em?: string | null
+        }
+        Update: {
+          criado_em?: string
+          criado_por?: string | null
+          hash?: string
+          id?: string
+          nome?: string
+          prefixo?: string
+          revogado_em?: string | null
+          usado_em?: string | null
+        }
+        Relationships: []
+      }
       integration_logs: {
         Row: {
           action: string
@@ -4887,6 +5104,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      lixeira_testes: {
+        Row: {
+          apagado_em: string
+          dados: Json
+          id: number
+          tabela: string
+        }
+        Insert: {
+          apagado_em?: string
+          dados: Json
+          id?: number
+          tabela: string
+        }
+        Update: {
+          apagado_em?: string
+          dados?: Json
+          id?: number
+          tabela?: string
+        }
+        Relationships: []
       }
       meta_ads_campanhas: {
         Row: {
@@ -6135,6 +6373,202 @@ export type Database = {
           },
         ]
       }
+      reunioes_analisadas: {
+        Row: {
+          atualizado_em: string
+          campos: Json
+          company_id: string | null
+          conduzida_por: string | null
+          conduzida_por_email: string | null
+          conduzida_por_nome: string | null
+          contact_id: string | null
+          criado_em: string
+          deal_id: string | null
+          externo_id: string
+          id: string
+          lead_id: string | null
+          linha_do_tempo_em: string | null
+          link: string | null
+          origem: string
+          participante_email: string | null
+          participante_nome: string | null
+          proximo_passo: string | null
+          proximo_passo_em: string | null
+          realizada_em: string | null
+          resumo: string | null
+          tarefa_em: string | null
+          tipo: string
+          titulo: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          campos?: Json
+          company_id?: string | null
+          conduzida_por?: string | null
+          conduzida_por_email?: string | null
+          conduzida_por_nome?: string | null
+          contact_id?: string | null
+          criado_em?: string
+          deal_id?: string | null
+          externo_id: string
+          id?: string
+          lead_id?: string | null
+          linha_do_tempo_em?: string | null
+          link?: string | null
+          origem?: string
+          participante_email?: string | null
+          participante_nome?: string | null
+          proximo_passo?: string | null
+          proximo_passo_em?: string | null
+          realizada_em?: string | null
+          resumo?: string | null
+          tarefa_em?: string | null
+          tipo?: string
+          titulo?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          campos?: Json
+          company_id?: string | null
+          conduzida_por?: string | null
+          conduzida_por_email?: string | null
+          conduzida_por_nome?: string | null
+          contact_id?: string | null
+          criado_em?: string
+          deal_id?: string | null
+          externo_id?: string
+          id?: string
+          lead_id?: string | null
+          linha_do_tempo_em?: string | null
+          link?: string | null
+          origem?: string
+          participante_email?: string | null
+          participante_nome?: string | null
+          proximo_passo?: string | null
+          proximo_passo_em?: string | null
+          realizada_em?: string | null
+          resumo?: string | null
+          tarefa_em?: string | null
+          tipo?: string
+          titulo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reunioes_analisadas_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_analisadas_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_analisadas_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reunioes_analisadas_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revisao_valores: {
+        Row: {
+          company_id: string | null
+          criado_em: string
+          deal_id: string
+          empresa: string | null
+          fechado_em: string | null
+          negocio: string | null
+          preco_tipico: number | null
+          produto: string | null
+          rd_deal_id: string | null
+          revisado_em: string | null
+          revisado_por: string | null
+          status: string
+          sugestao: number | null
+          valor_final: number | null
+          valor_original: number
+        }
+        Insert: {
+          company_id?: string | null
+          criado_em?: string
+          deal_id: string
+          empresa?: string | null
+          fechado_em?: string | null
+          negocio?: string | null
+          preco_tipico?: number | null
+          produto?: string | null
+          rd_deal_id?: string | null
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status?: string
+          sugestao?: number | null
+          valor_final?: number | null
+          valor_original: number
+        }
+        Update: {
+          company_id?: string | null
+          criado_em?: string
+          deal_id?: string
+          empresa?: string | null
+          fechado_em?: string | null
+          negocio?: string | null
+          preco_tipico?: number | null
+          produto?: string | null
+          rd_deal_id?: string | null
+          revisado_em?: string | null
+          revisado_por?: string | null
+          status?: string
+          sugestao?: number | null
+          valor_final?: number | null
+          valor_original?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revisao_valores_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: true
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salescoach_campos: {
+        Row: {
+          criado_em: string
+          key: string
+          label: string
+          options: Json | null
+          type: string
+        }
+        Insert: {
+          criado_em?: string
+          key: string
+          label: string
+          options?: Json | null
+          type?: string
+        }
+        Update: {
+          criado_em?: string
+          key?: string
+          label?: string
+          options?: Json | null
+          type?: string
+        }
+        Relationships: []
+      }
       sdr_jornada_envios: {
         Row: {
           created_at: string
@@ -6604,6 +7038,39 @@ export type Database = {
           rota?: string | null
           sessao?: string
           tipo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      visoes_salvas: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          filtros: Json
+          id: string
+          nome: string
+          objeto: string
+          ordem: number
+          user_id: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          filtros?: Json
+          id?: string
+          nome: string
+          objeto: string
+          ordem?: number
+          user_id?: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          filtros?: Json
+          id?: string
+          nome?: string
+          objeto?: string
+          ordem?: number
           user_id?: string
         }
         Relationships: []
@@ -7435,6 +7902,16 @@ export type Database = {
         Returns: boolean
       }
       can_view_wa_account: { Args: { _account_id: string }; Returns: boolean }
+      carteiras_sem_dono: {
+        Args: never
+        Returns: {
+          abertos: number
+          empresas: number
+          ganhos: number
+          negocios: number
+          nome: string
+        }[]
+      }
       ciclo_de_vida_calculado: { Args: { _company: string }; Returns: string }
       comissao_responder: {
         Args: { _aprova: boolean; _fechamento: string; _texto: string }
@@ -7479,6 +7956,7 @@ export type Database = {
         }[]
       }
       cs_gen_client_uid: { Args: never; Returns: string }
+      cs_inicio_operacao: { Args: never; Returns: string }
       cs_phone_digits: { Args: { _v: string }; Returns: string }
       cs_refresh_escalations: { Args: never; Returns: number }
       cs_settle_meetings: { Args: never; Returns: number }
@@ -7495,6 +7973,10 @@ export type Database = {
             Args: { _renewal?: string; _start: string }
             Returns: Database["public"]["Enums"]["cs_journey_stage"]
           }
+      cs_trazer_pessoas_da_empresa: {
+        Args: { _client_uid?: string; _contact_id?: string }
+        Returns: number
+      }
       deal_data_ganho: {
         Args: { _deal: Database["public"]["Tables"]["deals"]["Row"] }
         Returns: string
@@ -7526,6 +8008,15 @@ export type Database = {
         Args: { ate?: string; criterio: string; origem: string }
         Returns: number
       }
+      email_segmento_base: {
+        Args: { limite?: number; regras: Json }
+        Returns: {
+          email: string
+          empresa: string
+          lead_id: string
+          nome: string
+        }[]
+      }
       email_segmento_contagem: { Args: { regras: Json }; Returns: number }
       email_segmento_leads: {
         Args: { limite?: number; regras: Json }
@@ -7550,6 +8041,23 @@ export type Database = {
           mais_antiga: string
           parcelas: number
           valor: number
+        }[]
+      }
+      empresas_da_base: {
+        Args: never
+        Returns: {
+          cidade: string
+          cnpj: string
+          contatos: number
+          estado: string
+          id: string
+          negocios_abertos: number
+          negocios_ganhos: number
+          nome: string
+          owner_user_id: string
+          sdr_user_id: string
+          segmento: string
+          ultimo_negocio: string
         }[]
       }
       empresas_parecidas: {
@@ -7597,6 +8105,7 @@ export type Database = {
       }
       is_manager: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      juntar_fichas_da_empresa: { Args: { _company: string }; Returns: number }
       lead_is_rd_import: {
         Args: { l: Database["public"]["Tables"]["leads"]["Row"] }
         Returns: boolean
@@ -7604,6 +8113,10 @@ export type Database = {
       leads_da_carteira: { Args: { _execs: string[] }; Returns: string[] }
       ligar_filiais: {
         Args: { _filhas: string[]; _grupo: string; _mae: string }
+        Returns: Json
+      }
+      mesclar_clientes_cs: {
+        Args: { _fica: string; _sai: string }
         Returns: Json
       }
       mesclar_empresas: { Args: { _fica: string; _sai: string }; Returns: Json }
@@ -7659,6 +8172,7 @@ export type Database = {
         Args: { _account_id: string; _assigned: string; _lead_id: string }
         Returns: boolean
       }
+      pode_ver_empresas: { Args: { _user_id: string }; Returns: boolean }
       pode_ver_fatura: { Args: { _deal_id: string }; Returns: boolean }
       pode_ver_requerimento: { Args: { _req: string }; Returns: boolean }
       reabrir_grupo_de_parecidas: { Args: { _grupo: string }; Returns: Json }
@@ -7682,6 +8196,18 @@ export type Database = {
       trainer_status_sessao: {
         Args: { _sessao: string; _status: string }
         Returns: undefined
+      }
+      transferir_carteira: {
+        Args: {
+          _destino: string
+          _empresas?: boolean
+          _negocios?: string
+          _nome: string
+        }
+        Returns: {
+          empresas: number
+          negocios: number
+        }[]
       }
       turma_checkin: {
         Args: { _inscricao: string; _presente: boolean }
@@ -7722,7 +8248,12 @@ export type Database = {
       app_role: "super_admin" | "gestao" | "executivo" | "sdr" | "trainer"
       app_team: "comercial" | "cs" | "administrativo"
       cs_client_type: "empresa" | "consultoria" | "pessoa_fisica"
-      cs_contact_origin: "manual" | "email_bcc" | "pda_api" | "linkedin"
+      cs_contact_origin:
+        | "manual"
+        | "email_bcc"
+        | "pda_api"
+        | "linkedin"
+        | "empresa"
       cs_journey_stage: "onboarding" | "ativacao" | "renovacao"
       cs_origin: "marketing" | "indicacao" | "outbound" | "renovacao"
       cs_signal: "verde" | "amarelo" | "vermelho" | "sem_dado" | "preto"
@@ -7858,7 +8389,13 @@ export const Constants = {
       app_role: ["super_admin", "gestao", "executivo", "sdr", "trainer"],
       app_team: ["comercial", "cs", "administrativo"],
       cs_client_type: ["empresa", "consultoria", "pessoa_fisica"],
-      cs_contact_origin: ["manual", "email_bcc", "pda_api", "linkedin"],
+      cs_contact_origin: [
+        "manual",
+        "email_bcc",
+        "pda_api",
+        "linkedin",
+        "empresa",
+      ],
       cs_journey_stage: ["onboarding", "ativacao", "renovacao"],
       cs_origin: ["marketing", "indicacao", "outbound", "renovacao"],
       cs_signal: ["verde", "amarelo", "vermelho", "sem_dado", "preto"],
