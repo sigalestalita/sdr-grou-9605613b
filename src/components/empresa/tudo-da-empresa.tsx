@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { tudoDaEmpresa } from "@/lib/empresa-unificada.functions";
 import { FichaCadastralCard } from "@/components/fichas/ficha-cadastral";
 import { PoliticaFaturamentoCard } from "@/components/faturamento/politica-card";
+import { ResumoDaConta } from "@/components/empresa/resumo-da-conta";
 import { ReunioesAnalisadas } from "@/components/reunioes-analisadas";
 
 /*
@@ -230,6 +231,8 @@ export function EmpresaSemFicha({ companyId }: { companyId: string }) {
           tarefas).
         </p>
       </div>
+
+      <ResumoDaConta companyId={companyId} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="surface-panel p-4">

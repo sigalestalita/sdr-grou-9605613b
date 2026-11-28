@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate, useParams } from "@tanstack/react-r
 import { useEffect, useMemo, useState } from "react";
 import { abrirFichaDaEmpresa } from "@/lib/empresa-unificada.functions";
 import { EmpresaSemFicha, TudoDaEmpresaPanel } from "@/components/empresa/tudo-da-empresa";
+import { ResumoDaConta } from "@/components/empresa/resumo-da-conta";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -323,6 +324,9 @@ function FichaDoCliente({ clientUid }: { clientUid: string }) {
           </Button>
         </div>
       </div>
+
+      {/* Resumo por time: o que cada time fez com a conta (todos veem). */}
+      {client.company_id ? <ResumoDaConta companyId={client.company_id} /> : null}
 
       {/* Três colunas: propriedades · atividade · associações */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)_300px]">
