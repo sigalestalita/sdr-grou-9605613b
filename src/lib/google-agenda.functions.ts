@@ -65,3 +65,15 @@ export const desconectarGoogleAgenda = createServerFn({ method: "POST" })
     await g.desconectarGoogle(await admin(), context.userId);
     return { ok: true };
   });
+
+/** Delegação do Google Workspace (agenda do time inteiro): só o que não é secreto. */
+export const statusDelegacaoGoogle = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: gestor } = await context.supabase.rpc("is_manager", {
+      _user_id: context.userId,
+    });
+    if (!gestor) return null;
+    const { statusDaDelegacao } = await import("@/lib/google/delegacao.server");
+    return statusDaDelegacao();
+  });

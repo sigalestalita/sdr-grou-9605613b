@@ -322,6 +322,18 @@ export async function lerEventosDoGoogle(
   const token = await acessoDe(admin, userId);
   if (!token) return null;
   const conta = await googleConectado(admin, userId);
+  return {
+    email: (conta?.email as string | null | undefined) ?? null,
+    eventos: await lerEventosComToken(token, de, ate),
+  };
+}
+
+/** Eventos da agenda principal de quem o token representa (OAuth ou delegação). */
+export async function lerEventosComToken(
+  token: string,
+  de: Date,
+  ate: Date,
+): Promise<import("@/lib/cs/gcal.server").GcalEvent[]> {
   const eventos: import("@/lib/cs/gcal.server").GcalEvent[] = [];
   let pagina: string | undefined;
   for (let i = 0; i < 20; i++) {
@@ -344,5 +356,5 @@ export async function lerEventosDoGoogle(
     pagina = j.nextPageToken;
     if (!pagina) break;
   }
-  return { email: (conta?.email as string | null | undefined) ?? null, eventos };
+  return eventos;
 }
