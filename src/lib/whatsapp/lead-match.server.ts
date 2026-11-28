@@ -63,6 +63,9 @@ export async function acharContatoPorTelefone(
     .from("whatsapp_contacts")
     .select("*")
     .eq("phone_key", chave)
+    // Sempre o mesmo (o mais antigo): sem ordem o banco devolvia um qualquer
+    // e cada mensagem podia abrir uma conversa nova para a mesma pessoa.
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
   if (!porChave.error) return porChave.data ?? null;

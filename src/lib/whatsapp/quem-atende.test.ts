@@ -46,4 +46,9 @@ describe("temMensagemDeHumano", () => {
       expect(temMensagemDeHumano([{ sender_type: t }])).toBe(true);
     }
   });
+
+  it("número pessoal não mostra IA atendendo", () => {
+    expect(quemAtende({ status: "open", semIa: true })).toBe("pessoal");
+    expect(quemAtende({ status: "open", semIa: true, temMensagemHumana: true })).toBe("humano");
+  });
 });

@@ -266,7 +266,9 @@ function WhatsappInbox() {
                 } ${isSel ? "bg-white/5" : ""}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium truncate">{lead?.name ?? "Sem nome"}</p>
+                  <p className="text-sm font-medium truncate">
+                    {(c as { nome_exibicao?: string }).nome_exibicao ?? lead?.name ?? "Sem nome"}
+                  </p>
                   <div className="flex items-center gap-1">
                     {isWaitingForLisiane && (
                       <Badge
@@ -293,6 +295,7 @@ function WhatsappInbox() {
                       assumedAt: (c as { assumed_at?: string | null }).assumed_at,
                       temMensagemHumana: (c as { tem_mensagem_humana?: boolean })
                         .tem_mensagem_humana,
+                      semIa: (c as { sem_ia?: boolean }).sem_ia,
                     });
                     if (estado === "encerrada") return null;
                     return (
@@ -369,7 +372,9 @@ function WhatsappInbox() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-medium truncate">
-                      {(selectedConv.leads as { name?: string | null } | null)?.name ?? "Sem nome"}
+                      {(selectedConv as { nome_exibicao?: string }).nome_exibicao ??
+                        (selectedConv.leads as { name?: string | null } | null)?.name ??
+                        "Sem nome"}
                     </p>
                     {(() => {
                       const estado = quemAtende({
@@ -377,6 +382,7 @@ function WhatsappInbox() {
                         assumedAt: (selectedConv as { assumed_at?: string | null }).assumed_at,
                         temMensagemHumana: (selectedConv as { tem_mensagem_humana?: boolean })
                           .tem_mensagem_humana,
+                        semIa: (selectedConv as { sem_ia?: boolean }).sem_ia,
                       });
                       return (
                         <Badge

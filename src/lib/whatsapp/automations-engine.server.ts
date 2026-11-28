@@ -156,11 +156,11 @@ async function executeRuleForLead(
   const telefone = phoneDigits(lead.phone);
   let contactId: string | null = null;
   if (telefone) {
-    const { data: jaExiste } = await supabaseAdmin
-      .from("whatsapp_contacts")
-      .select("id, lead_id")
-      .eq("phone", telefone)
-      .maybeSingle();
+    const { acharContatoPorTelefone } = await import("./lead-match.server");
+    const jaExiste = (await acharContatoPorTelefone(supabaseAdmin, telefone)) as {
+      id: string;
+      lead_id: string | null;
+    } | null;
     if (jaExiste) {
       contactId = jaExiste.id;
       // Só adota o contato órfão; um que já é de outro lead não muda de dono.
@@ -301,11 +301,11 @@ export async function garantirContato(
   const telefone = phoneDigits(lead.phone);
   if (!telefone) return null;
 
-  const { data: jaExiste } = await supabaseAdmin
-    .from("whatsapp_contacts")
-    .select("id, lead_id")
-    .eq("phone", telefone)
-    .maybeSingle();
+  const { acharContatoPorTelefone } = await import("./lead-match.server");
+  const jaExiste = (await acharContatoPorTelefone(supabaseAdmin, telefone)) as {
+    id: string;
+    lead_id: string | null;
+  } | null;
   if (jaExiste) {
     // Só adota o contato órfão; um que já é de outro lead não muda de dono.
     if (!jaExiste.lead_id) {

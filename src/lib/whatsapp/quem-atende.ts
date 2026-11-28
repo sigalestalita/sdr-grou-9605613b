@@ -8,7 +8,7 @@
  * bastão ter sido passado.
  */
 
-export type QuemAtende = "ia" | "aguardando_humano" | "humano" | "encerrada";
+export type QuemAtende = "ia" | "aguardando_humano" | "humano" | "encerrada" | "pessoal";
 
 export type EstadoDaConversa = {
   status: string | null | undefined;
@@ -16,12 +16,15 @@ export type EstadoDaConversa = {
   assumedAt?: string | null;
   /** Alguma mensagem escrita por gente, mesmo sem ter clicado em assumir. */
   temMensagemHumana?: boolean;
+  /** Número pessoal (coexistência): a IA nunca responde lá. */
+  semIa?: boolean;
 };
 
 export function quemAtende(e: EstadoDaConversa): QuemAtende {
   if (e.status === "closed") return "encerrada";
   if (e.assumedAt || e.temMensagemHumana) return "humano";
   if (e.status === "pending") return "aguardando_humano";
+  if (e.semIa) return "pessoal";
   return "ia";
 }
 
@@ -40,6 +43,7 @@ export const ROTULO_DE_QUEM_ATENDE: Record<QuemAtende, string> = {
   aguardando_humano: "Aguardando SDR",
   humano: "Com a SDR",
   encerrada: "Encerrada",
+  pessoal: "Número pessoal",
 };
 
 export const EXPLICACAO_DE_QUEM_ATENDE: Record<QuemAtende, string> = {
@@ -47,6 +51,8 @@ export const EXPLICACAO_DE_QUEM_ATENDE: Record<QuemAtende, string> = {
   aguardando_humano: "O bastão foi passado e ninguém assumiu ainda. A IA não responde mais aqui.",
   humano: "Uma pessoa assumiu a conversa. A IA não responde mais aqui.",
   encerrada: "Conversa encerrada.",
+  pessoal:
+    "Conversa do número pessoal (coexistência). A IA não responde aqui: quem atende é o dono do número, pelo celular ou por aqui.",
 };
 
 /** Classes de cor por estado, para o selo ficar igual no kanban e no chat. */
@@ -55,6 +61,7 @@ export const COR_DE_QUEM_ATENDE: Record<QuemAtende, string> = {
   aguardando_humano: "border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400",
   humano: "border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
   encerrada: "border-border bg-muted text-muted-foreground",
+  pessoal: "border-violet-500/50 bg-violet-500/10 text-violet-600 dark:text-violet-400",
 };
 
 const HUMANOS = new Set(["sdr", "agent", "human"]);
