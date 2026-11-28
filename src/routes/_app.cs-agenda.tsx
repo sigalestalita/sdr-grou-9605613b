@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -19,6 +19,8 @@ import {
   Video,
 } from "lucide-react";
 import { AgendarReuniaoDialog, VincularEventoDialog } from "@/components/cs/agendar-reuniao";
+import { AvisoAgendaBusy } from "@/components/cs/aviso-agenda-busy";
+import { useAuth } from "@/lib/use-auth";
 
 /** Item da agenda: evento da Google Agenda ou reunião marcada no Compass. */
 type ItemAgenda = {
@@ -156,6 +158,7 @@ function CsAgendaPage() {
     );
   }, [data?.owners, data?.users]);
 
+  const { user } = useAuth();
   const sync = useMutation({
     mutationFn: () => syncFn({ data: { all: true } }),
     onSuccess: (r) => {
@@ -164,6 +167,10 @@ function CsAgendaPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Erro"),
   });
+
+  const sincronizarRef = useRef(sync.mutate);
+  sincronizarRef.current = sync.mutate;
+  const sincronizarDepoisDoGoogle = useCallback(() => sincronizarRef.current(), []);
 
   const itens = useMemo<ItemAgenda[]>(() => {
     type Ev = {
@@ -293,6 +300,18 @@ function CsAgendaPage() {
           </Button>
         </div>
       </div>
+
+      <AvisoAgendaBusy
+        pessoas={
+          (data?.users ?? []) as Array<{
+            userId: string;
+            name: string;
+            gcalLastError: string | null;
+          }>
+        }
+        euId={user?.id ?? null}
+        sincronizar={sincronizarDepoisDoGoogle}
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-md border p-0.5">

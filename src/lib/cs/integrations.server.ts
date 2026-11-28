@@ -401,22 +401,44 @@ export async function disconnectGoogleCalendar(userId: string) {
 /** Baixa a agenda Google de cada pessoa e espelha em cs_calendly_events (provider google). */
 export async function syncGoogleCalendars(userIds: string[] | null, days = 60, pastDays = 120) {
   const { fetchGoogleCalendar } = await import("@/lib/cs/gcal.server");
+  const { lerEventosDoGoogle } = await import("@/lib/google/agenda.server");
   let q = supabaseAdmin
     .from("cs_user_integrations")
     .select("user_id, gcal_ics_url, gcal_email")
     .not("gcal_ics_url", "is", null);
   if (userIds?.length) q = q.in("user_id", userIds);
-  const { data: rows, error } = await q;
+  const { data: icsRows, error } = await q;
   if (error) throw new Error(error.message);
+  /*
+   * Quem conectou o Google (OAuth) é lido pela API: vem título, convidados e
+   * link. O endereço iCal fica para quem não conectou — e o público só traz
+   * "Busy".
+   */
+  let qo = supabaseAdmin.from("google_agenda_contas" as never).select("user_id");
+  if (userIds?.length) qo = qo.in("user_id", userIds);
+  const { data: oauthRows } = await qo;
+  const comOauth = new Set(((oauthRows ?? []) as Array<{ user_id: string }>).map((r) => r.user_id));
+  const rows = [
+    ...(icsRows ?? []),
+    ...[...comOauth]
+      .filter((id) => !(icsRows ?? []).some((r) => r.user_id === id))
+      .map((user_id) => ({ user_id, gcal_ics_url: null as string | null, gcal_email: null })),
+  ];
 
   const from = new Date(Date.now() - pastDays * 86400000);
   const to = new Date(Date.now() + days * 86400000);
   let events = 0;
   const failures: string[] = [];
-  for (const row of rows ?? []) {
-    if (!row.gcal_ics_url) continue;
+  for (const row of rows) {
     try {
-      const list = await fetchGoogleCalendar(row.gcal_ics_url, from, to);
+      const pelaApi = comOauth.has(row.user_id)
+        ? await lerEventosDoGoogle(supabaseAdmin as never, row.user_id, from, to)
+        : null;
+      if (!pelaApi && !row.gcal_ics_url) continue;
+      const list = pelaApi
+        ? pelaApi.eventos
+        : await fetchGoogleCalendar(row.gcal_ics_url as string, from, to);
+      if (pelaApi?.email && !row.gcal_email) row.gcal_email = pelaApi.email;
       const me = row.gcal_email?.toLowerCase() ?? null;
       const prepared = list.map((e) => {
         // convidado "principal": primeiro que não é o próprio analista nem organizador interno
@@ -460,9 +482,10 @@ export async function syncGoogleCalendars(userIds: string[] | null, days = 60, p
         .update({
           gcal_last_sync_at: new Date().toISOString(),
           // Endereço público sincroniza, mas só traz "Busy": avisa para trocar.
-          gcal_last_error: /\/public\/basic\.ics/i.test(String(row.gcal_ics_url ?? ""))
-            ? "Agenda ligada pelo endereço público: os eventos chegam só como “Busy”. Troque pelo “Endereço secreto no formato iCal”."
-            : null,
+          gcal_last_error:
+            !pelaApi && /\/public\/basic\.ics/i.test(String(row.gcal_ics_url ?? ""))
+              ? "Agenda ligada pelo endereço público: os eventos chegam só como “Busy”. Conecte a conta Google (na Agenda ou em Integrações) para ver título e convidados."
+              : null,
         })
         .eq("user_id", row.user_id);
     } catch (e) {
@@ -474,7 +497,7 @@ export async function syncGoogleCalendars(userIds: string[] | null, days = 60, p
         .eq("user_id", row.user_id);
     }
   }
-  return { users: (rows ?? []).length, events, failures };
+  return { users: rows.length, events, failures };
 }
 
 /** Calendly + Google Agenda e, em seguida, liquida as reuniões já terminadas. */
