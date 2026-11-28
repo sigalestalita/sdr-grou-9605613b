@@ -246,3 +246,103 @@ export async function cancelarEventoNoGoogle(admin: Admin, userId: string, event
   });
   return res.ok || res.status === 404 || res.status === 410;
 }
+
+type EventoApi = {
+  id: string;
+  iCalUID?: string;
+  status?: string;
+  summary?: string;
+  location?: string;
+  description?: string;
+  hangoutLink?: string;
+  start?: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
+  originalStartTime?: { dateTime?: string; date?: string };
+  recurringEventId?: string;
+  organizer?: { email?: string };
+  attendees?: Array<{ email?: string; displayName?: string; responseStatus?: string }>;
+  conferenceData?: { entryPoints?: Array<{ entryPointType?: string; uri?: string }> };
+};
+
+const quando = (t?: { dateTime?: string; date?: string }) =>
+  t?.dateTime ? new Date(t.dateTime) : t?.date ? new Date(`${t.date}T00:00:00-03:00`) : null;
+
+/** Converte um evento da API do Google no mesmo formato do .ics. */
+export function eventoDaApi(ev: EventoApi): import("@/lib/cs/gcal.server").GcalEvent | null {
+  const inicio = quando(ev.start);
+  if (!inicio) return null;
+  const fim = quando(ev.end);
+  const original = quando(ev.originalStartTime) ?? inicio;
+  const uid = ev.iCalUID ?? ev.id;
+  return {
+    // Mesmo identificador do .ics: quem trocou o endereço iCal pela conexão
+    // do Google não fica com o evento duplicado.
+    event_uri: `google:${uid}:${original.toISOString()}`,
+    name: ev.summary ?? null,
+    status: ev.status === "cancelled" ? "canceled" : "active",
+    start_time: inicio.toISOString(),
+    end_time: fim?.toISOString() ?? null,
+    location: ev.location ?? null,
+    meeting_url:
+      ev.hangoutLink ??
+      ev.conferenceData?.entryPoints?.find((p) => p.entryPointType === "video")?.uri ??
+      (ev.location?.startsWith("http") ? ev.location : null) ??
+      null,
+    organizer_email: ev.organizer?.email?.toLowerCase() ?? null,
+    attendees: (ev.attendees ?? [])
+      .filter((a) => a.email?.includes("@"))
+      .map((a) => ({
+        email: a.email!.toLowerCase(),
+        name: a.displayName ?? null,
+        status: a.responseStatus ?? null,
+      })),
+    invitee_name: null,
+    invitee_email: null,
+    raw: {
+      uid,
+      google_id: ev.id,
+      recurring: !!ev.recurringEventId,
+      recurrence_id: ev.recurringEventId ? original.toISOString() : null,
+      fonte: "api",
+    },
+  };
+}
+
+/**
+ * Eventos da agenda principal pela conexão do Google (OAuth), com título,
+ * convidados e link: o endereço iCal público só traz "Busy", e o secreto pode
+ * estar bloqueado pelo Google Workspace. null quando a pessoa não conectou.
+ */
+export async function lerEventosDoGoogle(
+  admin: Admin,
+  userId: string,
+  de: Date,
+  ate: Date,
+): Promise<{ email: string | null; eventos: import("@/lib/cs/gcal.server").GcalEvent[] } | null> {
+  const token = await acessoDe(admin, userId);
+  if (!token) return null;
+  const conta = await googleConectado(admin, userId);
+  const eventos: import("@/lib/cs/gcal.server").GcalEvent[] = [];
+  let pagina: string | undefined;
+  for (let i = 0; i < 20; i++) {
+    const q = new URLSearchParams({
+      timeMin: de.toISOString(),
+      timeMax: ate.toISOString(),
+      singleEvents: "true",
+      showDeleted: "false",
+      maxResults: "2500",
+      orderBy: "startTime",
+    });
+    if (pagina) q.set("pageToken", pagina);
+    const res = await fetch(`${API}?${q}`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`Google Agenda respondeu ${res.status}`);
+    const j = (await res.json()) as { items?: EventoApi[]; nextPageToken?: string };
+    for (const ev of j.items ?? []) {
+      const e = eventoDaApi(ev);
+      if (e) eventos.push(e);
+    }
+    pagina = j.nextPageToken;
+    if (!pagina) break;
+  }
+  return { email: (conta?.email as string | null | undefined) ?? null, eventos };
+}
